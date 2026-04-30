@@ -80,6 +80,13 @@ nav:
       - Pre-commit Hooks: guides/pre_commit.md
       - Params / Config Pattern: guides/params_config.md
       - Webapp setup: guides/webapp_setup.md
+  - Library:
+      - Overview: library/index.md
+      - Language: library/language.md
+      - Words: library/words.md
+      - Progress: library/progress.md
+      - Exercises: library/exercises.md
+      - LLM chains: library/llm.md
   - API Reference: reference/
   - Contributing: contributing.md
 

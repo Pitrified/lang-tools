@@ -1,0 +1,14 @@
+Suggest practice conversation topics for a language learner.
+
+Target language: {{ language }}
+Difficulty level: {{ difficulty_level }}
+Number of topics: {{ num_topics }}
+
+{% if exclude_topics %}
+Avoid topics that overlap with these:
+{% for topic in exclude_topics %}
+- {{ topic }}
+{% endfor %}
+{% endif %}
+
+Return a flat list of {{ num_topics }} short, concrete topic strings (3-8 words each). Topics should be appropriate for the requested difficulty: simple daily-life scenarios for beginners, abstract or specialised themes for advanced learners.

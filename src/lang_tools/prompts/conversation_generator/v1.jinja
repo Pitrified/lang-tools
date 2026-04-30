@@ -1,0 +1,16 @@
+You generate short bilingual practice dialogues for language learners.
+
+Topic: {{ topic }}
+Target language: {{ language }}
+Difficulty level: {{ difficulty_level }}
+Number of turns: {{ num_turns }}
+Maximum sentences per turn: {{ max_sentences_per_turn }}
+
+{% if sample_conversation %}
+Use this sample conversation as a calibration of style and difficulty (do not copy it):
+{{ sample_conversation }}
+{% endif %}
+
+Produce a dialogue alternating between two roles: `user` (the learner) and `system` (their conversation partner). Each turn must include both the target-language `content` and the English `translation`.
+
+Stay on topic. Keep vocabulary appropriate to the requested difficulty.

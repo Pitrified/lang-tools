@@ -1,0 +1,20 @@
+Generate vocabulary for a language learner.
+
+Target language: {{ language }}
+Topic: {{ topic }}
+Number of words: {{ num_words }}
+Difficulty level: {{ difficulty }}
+Require accented characters: {{ require_accents }}
+
+For each word produce a `GeneratedWord` with:
+- `text`: the word in {{ language }}.
+- `translation`: an English gloss of the most common meaning.
+- `part_of_speech`: noun / verb / adjective / etc.
+- `example_sentence`: a natural example sentence in {{ language }}.
+- `example_translation`: English translation of the example sentence.
+
+{% if require_accents %}
+Only include words whose target-language spelling contains at least one accented character.
+{% endif %}
+
+Avoid duplicates and stay on topic.

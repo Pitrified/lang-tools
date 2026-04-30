@@ -1,0 +1,12 @@
+Split the following {{ language }} text into short, meaningful portions suitable for a sentence-reconstruction exercise.
+
+Text:
+{{ text }}
+
+Rules:
+- Each portion should be 1-4 words.
+- Preserve word order: concatenating the portions in order must reproduce the original text exactly (apart from whitespace normalisation).
+- Prefer splits at clause and phrase boundaries.
+- Keep punctuation attached to the adjacent word.
+
+Return the portions as an ordered list in `portions`.

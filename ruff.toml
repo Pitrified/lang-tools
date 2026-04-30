@@ -19,15 +19,19 @@ ignore = [
 
 [lint.per-file-ignores]
 "*.ipynb" = [
+    "E501",   # Line too long
     "ERA001", # Found commented-out code
-    "F401", # unused import
-    "T20",  # print found
+    "F401",   # unused import
+    "S311",   # Standard pseudo-random generators
+    "T20",    # print found
 ]
 "tests/*" = [
     "ARG001", # Unused function argument: mocks and similar
+    "D103",   # Missing docstring in public function
     "INP001", # File `tests/...` is part of an implicit namespace package. Add an `__init__.py`. Causes a bug.
     "PLR2004", # Magic value used in comparison, consider replacing `NUM` with a constant variable
     "S101",   # Use of assert detected
+    "S311",   # Standard pseudo-random generators
 ]
 "meta/*" = [
     "INP001", # Implicit namespace package
