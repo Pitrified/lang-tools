@@ -8,7 +8,7 @@ dependencies = [
     "chroma-haystack>=2.0.1",
     "python-dotenv>=1.0",
     "haystack-ai>=2.10.0",
-    "llm-core[openai] @ git+https://github.com/Pitrified/llm-core@v0.2.1",
+    "llm-core[openai] @ git+https://github.com/Pitrified/llm-core@v0.2.2",
     "loguru>=0.7.3",
     "ollama-haystack>=2.3.0",
     "openai>=1.63.0",
