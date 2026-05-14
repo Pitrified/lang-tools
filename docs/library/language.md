@@ -9,6 +9,16 @@ A `Language` is a Pydantic model carrying the alphabet metadata that the
 exercises and ingestion pipelines need. The shipped presets cover Portuguese,
 French, Spanish, Italian, English, and German.
 
+Each `Language` holds:
+
+- Core identity (`code`, `name`, `native_name`).
+- Accent metadata (`accented_chars`, `normalization_map`).
+- Keyboard layout hints (`keyboard_rows`, `accent_keys`) consumed by
+  on-screen input widgets in the wordle and diacritic-typing exercises.
+
+Exercise-specific settings (such as allowed word lengths) are **not** stored
+on `Language`. See [`WordleConfig`](exercises.md#wordle) for wordle settings.
+
 ```python
 from lang_tools.language import LANGUAGE_PRESETS, get_language
 

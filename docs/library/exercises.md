@@ -49,6 +49,19 @@ Guess a hidden word in `len(word) + 1` attempts. After each guess each
 letter receives a state of `correct`, `misplaced`, `wrong`, or `unused`. A
 keyboard map is maintained for the UI.
 
+Game-level settings (allowed word lengths and the default) are configured
+via `WordleConfig`, which is separate from the `Language` model:
+
+```python
+from lang_tools.exercises import WordleConfig
+
+config = WordleConfig()                                     # defaults: [4,5,6,7], default=5
+config = WordleConfig(word_lengths=[5], default_word_length=5)  # five-letter only
+```
+
+A webapp can read `config.word_lengths` to populate a length selector and
+use `config.default_word_length` as the pre-selected value.
+
 ## Conversational tutor
 
 The loosely-coupled exercise: the caller supplies a `chain` callable

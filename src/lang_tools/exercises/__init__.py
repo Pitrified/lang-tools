@@ -8,6 +8,7 @@ Public API:
     DiacriticTypingExercise, WordleExercise, ConversationalTutorExercise:
     concrete exercise classes.
     HintLevel: literal for diacritic-typing hint levels.
+    WordleConfig: configuration for a Wordle exercise session.
 """
 
 from lang_tools.exercises.base import EXERCISE_TYPES
@@ -25,6 +26,7 @@ from lang_tools.exercises.sentence_reconstruction import SentenceReconstructionE
 from lang_tools.exercises.wordle import LetterResult
 from lang_tools.exercises.wordle import LetterState
 from lang_tools.exercises.wordle import WordleExercise
+from lang_tools.exercises.wordle_config import WordleConfig
 
 __all__ = [
     "EXERCISE_TYPES",
@@ -41,5 +43,6 @@ __all__ = [
     "SessionSummary",
     "TutorMessage",
     "WordResult",
+    "WordleConfig",
     "WordleExercise",
 ]

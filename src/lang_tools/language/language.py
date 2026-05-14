@@ -2,7 +2,10 @@
 
 Languages are identified by their ISO 639-1 code. Each preset bundles the
 accented characters set, normalization map (covering ligatures NFD cannot
-decompose), Wordle word-length config, and on-screen keyboard layout.
+decompose), and keyboard layout hints for on-screen input widgets.
+
+Wordle-specific settings (allowed word lengths, default word length) live in
+``WordleConfig`` in ``lang_tools.exercises.wordle_config``.
 """
 
 from __future__ import annotations
@@ -40,10 +43,9 @@ class Language(BaseModel):
         accented_chars: Set of accented/composed characters used by the language.
         normalization_map: Explicit per-character map from accented to base form
             (covers ligatures and special cases NFD cannot decompose).
-        word_lengths: Allowed word lengths for the Wordle exercise.
-        default_word_length: Default Wordle word length.
-        keyboard_rows: Rows of base letters for the on-screen keyboard.
-        accent_keys: Extra keys for diacritic input.
+        keyboard_rows: Rows of base letters for the on-screen keyboard layout hint
+            (used by on-screen input widgets in wordle and diacritic-typing exercises).
+        accent_keys: Extra keys for diacritic input (on-screen keyboard hint).
     """
 
     code: str
@@ -51,8 +53,6 @@ class Language(BaseModel):
     native_name: str
     accented_chars: set[str] = Field(default_factory=set)
     normalization_map: dict[str, str] = Field(default_factory=dict)
-    word_lengths: list[int] = Field(default_factory=lambda: [4, 5, 6, 7])
-    default_word_length: int = 5
     keyboard_rows: list[list[str]] = Field(default_factory=lambda: _QWERTY_ROWS)
     accent_keys: list[str] = Field(default_factory=list)
 
@@ -132,8 +132,7 @@ def _de() -> Language:
 
 
 LANGUAGE_PRESETS: dict[str, Language] = {
-    lang.code: lang
-    for lang in (_pt(), _fr(), _es(), _it(), _en(), _de())
+    lang.code: lang for lang in (_pt(), _fr(), _es(), _it(), _en(), _de())
 }
 
 
