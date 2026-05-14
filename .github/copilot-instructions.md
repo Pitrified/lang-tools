@@ -14,6 +14,10 @@ Python 3.13, managed with **uv**. Package name is `lang_tools`.
 
 Long-form roadmap: `/home/pmn/ephem/linux-box-cloudflare/scratch_space/vibes/10-language-overview/`.
 
+## AI code development
+
+At the end of the overall task assigned by the user, instead of ending the conversation, always use the #askQuestions tool to ask the user if they want to add more details, features, or constraints to the task. This allows for iterative refinement and ensures that the final implementation closely matches the user's needs.
+
 ## Running & tooling
 
 ```bash
