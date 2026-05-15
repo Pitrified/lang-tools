@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 from pydantic import Field
+from pydantic import computed_field
 
 _QWERTY_ROWS: list[list[str]] = [
     list("qwertyuiop"),
@@ -45,7 +46,9 @@ class Language(BaseModel):
             (covers ligatures and special cases NFD cannot decompose).
         keyboard_rows: Rows of base letters for the on-screen keyboard layout hint
             (used by on-screen input widgets in wordle and diacritic-typing exercises).
-        accent_keys: Extra keys for diacritic input (on-screen keyboard hint).
+        accent_keys: Sorted list of accented characters; derived from
+            ``accented_chars``. Consumed by on-screen input widgets as the
+            extra diacritic key row.
     """
 
     code: str
@@ -54,7 +57,12 @@ class Language(BaseModel):
     accented_chars: set[str] = Field(default_factory=set)
     normalization_map: dict[str, str] = Field(default_factory=dict)
     keyboard_rows: list[list[str]] = Field(default_factory=lambda: _QWERTY_ROWS)
-    accent_keys: list[str] = Field(default_factory=list)
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def accent_keys(self) -> list[str]:
+        """Sorted accented characters for the on-screen diacritic key row."""
+        return sorted(self.accented_chars)
 
 
 def _pt() -> Language:
@@ -68,7 +76,6 @@ def _pt() -> Language:
         | {
             "\u00e7": "c",
         },
-        accent_keys=sorted(chars),
     )
 
 
@@ -82,7 +89,6 @@ def _fr() -> Language:
         native_name="Fran\u00e7ais",
         accented_chars=chars,
         normalization_map={"\u0153": "oe", "\u00e6": "ae", "\u00e7": "c"},
-        accent_keys=sorted(chars),
     )
 
 
@@ -94,7 +100,6 @@ def _es() -> Language:
         native_name="Espa\u00f1ol",
         accented_chars=chars,
         normalization_map={"\u00f1": "n"},
-        accent_keys=sorted(chars),
     )
 
 
@@ -105,7 +110,6 @@ def _it() -> Language:
         name="Italian",
         native_name="Italiano",
         accented_chars=chars,
-        accent_keys=sorted(chars),
     )
 
 
@@ -115,7 +119,6 @@ def _en() -> Language:
         name="English",
         native_name="English",
         accented_chars=set(),
-        accent_keys=[],
     )
 
 
@@ -127,7 +130,6 @@ def _de() -> Language:
         native_name="Deutsch",
         accented_chars=chars,
         normalization_map={"\u00df": "ss"},
-        accent_keys=sorted(chars),
     )
 
 
