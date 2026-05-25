@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
     from llm_core.chat.config.base import ChatConfig
 
-    from lang_tools.exercises.conversational_tutor import TutorMessage
+from lang_tools.exercises.conversational_tutor import TutorMessage  # noqa: TC001
 
 
 class ErrorDetail(BaseModel):

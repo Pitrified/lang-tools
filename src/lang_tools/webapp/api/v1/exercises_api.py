@@ -18,11 +18,13 @@ from fastapi_tools.schemas.auth import SessionData  # noqa: TC002
 from pydantic import BaseModel
 from pydantic import Field
 
+from lang_tools.exercises.conversational_tutor import TutorMessage
 from lang_tools.exercises.diacritic_typing import DiacriticTypingExercise
 from lang_tools.exercises.pair_matching import PairMatchingExercise
 from lang_tools.exercises.sentence_reconstruction import SentenceReconstructionExercise
 from lang_tools.exercises.wordle import WordleExercise
 from lang_tools.webapp.core.auth import get_current_user
+from lang_tools.webapp.services.tutor_service import tutor_reply
 from lang_tools.words.word_store import get_words_filtered
 
 router = APIRouter(prefix="/exercises", tags=["exercises-api"])
@@ -30,6 +32,7 @@ router = APIRouter(prefix="/exercises", tags=["exercises-api"])
 # In-memory session state (per-user game state).
 # In production this would be stored in a DB or cache.
 _active_rounds: dict[str, Any] = {}
+_tutor_histories: dict[str, list[TutorMessage]] = {}
 
 
 class PairMatchingStartRequest(BaseModel):
@@ -83,6 +86,7 @@ class TutorMessageRequest(BaseModel):
 
     text: str
     topic: str = ""
+    language: str = "pt"
 
 
 class ExerciseResponse(BaseModel):
@@ -326,19 +330,27 @@ async def tutor_message(
     body: TutorMessageRequest,
     user: Annotated[SessionData, Depends(get_current_user)],
 ) -> ExerciseResponse:
-    """Send a message to the conversational tutor.
+    """Send a message to the conversational tutor."""
+    history_key = f"{user.email}:tutor"
+    history = _tutor_histories.setdefault(history_key, [])
 
-    Note: Requires LLM integration. Returns placeholder for now.
-    """
+    history.append(TutorMessage(role="user", content=body.text))
+    reply = tutor_reply(
+        body.text,
+        history,
+        language=body.language,
+        topic=body.topic,
+    )
+    history.append(reply)
+
     return ExerciseResponse(
         status="ok",
         data={
-            "reply": (
-                "Conversational tutor requires LLM integration. "
-                "This endpoint will be connected when llm-core chains "
-                "are wired up."
-            ),
-            "correction": None,
+            "response": {
+                "content": reply.content,
+                "correction": reply.correction,
+                "translation": reply.translation,
+            },
         },
     )
 

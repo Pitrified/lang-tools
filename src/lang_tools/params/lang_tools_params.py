@@ -13,6 +13,7 @@ from loguru import logger as lg
 from lang_tools.metaclasses.singleton import Singleton
 from lang_tools.params.env_type import EnvType
 from lang_tools.params.lang_tools_paths import LangToolsPaths
+from lang_tools.params.llm_params import LlmParams
 from lang_tools.params.sample_params import SampleParams
 from lang_tools.params.webapp import WebappParams
 
@@ -43,6 +44,7 @@ class LangToolsParams(metaclass=Singleton):
         """Load the lang_tools configuration."""
         self.paths = LangToolsPaths(env_type=self.env_type)
         self.sample = SampleParams()
+        self.llm = LlmParams()
         self.webapp = WebappParams(
             stage=self.env_type.stage,
             location=self.env_type.location,
@@ -53,6 +55,7 @@ class LangToolsParams(metaclass=Singleton):
         s = "LangToolsParams:"
         s += f"\n{self.paths}"
         s += f"\n{self.sample}"
+        s += f"\n{self.llm}"
         s += f"\n{self.webapp}"
         return s
 
@@ -74,3 +77,8 @@ def get_lang_tools_paths() -> LangToolsPaths:
 def get_webapp_params() -> WebappParams:
     """Get the webapp params."""
     return get_lang_tools_params().webapp
+
+
+def get_llm_params() -> LlmParams:
+    """Get the LLM params."""
+    return get_lang_tools_params().llm
