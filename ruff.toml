@@ -33,6 +33,9 @@ ignore = [
     "S101",   # Use of assert detected
     "S311",   # Standard pseudo-random generators
 ]
+"src/lang_tools/webapp/**" = [
+    "ARG001", # Unused function argument: FastAPI DI injects via signature
+]
 "meta/*" = [
     "INP001", # Implicit namespace package
     "T20",    # print found

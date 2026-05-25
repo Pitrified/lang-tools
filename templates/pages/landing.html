@@ -7,10 +7,16 @@
   <div class="hero-body">
     <div class="container has-text-centered">
       <p class="title is-2">{{ app_name }}</p>
-      <p class="subtitle is-4">A FastAPI web application template with Google&nbsp;OAuth, HTMX&nbsp;&amp;&nbsp;Bulma.</p>
+      <p class="subtitle is-4">A unified language-learning platform with exercises, vocabulary, and AI tutoring.</p>
+      {% if not user %}
       <a class="button is-white is-large mt-4" href="/auth/google/login">
         <strong>Login with Google</strong>
       </a>
+      {% else %}
+      <a class="button is-white is-large mt-4" href="/exercises">
+        <strong>Start Practicing</strong>
+      </a>
+      {% endif %}
     </div>
   </div>
 </section>
@@ -20,27 +26,41 @@
     <div class="columns is-centered">
       <div class="column is-8">
         <div class="content has-text-centered">
-          <h2 class="title is-4">What's inside?</h2>
+          <h2 class="title is-4">Exercise Types</h2>
           <div class="columns is-multiline">
             <div class="column is-4">
               <div class="box">
-                <span class="icon is-large has-text-primary"><i>🔒</i></span>
-                <p class="title is-6 mt-2">Secure by default</p>
-                <p class="is-size-7">CSP, SameSite cookies, CSRF protection, rate limiting.</p>
+                <span class="icon is-large has-text-primary"><i>🔤</i></span>
+                <p class="title is-6 mt-2">Pair Matching</p>
+                <p class="is-size-7">Match words to translations.</p>
               </div>
             </div>
             <div class="column is-4">
               <div class="box">
-                <span class="icon is-large has-text-info"><i>⚡</i></span>
-                <p class="title is-6 mt-2">HTMX-powered</p>
-                <p class="is-size-7">Smooth partial updates without a SPA toolchain.</p>
+                <span class="icon is-large has-text-success"><i>🟩</i></span>
+                <p class="title is-6 mt-2">Wordle</p>
+                <p class="is-size-7">Guess hidden words with positional clues.</p>
               </div>
             </div>
             <div class="column is-4">
               <div class="box">
-                <span class="icon is-large has-text-success"><i>🐍</i></span>
-                <p class="title is-6 mt-2">Pure Python</p>
-                <p class="is-size-7">No Node.js build step. Jinja2&nbsp;+&nbsp;Bulma&nbsp;CSS.</p>
+                <span class="icon is-large has-text-info"><i>✍️</i></span>
+                <p class="title is-6 mt-2">Diacritic Typing</p>
+                <p class="is-size-7">Practice accented character placement.</p>
+              </div>
+            </div>
+            <div class="column is-4">
+              <div class="box">
+                <span class="icon is-large has-text-warning"><i>🧩</i></span>
+                <p class="title is-6 mt-2">Sentence Reconstruction</p>
+                <p class="is-size-7">Rebuild sentences from shuffled parts.</p>
+              </div>
+            </div>
+            <div class="column is-4">
+              <div class="box">
+                <span class="icon is-large has-text-link"><i>💬</i></span>
+                <p class="title is-6 mt-2">Conversational Tutor</p>
+                <p class="is-size-7">Chat with AI correction and feedback.</p>
               </div>
             </div>
           </div>

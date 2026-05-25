@@ -11,9 +11,10 @@ from fastapi import Query
 from fastapi import Request
 from fastapi.responses import HTMLResponse
 from fastapi.responses import RedirectResponse
-from fastapi_tools.dependencies import get_current_user
-from fastapi_tools.dependencies import get_optional_user
 from fastapi_tools.schemas.auth import SessionData
+
+from lang_tools.webapp.core.auth import get_current_user
+from lang_tools.webapp.core.auth import get_optional_user
 
 # Map OAuth error codes to user-friendly messages
 _ERROR_MESSAGES: dict[str, str] = {

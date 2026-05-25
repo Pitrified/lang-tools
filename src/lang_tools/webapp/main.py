@@ -5,7 +5,12 @@ from fastapi_tools import create_app
 
 from lang_tools.params.lang_tools_params import get_lang_tools_paths
 from lang_tools.params.lang_tools_params import get_webapp_params
+from lang_tools.webapp.api.v1.api_router import router as api_router
+from lang_tools.webapp.routers.exercises_router import router as exercises_router
+from lang_tools.webapp.routers.languages_router import router as languages_router
 from lang_tools.webapp.routers.pages_router import router as pages_router
+from lang_tools.webapp.routers.progress_router import router as progress_router
+from lang_tools.webapp.routers.words_router import router as words_router
 
 
 def build_app() -> FastAPI:
@@ -20,7 +25,14 @@ def build_app() -> FastAPI:
 
     return create_app(
         config=config,
-        extra_routers=[pages_router],
+        extra_routers=[
+            pages_router,
+            exercises_router,
+            words_router,
+            progress_router,
+            languages_router,
+            api_router,
+        ],
         static_dir=paths.static_fol,
         templates_dir=paths.templates_fol,
     )

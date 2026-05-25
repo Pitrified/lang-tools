@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Sentence Reconstruction – {{ app_name }}{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container">
+    <nav class="breadcrumb" aria-label="breadcrumbs">
+      <ul>
+        <li><a href="/exercises">Exercises</a></li>
+        <li class="is-active"><a href="#" aria-current="page">Sentence Reconstruction</a></li>
+      </ul>
+    </nav>
+
+    <h1 class="title is-3">Sentence Reconstruction</h1>
+    <p class="subtitle is-5">Tap the word portions in the correct order to rebuild the sentence.</p>
+
+    <div class="box">
+      <p class="is-size-5 mb-2"><strong>Translation:</strong></p>
+      <p id="translation-text" class="is-size-4 has-text-info">
+        <span class="has-text-grey">Press "New Sentence" to begin</span>
+      </p>
+    </div>
+
+    <div id="reconstructed" class="box has-background-light mb-4">
+      <p class="is-size-5 is-family-monospace">&nbsp;</p>
+    </div>
+
+    <div id="portions" class="buttons is-centered are-medium">
+      {# Shuffled portions as clickable buttons, populated by JS #}
+    </div>
+
+    <div id="reconstruction-feedback" class="notification is-hidden mt-4"></div>
+
+    <div class="mt-5">
+      <button id="btn-new-sentence" class="button is-success">New Sentence</button>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts_extra %}
+<script src="/static/js/sentence_reconstruction.js"></script>
+{% endblock %}

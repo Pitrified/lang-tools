@@ -27,6 +27,12 @@ _STATIC_DIR = _PROJECT_ROOT / "static"
 _TEMPLATES_DIR = _PROJECT_ROOT / "templates"
 
 
+@pytest.fixture(autouse=True)
+def _force_prod_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Force prod mode in webapp tests so auth bypass is disabled."""
+    monkeypatch.setenv("ENV_STAGE_TYPE", "prod")
+
+
 @pytest.fixture
 def test_config() -> WebappConfig:
     """Create test webapp configuration."""

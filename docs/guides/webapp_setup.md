@@ -102,6 +102,20 @@ The API will be available at:
 - **Docs**: http://localhost:8000/docs (Swagger UI)
 - **ReDoc**: http://localhost:8000/redoc
 
+### Dev Mode Auth Bypass
+
+When `ENV_STAGE_TYPE=dev` (the default for local development), authentication is bypassed entirely. A hardcoded dev user is injected for all requests requiring auth:
+
+- **Name**: Dev User
+- **Email**: dev@localhost
+
+This means you can skip the Google OAuth setup during development and immediately access all pages and API endpoints. No `.env` file or credentials are needed to get started.
+
+```bash
+# Quickest way to start (no .env needed):
+ENV_STAGE_TYPE=dev uv run uvicorn lang_tools.webapp.app:app --reload
+```
+
 ### 5. Download Static Assets
 
 To ensure the webapp uses self-hosted assets, download the required files into the `static/` directory,

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Exercises – {{ app_name }}{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container">
+    <h1 class="title is-3">Exercises</h1>
+    <p class="subtitle is-5">Choose an exercise to practice.</p>
+
+    <div class="columns is-multiline">
+
+      <div class="column is-4">
+        <div class="box">
+          <h2 class="title is-5">Pair Matching</h2>
+          <p class="mb-4">Match words to their translations. Quick vocabulary drill.</p>
+          <a class="button is-primary" href="/exercises/pair-matching">Start</a>
+        </div>
+      </div>
+
+      <div class="column is-4">
+        <div class="box">
+          <h2 class="title is-5">Wordle</h2>
+          <p class="mb-4">Guess the hidden word letter by letter with positional feedback.</p>
+          <a class="button is-primary" href="/exercises/wordle">Start</a>
+        </div>
+      </div>
+
+      <div class="column is-4">
+        <div class="box">
+          <h2 class="title is-5">Diacritic Typing</h2>
+          <p class="mb-4">Type accented characters one by one to spell a word correctly.</p>
+          <a class="button is-primary" href="/exercises/diacritic-typing">Start</a>
+        </div>
+      </div>
+
+      <div class="column is-4">
+        <div class="box">
+          <h2 class="title is-5">Sentence Reconstruction</h2>
+          <p class="mb-4">Reorder shuffled word portions to rebuild a sentence.</p>
+          <a class="button is-primary" href="/exercises/sentence-reconstruction">Start</a>
+        </div>
+      </div>
+
+      <div class="column is-4">
+        <div class="box">
+          <h2 class="title is-5">Conversational Tutor</h2>
+          <p class="mb-4">Chat in your target language and receive corrections from an AI tutor.</p>
+          <a class="button is-primary" href="/exercises/conversational-tutor">Start</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+{% endblock %}
