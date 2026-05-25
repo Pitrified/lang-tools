@@ -35,13 +35,11 @@
 
     <div id="feedback" class="notification is-hidden mt-4"></div>
 
-    <div class="mt-5">
-      <button id="btn-start" class="button is-success is-medium"
-              hx-post="/api/v1/exercises/pair-matching/start"
-              hx-target="#game-area"
-              hx-swap="innerHTML">
+    <div class="mt-5 buttons">
+      <button id="btn-start" class="button is-success is-medium">
         New Round
       </button>
+      {% include "partials/_language_select.html" %}
     </div>
   </div>
 </section>
