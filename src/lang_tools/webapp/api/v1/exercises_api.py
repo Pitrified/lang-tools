@@ -6,21 +6,30 @@ Called by the exercise page JavaScript.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import random
 from typing import Annotated
 from typing import Any
+from typing import Literal
 
 from fastapi import APIRouter
 from fastapi import Depends
+from fastapi import HTTPException
+from fastapi_tools.schemas.auth import SessionData  # noqa: TC002
 from pydantic import BaseModel
 from pydantic import Field
 
+from lang_tools.exercises.diacritic_typing import DiacriticTypingExercise
+from lang_tools.exercises.pair_matching import PairMatchingExercise
+from lang_tools.exercises.sentence_reconstruction import SentenceReconstructionExercise
+from lang_tools.exercises.wordle import WordleExercise
 from lang_tools.webapp.core.auth import get_current_user
+from lang_tools.words.word_store import get_words_filtered
 
-if TYPE_CHECKING:
-    from fastapi_tools.schemas.auth import SessionData
+router = APIRouter(prefix="/exercises", tags=["exercises-api"])
 
-router = APIRouter(prefix="/api/v1/exercises", tags=["exercises-api"])
+# In-memory session state (per-user game state).
+# In production this would be stored in a DB or cache.
+_active_rounds: dict[str, Any] = {}
 
 
 class PairMatchingStartRequest(BaseModel):
@@ -48,7 +57,7 @@ class DiacriticStartRequest(BaseModel):
     """Request body to start a diacritic typing round."""
 
     language: str = "pt"
-    hint_level: str = "off"
+    hint_level: Literal["off", "show_unaccented", "show_all"] = "off"
 
 
 class DiacriticKeystrokeRequest(BaseModel):
@@ -88,23 +97,56 @@ async def pair_matching_start(
     body: PairMatchingStartRequest,
     user: Annotated[SessionData, Depends(get_current_user)],
 ) -> ExerciseResponse:
-    """Start a new pair matching round.
+    """Start a new pair matching round using real words."""
+    words = get_words_filtered(language=body.language)
+    # Filter to words that have the target translation
+    words_with_trans = [
+        w for w in words if body.target_language in w.translations
+    ]
+    if len(words_with_trans) < body.num_words:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Not enough words with {body.target_language} translation.",
+        )
+    selected = random.sample(words_with_trans, body.num_words)
+    exercise = PairMatchingExercise(target_language=body.target_language)
+    round_ = exercise.start(selected)
 
-    Args:
-        body: Request with language settings.
-        user: Authenticated user.
+    # Store round for submit calls
+    round_key = f"{user.user_id}:pair_matching"
+    _active_rounds[round_key] = (exercise, round_)
 
-    Returns:
-        Round prompt data with left and right word columns.
-    """
-    # Placeholder - in full implementation, selects words from DB
     return ExerciseResponse(
         status="ok",
         data={
-            "message": "Pair matching not yet connected to word store.",
-            "left_words": [],
-            "right_words": [],
+            "left_words": round_.prompt["left_words"],
+            "right_words": round_.prompt["right_words"],
         },
+    )
+
+
+class PairMatchingSubmitRequest(BaseModel):
+    """Request body to submit a pair match."""
+
+    left: str
+    right: str
+
+
+@router.post("/pair-matching/submit")
+async def pair_matching_submit(
+    body: PairMatchingSubmitRequest,
+    user: Annotated[SessionData, Depends(get_current_user)],
+) -> ExerciseResponse:
+    """Submit a single pair match."""
+    round_key = f"{user.user_id}:pair_matching"
+    state = _active_rounds.get(round_key)
+    if not state:
+        raise HTTPException(status_code=400, detail="No active pair matching game.")
+    exercise, round_ = state
+    result = exercise.submit(round_, (body.left, body.right))
+    return ExerciseResponse(
+        status="ok",
+        data={"correct": result.correct, "left": body.left, "right": body.right},
     )
 
 
@@ -113,22 +155,26 @@ async def wordle_start(
     body: WordleStartRequest,
     user: Annotated[SessionData, Depends(get_current_user)],
 ) -> ExerciseResponse:
-    """Start a new wordle game.
+    """Start a new wordle game with a real word."""
+    words = get_words_filtered(language=body.language)
+    candidates = [w for w in words if w.length == body.word_length]
+    if not candidates:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No {body.word_length}-letter words for {body.language}.",
+        )
+    target = random.choice(candidates)
+    exercise = WordleExercise()
+    round_ = exercise.start(target)
 
-    Args:
-        body: Request with language and word length.
-        user: Authenticated user.
+    round_key = f"{user.user_id}:wordle"
+    _active_rounds[round_key] = (exercise, round_)
 
-    Returns:
-        Game configuration (word length, max attempts).
-    """
-    max_attempts = body.word_length + 1
     return ExerciseResponse(
         status="ok",
         data={
-            "word_length": body.word_length,
-            "max_attempts": max_attempts,
-            "message": "Wordle not yet connected to word store.",
+            "word_length": round_.prompt["word_length"],
+            "max_attempts": round_.prompt["max_attempts"],
         },
     )
 
@@ -138,19 +184,28 @@ async def wordle_guess(
     body: WordleGuessRequest,
     user: Annotated[SessionData, Depends(get_current_user)],
 ) -> ExerciseResponse:
-    """Submit a wordle guess.
-
-    Args:
-        body: Request with the guess.
-        user: Authenticated user.
-
-    Returns:
-        Letter results for the guess.
-    """
-    return ExerciseResponse(
-        status="ok",
-        data={"message": "Wordle guess evaluation not yet implemented."},
-    )
+    """Submit a wordle guess."""
+    round_key = f"{user.user_id}:wordle"
+    state = _active_rounds.get(round_key)
+    if not state:
+        raise HTTPException(status_code=400, detail="No active wordle game.")
+    exercise, round_ = state
+    result = exercise.submit(round_, body.guess)
+    guesses = round_.prompt["guesses"]
+    results = round_.prompt["results"]
+    max_attempts: int = round_.prompt["max_attempts"]
+    finished = result.correct or len(guesses) >= max_attempts
+    data: dict[str, Any] = {
+        "letters": results[-1] if results else [],
+        "finished": finished,
+        "correct": result.correct,
+        "attempts_left": max_attempts - len(guesses),
+        "keyboard_state": round_.prompt["keyboard_state"],
+    }
+    if finished:
+        data["answer"] = round_.expected.target.text
+        del _active_rounds[round_key]
+    return ExerciseResponse(status="ok", data=data)
 
 
 @router.post("/diacritic-typing/start")
@@ -158,18 +213,29 @@ async def diacritic_start(
     body: DiacriticStartRequest,
     user: Annotated[SessionData, Depends(get_current_user)],
 ) -> ExerciseResponse:
-    """Start a new diacritic typing round.
+    """Start a new diacritic typing round with a real accented word."""
+    words = get_words_filtered(language=body.language)
+    accented = [w for w in words if w.has_accent]
+    if not accented:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No accented words for {body.language}.",
+        )
+    word = random.choice(accented)
+    exercise = DiacriticTypingExercise()
+    round_ = exercise.start(word, hint_level=body.hint_level)
 
-    Args:
-        body: Request with language and hint level.
-        user: Authenticated user.
+    round_key = f"{user.user_id}:diacritic"
+    _active_rounds[round_key] = (exercise, round_)
 
-    Returns:
-        Word display and keyboard configuration.
-    """
     return ExerciseResponse(
         status="ok",
-        data={"message": "Diacritic typing not yet connected to word store."},
+        data={
+            "display": round_.prompt["display"],
+            "glosses": round_.prompt["glosses"],
+            "word_length": len(round_.prompt["display"]),
+            "translation": word.translations.get("en", ""),
+        },
     )
 
 
@@ -178,19 +244,24 @@ async def diacritic_keystroke(
     body: DiacriticKeystrokeRequest,
     user: Annotated[SessionData, Depends(get_current_user)],
 ) -> ExerciseResponse:
-    """Submit a keystroke for diacritic typing.
-
-    Args:
-        body: Request with the typed character.
-        user: Authenticated user.
-
-    Returns:
-        Updated display state.
-    """
-    return ExerciseResponse(
-        status="ok",
-        data={"message": "Diacritic keystroke evaluation not yet implemented."},
-    )
+    """Submit a keystroke for diacritic typing."""
+    round_key = f"{user.user_id}:diacritic"
+    state = _active_rounds.get(round_key)
+    if not state:
+        raise HTTPException(
+            status_code=400, detail="No active diacritic game.",
+        )
+    exercise, round_ = state
+    result = exercise.submit(round_, body.character)
+    data: dict[str, Any] = {
+        "display": round_.prompt["display"],
+        "correct_so_far": result.correct,
+        "finished": len(result.word_results) > 0,
+        "errors": round_.expected.error_count,
+    }
+    if len(result.word_results) > 0:
+        del _active_rounds[round_key]
+    return ExerciseResponse(status="ok", data=data)
 
 
 @router.post("/sentence-reconstruction/start")
@@ -198,18 +269,31 @@ async def reconstruction_start(
     body: ReconstructionStartRequest,
     user: Annotated[SessionData, Depends(get_current_user)],
 ) -> ExerciseResponse:
-    """Start a sentence reconstruction round.
+    """Start a sentence reconstruction round using word examples."""
+    words = get_words_filtered(language=body.language)
+    words_with_examples = [w for w in words if w.examples]
+    if not words_with_examples:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No words with examples for {body.language}.",
+        )
+    word = random.choice(words_with_examples)
+    example = word.examples[0]
+    exercise = SentenceReconstructionExercise()
+    round_ = exercise.start(
+        sentence=example.sentence,
+        translation=example.translation or word.translations.get("en", ""),
+    )
 
-    Args:
-        body: Request with target language.
-        user: Authenticated user.
+    round_key = f"{user.user_id}:reconstruction"
+    _active_rounds[round_key] = (exercise, round_)
 
-    Returns:
-        Translation and shuffled portions.
-    """
     return ExerciseResponse(
         status="ok",
-        data={"message": "Sentence reconstruction not yet connected to content."},
+        data={
+            "translation": round_.prompt["translation"],
+            "portions": round_.prompt["portions"],
+        },
     )
 
 
@@ -218,19 +302,23 @@ async def reconstruction_submit(
     body: ReconstructionSubmitRequest,
     user: Annotated[SessionData, Depends(get_current_user)],
 ) -> ExerciseResponse:
-    """Submit a reconstruction attempt.
-
-    Args:
-        body: Request with selected portions in order.
-        user: Authenticated user.
-
-    Returns:
-        Whether the reconstruction is correct.
-    """
-    return ExerciseResponse(
-        status="ok",
-        data={"message": "Reconstruction evaluation not yet implemented."},
-    )
+    """Submit a reconstruction attempt."""
+    round_key = f"{user.user_id}:reconstruction"
+    state = _active_rounds.get(round_key)
+    if not state:
+        raise HTTPException(
+            status_code=400, detail="No active reconstruction game.",
+        )
+    exercise, round_ = state
+    result = exercise.submit(round_, body.selected_portions)
+    data: dict[str, Any] = {
+        "correct": result.correct,
+        "finished": len(result.word_results) > 0,
+    }
+    if len(result.word_results) > 0:
+        data["answer"] = " ".join(round_.expected)
+        del _active_rounds[round_key]
+    return ExerciseResponse(status="ok", data=data)
 
 
 @router.post("/conversational-tutor/message")
@@ -240,14 +328,17 @@ async def tutor_message(
 ) -> ExerciseResponse:
     """Send a message to the conversational tutor.
 
-    Args:
-        body: Request with user text and topic.
-        user: Authenticated user.
-
-    Returns:
-        Tutor response with correction and continuation.
+    Note: Requires LLM integration. Returns placeholder for now.
     """
     return ExerciseResponse(
         status="ok",
-        data={"message": "Conversational tutor not yet connected to LLM."},
+        data={
+            "reply": (
+                "Conversational tutor requires LLM integration. "
+                "This endpoint will be connected when llm-core chains "
+                "are wired up."
+            ),
+            "correction": None,
+        },
     )
+
