@@ -1,0 +1,51 @@
+text,language,part_of_speech,frequency,topics,translation_en,example_sentence,example_translation
+casa,it,noun,high,"home,basics",house,Vivo in questa casa.,I live in this house.
+acqua,it,noun,high,"food,basics",water,Vorrei un bicchiere d'acqua.,I would like a glass of water.
+mangiare,it,verb,high,"food,basics",to eat,Andiamo a mangiare insieme.,Let's go eat together.
+buono,it,adjective,high,basics,good,Il film era molto buono.,The movie was very good.
+giorno,it,noun,high,"time,basics",day,Oggi è una bella giornata.,Today is a beautiful day.
+fare,it,verb,high,basics,to do/make,Cosa vuoi fare?,What do you want to do?
+andare,it,verb,high,"travel,basics",to go,Vado al mercato.,I'm going to the market.
+parlare,it,verb,high,"conversation,basics",to speak,Lui parla italiano.,He speaks Italian.
+tempo,it,noun,high,"time,weather",time/weather,Il tempo è bello oggi.,The weather is nice today.
+persona,it,noun,high,basics,person,È una brava persona.,She is a good person.
+lavoro,it,noun,high,"work,basics",work,Il mio lavoro è interessante.,My work is interesting.
+città,it,noun,high,"travel,places",city,Roma è una grande città.,Rome is a big city.
+amico,it,noun,high,"people,basics",friend,È il mio migliore amico.,He is my best friend.
+libro,it,noun,medium,"education,culture",book,Sto leggendo un libro.,I'm reading a book.
+cibo,it,noun,high,"food,basics",food,Il cibo italiano è delizioso.,Italian food is delicious.
+notte,it,noun,high,"time,basics",night,Buona notte a tutti.,Good night everyone.
+scuola,it,noun,high,"education,places",school,I bambini vanno a scuola.,The children go to school.
+soldi,it,noun,high,"money,basics",money,Non ho abbastanza soldi.,I don't have enough money.
+problema,it,noun,high,basics,problem,Non è un problema.,That is not a problem.
+cuore,it,noun,medium,"body,emotions",heart,Il mio cuore è felice.,My heart is happy.
+spiaggia,it,noun,medium,"travel,nature",beach,Andiamo in spiaggia sabato.,Let's go to the beach on Saturday.
+bello,it,adjective,high,basics,beautiful,Che bel posto!,What a beautiful place!
+pioggia,it,noun,medium,"weather,nature",rain,La pioggia non si ferma.,The rain doesn't stop.
+finestra,it,noun,medium,"home,basics",window,Apri la finestra per favore.,Open the window please.
+musica,it,noun,medium,"culture,entertainment",music,Adoro la musica italiana.,I love Italian music.
+dormire,it,verb,high,basics,to sleep,Devo dormire presto.,I need to sleep early.
+caffè,it,noun,high,"food,culture",coffee,Voglio un caffè forte.,I want a strong coffee.
+strada,it,noun,high,"places,basics",street,La strada è affollata.,The street is busy.
+figlio,it,noun,high,"family,basics",son,Mio figlio ha cinque anni.,My son is five years old.
+madre,it,noun,high,"family,basics",mother,Mia madre cucina bene.,My mother cooks well.
+padre,it,noun,high,"family,basics",father,Mio padre lavora qui.,My father works here.
+fratello,it,noun,high,"family,basics",brother,Ho un fratello maggiore.,I have an older brother.
+macchina,it,noun,high,"transport,basics",car,La macchina è rossa.,The car is red.
+porta,it,noun,medium,"home,basics",door,Chiudi la porta.,Close the door.
+verde,it,adjective,medium,"colors,nature",green,Il giardino è molto verde.,The garden is very green.
+caldo,it,adjective,medium,"weather,basics",hot,Fa molto caldo oggi.,It's very hot today.
+freddo,it,adjective,medium,"weather,basics",cold,L'inverno è freddo.,Winter is cold.
+cominciare,it,verb,medium,basics,to begin,Cominciamo adesso.,Let's begin now.
+capire,it,verb,medium,"conversation,basics",to understand,Non capisco questa parola.,I don't understand this word.
+aiutare,it,verb,medium,basics,to help,Posso aiutarti?,Can I help you?
+grazie,it,interjection,high,"conversation,basics",thank you,Grazie mille per l'aiuto.,Thank you very much for the help.
+piacere,it,noun,medium,"conversation,basics",pleasure,Piacere di conoscerti.,Pleased to meet you.
+storia,it,noun,medium,"education,culture",history/story,La storia d'Italia è ricca.,Italy's history is rich.
+chiesa,it,noun,medium,"places,culture",church,La chiesa è antica.,The church is old.
+mercato,it,noun,high,"places,shopping",market,Vado al mercato a comprare frutta.,I'm going to the market to buy fruit.
+medico,it,noun,medium,"health,people",doctor,Devo andare dal medico.,I need to go to the doctor.
+felice,it,adjective,high,"emotions,basics",happy,Sono molto felice oggi.,I'm very happy today.
+triste,it,adjective,medium,emotions,sad,Lui è triste.,He is sad.
+gelato,it,noun,medium,"food,culture",ice cream,Il gelato italiano è il migliore.,Italian ice cream is the best.
+pizza,it,noun,high,"food,culture",pizza,La pizza margherita è classica.,Margherita pizza is a classic.

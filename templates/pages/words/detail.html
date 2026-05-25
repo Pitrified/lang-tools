@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Word Detail – {{ app_name }}{% endblock %}
+{% block title %}{{ word.text if word else 'Unknown' }} – {{ app_name }}{% endblock %}
 
 {% block content %}
 <section class="section">
@@ -8,17 +8,61 @@
     <nav class="breadcrumb" aria-label="breadcrumbs">
       <ul>
         <li><a href="/words">Words</a></li>
-        <li class="is-active"><a href="#" aria-current="page">{{ word_id }}</a></li>
+        <li class="is-active"><a href="#" aria-current="page">{{ word.text if word else word_id }}</a></li>
       </ul>
     </nav>
 
-    <div id="word-detail"
-         hx-get="/api/v1/words/{{ word_id }}"
-         hx-trigger="load"
-         hx-target="this"
-         hx-swap="innerHTML">
-      <p class="has-text-centered has-text-grey">Loading word details...</p>
+    {% if word %}
+    <div class="box">
+      <h1 class="title is-2">{{ word.text }}</h1>
+      <div class="tags">
+        <span class="tag is-info">{{ word.language }}</span>
+        {% if word.part_of_speech %}<span class="tag is-primary">{{ word.part_of_speech }}</span>{% endif %}
+        {% if word.frequency %}<span class="tag is-warning">{{ word.frequency }}</span>{% endif %}
+        {% if word.has_accent %}<span class="tag is-success">accented</span>{% endif %}
+      </div>
+
+      <div class="columns mt-4">
+        <div class="column is-6">
+          <h2 class="title is-5">Translations</h2>
+          {% if word.translations %}
+          <table class="table is-fullwidth">
+            {% for lang, trans in word.translations.items() %}
+            <tr><td><strong>{{ lang }}</strong></td><td>{{ trans }}</td></tr>
+            {% endfor %}
+          </table>
+          {% else %}
+          <p class="has-text-grey">No translations available.</p>
+          {% endif %}
+        </div>
+        <div class="column is-6">
+          <h2 class="title is-5">Info</h2>
+          <p><strong>Normalized:</strong> {{ word.normalized }}</p>
+          <p><strong>Length:</strong> {{ word.length }} characters</p>
+          {% if word.accented_chars %}
+          <p><strong>Accented chars:</strong> {{ word.accented_chars | join(', ') }}</p>
+          {% endif %}
+          {% if word.topics %}
+          <p><strong>Topics:</strong> {% for t in word.topics %}<span class="tag is-light mr-1">{{ t }}</span>{% endfor %}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if word.examples %}
+      <h2 class="title is-5 mt-4">Examples</h2>
+      {% for ex in word.examples %}
+      <div class="box">
+        <p><strong>{{ ex.sentence }}</strong></p>
+        {% if ex.translation %}<p class="has-text-grey">{{ ex.translation }}</p>{% endif %}
+      </div>
+      {% endfor %}
+      {% endif %}
     </div>
+    {% else %}
+    <div class="notification is-warning">
+      Word not found: <code>{{ word_id }}</code>
+    </div>
+    {% endif %}
   </div>
 </section>
 {% endblock %}

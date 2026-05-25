@@ -1,0 +1,51 @@
+text,language,part_of_speech,frequency,topics,translation_en,example_sentence,example_translation
+casa,es,noun,high,"home,basics",house,Yo vivo en esta casa.,I live in this house.
+agua,es,noun,high,"food,basics",water,Quiero un vaso de agua.,I want a glass of water.
+comer,es,verb,high,"food,basics",to eat,Vamos a comer juntos.,Let's eat together.
+bueno,es,adjective,high,basics,good,La película fue muy buena.,The movie was very good.
+día,es,noun,high,"time,basics",day,Hoy es un buen día.,Today is a good day.
+hacer,es,verb,high,basics,to do/make,¿Qué quieres hacer?,What do you want to do?
+ir,es,verb,high,"travel,basics",to go,Voy al mercado.,I'm going to the market.
+hablar,es,verb,high,"conversation,basics",to speak,Él habla español.,He speaks Spanish.
+tiempo,es,noun,high,"time,weather",time/weather,El tiempo está bonito hoy.,The weather is nice today.
+persona,es,noun,high,basics,person,Es una buena persona.,She is a good person.
+trabajo,es,noun,high,"work,basics",work,Mi trabajo es interesante.,My work is interesting.
+ciudad,es,noun,high,"travel,places",city,Madrid es una gran ciudad.,Madrid is a big city.
+amigo,es,noun,high,"people,basics",friend,Él es mi mejor amigo.,He is my best friend.
+libro,es,noun,medium,"education,culture",book,Estoy leyendo un libro.,I'm reading a book.
+comida,es,noun,high,"food,basics",food,La comida mexicana es deliciosa.,Mexican food is delicious.
+noche,es,noun,high,"time,basics",night,Buenas noches a todos.,Good night everyone.
+escuela,es,noun,high,"education,places",school,Los niños van a la escuela.,The children go to school.
+dinero,es,noun,high,"money,basics",money,No tengo suficiente dinero.,I don't have enough money.
+problema,es,noun,high,basics,problem,Eso no es un problema.,That is not a problem.
+corazón,es,noun,medium,"body,emotions",heart,Mi corazón está contento.,My heart is happy.
+playa,es,noun,medium,"travel,nature",beach,Vamos a la playa el sábado.,Let's go to the beach on Saturday.
+bonito,es,adjective,medium,basics,beautiful,¡Qué lugar tan bonito!,What a beautiful place!
+lluvia,es,noun,medium,"weather,nature",rain,La lluvia no para.,The rain doesn't stop.
+ventana,es,noun,medium,"home,basics",window,Abre la ventana por favor.,Open the window please.
+música,es,noun,medium,"culture,entertainment",music,Me encanta la música latina.,I love Latin music.
+dormir,es,verb,high,basics,to sleep,Necesito dormir temprano.,I need to sleep early.
+café,es,noun,high,"food,culture",coffee,Quiero un café fuerte.,I want a strong coffee.
+calle,es,noun,high,"places,basics",street,La calle está muy animada.,The street is very busy.
+hijo,es,noun,high,"family,basics",son,Mi hijo tiene cinco años.,My son is five years old.
+madre,es,noun,high,"family,basics",mother,Mi madre cocina muy bien.,My mother cooks very well.
+padre,es,noun,high,"family,basics",father,Mi padre trabaja aquí.,My father works here.
+hermano,es,noun,high,"family,basics",brother,Tengo un hermano mayor.,I have an older brother.
+coche,es,noun,high,"transport,basics",car,El coche es rojo.,The car is red.
+puerta,es,noun,medium,"home,basics",door,Cierra la puerta.,Close the door.
+verde,es,adjective,medium,"colors,nature",green,El parque es muy verde.,The park is very green.
+caliente,es,adjective,medium,"weather,basics",hot,Hace mucho calor hoy.,It's very hot today.
+frío,es,adjective,medium,"weather,basics",cold,El invierno es frío.,Winter is cold.
+empezar,es,verb,medium,basics,to begin,Vamos a empezar ahora.,Let's begin now.
+entender,es,verb,medium,"conversation,basics",to understand,No entiendo esa palabra.,I don't understand that word.
+ayudar,es,verb,medium,basics,to help,¿Puedo ayudarte?,Can I help you?
+gracias,es,interjection,high,"conversation,basics",thank you,Muchas gracias por la ayuda.,Thank you very much for the help.
+iglesia,es,noun,medium,"places,culture",church,La iglesia es antigua.,The church is old.
+mercado,es,noun,high,"places,shopping",market,Voy al mercado a comprar frutas.,I'm going to the market to buy fruit.
+médico,es,noun,medium,"health,people",doctor,Necesito ir al médico.,I need to go to the doctor.
+feliz,es,adjective,high,"emotions,basics",happy,Estoy muy feliz hoy.,I'm very happy today.
+triste,es,adjective,medium,emotions,sad,Él está triste.,He is sad.
+hermoso,es,adjective,medium,basics,gorgeous,¡Qué día tan hermoso!,What a gorgeous day!
+perro,es,noun,medium,"animals,basics",dog,Mi perro es muy juguetón.,My dog is very playful.
+gato,es,noun,medium,"animals,basics",cat,El gato duerme en el sofá.,The cat sleeps on the sofa.
+fiesta,es,noun,medium,"culture,entertainment",party,La fiesta fue increíble.,The party was incredible.

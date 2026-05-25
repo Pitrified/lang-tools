@@ -16,7 +16,7 @@
             <div class="control">
               <div class="select is-fullwidth">
                 <select id="filter-language"
-                        hx-get="/words"
+                        hx-get="/words/partial"
                         hx-target="#word-table-container"
                         hx-swap="innerHTML"
                         hx-include="#filter-topic"
@@ -27,6 +27,7 @@
                   <option value="es" {% if language_filter == "es" %}selected{% endif %}>Spanish</option>
                   <option value="it" {% if language_filter == "it" %}selected{% endif %}>Italian</option>
                   <option value="de" {% if language_filter == "de" %}selected{% endif %}>German</option>
+                  <option value="en" {% if language_filter == "en" %}selected{% endif %}>English</option>
                 </select>
               </div>
             </div>
@@ -37,14 +38,14 @@
             <label class="label is-small">Topic</label>
             <div class="control">
               <input id="filter-topic" class="input" type="text" name="topic"
-                     placeholder="e.g. food, greetings"
+                     placeholder="e.g. food, family"
                      value="{{ topic_filter or '' }}">
             </div>
           </div>
         </div>
         <div class="column is-4 is-flex is-align-items-flex-end">
           <button class="button is-info"
-                  hx-get="/words"
+                  hx-get="/words/partial"
                   hx-target="#word-table-container"
                   hx-include="#filter-language, #filter-topic">
             Filter
@@ -54,9 +55,7 @@
     </div>
 
     <div id="word-table-container">
-      <p class="has-text-grey has-text-centered">
-        No words loaded yet. Use the ingestion pipeline to add words.
-      </p>
+      {% include "pages/words/_word_table.html" %}
     </div>
   </div>
 </section>

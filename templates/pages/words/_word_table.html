@@ -1,0 +1,29 @@
+{% if words %}
+<table class="table is-fullwidth is-striped is-hoverable">
+  <thead>
+    <tr>
+      <th>Word</th>
+      <th>Language</th>
+      <th>Part of Speech</th>
+      <th>Translation (EN)</th>
+      <th>Topics</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for w in words %}
+    <tr>
+      <td><a href="/words/{{ w.id }}"><strong>{{ w.text }}</strong></a></td>
+      <td><span class="tag is-info is-light">{{ w.language }}</span></td>
+      <td>{{ w.part_of_speech or '-' }}</td>
+      <td>{{ w.translations.get('en', '-') }}</td>
+      <td>{% for t in w.topics %}<span class="tag is-light mr-1">{{ t }}</span>{% endfor %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p class="is-size-7 has-text-grey">{{ words | length }} word(s) found.</p>
+{% else %}
+<p class="has-text-grey has-text-centered">
+  No words found matching your filters.
+</p>
+{% endif %}

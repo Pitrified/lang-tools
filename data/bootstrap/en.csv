@@ -1,0 +1,51 @@
+text,language,part_of_speech,frequency,topics,translation_en,example_sentence,example_translation
+house,en,noun,high,"home,basics",house,I live in this house.,Eu moro nessa casa.
+water,en,noun,high,"food,basics",water,I want a glass of water.,Quero um copo de água.
+eat,en,verb,high,"food,basics",to eat,Let's eat together.,Vamos comer juntos.
+good,en,adjective,high,basics,good,The movie was very good.,O filme foi muito bom.
+day,en,noun,high,"time,basics",day,Today is a beautiful day.,Hoje é um belo dia.
+make,en,verb,high,basics,to make,What do you want to make?,O que você quer fazer?
+go,en,verb,high,"travel,basics",to go,I'm going to the market.,Vou ao mercado.
+speak,en,verb,high,"conversation,basics",to speak,He speaks English.,Ele fala inglês.
+time,en,noun,high,"time,basics",time,Time flies when you're having fun.,O tempo voa quando você se diverte.
+person,en,noun,high,basics,person,She is a good person.,Ela é uma boa pessoa.
+work,en,noun,high,"work,basics",work,My work is interesting.,Meu trabalho é interessante.
+city,en,noun,high,"travel,places",city,London is a big city.,Londres é uma grande cidade.
+friend,en,noun,high,"people,basics",friend,He is my best friend.,Ele é meu melhor amigo.
+book,en,noun,medium,"education,culture",book,I'm reading a book.,Estou lendo um livro.
+food,en,noun,high,"food,basics",food,The food here is delicious.,A comida aqui é deliciosa.
+night,en,noun,high,"time,basics",night,Good night everyone.,Boa noite a todos.
+school,en,noun,high,"education,places",school,The children go to school.,As crianças vão à escola.
+money,en,noun,high,"money,basics",money,I don't have enough money.,Não tenho dinheiro suficiente.
+problem,en,noun,high,basics,problem,That is not a problem.,Isso não é um problema.
+heart,en,noun,medium,"body,emotions",heart,My heart is happy.,Meu coração está feliz.
+beach,en,noun,medium,"travel,nature",beach,Let's go to the beach.,Vamos à praia.
+beautiful,en,adjective,medium,basics,beautiful,What a beautiful place!,Que lugar bonito!
+rain,en,noun,medium,"weather,nature",rain,The rain doesn't stop.,A chuva não para.
+window,en,noun,medium,"home,basics",window,Open the window please.,Abra a janela por favor.
+music,en,noun,medium,"culture,entertainment",music,I love this music.,Adoro essa música.
+sleep,en,verb,high,basics,to sleep,I need to sleep early.,Preciso dormir cedo.
+coffee,en,noun,high,"food,culture",coffee,I want a strong coffee.,Quero um café forte.
+street,en,noun,high,"places,basics",street,The street is busy.,A rua está movimentada.
+son,en,noun,high,"family,basics",son,My son is five years old.,Meu filho tem cinco anos.
+mother,en,noun,high,"family,basics",mother,My mother cooks well.,Minha mãe cozinha bem.
+father,en,noun,high,"family,basics",father,My father works here.,Meu pai trabalha aqui.
+brother,en,noun,high,"family,basics",brother,I have an older brother.,Tenho um irmão mais velho.
+car,en,noun,high,"transport,basics",car,The car is red.,O carro é vermelho.
+door,en,noun,medium,"home,basics",door,Close the door.,Feche a porta.
+green,en,adjective,medium,"colors,nature",green,The garden is very green.,O jardim é muito verde.
+hot,en,adjective,medium,"weather,basics",hot,It's very hot today.,Está muito quente hoje.
+cold,en,adjective,medium,"weather,basics",cold,Winter is cold.,O inverno é frio.
+begin,en,verb,medium,basics,to begin,Let's begin now.,Vamos começar agora.
+understand,en,verb,medium,"conversation,basics",to understand,I don't understand this word.,Não entendo essa palavra.
+help,en,verb,medium,basics,to help,Can I help you?,Posso te ajudar?
+thank,en,verb,high,"conversation,basics",to thank,Thank you for the help.,Obrigado pela ajuda.
+church,en,noun,medium,"places,culture",church,The church is old.,A igreja é antiga.
+market,en,noun,high,"places,shopping",market,I'm going to the market.,Vou ao mercado.
+doctor,en,noun,medium,"health,people",doctor,I need to go to the doctor.,Preciso ir ao médico.
+happy,en,adjective,high,"emotions,basics",happy,I'm very happy today.,Estou muito feliz hoje.
+sad,en,adjective,medium,emotions,sad,He is sad.,Ele está triste.
+bread,en,noun,high,"food,basics",bread,I buy bread every morning.,Compro pão toda manhã.
+dog,en,noun,medium,"animals,basics",dog,My dog is very friendly.,Meu cachorro é muito amigável.
+cat,en,noun,medium,"animals,basics",cat,The cat sleeps on the sofa.,O gato dorme no sofá.
+kitchen,en,noun,medium,"home,basics",kitchen,The kitchen is clean.,A cozinha está limpa.

@@ -1,0 +1,51 @@
+text,language,part_of_speech,frequency,topics,translation_en,example_sentence,example_translation
+Haus,de,noun,high,"home,basics",house,Ich wohne in diesem Haus.,I live in this house.
+Wasser,de,noun,high,"food,basics",water,Ich möchte ein Glas Wasser.,I would like a glass of water.
+essen,de,verb,high,"food,basics",to eat,Lass uns zusammen essen.,Let's eat together.
+gut,de,adjective,high,basics,good,Der Film war sehr gut.,The movie was very good.
+Tag,de,noun,high,"time,basics",day,Heute ist ein schöner Tag.,Today is a beautiful day.
+machen,de,verb,high,basics,to do/make,Was willst du machen?,What do you want to do?
+gehen,de,verb,high,"travel,basics",to go,Ich gehe zum Markt.,I'm going to the market.
+sprechen,de,verb,high,"conversation,basics",to speak,Er spricht Deutsch.,He speaks German.
+Zeit,de,noun,high,"time,basics",time,Die Zeit vergeht schnell.,Time passes quickly.
+Mensch,de,noun,high,basics,person/human,Er ist ein guter Mensch.,He is a good person.
+Arbeit,de,noun,high,"work,basics",work,Meine Arbeit ist interessant.,My work is interesting.
+Stadt,de,noun,high,"travel,places",city,Berlin ist eine große Stadt.,Berlin is a big city.
+Freund,de,noun,high,"people,basics",friend,Er ist mein bester Freund.,He is my best friend.
+Buch,de,noun,medium,"education,culture",book,Ich lese ein Buch.,I'm reading a book.
+Essen,de,noun,high,"food,basics",food,Das deutsche Essen ist lecker.,German food is tasty.
+Nacht,de,noun,high,"time,basics",night,Gute Nacht allerseits.,Good night everyone.
+Schule,de,noun,high,"education,places",school,Die Kinder gehen zur Schule.,The children go to school.
+Geld,de,noun,high,"money,basics",money,Ich habe nicht genug Geld.,I don't have enough money.
+Problem,de,noun,high,basics,problem,Das ist kein Problem.,That is not a problem.
+Herz,de,noun,medium,"body,emotions",heart,Mein Herz ist glücklich.,My heart is happy.
+Strand,de,noun,medium,"travel,nature",beach,Wir gehen am Samstag zum Strand.,We're going to the beach on Saturday.
+schön,de,adjective,high,basics,beautiful,Was für ein schöner Ort!,What a beautiful place!
+Regen,de,noun,medium,"weather,nature",rain,Der Regen hört nicht auf.,The rain doesn't stop.
+Fenster,de,noun,medium,"home,basics",window,Öffne bitte das Fenster.,Open the window please.
+Musik,de,noun,medium,"culture,entertainment",music,Ich liebe deutsche Musik.,I love German music.
+schlafen,de,verb,high,basics,to sleep,Ich muss früh schlafen.,I need to sleep early.
+Kaffee,de,noun,high,"food,culture",coffee,Ich will einen starken Kaffee.,I want a strong coffee.
+Straße,de,noun,high,"places,basics",street,Die Straße ist belebt.,The street is busy.
+Sohn,de,noun,high,"family,basics",son,Mein Sohn ist fünf Jahre alt.,My son is five years old.
+Mutter,de,noun,high,"family,basics",mother,Meine Mutter kocht gut.,My mother cooks well.
+Vater,de,noun,high,"family,basics",father,Mein Vater arbeitet hier.,My father works here.
+Bruder,de,noun,high,"family,basics",brother,Ich habe einen älteren Bruder.,I have an older brother.
+Auto,de,noun,high,"transport,basics",car,Das Auto ist rot.,The car is red.
+Tür,de,noun,medium,"home,basics",door,Mach die Tür zu.,Close the door.
+grün,de,adjective,medium,"colors,nature",green,Der Garten ist sehr grün.,The garden is very green.
+heiß,de,adjective,medium,"weather,basics",hot,Es ist sehr heiß heute.,It's very hot today.
+kalt,de,adjective,medium,"weather,basics",cold,Der Winter ist kalt.,Winter is cold.
+anfangen,de,verb,medium,basics,to begin,Lass uns jetzt anfangen.,Let's begin now.
+verstehen,de,verb,medium,"conversation,basics",to understand,Ich verstehe dieses Wort nicht.,I don't understand this word.
+helfen,de,verb,medium,basics,to help,Kann ich dir helfen?,Can I help you?
+danke,de,interjection,high,"conversation,basics",thank you,Vielen Dank für die Hilfe.,Thank you very much for the help.
+Kirche,de,noun,medium,"places,culture",church,Die Kirche ist alt.,The church is old.
+Markt,de,noun,high,"places,shopping",market,Ich gehe zum Markt um Obst zu kaufen.,I'm going to the market to buy fruit.
+Arzt,de,noun,medium,"health,people",doctor,Ich muss zum Arzt gehen.,I need to go to the doctor.
+glücklich,de,adjective,high,"emotions,basics",happy,Ich bin heute sehr glücklich.,I'm very happy today.
+traurig,de,adjective,medium,emotions,sad,Er ist traurig.,He is sad.
+Brot,de,noun,high,"food,culture",bread,Ich kaufe jeden Morgen Brot.,I buy bread every morning.
+Bier,de,noun,medium,"food,culture",beer,Deutsches Bier ist berühmt.,German beer is famous.
+Hund,de,noun,medium,"animals,basics",dog,Mein Hund ist sehr freundlich.,My dog is very friendly.
+Katze,de,noun,medium,"animals,basics",cat,Die Katze schläft auf dem Sofa.,The cat sleeps on the sofa.
