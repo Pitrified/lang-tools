@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 
 from loguru import logger as lg
 
-from lang_tools.exercises.conversational_tutor import TutorMessage
 from lang_tools.llm.tutor import TutorInput
 from lang_tools.llm.tutor import TutorOutput
 from lang_tools.llm.tutor import build_tutor_chain
@@ -14,6 +13,8 @@ from lang_tools.params.lang_tools_params import get_llm_params
 
 if TYPE_CHECKING:
     from llm_core.chains.structured_chain import StructuredLLMChain
+
+    from lang_tools.exercises.conversational_tutor import TutorMessage
 
 _chain: StructuredLLMChain[TutorInput, TutorOutput] | None = None
 
@@ -33,8 +34,8 @@ def tutor_reply(
     *,
     language: str = "pt",
     topic: str = "",
-) -> TutorMessage:
-    """Call the LLM tutor chain and return a TutorMessage.
+) -> TutorOutput:
+    """Call the LLM tutor chain and return the full TutorOutput.
 
     Args:
         user_text: User's message in the target language.
@@ -43,7 +44,7 @@ def tutor_reply(
         topic: Conversation topic.
 
     Returns:
-        TutorMessage with the tutor's reply.
+        Full TutorOutput with correction block and conversation block.
     """
     chain_input = TutorInput(
         topic=topic or "general conversation",
@@ -53,13 +54,4 @@ def tutor_reply(
     )
     result: TutorOutput = _get_chain().invoke(chain_input)
     lg.debug("Tutor reply: {}", result.conversation.content[:80])
-
-    correction_text = (
-        result.correction.content if result.correction.content.strip() else None
-    )
-    return TutorMessage(
-        role="tutor",
-        content=result.conversation.content,
-        translation=result.conversation.translation or None,
-        correction=correction_text,
-    )
+    return result

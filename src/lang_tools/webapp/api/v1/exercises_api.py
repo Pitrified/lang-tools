@@ -335,21 +335,37 @@ async def tutor_message(
     history = _tutor_histories.setdefault(history_key, [])
 
     history.append(TutorMessage(role="user", content=body.text))
-    reply = tutor_reply(
+    result = tutor_reply(
         body.text,
         history,
         language=body.language,
         topic=body.topic,
     )
+
+    correction_text = (
+        result.correction.content if result.correction.content.strip() else None
+    )
+    reply = TutorMessage(
+        role="tutor",
+        content=result.conversation.content,
+        translation=result.conversation.translation or None,
+        correction=correction_text,
+    )
     history.append(reply)
+
+    errors = [
+        {"original": e.original, "corrected": e.corrected, "explanation": e.explanation}
+        for e in result.correction.errors
+    ]
 
     return ExerciseResponse(
         status="ok",
         data={
             "response": {
-                "content": reply.content,
-                "correction": reply.correction,
-                "translation": reply.translation,
+                "content": result.conversation.content,
+                "translation": result.conversation.translation or None,
+                "correction": correction_text,
+                "errors": errors,
             },
         },
     )
