@@ -1,21 +1,20 @@
 # Library overview
 
-`lang_tools` is organised around five orthogonal layers. Each one is
-documented in its own page below. The [Frozen API](frozen_api.md) page records
-the public surface `lang-tutor` imports and the git LFS content layout.
+`lang_tools` owns the **content + data** layers of the language-learning
+ecosystem: language primitives, the canonical `Word` model with ingestion, and
+the content-producing LLM chains. The learner-facing concerns (exercises,
+per-user progress, the tutor chain, and the webapp) were extracted to
+`lang-tutor` in phase 2 of the split; see
+`scratch_space/08_lang_tutor/` for the migration plan.
 
-- [Frozen API](frozen_api.md) - the phase 1 freeze contract: the importable
-  surface and the content layout.
+The [Frozen API](frozen_api.md) page records the public surface `lang-tutor`
+imports and the git LFS content layout.
+
+- [Frozen API](frozen_api.md) - the freeze contract: the importable surface
+  and the content layout.
 - [Language](language.md) - presets, normalisation, keyboard layouts.
 - [Words](words.md) - the canonical `Word` model and ingestion pipelines
   (Wiktionary, CSV, static lists).
-- [Progress](progress.md) - per-user progress tracking and weighted
-  selection.
-- [Exercises](exercises.md) - the five shared exercise mechanics.
-- [LLM chains](llm.md) - structured chains for translation, conversation,
-  tutoring, topic suggestion, paragraph splitting, greetings, and word
+- [LLM chains](llm.md) - content-producing structured chains for translation,
+  conversation, topic suggestion, paragraph splitting, greetings, and word
   generation.
-
-The implementation follows the plan documents under
-`scratch_space/vibes/10-language-overview/` (00 through 06, excluding the
-unified webapp).

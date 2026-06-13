@@ -1,6 +1,6 @@
 # Bootstrap Word Data
 
-The `data/bootstrap/` directory contains starter vocabulary CSV files for each supported language. These are loaded automatically by the webapp at startup.
+The `data/bootstrap/` directory contains starter vocabulary CSV files for each supported language. These are loaded automatically at import time by `lang_tools.words.word_store`, the in-process content surface that consumers (such as `lang-tutor`) read from.
 
 ## Available Languages
 
@@ -32,9 +32,9 @@ Optional columns:
 - `example_sentence` + `example_translation`
 - `false_friend_language`, `false_friend_word`, `false_friend_meaning`, `false_friend_similarity`
 
-## How the Webapp Uses This Data
+## How Consumers Use This Data
 
-The webapp loads all bootstrap CSVs automatically via `lang_tools.words.word_store`:
+The word store loads all bootstrap CSVs automatically via `lang_tools.words.word_store`:
 
 ```python
 from lang_tools.words.word_store import get_all_words, get_words_filtered
@@ -54,7 +54,7 @@ No database setup is needed. The word store is an in-memory read-only list popul
 ## Adding More Words
 
 1. Edit or add a CSV in `data/bootstrap/` following the format above.
-2. Restart the webapp. Words are loaded on startup.
+2. Restart the consuming process. Words are loaded at import time.
 
 For programmatic ingestion from other sources (Wiktionary, LLM-generated), see the ingestion modules:
 

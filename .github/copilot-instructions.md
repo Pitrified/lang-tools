@@ -2,15 +2,13 @@
 
 ## Project overview
 
-`lang-tools` is a Python library that unifies the language-learning ecosystem (Portuguese-focused but multi-language by design). It centralises shared concerns previously scattered across `convo_craft`, `brazilian-bites`, `fala-comigo-ai-tutor`, `go-accenter`, and `worldly-words`:
+`lang-tools` is the **content + data** library of the language-learning ecosystem (Portuguese-focused but multi-language by design). It owns the vocabulary content - producing it, modelling it, and serving it - and is stateless with respect to any individual learner. The learner-facing concerns (exercises, per-user progress, the tutor chain, and the webapp) were extracted into the companion `lang-tutor` repo, which depends on `lang-tools` as a library. The dependency is strictly one-way: `lang-tools` must never import `lang-tutor`.
 
-- **Canonical language data models** - `Word`, `Language`, `UserWordProgress`, accent / normalization maps, exercise / progress schemas.
-- **Exercise framework** - shared interfaces for sentence reconstruction, pair matching, conversational tutoring, diacritic typing, and Wordle-style guessing.
-- **LLM service layer** - thin wrappers over `llm-core` `StructuredLLMChain` for translation, conversation generation, tutor correction, topic suggestion, and paragraph splitting.
+- **Canonical language data models** - `Word`, `Language`, accent / normalization maps.
+- **Content-producing LLM service layer** - thin wrappers over `llm-core` `StructuredLLMChain` for translation, conversation generation, topic suggestion, paragraph splitting, greetings, and word generation.
 - **Word ingestion** - pipelines for Wiktionary JSONL dumps, CSV imports, and LLM-generated content.
-- **Unified FastAPI webapp** - single backend serving all exercise types with cross-app user progress (Google OAuth, session, CORS, rate limiting, Jinja2 + HTMX).
 
-Python 3.13, managed with **uv**. Package name is `lang_tools`.
+Python 3.13, managed with **uv**. Package name is `lang_tools`. The split is tracked under `scratch_space/08_lang_tutor/`.
 
 Long-form roadmap: `/home/pmn/ephem/linux-box-cloudflare/scratch_space/vibes/10-language-overview/`.
 
@@ -26,9 +24,6 @@ uv run ruff check .                  # lint (ruff, ALL rules enabled)
 uv run pyright                       # type-check (src/ and tests/ only)
 
 uv run mkdocs serve                  # MkDocs local docs server
-
-# webapp dev server
-uvicorn lang_tools.webapp.app:app --reload
 ```
 
 Credentials live at `~/cred/lang-tools/.env` (loaded by `load_env()` in `src/lang_tools/params/load_env.py`).
@@ -39,21 +34,20 @@ Credentials live at `~/cred/lang-tools/.env` (loaded by `load_env()` in `src/lan
 | ------------ | -------------------------------------------------- | ------------------------------------------------------------------------ |
 | Params       | `src/lang_tools/params/lang_tools_params.py`       | Singleton `LangToolsParams`; aggregates paths, sample, webapp params     |
 | Paths        | `src/lang_tools/params/lang_tools_paths.py`        | `LangToolsPaths`; env-aware filesystem references                        |
-| Config       | `src/lang_tools/config/`                           | Pydantic `BaseModelKwargs` models for typed settings (sample, webapp)    |
-| Webapp       | `src/lang_tools/webapp/`                           | FastAPI app factory, routers, services, schemas, middleware              |
+| Config       | `src/lang_tools/config/`                           | Pydantic `BaseModelKwargs` models for typed settings (sample)            |
 | Data models  | `src/lang_tools/data_models/basemodel_kwargs.py`   | `BaseModelKwargs` - Pydantic base with `to_kw()` kwargs flattening       |
 | Metaclasses  | `src/lang_tools/metaclasses/singleton.py`          | `Singleton` metaclass                                                    |
 | Env type     | `src/lang_tools/params/env_type.py`                | `EnvStageType` (dev/prod) and `EnvLocationType` (local/render) enums     |
 
-Domain layers (planned, see roadmap):
+Domain layers:
 
 | Layer        | Path                              | Role                                                                |
 | ------------ | --------------------------------- | ------------------------------------------------------------------- |
 | Language     | `src/lang_tools/language/`        | `Language` config, accent / normalization maps, keyboard layouts    |
-| Words        | `src/lang_tools/words/`           | Canonical `Word` model and ingestion (Wiktionary, CSV, LLM)         |
-| Progress     | `src/lang_tools/progress/`        | `UserWordProgress` and weighted selection algorithms                |
-| Exercises    | `src/lang_tools/exercises/`       | Shared exercise interface and per-mechanic implementations          |
-| LLM          | `src/lang_tools/llm/`             | `StructuredLLMChain` wrappers (translation, tutor, topics, etc.)    |
+| Words        | `src/lang_tools/words/`           | Canonical `Word` model, ingestion (Wiktionary, CSV, LLM), word store |
+| LLM          | `src/lang_tools/llm/`             | Content-producing `StructuredLLMChain` wrappers (translation, conversation, topics, splitter, greeting, word generator) |
+
+The `exercises/`, `progress/`, `llm/tutor.py`, and `webapp/` layers were extracted to `lang-tutor` (see `scratch_space/08_lang_tutor/02_tutor_extract.md`). `WebappParams` scaffolding (`params/webapp/`) is retained for the planned phase-3 HTTP read API.
 
 ## Key patterns
 
@@ -91,10 +85,8 @@ cfg.to_kw(exclude_none=True)  # {"some_int": 1, "nested_model": ..., "extra": Tr
 
 The canonical reference implementations are `src/lang_tools/config/sample_config.py` and `src/lang_tools/params/sample_params.py`.
 
-**FastAPI webapp factory**  
-`create_app(config?)` in `src/lang_tools/webapp/main.py` wires up middleware, routers, exception handlers, static files, and Jinja2 templates. Entry point for uvicorn: `lang_tools.webapp.app:app`.
-
-Webapp config objects (`CORSConfig`, `SessionConfig`, `RateLimitConfig`, `GoogleOAuthConfig`) all extend `BaseModelKwargs` and live in `src/lang_tools/config/webapp/`.
+**Webapp params (no app yet)**  
+The FastAPI webapp moved to `lang-tutor`. `lang-tools` retains only `WebappParams` (`src/lang_tools/params/webapp/`), which builds a `WebappConfig` from `fastapi-tools`, kept for the planned phase-3 HTTP read API. There is no `lang_tools.webapp` app factory in this repo anymore.
 
 **Env-aware paths**  
 `LangToolsPaths.load_config()` dispatches on `EnvLocationType` (`LOCAL` / `RENDER`) to set environment-specific paths. Common paths (`root_fol`, `cache_fol`, `data_fol`, `static_fol`, `templates_fol`) are always set in `load_common_config_pre()`.

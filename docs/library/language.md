@@ -14,10 +14,10 @@ Each `Language` holds:
 - Core identity (`code`, `name`, `native_name`).
 - Accent metadata (`accented_chars`, `normalization_map`).
 - Keyboard layout hints (`keyboard_rows`, `accent_keys`) consumed by
-  on-screen input widgets in the wordle and diacritic-typing exercises.
+  on-screen input widgets in the `lang-tutor` exercises.
 
 Exercise-specific settings (such as allowed word lengths) are **not** stored
-on `Language`. See [`WordleConfig`](exercises.md#wordle) for wordle settings.
+on `Language`; they live with the exercise mechanics in `lang-tutor`.
 
 ```python
 from lang_tools.language import LANGUAGE_PRESETS, get_language

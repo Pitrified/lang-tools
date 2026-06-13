@@ -1,9 +1,10 @@
 # LLM chains
 
 The `lang_tools.llm` package wraps `llm-core`'s `StructuredLLMChain` for the
-seven recurring tasks of the language-learning stack. Every chain ships with
+content-producing tasks of the language-learning stack. Every chain ships with
 a versioned Jinja prompt under `src/lang_tools/prompts/<name>/v1.jinja` and a
-`build_*_chain(chat_config, ...)` factory.
+`build_*_chain(chat_config, ...)` factory. The interactive tutor chain
+(`build_tutor_chain`) was extracted to `lang-tutor` in the phase 2 split.
 
 Each factory accepts:
 
@@ -29,7 +30,6 @@ print(result.translated_text)
 | --- | --- | --- | --- |
 | [`build_translation_chain`](../reference/lang_tools/llm/translation/) | `TranslationInput` | `TranslationOutput` | Translate a single string |
 | [`build_conversation_chain`](../reference/lang_tools/llm/conversation/) | `ConversationInput` | `ConversationOutput` | Generate a multi-turn bilingual dialogue |
-| [`build_tutor_chain`](../reference/lang_tools/llm/tutor/) | `TutorInput` | `TutorOutput` | Tutor reply with `correction` + `conversation` blocks |
 | [`build_topic_suggestion_chain`](../reference/lang_tools/llm/topics/) | `TopicSuggestionInput` | `TopicSuggestionOutput` | Suggest topics for practice |
 | [`build_paragraph_splitter_chain`](../reference/lang_tools/llm/splitter/) | `SplitterInput` | `SplitterOutput` | Split text into reconstruction-friendly portions |
 | [`build_greeting_chain`](../reference/lang_tools/llm/greeting/) | `GreetingInput` | `GreetingOutput` | Open a tutor conversation |

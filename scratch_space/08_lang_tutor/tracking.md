@@ -11,6 +11,10 @@ Splitting `lang-tools` into `lang-tools` (content + data service) and
 - **Content** (words + sentences) delivered via the **HTTP read API (service)**;
   no runtime fetch helper. Operator clones with git-lfs installed.
 - Webapp + tutor live in `lang-tutor`. New repo from `python-project-template`.
+- Phase 2 note: `lang-tutor` declares `lang-tools @ git+...@main` but overrides
+  it with an editable `[tool.uv.sources]` path to `../lang-tools` for local
+  co-development (lang-tools is still edited during the split, so it cannot be
+  pinned to a tag yet). Phase 3 can pin to a tag once content moves to HTTP.
 
 ## Migration order
 
@@ -23,7 +27,7 @@ endpoints-first, not both-at-once). See "Migration order" in
 | # | Phase | Plan | Status |
 | - | ----- | ---- | ------ |
 | 1 | Freeze lang-tools library API + LFS content layout (in place) | [`01_lib_freeze.md`](01_lib_freeze.md) | done |
-| 2 | Scaffold lang-tutor, migrate tutor concerns (library-coupled) | [`02_tutor_extract.md`](02_tutor_extract.md) | not started |
+| 2 | Scaffold lang-tutor, migrate tutor concerns (library-coupled) | [`02_tutor_extract.md`](02_tutor_extract.md) | done |
 | 3 | Add lang-tools HTTP read API, switch lang-tutor to HTTP | [`03_http_service.md`](03_http_service.md) | not started |
 
 Status values: not started / in progress / done.

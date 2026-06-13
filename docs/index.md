@@ -2,26 +2,25 @@
 
 Welcome to the **Lang Tools** documentation.
 
-`lang-tools` is a Python library that unifies the language-learning ecosystem
-(Portuguese-focused, multi-language by design). It centralises shared concerns
-previously scattered across `convo_craft`, `brazilian-bites`,
-`fala-comigo-ai-tutor`, `go-accenter`, and `worldly-words` into a single
-package: canonical data models, an exercise framework, an LLM service layer,
-word ingestion pipelines, and a unified FastAPI webapp.
+`lang-tools` is the **content + data** service for the language-learning
+ecosystem (Portuguese-focused, multi-language by design): canonical data
+models, word ingestion pipelines, and the content-producing LLM chains. The
+learner-facing concerns (exercises, per-user progress, the tutor chain, and the
+webapp) live in the companion `lang-tutor` repo, which depends on `lang-tools`
+for content.
 
 The full design roadmap lives at
-`linux-box-cloudflare/scratch_space/vibes/10-language-overview/`.
+`linux-box-cloudflare/scratch_space/vibes/10-language-overview/`; the
+`lang-tools` / `lang-tutor` split is tracked under
+`scratch_space/08_lang_tutor/`.
 
 ## Features
 
-- **Canonical data models** for words, languages, accent maps, and user progress.
-- **Shared exercise framework** covering sentence reconstruction, pair matching,
-  conversational tutoring, diacritic typing, and Wordle-style guessing.
+- **Canonical data models** for words, languages, and accent maps.
 - **LLM services** layered on `llm-core` for translation, conversation
-  generation, tutor correction, and topic suggestion.
+  generation, topic suggestion, paragraph splitting, greetings, and word
+  generation.
 - **Word ingestion** from Wiktionary JSONL dumps, CSV files, and LLM output.
-- **Unified FastAPI webapp** with Google OAuth, sessions, CORS, rate limiting,
-  Jinja2 + HTMX.
 - Modern Python 3.13+, managed with [uv](https://docs.astral.sh/uv/).
 - Pre-configured Ruff, Pyright, pytest, pre-commit, and MkDocs.
 
@@ -35,7 +34,6 @@ uv sync --all-extras --all-groups
 
 uv run pytest
 uv run mkdocs serve
-uvicorn lang_tools.webapp.app:app --reload
 ```
 
 ## Project Structure
@@ -45,9 +43,11 @@ lang-tools/
 ├── src/lang_tools/       # Main package
 │   ├── config/             # Pydantic config models
 │   ├── data_models/        # BaseModelKwargs and shared models
+│   ├── language/           # Language presets and normalisation
+│   ├── llm/                # Content-producing StructuredLLMChain wrappers
 │   ├── metaclasses/        # Singleton metaclass
 │   ├── params/             # Env-aware params and paths
-│   └── webapp/             # FastAPI app, routers, middleware
+│   └── words/              # Word model, ids, ingestion, word store
 ├── tests/                  # Test suite mirroring src/
 ├── docs/                   # MkDocs source (you are here)
 └── scratch_space/          # Experimental notebooks and vibes

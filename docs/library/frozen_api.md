@@ -54,19 +54,18 @@ output model, and a `build_*_chain(chat_config, base_prompt_fol=...)` factory.
   `TopicSuggestionOutput`.
 - `build_greeting_chain` + `GreetingInput` / `GreetingOutput`.
 
-## Explicitly **not** frozen (tutor-side, moves in phase 2)
+## Tutor-side concerns (extracted to `lang-tutor` in phase 2)
 
-These are still importable today but are *not* part of the frozen contract.
-They are learner-facing / stateful and migrate to `lang-tutor`. Only their
-*dependencies* on the surface above need to stay stable.
+These were learner-facing / stateful and have been **moved out of `lang-tools`**
+into `lang-tutor`. They are no longer importable from `lang_tools`; `lang-tutor`
+owns them and depends on the frozen surface above for content.
 
-- `lang_tools.progress` - `UserWordProgress`, `compute_weight`, `select_words`.
-- `lang_tools.exercises` - the five exercise mechanics.
-- `lang_tools.llm.tutor` - `build_tutor_chain` and the `TutorInput` /
+- `lang_tutor.progress` - `UserWordProgress`, `compute_weight`, `select_words`.
+- `lang_tutor.exercises` - the five exercise mechanics.
+- `lang_tutor.llm.tutor` - `build_tutor_chain` and the `TutorInput` /
   `TutorOutput` / `CorrectionBlock` / `ConversationBlock` / `ErrorDetail`
-  models (the interactive feedback loop). Note: `lang_tools.llm` still
-  re-exports these for now; treat them as tutor-side regardless.
-- `lang_tools.webapp` - pages, runtime exercises API, OAuth, services.
+  models (the interactive feedback loop).
+- `lang_tutor.webapp` - pages, runtime exercises API, OAuth, services.
 
 ## Content layout (git LFS)
 

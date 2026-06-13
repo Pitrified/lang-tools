@@ -13,7 +13,6 @@ from lang_tools.llm import build_greeting_chain
 from lang_tools.llm import build_paragraph_splitter_chain
 from lang_tools.llm import build_topic_suggestion_chain
 from lang_tools.llm import build_translation_chain
-from lang_tools.llm import build_tutor_chain
 from lang_tools.llm import build_word_generator_chain
 
 
@@ -27,10 +26,6 @@ def test_build_translation_chain() -> None:
 
 def test_build_conversation_chain() -> None:
     build_conversation_chain(_cfg())
-
-
-def test_build_tutor_chain() -> None:
-    build_tutor_chain(_cfg())
 
 
 def test_build_topic_suggestion_chain() -> None:
