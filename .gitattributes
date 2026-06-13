@@ -1,1 +1,7 @@
 scratch_space/** linguist-vendored
+
+# Content store (read from the cloned working tree, never bundled into the
+# wheel). Operators must `git lfs install` before cloning so these paths
+# materialise as real content instead of pointer stubs. See
+# docs/library/frozen_api.md for the content layout.
+data/** filter=lfs diff=lfs merge=lfs -text

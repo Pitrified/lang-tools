@@ -22,7 +22,7 @@ endpoints-first, not both-at-once). See "Migration order" in
 
 | # | Phase | Plan | Status |
 | - | ----- | ---- | ------ |
-| 1 | Freeze lang-tools library API + LFS content layout (in place) | [`01_lib_freeze.md`](01_lib_freeze.md) | not started |
+| 1 | Freeze lang-tools library API + LFS content layout (in place) | [`01_lib_freeze.md`](01_lib_freeze.md) | done |
 | 2 | Scaffold lang-tutor, migrate tutor concerns (library-coupled) | [`02_tutor_extract.md`](02_tutor_extract.md) | not started |
 | 3 | Add lang-tools HTTP read API, switch lang-tutor to HTTP | [`03_http_service.md`](03_http_service.md) | not started |
 

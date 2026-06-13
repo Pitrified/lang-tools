@@ -1,8 +1,11 @@
 # Library overview
 
 `lang_tools` is organised around five orthogonal layers. Each one is
-documented in its own page below.
+documented in its own page below. The [Frozen API](frozen_api.md) page records
+the public surface `lang-tutor` imports and the git LFS content layout.
 
+- [Frozen API](frozen_api.md) - the phase 1 freeze contract: the importable
+  surface and the content layout.
 - [Language](language.md) - presets, normalisation, keyboard layouts.
 - [Words](words.md) - the canonical `Word` model and ingestion pipelines
   (Wiktionary, CSV, static lists).
