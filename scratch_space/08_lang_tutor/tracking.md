@@ -15,6 +15,10 @@ Splitting `lang-tools` into `lang-tools` (content + data service) and
   it with an editable `[tool.uv.sources]` path to `../lang-tools` for local
   co-development (lang-tools is still edited during the split, so it cannot be
   pinned to a tag yet). Phase 3 can pin to a tag once content moves to HTTP.
+- Phase 3 note: content reads now go over HTTP, but `lang-tools` still ships the
+  shared code (`Word`, query helpers) imported by `lang-tutor`, and phase 3 also
+  edited `lang-tools` (the read API). The editable path source is kept until a
+  `lang-tools` release tag exists; pinning is a follow-up once a tag is cut.
 
 ## Migration order
 
@@ -28,6 +32,6 @@ endpoints-first, not both-at-once). See "Migration order" in
 | - | ----- | ---- | ------ |
 | 1 | Freeze lang-tools library API + LFS content layout (in place) | [`01_lib_freeze.md`](01_lib_freeze.md) | done |
 | 2 | Scaffold lang-tutor, migrate tutor concerns (library-coupled) | [`02_tutor_extract.md`](02_tutor_extract.md) | done |
-| 3 | Add lang-tools HTTP read API, switch lang-tutor to HTTP | [`03_http_service.md`](03_http_service.md) | not started |
+| 3 | Add lang-tools HTTP read API, switch lang-tutor to HTTP | [`03_http_service.md`](03_http_service.md) | done |
 
 Status values: not started / in progress / done.
