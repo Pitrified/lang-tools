@@ -7,8 +7,9 @@ relation edge tables), plus an open-source multilingual dataset built on OMW.
 Full analysis and decisions in
 [`00-concepts-brainstorm.md`](00-concepts-brainstorm.md).
 
-Status: **draft**. Sub-plans below are one-liners only - not yet written.
-Phases are intentionally easy to merge or split as the design firms up.
+Status: phase 1 fully planned; phases 2-10 are draft scope sketches (~1 page
+each) to hold the overarching story. Phases are intentionally easy to merge or
+split as the design firms up.
 
 ## Key decisions (cross-cutting)
 
@@ -33,7 +34,7 @@ Phases are intentionally easy to merge or split as the design firms up.
 
 | #  | Phase                         | Plan                                                     | Status | One-liner                                                                                                              |
 | -- | ----------------------------- | -------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------- |
-| 1  | Rename `Word` -> `Lemma`      | [`01_rename_word_to_lemma.md`](01_rename_word_to_lemma.md) | draft  | Preliminary mechanical refactor `Word`->`Lemma` (and `lang-tutor`) so later phases use literature vocabulary.          |
+| 1  | Rename `Word` -> `Lemma`      | [`01_rename_word_to_lemma.md`](01_rename_word_to_lemma.md) | planned | Preliminary mechanical refactor `Word`->`Lemma` (and `lang-tutor`) so later phases use literature vocabulary.          |
 | 2  | Core data models              | [`02_core_models.md`](02_core_models.md)                 | draft  | Define thin `Lemma`, `Concept`, explicit `Sense` edge, `FalseFriendRelation`, generic relation edge; concept id scheme. |
 | 3  | Storage & indexing analysis   | [`03_storage_indexing.md`](03_storage_indexing.md)       | draft  | Assess git-LFS-friendly formats (CSV/JSONL vs SQLite), scale/perf/memory limits, whether a DB can live in LFS.         |
 | 4  | Store layer + indexes         | [`04_store_layer.md`](04_store_layer.md)                 | draft  | Extend/replace `lemma_store` with concept/sense/edge registries and look-aside indexes.                                |
@@ -73,3 +74,7 @@ Append-only. Newest at the bottom.
 - 2026-06-15 : renumbered phases to 1-10 (rename is now phase 1, no phase 0);
   earlier log lines that say "phase 0"/"phase 5" refer to the pre-renumber
   scheme. Brainstorm forward-references updated to "phase 1".
+- 2026-06-15 : created all 10 sub-plan files; fully fleshed phase 1 (status
+  planned, grounded in the real `lang_tools.words` -> `lang_tools.lexicon` rename
+  across both repos incl. the HTTP surface); phases 2-10 written as ~1-page draft
+  scope sketches.
