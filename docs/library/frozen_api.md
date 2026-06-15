@@ -24,19 +24,19 @@ Shared language primitives, needed by both repos.
 - `UnknownLanguageError`.
 - `normalize`, `has_accent`, `extract_accented_chars` - normalization helpers.
 
-### `lang_tools.words`
+### `lang_tools.lexicon`
 
-The canonical content model plus the read/query helpers over the on-disk word
+The canonical content model plus the read/query helpers over the on-disk lemma
 store. These read helpers are the in-process content surface phase 2 consumes
 (phase 3 replaces them with HTTP calls).
 
-- `Word` and supporting types `Gloss`, `GlossExample`, `WordExample`,
+- `Lemma` and supporting types `Gloss`, `GlossExample`, `LemmaExample`,
   `FalseFriend`, plus the `FrequencyLevel` literal.
-- `word_id` - deterministic id for a `(text, language)` pair.
-- `get_all_words`, `get_word_by_id`, `get_words_by_language`,
-  `get_words_by_topic`, `get_words_filtered` - read/query helpers.
+- `lemma_id` - deterministic id for a `(text, language)` pair.
+- `get_all_lemmas`, `get_lemma_by_id`, `get_lemmas_by_language`,
+  `get_lemmas_by_topic`, `get_lemmas_filtered` - read/query helpers.
 
-Importing `lang_tools.words` loads the bootstrap content from disk (see the
+Importing `lang_tools.lexicon` loads the bootstrap content from disk (see the
 content layout below).
 
 ### `lang_tools.llm` (content-producing chains)
@@ -48,8 +48,8 @@ output model, and a `build_*_chain(chat_config, base_prompt_fol=...)` factory.
 - `build_conversation_chain` + `ConversationInput` / `ConversationOutput` /
   `ConversationTurn`.
 - `build_paragraph_splitter_chain` + `SplitterInput` / `SplitterOutput`.
-- `build_word_generator_chain` + `WordGeneratorInput` / `WordGeneratorOutput` /
-  `GeneratedWord`.
+- `build_lemma_generator_chain` + `LemmaGeneratorInput` / `LemmaGeneratorOutput` /
+  `GeneratedLemma`.
 - `build_topic_suggestion_chain` + `TopicSuggestionInput` /
   `TopicSuggestionOutput`.
 - `build_greeting_chain` + `GreetingInput` / `GreetingOutput`.
@@ -60,7 +60,7 @@ These were learner-facing / stateful and have been **moved out of `lang-tools`**
 into `lang-tutor`. They are no longer importable from `lang_tools`; `lang-tutor`
 owns them and depends on the frozen surface above for content.
 
-- `lang_tutor.progress` - `UserWordProgress`, `compute_weight`, `select_words`.
+- `lang_tutor.progress` - `UserLemmaProgress`, `compute_weight`, `select_lemmas`.
 - `lang_tutor.exercises` - the five exercise mechanics.
 - `lang_tutor.llm.tutor` - `build_tutor_chain` and the `TutorInput` /
   `TutorOutput` / `CorrectionBlock` / `ConversationBlock` / `ErrorDetail`
@@ -75,11 +75,11 @@ tree** - never bundled into the wheel.
 ```text
 data/
   bootstrap/
-    en.csv  fr.csv  de.csv  es.csv  it.csv  pt.csv   # per-language word files
+    en.csv  fr.csv  de.csv  es.csv  it.csv  pt.csv   # per-language lemma files
 ```
 
-- **Words**: one CSV per language under `data/bootstrap/`, loaded by
-  `lang_tools.words.word_store` via `LangToolsPaths.data_fol`.
+- **Lemmas**: one CSV per language under `data/bootstrap/`, loaded by
+  `lang_tools.lexicon.lemma_store` via `LangToolsPaths.data_fol`.
 - **Sentences / conversations**: currently *generated on the fly* by the
   conversation and splitter chains and **not** stored (per the design note,
   stored sentence content is out of scope for now). When promoted to stored

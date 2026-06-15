@@ -44,4 +44,4 @@ normalize("Ação", get_language("pt"))  # 'acao'
 ```
 
 `has_accent(text)` and `extract_accented_chars(text)` are convenience helpers
-used by the `Word` model and the diacritic-typing exercise.
+used by the `Lemma` model and the diacritic-typing exercise.

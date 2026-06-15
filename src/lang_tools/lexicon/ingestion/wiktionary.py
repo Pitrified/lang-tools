@@ -1,7 +1,7 @@
-"""Wiktionary JSONL ingestion (kaikki.org dumps -> `Word`).
+"""Wiktionary JSONL ingestion (kaikki.org dumps -> `Lemma`).
 
 A line in a kaikki.org JSONL file is one `WikiRecord`. This module parses such
-records and maps the relevant fields onto the unified `Word` schema. Filtering
+records and maps the relevant fields onto the unified `Lemma` schema. Filtering
 options follow the suggestions in
 ``linux-box-cloudflare/scratch_space/vibes/10-language-overview/06-word-ingestion.md``.
 """
@@ -16,9 +16,9 @@ from typing import TYPE_CHECKING
 from pydantic import BaseModel
 from pydantic import Field
 
-from lang_tools.words.word import Gloss
-from lang_tools.words.word import GlossExample
-from lang_tools.words.word import Word
+from lang_tools.lexicon.lemma import Gloss
+from lang_tools.lexicon.lemma import GlossExample
+from lang_tools.lexicon.lemma import Lemma
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -69,7 +69,7 @@ class WikiRecord(BaseModel):
     model_config = {"extra": "ignore"}
 
 
-def _record_to_word(record: WikiRecord, language: str) -> Word:
+def _record_to_lemma(record: WikiRecord, language: str) -> Lemma:
     glosses: list[Gloss] = []
     for sense in record.senses:
         gloss_text = sense.glosses[0] if sense.glosses else ""
@@ -85,7 +85,7 @@ def _record_to_word(record: WikiRecord, language: str) -> Word:
         ]
         glosses.append(Gloss(text=gloss_text, examples=examples))
 
-    return Word(
+    return Lemma(
         text=record.word,
         language=language,
         part_of_speech=record.pos,
@@ -109,18 +109,18 @@ def load_wiktionary_jsonl(
     keep_pos: Iterable[str] | None = _DEFAULT_KEEP_POS,
     require_accent: bool = False,
     skip_form_of: bool = True,
-) -> Iterator[Word]:
-    """Yield `Word` objects parsed from a kaikki.org JSONL file.
+) -> Iterator[Lemma]:
+    """Yield `Lemma` objects parsed from a kaikki.org JSONL file.
 
     Args:
         source: Filesystem path or open text stream.
-        language: ISO 639-1 code to stamp on every produced `Word`.
+        language: ISO 639-1 code to stamp on every produced `Lemma`.
         keep_pos: Allowed part-of-speech values; pass ``None`` to keep all.
-        require_accent: If True, only yield words with at least one diacritic.
+        require_accent: If True, only yield lemmas with at least one diacritic.
         skip_form_of: If True, skip entries that are inflected-form pointers.
 
     Yields:
-        `Word` instances for records that pass every filter.
+        `Lemma` instances for records that pass every filter.
     """
     keep = frozenset(keep_pos) if keep_pos is not None else None
     for raw_line in _iter_jsonl(source):
@@ -138,7 +138,7 @@ def load_wiktionary_jsonl(
             continue
         if keep is not None and (record.pos or "").lower() not in keep:
             continue
-        word = _record_to_word(record, language)
-        if require_accent and not word.has_accent:
+        lemma = _record_to_lemma(record, language)
+        if require_accent and not lemma.has_accent:
             continue
-        yield word
+        yield lemma

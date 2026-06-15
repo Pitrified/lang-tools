@@ -34,7 +34,7 @@ split as the design firms up.
 
 | #  | Phase                         | Plan                                                     | Status | One-liner                                                                                                              |
 | -- | ----------------------------- | -------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------- |
-| 1  | Rename `Word` -> `Lemma`      | [`01_rename_word_to_lemma.md`](01_rename_word_to_lemma.md) | planned | Preliminary mechanical refactor `Word`->`Lemma` (and `lang-tutor`) so later phases use literature vocabulary.          |
+| 1  | Rename `Word` -> `Lemma`      | [`01_rename_word_to_lemma.md`](01_rename_word_to_lemma.md) | done | Preliminary mechanical refactor `Word`->`Lemma` (and `lang-tutor`) so later phases use literature vocabulary.          |
 | 2  | Core data models              | [`02_core_models.md`](02_core_models.md)                 | draft  | Define thin `Lemma`, `Concept`, explicit `Sense` edge, `FalseFriendRelation`, generic relation edge; concept id scheme. |
 | 3  | Storage & indexing analysis   | [`03_storage_indexing.md`](03_storage_indexing.md)       | draft  | Assess git-LFS-friendly formats (CSV/JSONL vs SQLite), scale/perf/memory limits, whether a DB can live in LFS.         |
 | 4  | Store layer + indexes         | [`04_store_layer.md`](04_store_layer.md)                 | draft  | Extend/replace `lemma_store` with concept/sense/edge registries and look-aside indexes.                                |
@@ -78,3 +78,22 @@ Append-only. Newest at the bottom.
   planned, grounded in the real `lang_tools.words` -> `lang_tools.lexicon` rename
   across both repos incl. the HTTP surface); phases 2-10 written as ~1-page draft
   scope sketches.
+- 2026-06-16 : executed phase 1 (status done). lang-tools: package
+  `lang_tools.words` -> `lang_tools.lexicon`; modules `word/word_id/word_store` ->
+  `lemma/lemma_id/lemma_store`; `Word`/`WordExample`/`word_id` and all store +
+  ingestion helpers renamed; webapp router -> `lemmas_router` serving
+  `/api/v1/lemmas`; per the flagged decision, also renamed `word_generator` ->
+  `lemma_generator` (module, classes, prompt folder, `num_words` -> `num_lemmas`).
+  lang-tutor (lockstep, editable path dep): `Word` -> `Lemma`, content source
+  methods `get_lemmas_filtered`/`get_lemma_by_id`, `_LEMMAS_PATH` ->
+  `/api/v1/lemmas`, internal models `UserWordProgress` -> `UserLemmaProgress`,
+  `WordFilter` -> `LemmaFilter`, `select_words` -> `select_lemmas`, `WordResult`
+  -> `LemmaResult` (field `word_id` -> `lemma_id`), page router -> `lemmas_router`
+  (`/lemmas`). Exercise JSON API keys also renamed for coherence
+  (`num_words`->`num_lemmas`, `left_words`/`right_words`->`left_lemmas`/`right_lemmas`);
+  only `Wordle` game vocabulary (`word_length`, `WordleConfig`) intentionally
+  kept. Docs
+  updated in both repos (`words.md` -> `lexicon.md`, guides, mkdocs nav). Both
+  suites green: lang-tools 69 passed, lang-tutor 123 passed; ruff + pyright clean
+  in both. Grep for `Word`/`word_id`/`word_store`/`lang_tools.words` is clean
+  across src/tests/docs in both repos.

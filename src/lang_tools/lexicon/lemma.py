@@ -1,6 +1,6 @@
-"""Canonical `Word` model and supporting types.
+"""Canonical `Lemma` model and supporting types.
 
-The `Word` model unifies the per-repo word shapes from `convo_craft`,
+The `Lemma` model unifies the per-repo lexical-token shapes from `convo_craft`,
 `brazilian-bites`, `fala-comigo-ai-tutor`, `go-accenter`, and `worldly-words`
 into a single Pydantic schema. See
 ``linux-box-cloudflare/scratch_space/vibes/10-language-overview/02-shared-data-layer.md``
@@ -19,7 +19,7 @@ from pydantic import model_validator
 from lang_tools.language.normalization import extract_accented_chars
 from lang_tools.language.normalization import has_accent as _has_accent
 from lang_tools.language.normalization import normalize as _normalize
-from lang_tools.words.word_id import word_id
+from lang_tools.lexicon.lemma_id import lemma_id
 
 FrequencyLevel = Literal["high", "medium", "low"]
 
@@ -28,7 +28,7 @@ class GlossExample(BaseModel):
     """Usage example attached to a Wiktionary-style sense.
 
     Attributes:
-        text: Example sentence in the word's language.
+        text: Example sentence in the lemma's language.
         translation: English translation (optional).
     """
 
@@ -37,7 +37,7 @@ class GlossExample(BaseModel):
 
 
 class Gloss(BaseModel):
-    """A single sense / definition for a word.
+    """A single sense / definition for a lemma.
 
     Attributes:
         text: Definition text (usually English).
@@ -48,11 +48,11 @@ class Gloss(BaseModel):
     examples: list[GlossExample] = Field(default_factory=list)
 
 
-class WordExample(BaseModel):
-    """Curated example sentence in the word's language.
+class LemmaExample(BaseModel):
+    """Curated example sentence in the lemma's language.
 
     Attributes:
-        sentence: Example sentence in the word's language.
+        sentence: Example sentence in the lemma's language.
         translation: Translation in the user's language (optional).
     """
 
@@ -76,15 +76,15 @@ class FalseFriend(BaseModel):
     actual_meaning: str
 
 
-class Word(BaseModel):
-    """Unified word entity covering vocab, dictionary, and game data sources.
+class Lemma(BaseModel):
+    """Unified lemma entity covering vocab, dictionary, and game data sources.
 
     Attributes:
         text: Canonical form with accents preserved.
         language: ISO 639-1 code.
         normalized: Accent-stripped, lowercased form. Auto-derived from `text`
             when not supplied.
-        part_of_speech: Word class label (``"noun"``, ``"verb"``, ...).
+        part_of_speech: Lemma class label (``"noun"``, ``"verb"``, ...).
         frequency: Optional frequency tier.
         translations: Mapping from target language code to translated text.
         topics: Free-form topic tags.
@@ -102,12 +102,12 @@ class Word(BaseModel):
     translations: dict[str, str] = Field(default_factory=dict)
     topics: list[str] = Field(default_factory=list)
     glosses: list[Gloss] = Field(default_factory=list)
-    examples: list[WordExample] = Field(default_factory=list)
+    examples: list[LemmaExample] = Field(default_factory=list)
     false_friends: list[FalseFriend] = Field(default_factory=list)
     sources: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def _fill_normalized(self) -> Word:
+    def _fill_normalized(self) -> Lemma:
         """Auto-fill `normalized` when blank using the language-agnostic helper."""
         if not self.normalized:
             self.normalized = _normalize(self.text)
@@ -117,7 +117,7 @@ class Word(BaseModel):
     @property
     def id(self) -> str:
         """Deterministic ID derived from ``(text, language)``."""
-        return word_id(self.text, self.language)
+        return lemma_id(self.text, self.language)
 
     @computed_field  # type: ignore[prop-decorator]
     @property

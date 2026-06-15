@@ -18,9 +18,9 @@ The full design roadmap lives at
 
 - **Canonical data models** for words, languages, and accent maps.
 - **LLM services** layered on `llm-core` for translation, conversation
-  generation, topic suggestion, paragraph splitting, greetings, and word
+  generation, topic suggestion, paragraph splitting, greetings, and lemma
   generation.
-- **Word ingestion** from Wiktionary JSONL dumps, CSV files, and LLM output.
+- **Lemma ingestion** from Wiktionary JSONL dumps, CSV files, and LLM output.
 - Modern Python 3.13+, managed with [uv](https://docs.astral.sh/uv/).
 - Pre-configured Ruff, Pyright, pytest, pre-commit, and MkDocs.
 
@@ -47,7 +47,7 @@ lang-tools/
 │   ├── llm/                # Content-producing StructuredLLMChain wrappers
 │   ├── metaclasses/        # Singleton metaclass
 │   ├── params/             # Env-aware params and paths
-│   └── words/              # Word model, ids, ingestion, word store
+│   └── lexicon/            # Lemma model, ids, ingestion, lemma store
 ├── tests/                  # Test suite mirroring src/
 ├── docs/                   # MkDocs source (you are here)
 └── scratch_space/          # Experimental notebooks and vibes

@@ -1,6 +1,6 @@
-"""Word merging and deduplication.
+"""Lemma merging and deduplication.
 
-Two words with the same `(text, language)` (and therefore the same `Word.id`)
+Two lemmas with the same `(text, language)` (and therefore the same `Lemma.id`)
 should collapse to one record whose metadata is the union of both. Richer
 metadata wins where the two records disagree on a scalar field.
 """
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from lang_tools.words.word import Word
+from lang_tools.lexicon.lemma import Lemma
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -23,8 +23,8 @@ def _merge_lists(left: list, right: list) -> list:
     return seen
 
 
-def merge_words(left: Word, right: Word) -> Word:
-    """Return a new `Word` that combines fields from `left` and `right`.
+def merge_lemmas(left: Lemma, right: Lemma) -> Lemma:
+    """Return a new `Lemma` that combines fields from `left` and `right`.
 
     Scalar fields (``part_of_speech``, ``frequency``) prefer non-null over
     null; if both differ, ``left`` wins. Collection fields (``translations``,
@@ -37,13 +37,13 @@ def merge_words(left: Word, right: Word) -> Word:
         right: Second record.
 
     Returns:
-        A new merged `Word` instance. `left` and `right` are not mutated.
+        A new merged `Lemma` instance. `left` and `right` are not mutated.
 
     Raises:
         ValueError: If the two records have different IDs.
     """
     if left.id != right.id:
-        msg = f"Cannot merge words with different IDs: {left.id} vs {right.id}"
+        msg = f"Cannot merge lemmas with different IDs: {left.id} vs {right.id}"
         raise ValueError(msg)
 
     has_accent_left = any(c.isalpha() and not c.isascii() for c in left.text)
@@ -51,7 +51,7 @@ def merge_words(left: Word, right: Word) -> Word:
     if not text:
         text = left.text
 
-    return Word(
+    return Lemma(
         text=text,
         language=left.language,
         normalized=left.normalized or right.normalized,
@@ -66,19 +66,19 @@ def merge_words(left: Word, right: Word) -> Word:
     )
 
 
-def deduplicate(words: Iterable[Word]) -> list[Word]:
-    """Collapse an iterable of `Word`s by ID, merging duplicates.
+def deduplicate(lemmas: Iterable[Lemma]) -> list[Lemma]:
+    """Collapse an iterable of `Lemma`s by ID, merging duplicates.
 
     Args:
-        words: Iterable of words; may contain duplicates by ID.
+        lemmas: Iterable of lemmas; may contain duplicates by ID.
 
     Returns:
-        Insertion-ordered list of distinct `Word` records.
+        Insertion-ordered list of distinct `Lemma` records.
     """
-    out: dict[str, Word] = {}
-    for word in words:
-        if word.id in out:
-            out[word.id] = merge_words(out[word.id], word)
+    out: dict[str, Lemma] = {}
+    for lemma in lemmas:
+        if lemma.id in out:
+            out[lemma.id] = merge_lemmas(out[lemma.id], lemma)
         else:
-            out[word.id] = word
+            out[lemma.id] = lemma
     return list(out.values())

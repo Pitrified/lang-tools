@@ -33,7 +33,7 @@ print(result.translated_text)
 | [`build_topic_suggestion_chain`](../reference/lang_tools/llm/topics/) | `TopicSuggestionInput` | `TopicSuggestionOutput` | Suggest topics for practice |
 | [`build_paragraph_splitter_chain`](../reference/lang_tools/llm/splitter/) | `SplitterInput` | `SplitterOutput` | Split text into reconstruction-friendly portions |
 | [`build_greeting_chain`](../reference/lang_tools/llm/greeting/) | `GreetingInput` | `GreetingOutput` | Open a tutor conversation |
-| [`build_word_generator_chain`](../reference/lang_tools/llm/word_generator/) | `WordGeneratorInput` | `WordGeneratorOutput` | Generate themed vocabulary on demand |
+| [`build_lemma_generator_chain`](../reference/lang_tools/llm/lemma_generator/) | `LemmaGeneratorInput` | `LemmaGeneratorOutput` | Generate themed vocabulary on demand |
 
 `StructuredLLMChain` validates that every Jinja variable in the prompt
 matches a field of the input model at construction time, so a prompt edit

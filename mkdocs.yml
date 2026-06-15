@@ -84,7 +84,7 @@ nav:
       - Overview: library/index.md
       - Frozen API (lang-tutor contract): library/frozen_api.md
       - Language: library/language.md
-      - Words: library/words.md
+      - Lexicon: library/lexicon.md
       - LLM chains: library/llm.md
   - API Reference: reference/
   - Contributing: contributing.md

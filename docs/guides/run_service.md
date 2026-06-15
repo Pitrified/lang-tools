@@ -62,7 +62,7 @@ Check it is up:
 
 ```bash
 curl -s http://127.0.0.1:8010/health
-curl -s "http://127.0.0.1:8010/api/v1/words?language=pt"
+curl -s "http://127.0.0.1:8010/api/v1/lemmas?language=pt"
 ```
 
 !!! note "Trusted hosts"
@@ -73,21 +73,21 @@ curl -s "http://127.0.0.1:8010/api/v1/words?language=pt"
 
 ## Read API
 
-All endpoints are public and return JSON `Word` objects (the same model
+All endpoints are public and return JSON `Lemma` objects (the same model
 `lang-tutor` imports), including the computed fields `id`, `has_accent`,
 `accented_chars`, and `length`.
 
 | Method | Path | Description |
 | ------ | ---- | ----------- |
-| `GET` | `/api/v1/words` | List words. Optional query params `language` (ISO 639-1) and `topic`. |
-| `GET` | `/api/v1/words/{word_id}` | Fetch one word by its deterministic id. `404` when absent. |
+| `GET` | `/api/v1/lemmas` | List lemmas. Optional query params `language` (ISO 639-1) and `topic`. |
+| `GET` | `/api/v1/lemmas/{lemma_id}` | Fetch one lemma by its deterministic id. `404` when absent. |
 | `GET` | `/health` | Liveness/health probe (from fastapi-tools). |
 
 Example:
 
 ```bash
-curl -s "http://127.0.0.1:8010/api/v1/words?language=pt&topic=basics"
-curl -s "http://127.0.0.1:8010/api/v1/words/bf1c1f94e4bca388"
+curl -s "http://127.0.0.1:8010/api/v1/lemmas?language=pt&topic=basics"
+curl -s "http://127.0.0.1:8010/api/v1/lemmas/bf1c1f94e4bca388"
 ```
 
 `lang-tutor` points at this service with `LANG_TOOLS_BASE_URL`; see its

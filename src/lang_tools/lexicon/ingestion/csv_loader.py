@@ -8,10 +8,10 @@ from typing import IO
 from typing import TYPE_CHECKING
 from typing import cast
 
-from lang_tools.words.word import FalseFriend
-from lang_tools.words.word import FrequencyLevel
-from lang_tools.words.word import Word
-from lang_tools.words.word import WordExample
+from lang_tools.lexicon.lemma import FalseFriend
+from lang_tools.lexicon.lemma import FrequencyLevel
+from lang_tools.lexicon.lemma import Lemma
+from lang_tools.lexicon.lemma import LemmaExample
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -41,7 +41,7 @@ def _split_topics(raw: str | None) -> list[str]:
     return [t.strip() for t in raw.split(",") if t.strip()]
 
 
-def _row_to_word(row: dict[str, str]) -> Word:
+def _row_to_lemma(row: dict[str, str]) -> Lemma:
     text = row["text"].strip()
     language = row["language"].strip().lower()
 
@@ -59,10 +59,10 @@ def _row_to_word(row: dict[str, str]) -> Word:
         cast("FrequencyLevel", freq_raw) if freq_raw in _FREQUENCY_VALUES else None
     )
 
-    examples: list[WordExample] = []
+    examples: list[LemmaExample] = []
     if row.get("example_sentence"):
         examples.append(
-            WordExample(
+            LemmaExample(
                 sentence=row["example_sentence"].strip(),
                 translation=(row.get("example_translation") or "").strip() or None,
             ),
@@ -80,7 +80,7 @@ def _row_to_word(row: dict[str, str]) -> Word:
             ),
         )
 
-    return Word(
+    return Lemma(
         text=text,
         language=language,
         part_of_speech=(row.get("part_of_speech") or "").strip() or None,
@@ -101,8 +101,8 @@ def _iter_rows(source: Path | IO[str]) -> Iterator[dict[str, str]]:
         yield from csv.DictReader(source)
 
 
-def load_csv(source: Path | IO[str]) -> Iterator[Word]:
-    """Yield `Word` objects parsed from a vocabulary CSV.
+def load_csv(source: Path | IO[str]) -> Iterator[Lemma]:
+    """Yield `Lemma` objects parsed from a vocabulary CSV.
 
     The CSV must contain at least ``text`` and ``language`` columns. Optional
     columns include:
@@ -118,7 +118,7 @@ def load_csv(source: Path | IO[str]) -> Iterator[Word]:
         source: Path to the CSV file or an already-open text stream.
 
     Yields:
-        Parsed `Word` instances.
+        Parsed `Lemma` instances.
 
     Raises:
         CSVColumnsMissingError: If the header does not contain the required columns.
@@ -131,6 +131,6 @@ def load_csv(source: Path | IO[str]) -> Iterator[Word]:
     missing = _CSV_REQUIRED - first.keys()
     if missing:
         raise CSVColumnsMissingError(missing)
-    yield _row_to_word(first)
+    yield _row_to_lemma(first)
     for row in rows:
-        yield _row_to_word(row)
+        yield _row_to_lemma(row)

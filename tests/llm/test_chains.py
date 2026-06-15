@@ -10,10 +10,10 @@ from pydantic import SecretStr
 
 from lang_tools.llm import build_conversation_chain
 from lang_tools.llm import build_greeting_chain
+from lang_tools.llm import build_lemma_generator_chain
 from lang_tools.llm import build_paragraph_splitter_chain
 from lang_tools.llm import build_topic_suggestion_chain
 from lang_tools.llm import build_translation_chain
-from lang_tools.llm import build_word_generator_chain
 
 
 def _cfg() -> ChatOpenAIConfig:
@@ -40,5 +40,5 @@ def test_build_greeting_chain() -> None:
     build_greeting_chain(_cfg())
 
 
-def test_build_word_generator_chain() -> None:
-    build_word_generator_chain(_cfg())
+def test_build_lemma_generator_chain() -> None:
+    build_lemma_generator_chain(_cfg())

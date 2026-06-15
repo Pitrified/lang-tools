@@ -1,8 +1,8 @@
-"""Tests for `lang_tools.words.ingestion.wiktionary`."""
+"""Tests for `lang_tools.lexicon.ingestion.wiktionary`."""
 
 from io import StringIO
 
-from lang_tools.words.ingestion.wiktionary import load_wiktionary_jsonl
+from lang_tools.lexicon.ingestion.wiktionary import load_wiktionary_jsonl
 
 
 def test_load_wiktionary_jsonl_basic() -> None:
@@ -10,16 +10,16 @@ def test_load_wiktionary_jsonl_basic() -> None:
         '{"word": "amor", "lang_code": "pt", "pos": "noun", '
         '"senses": [{"glosses": ["love"]}]}'
     )
-    words = list(load_wiktionary_jsonl(StringIO(line + "\n"), language="pt"))
-    assert len(words) == 1
-    assert words[0].text == "amor"
-    assert words[0].sources == ["wiktionary"]
+    lemmas = list(load_wiktionary_jsonl(StringIO(line + "\n"), language="pt"))
+    assert len(lemmas) == 1
+    assert lemmas[0].text == "amor"
+    assert lemmas[0].sources == ["wiktionary"]
 
 
 def test_load_wiktionary_jsonl_filters_pos() -> None:
     bad = '{"word": "x", "lang_code": "pt", "pos": "letter", "senses": []}'
-    words = list(load_wiktionary_jsonl(StringIO(bad + "\n"), language="pt"))
-    assert words == []
+    lemmas = list(load_wiktionary_jsonl(StringIO(bad + "\n"), language="pt"))
+    assert lemmas == []
 
 
 def test_load_wiktionary_jsonl_skips_form_of() -> None:
@@ -28,5 +28,5 @@ def test_load_wiktionary_jsonl_skips_form_of() -> None:
         '"form_of": [{"word": "amar"}], '
         '"senses": [{"glosses": ["loved"]}]}'
     )
-    words = list(load_wiktionary_jsonl(StringIO(line + "\n"), language="pt"))
-    assert words == []
+    lemmas = list(load_wiktionary_jsonl(StringIO(line + "\n"), language="pt"))
+    assert lemmas == []

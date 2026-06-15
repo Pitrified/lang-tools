@@ -1,10 +1,10 @@
-# Bootstrap Word Data
+# Bootstrap Lemma Data
 
-The `data/bootstrap/` directory contains starter vocabulary CSV files for each supported language. These are loaded automatically at import time by `lang_tools.words.word_store`, the in-process content surface that consumers (such as `lang-tutor`) read from.
+The `data/bootstrap/` directory contains starter vocabulary CSV files for each supported language. These are loaded automatically at import time by `lang_tools.lexicon.lemma_store`, the in-process content surface that consumers (such as `lang-tutor`) read from.
 
 ## Available Languages
 
-| File | Language | Words |
+| File | Language | Lemmas |
 |------|----------|-------|
 | `pt.csv` | Portuguese | ~50 |
 | `fr.csv` | French | ~50 |
@@ -15,7 +15,7 @@ The `data/bootstrap/` directory contains starter vocabulary CSV files for each s
 
 ## CSV Format
 
-Each CSV uses the format expected by `lang_tools.words.ingestion.csv_loader.load_csv()`:
+Each CSV uses the format expected by `lang_tools.lexicon.ingestion.csv_loader.load_csv()`:
 
 ```csv
 text,language,part_of_speech,frequency,topics,translation_en,example_sentence,example_translation
@@ -34,36 +34,36 @@ Optional columns:
 
 ## How Consumers Use This Data
 
-The word store loads all bootstrap CSVs automatically via `lang_tools.words.word_store`:
+The lemma store loads all bootstrap CSVs automatically via `lang_tools.lexicon.lemma_store`:
 
 ```python
-from lang_tools.words.word_store import get_all_words, get_words_filtered
+from lang_tools.lexicon.lemma_store import get_all_lemmas, get_lemmas_filtered
 
-# All loaded words
-words = get_all_words()
+# All loaded lemmas
+lemmas = get_all_lemmas()
 
 # Filter by language
-pt_words = get_words_filtered(language="pt")
+pt_lemmas = get_lemmas_filtered(language="pt")
 
 # Filter by topic
-food_words = get_words_filtered(topic="food")
+food_lemmas = get_lemmas_filtered(topic="food")
 ```
 
-No database setup is needed. The word store is an in-memory read-only list populated at module import time.
+No database setup is needed. The lemma store is an in-memory read-only list populated at module import time.
 
-## Adding More Words
+## Adding More Lemmas
 
 1. Edit or add a CSV in `data/bootstrap/` following the format above.
-2. Restart the consuming process. Words are loaded at import time.
+2. Restart the consuming process. Lemmas are loaded at import time.
 
 For programmatic ingestion from other sources (Wiktionary, LLM-generated), see the ingestion modules:
 
 ```python
-from lang_tools.words.ingestion.csv_loader import load_csv
-from lang_tools.words.ingestion.wiktionary import load_wiktionary_jsonl
+from lang_tools.lexicon.ingestion.csv_loader import load_csv
+from lang_tools.lexicon.ingestion.wiktionary import load_wiktionary_jsonl
 
 # Load a custom CSV
-words = list(load_csv(Path("my_words.csv")))
+lemmas = list(load_csv(Path("my_lemmas.csv")))
 ```
 
 ## Using the Ingestion Pipeline in a Script
@@ -71,12 +71,12 @@ words = list(load_csv(Path("my_words.csv")))
 ```python
 """Example: load bootstrap CSVs and print stats."""
 from pathlib import Path
-from lang_tools.words.ingestion.csv_loader import load_csv
+from lang_tools.lexicon.ingestion.csv_loader import load_csv
 
 bootstrap_dir = Path("data/bootstrap")
 for csv_path in sorted(bootstrap_dir.glob("*.csv")):
-    words = list(load_csv(csv_path))
-    print(f"{csv_path.name}: {len(words)} words")
-    accented = sum(1 for w in words if w.has_accent)
+    lemmas = list(load_csv(csv_path))
+    print(f"{csv_path.name}: {len(lemmas)} lemmas")
+    accented = sum(1 for lemma in lemmas if lemma.has_accent)
     print(f"  - {accented} with accents")
 ```
