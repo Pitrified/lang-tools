@@ -180,3 +180,51 @@ instances tagged with the originating source:
 
 `merge_lemmas(left, right)` and `deduplicate(lemmas)` collapse records that
 share an id, merging their topics, examples, and sources.
+
+### Initial build pipeline (phase 5)
+
+On top of the per-file loaders, `ingestion` ships the one-time **initial build**
+that populates the whole corpus from external sources. It is linear by design -
+the Parquet tables are the source of truth, so there is no base/overlay split:
+
+```
+sources (OMW via wn, kaikki JSONL)
+  -> acquire   (download -> data/_raw/lexicon/ cache + _build.json manifest)
+  -> transform (raw -> source-tagged concepts/lemmas/senses)
+  -> write     (codec _dump_table -> data/lexicon/*.parquet, the source of truth)
+  -> sample    (carve a small slice for lang-tutor + tests)
+```
+
+- **`acquire`** pulls the raw sources into the gitignored, regenerable cache and
+  pins their exact versions in a `_build.json` manifest. `download_omw` wraps
+  `wn` (the `ingest` extra); `fetch_kaikki` is a plain HTTPS GET; the manifest is
+  the only seam a future re-ingestion merge diffs against (the machine baseline
+  is *reconstructible* from the pinned cache, so no base snapshot is committed).
+- **`sources.omw`** is the concept backbone: `wn_synset_entries` flattens OMW
+  synsets (the only place that touches `wn`), and the pure `group_to_records`
+  groups them by shared ILI key into one `Concept` per meaning (this is the
+  cross-lingual cognate grouping) plus the member `Lemma`s and `Sense` edges.
+- **`sources.kaikki`** is enrichment only: `load_kaikki_entries` keeps the
+  glosses and example sentences (unlike `load_wiktionary_jsonl`) so `transform`
+  can fill sparse `Concept.definitions` and attach `Lemma.examples`. It never
+  adds rows.
+- **`transform`** returns `TaggedTables` - the five tables plus a parallel
+  per-row provenance tag (`omw` / `kaikki` / `llm` / `manual`). OMW rows are
+  tagged `omw`; any row that gains CC-BY-SA kaikki content is re-tagged `kaikki`
+  (the conservative, license-isolating choice).
+- **`build_initial`** wires it together: transform, write each table through the
+  codec with its tags, write the manifest, then carve and (optionally) write a
+  sample slice. Thin notebooks under `notebooks/lexicon_ingest/` drive it.
+
+The optional LLM granularity-collapse pass (over-fine WordNet senses ->
+learner granularity) is a deferred seam: the deterministic OMW-as-is output is
+the default and the only thing the build produces today.
+
+#### Provenance column
+
+The provenance tag lives **on disk only**: the codec writes it as an extra
+`source` Parquet column when `_dump_table` is given parallel `sources=`, and
+always drops it on load so it never reaches the thin pydantic models (the same
+trick as the computed `id`). It is the one lightweight seam the deferred
+re-ingestion merge needs - refresh machine rows, preserve hand-curated `manual`
+ones - and it keeps the runtime store (which loads through the codec) untouched.

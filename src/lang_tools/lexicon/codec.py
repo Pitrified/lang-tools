@@ -49,6 +49,13 @@ LEXICON_SUBDIR = "lexicon"
 #: Tables stored one Parquet file per language (the large ones).
 PARTITIONED: frozenset[str] = frozenset({"lemmas", "senses"})
 
+#: Lightweight per-row provenance column (``omw|kaikki|llm|manual``). It is the
+#: one seam a future re-ingestion merge needs (refresh machine rows, preserve
+#: ``manual`` ones), so it lives **on disk only**: written as an extra Parquet
+#: column when a provenance-aware dump supplies it, and always dropped on load so
+#: it never reaches the thin pydantic models (same trick as the computed ``id``).
+PROVENANCE_COL = "source"
+
 #: Model class backing each table.
 _MODELS: dict[str, type[BaseModel]] = {
     "lemmas": Lemma,
@@ -104,6 +111,26 @@ _DROP_ON_LOAD: dict[str, frozenset[str]] = {
     "false_friends": frozenset(),
     "concept_relations": frozenset(),
 }
+
+
+class ProvenanceLengthMismatchError(ValueError):
+    """Raised when a provenance-aware dump gets the wrong number of source tags."""
+
+    def __init__(self, name: str, n_models: int, n_sources: int) -> None:
+        """Initialize with the table and the two mismatched lengths.
+
+        Args:
+            name: The table being dumped.
+            n_models: Number of models passed.
+            n_sources: Number of source tags passed.
+        """
+        super().__init__(
+            f"{name}: got {n_sources} source tags for {n_models} models "
+            "(they must be parallel).",
+        )
+        self.name = name
+        self.n_models = n_models
+        self.n_sources = n_sources
 
 
 class UnknownTableError(KeyError):
@@ -214,6 +241,12 @@ def _schema(name: str) -> Any:  # noqa: ANN401 - pyarrow.Schema, kept lazy
     return schemas[name]
 
 
+def _schema_with_source(name: str) -> Any:  # noqa: ANN401 - pyarrow.Schema, kept lazy
+    """Return a table's schema with the trailing `PROVENANCE_COL` string field."""
+    pa, _ = _require_pyarrow()
+    return _schema(name).append(pa.field(PROVENANCE_COL, pa.string()))
+
+
 def model_class(name: str) -> type[BaseModel]:
     """Return the model class backing a table.
 
@@ -258,7 +291,8 @@ def model_from_row(name: str, row: dict[str, Any]) -> BaseModel:
     Raises:
         MalformedRecordError: If the row fails model validation.
     """
-    cleaned = {k: v for k, v in row.items() if k not in _DROP_ON_LOAD[name]}
+    drop = _DROP_ON_LOAD[name] | {PROVENANCE_COL}
+    cleaned = {k: v for k, v in row.items() if k not in drop}
     for col in _MAP_COLUMNS.get(name, frozenset()):
         value = cleaned.get(col)
         # pyarrow reads a map<string,string> back as a list of (k, v) tuples.
@@ -337,6 +371,7 @@ def _dump_table(
     *,
     data_fol: Path,
     lang: str | None = None,
+    sources: list[str] | None = None,
 ) -> None:
     """Write a table of models to Parquet (zstd).
 
@@ -350,15 +385,29 @@ def _dump_table(
         models: The model instances to persist.
         data_fol: Project data folder.
         lang: Force a single per-language file for a partitioned table.
+        sources: Optional parallel list of per-row provenance tags
+            (``omw|kaikki|llm|manual``); when given, an extra `PROVENANCE_COL`
+            column is written and stays with each row through partitioning. The
+            tag is always dropped on load, so it never reaches the models.
 
     Raises:
         UnknownTableError: If `name` is not a known table.
+        ProvenanceLengthMismatchError: If `sources` is given but not parallel to
+            `models`.
     """
     if name not in _MODELS:
         raise UnknownTableError(name)
     table_dir = _table_dir(data_fol)
-    schema = _schema(name)
     rows = [row_from_model(name, m) for m in models]
+
+    if sources is None:
+        schema = _schema(name)
+    else:
+        if len(sources) != len(rows):
+            raise ProvenanceLengthMismatchError(name, len(rows), len(sources))
+        for row, tag in zip(rows, sources, strict=True):
+            row[PROVENANCE_COL] = tag
+        schema = _schema_with_source(name)
 
     if name not in PARTITIONED:
         _write_parquet(table_dir / f"{name}.parquet", rows, schema)

@@ -25,6 +25,12 @@ webapp = [
 store = [
     "duckdb>=1.1.0",
 ]
+# `wn` (Open Multilingual Wordnet access) backs the phase-5 initial-build only
+# (`ingestion.acquire.download_omw` / `sources.omw`); the runtime never imports
+# it, so it stays optional and lazily imported.
+ingest = [
+    "wn>=0.9.5",
+]
 
 [build-system]
 requires = ["hatchling"]

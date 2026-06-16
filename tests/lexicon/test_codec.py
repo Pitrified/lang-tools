@@ -2,9 +2,12 @@
 
 from pathlib import Path
 
+import pyarrow.parquet as pq
 import pytest
 
+from lang_tools.lexicon.codec import PROVENANCE_COL
 from lang_tools.lexicon.codec import MalformedRecordError
+from lang_tools.lexicon.codec import ProvenanceLengthMismatchError
 from lang_tools.lexicon.codec import UnknownTableError
 from lang_tools.lexicon.codec import _dump_table
 from lang_tools.lexicon.codec import _load_table
@@ -32,6 +35,13 @@ def _sample_concept() -> Concept:
     return Concept(
         id="c__bank-money__0011aabbccdd",
         definitions={"pt": "instituicao financeira", "en": "a financial institution"},
+    )
+
+
+def _other_concept() -> Concept:
+    return Concept(
+        id="c__river-water__112233445566",
+        definitions={"en": "a flow of water"},
     )
 
 
@@ -129,3 +139,30 @@ def test_malformed_row_raises(tmp_path: Path) -> None:
     # A concept row with a malformed id fails validation through the model.
     with pytest.raises(MalformedRecordError):
         model_from_row("concepts", {"id": "not-a-valid-id", "definitions": {}})
+
+
+def test_provenance_column_written_and_dropped_on_load(tmp_path: Path) -> None:
+    concepts = [_sample_concept(), _other_concept()]
+    _dump_table("concepts", concepts, data_fol=tmp_path, sources=["omw", "kaikki"])
+    # The extra column lands in the Parquet file...
+    table = pq.read_table(tmp_path / "lexicon" / "concepts.parquet")
+    assert table.column(PROVENANCE_COL).to_pylist() == ["omw", "kaikki"]
+    # ...but is dropped on model load (never reaches the thin model).
+    loaded = _load_table("concepts", data_fol=tmp_path)
+    assert loaded == concepts
+    assert all(PROVENANCE_COL not in c.model_dump() for c in loaded)
+
+
+def test_provenance_partitioned_lemmas_keep_tags_per_language(tmp_path: Path) -> None:
+    pt = Lemma(text="casa", language="pt")
+    en = Lemma(text="house", language="en")
+    _dump_table("lemmas", [pt, en], data_fol=tmp_path, sources=["kaikki", "omw"])
+    pt_table = pq.read_table(tmp_path / "lexicon" / "lemmas" / "pt.parquet")
+    en_table = pq.read_table(tmp_path / "lexicon" / "lemmas" / "en.parquet")
+    assert pt_table.column(PROVENANCE_COL).to_pylist() == ["kaikki"]
+    assert en_table.column(PROVENANCE_COL).to_pylist() == ["omw"]
+
+
+def test_provenance_length_mismatch_raises(tmp_path: Path) -> None:
+    with pytest.raises(ProvenanceLengthMismatchError):
+        _dump_table("concepts", [_sample_concept()], data_fol=tmp_path, sources=[])

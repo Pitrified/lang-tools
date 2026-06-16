@@ -54,7 +54,7 @@ split as the design firms up.
 | 4  | Store layer + indexes         | [`04_store_layer.md`](04_store_layer.md)                 | done | Extend `lemma_store` with concept/sense/edge registries, look-aside indexes, and back-ref hydration; query surface feeds phase 3. |
 | 4.1 | SQLite-only runtime engine   | [`04.1_sqlite_mode.md`](04.1_sqlite_mode.md)             | done   | Collapse the store to a single SQLite engine and remove resident mode; sequenced before phase 5 so the engine is settled. Supersedes phase 4's dual-mode. |
 | 4.2 | Single load path (Parquet-only) | [`04.2_seed_data.md`](04.2_seed_data.md)              | done   | Remove the JSONL-seed loader + pyarrow-missing fallback; the store reads Parquet only. Seed becomes a dev input parquetized by a notebook. pyarrow -> base dep. |
-| 5  | Initial ingestion pipeline    | [`05_ingestion.md`](05_ingestion.md)                     | planned | One-time initial build: OMW via `wn` -> concepts, kaikki enrichment, optional LLM granularity. Parquet is the source of truth; re-ingestion merge deferred. |
+| 5  | Initial ingestion pipeline    | [`05_ingestion.md`](05_ingestion.md)                     | done | One-time initial build: OMW via `wn` -> concepts, kaikki enrichment, optional LLM granularity. Parquet is the source of truth; re-ingestion merge deferred. |
 | 6  | Frequency & complexity        | [`06_frequency_complexity.md`](06_frequency_complexity.md) | draft  | Per-sense token/sense frequency (`wordfreq`, sense-tag weights) and CEFR complexity (graded lists / estimated).        |
 | 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | draft  | Ingest hypernymy/hyponymy and antonymy as typed edges from OMW.                                                        |
 | 8  | Maintenance (LLM-based)       | [`08_maintenance.md`](08_maintenance.md)                 | draft  | LLM-assisted upkeep: new lemma->concept mapping, gloss enrichment, slug dedup, validation against OMW.                 |
@@ -413,3 +413,33 @@ Append-only. Newest at the bottom.
   codec docstring). Suite green: 121 passed, ruff clean, pyright 0 errors. Note:
   `docs/guides/bootstrap_data.md` is stale from before 4.1 (describes CSV +
   in-memory + import-time load) and was left for a separate cleanup.
+- 2026-06-17 : executed phase 5 (status done). Built the initial-build pipeline
+  under `src/lang_tools/lexicon/ingestion/`: `acquire.py` (raw-cache paths,
+  `download_omw` wrapping `wn`, `fetch_kaikki` HTTPS GET, `_build.json` manifest
+  read/write), `sources/omw.py` (impure `wn_synset_entries` flattening synsets to
+  a pure `SynsetEntry`; pure `group_to_records` grouping by shared ILI into one
+  `Concept` + member `Lemma`/`Sense`, with `slugify` + WordNet POS map),
+  `sources/kaikki.py` (`load_kaikki_entries` keeping glosses/examples for
+  enrichment, joined by `(normalized text, language)`), `transform.py`
+  (`TaggedTables` = the five tables + parallel per-row provenance tags; OMW rows
+  tagged `omw`, any row gaining CC-BY-SA kaikki content re-tagged `kaikki`),
+  `sample.py` (`carve_sample`, slice closed under kept concepts), `pipeline.py`
+  (`build_initial`: transform -> codec write w/ tags -> manifest -> carve+write
+  sample; senses partitioned per lemma-language). Provenance is the **one seam**
+  the deferred merge needs: added `PROVENANCE_COL = "source"` to `codec.py` as an
+  on-disk-only extra column - `_dump_table(..., sources=)` writes it (parallel to
+  models, partition-aware), `model_from_row` always drops it, so the thin models
+  and the SQLite runtime (`_COLUMNS`-driven) stay untouched. `wn` added as a new
+  lazy `ingest` optional extra; runtime never imports it. Two thin driver
+  notebooks under `notebooks/lexicon_ingest/` (`01_download`, `02_transform`).
+  Tests (+28, 149 total): omw grouping/slug/POS/dedup, kaikki parse, transform
+  provenance retagging, sample closure, acquire manifest round-trip, pipeline
+  build -> store load + provenance-on-disk-dropped-on-load, codec provenance
+  round-trip. `uv run pytest && ruff check . && pyright` all green. Docs: new
+  "Initial build pipeline (phase 5)" + "Provenance column" sections in
+  `docs/library/lexicon.md`; reference pages auto-generate via api-autonav.
+  **Not run here** (no network / `wn` not installed in this env): the real
+  OMW+kaikki download and the resulting committed sample slice. The pipeline is
+  verified end-to-end against in-memory fixtures; a real build is a `01`/`02`
+  notebook run on a machine with the `ingest` extra. Deferred per plan:
+  re-ingestion smart merge, LLM granularity collapse (seam only).
