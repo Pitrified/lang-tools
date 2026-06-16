@@ -31,6 +31,16 @@ in phase 3 over the models from phase 2. Context:
   (lean lemma payloads stay lean).
 - **Loader robustness** - clear, named errors on malformed rows; dedup of
   colliding concept slugs flagged here.
+- **Hydration of representation back-refs** - phase 2 defines the convenience
+  navigation as store-hydrated, serialization-excluded fields (`sense.lemma`,
+  `sense.concept`, `lemma.senses`, `concept.senses`, computed `concept.lemmas`).
+  This phase populates them once at load time and owns their consistency. Carry the
+  note from phase 2: an *unhydrated* `Sense` (one built ad hoc, e.g. by ingestion
+  before the registries exist, or in a unit test) has `sense.lemma is None`. Decide
+  the guard here - either a clear `SenseNotHydratedError` raised by the accessor, or
+  lazy resolution through the store - rather than returning `None` silently and
+  surprising callers. The persisted `lemma_id`/`concept_id` always remain the
+  fallback path.
 
 ## Out of scope
 

@@ -86,6 +86,13 @@ class Lemma(BaseModel):
         return lemma_id(self.text, self.language)
 ```
 
+> **Decided (phase 2): `concept_ids` is dropped from `Lemma`.** The explicit
+> `Sense` edge (see "Modeling implication" below) is the single source of truth for
+> lemma <-> concept membership, so the persisted `Lemma` carries no `concept_ids`
+> list. Callers reach a lemma's meanings through the hydrated `lemma.senses` /
+> `lemma.concepts` representation view (phase 4). The `concept_ids` field shown
+> above is the original sketch; it is superseded.
+
 #### Naming: `Lemma`, not `Word`
 
 Decided (green-lit): the class is `Lemma`, not `Word`. The literature term for
@@ -131,6 +138,16 @@ class Concept(BaseModel):
 - A concept with `len(lemmas[lang]) > 1` is a synonym/dialect group in that
   language.
 - A concept with multiple language keys is an implicit cognate/translation set.
+
+> **Decided (phase 2): `lemmas` is dropped from the persisted `Concept`.** Once the
+> explicit `Sense` edge exists (see below), per-language membership is fully
+> derivable from the sense set (group a concept's senses, bucket by each lemma's
+> language). Persisting `lemmas` too would duplicate the edge and risk one-sided
+> drift - the same reason false friends are a decoupled edge. `Concept` is stored
+> as `id` + `definitions` only; `concept.lemmas` (and the synonym-group /
+> cognate-set reads above) return as a computed representation-layer view, hydrated
+> by the store in phase 4, not a stored field. See
+> [`02_core_models.md`](02_core_models.md), "Persistence vs representation".
 
 ### `FalseFriendRelation` (decoupled edge table)
 
@@ -294,9 +311,14 @@ class Sense(BaseModel):
 ```
 
 Token frequency can also be cached on `Lemma` as a convenience aggregate (the max
-across its senses), but the sense edge stays the source of truth. Whether to
-promote the edge now or keep the flat `concept_ids` list until frequency lands is
-an open question (see below).
+across its senses), but the sense edge stays the source of truth.
+
+> **Decided (phase 2): promote the explicit `Sense` edge now.** The richer
+> per-sense metadata (frequency, CEFR, later provenance/examples) earns the
+> dedicated object, and making `Sense` the canonical membership record lets both
+> `Lemma.concept_ids` and `Concept.lemmas` drop (their membership is derivable from
+> the sense set). `Sense` is the single place the lemma <-> concept relationship is
+> stored. See [`02_core_models.md`](02_core_models.md).
 
 ### Sources
 
@@ -617,16 +639,22 @@ canonical gloss.
 - **Storage format / git-LFS.** Direction set (line-oriented files under LFS,
   SQLite only if needed) but needs the dedicated analysis sub-plan. See "Storage
   format, git-LFS friendliness, and scaling".
+- **Promote the sense edge now, or later?** Resolved (phase 2): promote now. The
+  explicit `Sense` is the canonical membership record and hosts per-sense frequency
+  and CEFR; `Lemma.concept_ids` and `Concept.lemmas` both drop as derivable. See
+  "Modeling implication: an explicit sense edge".
+- **Persistence vs representation.** Resolved (phase 2): persisted models are thin,
+  id-only, drift-free records (the on-disk source of truth); convenience navigation
+  (`sense.lemma`, `sense.concept`, `lemma.senses`, computed `concept.lemmas`) is an
+  in-memory representation concern, hydrated by the store as serialization-excluded
+  fields in phase 4. See [`02_core_models.md`](02_core_models.md).
+- **Glosses on `Lemma` vs `Concept`.** Resolved (phase 2): glosses move entirely to
+  `Concept.definitions`; `Lemma` keeps none. Raw source glosses are not carried as
+  provenance now; if wanted they return in the ingestion phase (5) where they are
+  produced.
 
 ## Open questions
 
-- **Promote the sense edge now, or later?** Carrying lemma frequency *and* CEFR
-  complexity (both per-sense), plus per-sense provenance/examples, argues for an
-  explicit `Sense` model from day one; the simpler `Lemma.concept_ids: list[str]`
-  is lighter if those land later. Leaning toward the explicit `Sense` edge given
-  frequency and complexity are both in scope.
-- **Do glosses stay on `Lemma` too, or move entirely to `Concept`?** Leaning:
-  concept owns canonical glosses; lemma may keep raw source glosses as provenance.
 - **Enrichment license.** How to handle CC-BY-SA Wiktionary text so the shipped
   dataset stays cleanly open: isolated separately-licensed layer, accept CC-BY-SA
   for the whole dataset, or use Wiktionary only to guide freshly-written LLM

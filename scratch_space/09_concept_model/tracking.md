@@ -35,7 +35,7 @@ split as the design firms up.
 | #  | Phase                         | Plan                                                     | Status | One-liner                                                                                                              |
 | -- | ----------------------------- | -------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------- |
 | 1  | Rename `Word` -> `Lemma`      | [`01_rename_word_to_lemma.md`](01_rename_word_to_lemma.md) | done | Preliminary mechanical refactor `Word`->`Lemma` (and `lang-tutor`) so later phases use literature vocabulary.          |
-| 2  | Core data models              | [`02_core_models.md`](02_core_models.md)                 | draft  | Define thin `Lemma`, `Concept`, explicit `Sense` edge, `FalseFriendRelation`, generic relation edge; concept id scheme. |
+| 2  | Core data models              | [`02_core_models.md`](02_core_models.md)                 | planned | Define thin `Lemma`, `Concept`, explicit `Sense` edge, `FalseFriendRelation`, generic relation edge; concept id scheme. |
 | 3  | Storage & indexing analysis   | [`03_storage_indexing.md`](03_storage_indexing.md)       | draft  | Assess git-LFS-friendly formats (CSV/JSONL vs SQLite), scale/perf/memory limits, whether a DB can live in LFS.         |
 | 4  | Store layer + indexes         | [`04_store_layer.md`](04_store_layer.md)                 | draft  | Extend/replace `lemma_store` with concept/sense/edge registries and look-aside indexes.                                |
 | 5  | Initial ingestion pipeline    | [`05_ingestion.md`](05_ingestion.md)                     | draft  | OMW via `wn` -> concepts, then kaikki enrichment, then LLM granularity/mapping; the order and how.                     |
@@ -97,3 +97,29 @@ Append-only. Newest at the bottom.
   suites green: lang-tools 69 passed, lang-tutor 123 passed; ruff + pyright clean
   in both. Grep for `Word`/`word_id`/`word_store`/`lang_tools.words` is clean
   across src/tests/docs in both repos.
+- 2026-06-16 : fleshed phase 2 into a plan of record (status planned), grounded in
+  the real `lang_tools.lexicon` files. Scoped it to models + id helpers + unit
+  tests, with minimal call-site updates to keep the suite green; store registries
+  (phase 4), ingestion (phase 5), and frequency/CEFR/relation population
+  (phases 6-7) stay out. Resolved the open points as recommendations to confirm:
+  promote `Sense` as the single source of truth and drop `Lemma.concept_ids`
+  (supersedes the sketch's "add concept_ids"); canonical glosses move to
+  `Concept.definitions` (raw source glosses deferred to phase 5); `concept_id`
+  takes a pre-computed slug so slug-source choice stays in ingestion.
+- 2026-06-16 : confirmed the explicit `Sense` edge (richer per-sense metadata
+  earns it) and iterated phase 2 on the persistence-vs-representation split.
+  Analyzed `Concept.lemmas` as redundant once `Sense` exists (rebuildable from the
+  sense set + each lemma's language) and dropped it from the persisted shape, same
+  reasoning as decoupling false friends. Persisted models stay thin/id-only and
+  drift-free; convenience navigation (`sense.lemma`, `sense.concept`,
+  `lemma.senses`, computed `concept.lemmas`) becomes a representation-layer concern
+  built in phase 4 via store-hydrated `exclude=True` fields (alternatives - lazy
+  store properties, separate view classes - considered and noted).
+- 2026-06-16 : accepted phase 2's two remaining open points - glosses move entirely
+  to `Concept.definitions` (none on `Lemma`); concept slug from OMW/ILI key first,
+  else English gloss. All phase 2 model decisions now confirmed. Noted the
+  unhydrated-`Sense` guard (accessor raises vs lazy-resolves rather than returning
+  `None`) in the phase 4 draft. Folded the `Sense` promotion, dropped
+  `Lemma.concept_ids` / `Concept.lemmas`, persistence-vs-representation split, and
+  gloss decision back into `00-concepts-brainstorm.md` (model sections + Resolved
+  list) so the high-level track stays aligned.
