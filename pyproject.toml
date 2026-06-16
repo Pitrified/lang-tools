@@ -19,6 +19,10 @@ dependencies = [
 webapp = [
     "fastapi-tools @ git+https://github.com/Pitrified/fastapi-tools@v0.1.0",
 ]
+store = [
+    "pyarrow>=18.0.0",
+    "duckdb>=1.1.0",
+]
 
 [build-system]
 requires = ["hatchling"]

@@ -13,6 +13,8 @@ See ``scratch_space/09_concept_model/02_core_models.md`` for the full design.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from pydantic import BaseModel
 from pydantic import Field
 from pydantic import computed_field
@@ -21,7 +23,12 @@ from pydantic import model_validator
 from lang_tools.language.normalization import extract_accented_chars
 from lang_tools.language.normalization import has_accent as _has_accent
 from lang_tools.language.normalization import normalize as _normalize
+from lang_tools.lexicon.hydration import require
 from lang_tools.lexicon.lemma_id import lemma_id
+
+if TYPE_CHECKING:
+    from lang_tools.lexicon.concept import Concept
+    from lang_tools.lexicon.sense import Sense
 
 
 class LemmaExample(BaseModel):
@@ -51,6 +58,12 @@ class Lemma(BaseModel):
         topics: Free-form topic tags.
         examples: Curated example sentences.
         sources: Provenance tags (``"wiktionary"``, ``"csv"``, ``"llm"``, ...).
+        senses: Resolved `Sense` edges of this lemma. Store-hydrated, never
+            persisted (``exclude=True``); ``None`` until hydration. Read via
+            `resolve_senses` to fail loud when unhydrated.
+        concepts: Resolved `Concept`s reachable through `senses`, de-duplicated.
+            Same hydration contract as `senses`; derived (never written), so it
+            cannot drift from the sense table on disk.
     """
 
     text: str
@@ -60,6 +73,10 @@ class Lemma(BaseModel):
     topics: list[str] = Field(default_factory=list)
     examples: list[LemmaExample] = Field(default_factory=list)
     sources: list[str] = Field(default_factory=list)
+
+    # Representation-layer back-references; see `Sense.lemma` for the contract.
+    senses: list[Sense] | None = Field(default=None, exclude=True, repr=False)
+    concepts: list[Concept] | None = Field(default=None, exclude=True, repr=False)
 
     @model_validator(mode="after")
     def _fill_normalized(self) -> Lemma:
@@ -91,3 +108,25 @@ class Lemma(BaseModel):
     def length(self) -> int:
         """Length of `text` in characters (used by the Wordle exercise)."""
         return len(self.text)
+
+    def resolve_senses(self) -> list[Sense]:
+        """Return the hydrated `Sense` edges of this lemma.
+
+        Returns:
+            The senses linking this lemma to its concepts (possibly empty).
+
+        Raises:
+            NotHydratedError: If the store has not hydrated `senses`.
+        """
+        return require(self.senses, "Lemma", "senses")
+
+    def resolve_concepts(self) -> list[Concept]:
+        """Return the hydrated concepts reachable from this lemma.
+
+        Returns:
+            The de-duplicated concepts this lemma realises (possibly empty).
+
+        Raises:
+            NotHydratedError: If the store has not hydrated `concepts`.
+        """
+        return require(self.concepts, "Lemma", "concepts")

@@ -16,10 +16,19 @@ field, so it is intentionally absent here.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from pydantic import BaseModel
+from pydantic import Field
 from pydantic import computed_field
 
+from lang_tools.lexicon.hydration import SenseNotHydratedError
+from lang_tools.lexicon.hydration import require
 from lang_tools.lexicon.sense_id import sense_id
+
+if TYPE_CHECKING:
+    from lang_tools.lexicon.concept import Concept
+    from lang_tools.lexicon.lemma import Lemma
 
 
 class Sense(BaseModel):
@@ -38,6 +47,10 @@ class Sense(BaseModel):
             Populated in phase 6.
         cefr_is_estimated: True when `cefr_level` is estimated rather than taken
             from a graded list.
+        lemma: Resolved lemma endpoint. Store-hydrated, never persisted
+            (``exclude=True``); ``None`` until hydration. Read via
+            `resolve_lemma` to fail loud when unhydrated.
+        concept: Resolved concept endpoint. Same hydration contract as `lemma`.
     """
 
     lemma_id: str
@@ -48,8 +61,35 @@ class Sense(BaseModel):
     cefr_level: str | None = None
     cefr_is_estimated: bool = False
 
+    # Representation-layer back-references; populated by the store at hydration,
+    # excluded from serialization so the persisted shape stays thin and stable.
+    lemma: Lemma | None = Field(default=None, exclude=True, repr=False)
+    concept: Concept | None = Field(default=None, exclude=True, repr=False)
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def id(self) -> str:
         """Deterministic id derived from ``(lemma_id, concept_id)``."""
         return sense_id(self.lemma_id, self.concept_id)
+
+    def resolve_lemma(self) -> Lemma:
+        """Return the hydrated lemma endpoint.
+
+        Returns:
+            The `Lemma` this sense points at.
+
+        Raises:
+            SenseNotHydratedError: If the store has not hydrated `lemma`.
+        """
+        return require(self.lemma, "Sense", "lemma", error=SenseNotHydratedError)
+
+    def resolve_concept(self) -> Concept:
+        """Return the hydrated concept endpoint.
+
+        Returns:
+            The `Concept` this sense points at.
+
+        Raises:
+            SenseNotHydratedError: If the store has not hydrated `concept`.
+        """
+        return require(self.concept, "Sense", "concept", error=SenseNotHydratedError)

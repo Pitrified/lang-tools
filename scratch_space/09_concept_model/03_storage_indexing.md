@@ -1,5 +1,5 @@
 ---
-status: planned
+status: done
 ---
 
 # Phase 3 - storage & indexing analysis
@@ -161,6 +161,105 @@ needed") with the two-axis view:
 
 This is explicitly provisional: the measured numbers in the memo confirm or
 overturn it, especially the "fits in normal git vs needs LFS" pivot.
+
+## Decision memo (measured)
+
+Experiments in
+[`03_storage_indexing/03.1_performance_tests.ipynb`](03_storage_indexing/03.1_performance_tests.ipynb)
+on a synthetic corpus at the OMW 5-language scale (400k lemmas, 100k concepts,
+1M senses, 50k false-friend edges, 200k concept-relation edges), lean persisted
+shape (source fields + `id`, dropping cosmetic computed fields).
+
+### Axis A - on-disk size (per table, MB)
+
+| table | rows | jsonl | parquet.zstd | sqlite |
+| ----- | ----: | ----: | -----------: | -----: |
+| lemmas | 400k | 78.6 | **11.9** | 54.0 |
+| concepts | 100k | 14.5 | **1.2** | 16.8 |
+| senses | 1M | 226.9 | **22.6** | 135.2 |
+| false_friends | 50k | 5.8 | **1.0** | 4.9 |
+| concept_relations | 200k | 24.6 | **4.2** | 22.3 |
+| **TOTAL** | | **350.3** | **40.9** | 233.1 |
+
+- Parquet+zstd is **~8.6x smaller than JSONL** (40.9 vs 350.3 MB) and beats
+  snappy (72.5 MB total).
+- **LFS pivot:** as JSONL, `senses` (227 MB) **exceeds GitHub's 100 MB hard push
+  limit** and `lemmas` (79 MB) trips the 50 MB warning - the big tables need LFS
+  regardless, and LFS does not delta-compress, so JSONL's diff advantage is lost
+  exactly where it would matter. As Parquet+zstd every per-table file is < 25 MB;
+  per-language partitioning of `senses`/`lemmas` drops each to ~5 MB.
+- Small curated tables (`false_friends` 5.8 MB, `concept_relations` 24.6 MB as
+  JSONL) are small enough to stay in **normal git** for real diffs / PR review.
+
+### Axis B - runtime access
+
+- Resident memory as in-memory pydantic dicts (current store): lemmas 745 MB
+  (400k) + concepts 77 MB + senses ~1,075 MB (1M, extrapolated) = **~1.9 GB**.
+  SQLite / DuckDB open lazily at ~0 MB resident.
+- Query latency (us/op): point lookup `get_lemma_by_id` - dict **3.0**, SQLite
+  (indexed) **30**, DuckDB/Parquet **16,500**; false-friend fan-out - dict 0.6,
+  SQLite 34, DuckDB 8,900; lang+topic filter - dict (look-aside index) 0.1,
+  SQLite (LIKE scan) 152,800, DuckDB (parquet scan) 150,100.
+
+### Decision (confirms / sharpens the provisional lean)
+
+1. **Ship Parquet (zstd), partitioned per table and per language** for
+   `senses`/`lemmas`, under git-LFS. Smallest objects, open/stable, directly
+   DuckDB-queryable for build/QA. *(confirmed)*
+2. **Ship *all* tables as Parquet under LFS - including the small curated ones -
+   for uniformity** *(overturns the provisional "small tables as JSONL in normal
+   git")*. Rationale: one distribution path with no special cases (so re-pointing
+   the "CDN"/source later touches one mechanism); a 50k-row textual diff is not
+   meaningfully reviewable anyway; and a model change (adding a column) rewrites
+   every JSONL line, so line-diffability is a false comfort that just risks a
+   messy whole-file rewrite. Human inspection/editing is served by the explicit
+   workflow below rather than by committing line-oriented files.
+3. **Runtime: in-memory pydantic dicts only for the tiny bootstrap/sample data.**
+   For the full corpus ~1.9 GB resident is infeasible (e.g. a 512 MB Render
+   dyno), so **promote the hot tables to SQLite indexed point lookups** (~30 us,
+   ~0 resident). This is now a *measured trigger*, sharpening the provisional
+   "dicts initially" into "dicts for sample, SQLite for full corpus".
+4. **Do not ship `.duckdb` or a single canonical `.sqlite`** as the artifact;
+   DuckDB stays a build/QA reader (16 ms point lookups confirm it is wrong for
+   the hot path), and any runtime SQLite is *built from Parquet*, not the shipped
+   source of truth.
+5. **Every filtered / adjacency access needs an explicit index** (look-aside dict
+   or SQLite secondary index): a columnar / LIKE scan is 4-5 orders of magnitude
+   slower than an indexed lookup (150 ms vs ~30 us).
+
+### Drafted `.gitattributes` / partitioning
+
+Every table is Parquet under LFS (uniform; no normal-git JSONL artifact):
+
+```gitattributes
+# entire generated corpus -> LFS, one rule, no special cases
+data/lexicon/**/*.parquet  filter=lfs diff=lfs merge=lfs -text
+```
+
+Partition the large tables `senses`/`lemmas` per language as
+`data/lexicon/<table>/<lang>.parquet` so one language's re-ingest re-pushes only
+~5 MB, not the whole corpus; small tables (`concepts`, `false_friends`,
+`concept_relations`) are a single Parquet each.
+
+### Inspect / edit workflow (any table)
+
+Since nothing human-readable is committed, inspection and editing are explicit
+operations over the canonical Parquet, both routed through the phase-4 codec seam
+(`_load_table` / `_dump_table`):
+
+- **Inspect (read-only):** DuckDB queries the Parquet directly with full SQL and
+  no import step - `SELECT * FROM 'data/lexicon/senses/en.parquet' WHERE ...`. A
+  thin CLI wraps this for humans/QA, e.g.
+  `python -m lang_tools.lexicon.inspect <table> [--lang L] [--where SQL]
+  [--limit N] [--format table|jsonl|csv]`, printing rows or dumping a slice.
+- **Edit (round-trip, validated):** symmetric `export_table(name, fmt="jsonl")`
+  -> hand/LLM edit the JSONL -> `import_table(name, path)` which **validates every
+  row through the pydantic model** (catching a renamed/missing column or bad
+  value) and rewrites the canonical Parquet. The JSONL is a transient scratch
+  file, never committed.
+- **Schema changes are not edits:** adding/removing a column is a model change, so
+  the table is **regenerated from the ingestion pipeline** (phase 5), consistent
+  with the project's "no data migration" decision - never patched line-by-line.
 
 ## Out of scope
 

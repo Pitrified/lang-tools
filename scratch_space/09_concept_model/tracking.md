@@ -29,6 +29,14 @@ split as the design firms up.
 - **Concept ids: `c__{slug}__{hash[:12]}`** (readable slug + hash safety net).
 - **Frequency and CEFR complexity are properties of the sense, not the token**
   (the "bank" polysemy trap), both living on an explicit `Sense` edge.
+- **Parquet tables are the source of truth.** Edits update the Parquet directly
+  (phase-4 corpus round-trip); no committed patch/overlay layer. A future
+  re-ingestion of updated OMW/kaikki is a *smart merge* against the curated Parquet,
+  using a per-row `source` tag - deferred (phase 5 only guarantees the machine
+  baseline is rebuildable from a pinned manifest).
+- **SQLite-only runtime.** The resident-dict mode is removed; one SQLite engine
+  serves the whole query surface (phase 4.1, before phase 5). Supersedes phase 4's
+  resident/SQLite dual-mode + `_hydrate`/`LexiconStoreMode` seam.
 
 ## Phases (proposed)
 
@@ -36,9 +44,10 @@ split as the design firms up.
 | -- | ----------------------------- | -------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------- |
 | 1  | Rename `Word` -> `Lemma`      | [`01_rename_word_to_lemma.md`](01_rename_word_to_lemma.md) | done | Preliminary mechanical refactor `Word`->`Lemma` (and `lang-tutor`) so later phases use literature vocabulary.          |
 | 2  | Core data models              | [`02_core_models.md`](02_core_models.md)                 | done | Define thin `Lemma`, `Concept`, explicit `Sense` edge, `FalseFriendRelation`, generic relation edge; concept id scheme. |
-| 3  | Storage & indexing analysis   | [`03_storage_indexing.md`](03_storage_indexing.md)       | planned | Two-axis (storage format x access engine) analysis: ship Parquet under LFS, query via dicts/SQLite/DuckDB; decided by measured numbers. |
-| 4  | Store layer + indexes         | [`04_store_layer.md`](04_store_layer.md)                 | planned | Extend `lemma_store` with concept/sense/edge registries, look-aside indexes, and back-ref hydration; query surface feeds phase 3. |
-| 5  | Initial ingestion pipeline    | [`05_ingestion.md`](05_ingestion.md)                     | draft  | OMW via `wn` -> concepts, then kaikki enrichment, then LLM granularity/mapping; the order and how.                     |
+| 3  | Storage & indexing analysis   | [`03_storage_indexing.md`](03_storage_indexing.md)       | done | Two-axis (storage format x access engine) analysis: ship Parquet under LFS, query via dicts/SQLite/DuckDB; decided by measured numbers. |
+| 4  | Store layer + indexes         | [`04_store_layer.md`](04_store_layer.md)                 | done | Extend `lemma_store` with concept/sense/edge registries, look-aside indexes, and back-ref hydration; query surface feeds phase 3. |
+| 4.1 | SQLite-only runtime engine   | [`04.1_sqlite_mode.md`](04.1_sqlite_mode.md)             | planned | Collapse the store to a single SQLite engine and remove resident mode; sequenced before phase 5 so the engine is settled. Supersedes phase 4's dual-mode. |
+| 5  | Initial ingestion pipeline    | [`05_ingestion.md`](05_ingestion.md)                     | planned | One-time initial build: OMW via `wn` -> concepts, kaikki enrichment, optional LLM granularity. Parquet is the source of truth; re-ingestion merge deferred. |
 | 6  | Frequency & complexity        | [`06_frequency_complexity.md`](06_frequency_complexity.md) | draft  | Per-sense token/sense frequency (`wordfreq`, sense-tag weights) and CEFR complexity (graded lists / estimated).        |
 | 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | draft  | Ingest hypernymy/hyponymy and antonymy as typed edges from OMW.                                                        |
 | 8  | Maintenance (LLM-based)       | [`08_maintenance.md`](08_maintenance.md)                 | draft  | LLM-assisted upkeep: new lemma->concept mapping, gloss enrichment, slug dedup, validation against OMW.                 |
@@ -172,3 +181,180 @@ Append-only. Newest at the bottom.
   relation read endpoints (lean lemma payload kept). Mirrored a "Sequencing with
   phase 4" note into `03_storage_indexing.md`; phase-4 implementation deliberately
   waits on phase 3's format decision. lang-tutor stays red until phase 9.
+- 2026-06-16 : executed phase 3 (status done) - ran the storage/indexing
+  experiments in
+  `scratch_space/09_concept_model/03_storage_indexing/03.1_performance_tests.ipynb`
+  over a synthetic corpus at the OMW 5-language scale (400k lemmas, 100k concepts,
+  1M senses, 50k false-friend + 200k concept-relation edges), serializing each
+  table to JSONL/JSONL.gz/CSV/Parquet(snappy,zstd)/SQLite and timing the phase-4
+  query surface across in-memory dicts, indexed SQLite, and DuckDB-over-Parquet.
+  Measured: Parquet+zstd ~8.6x smaller than JSONL (40.9 vs 350.3 MB total); as
+  JSONL the senses table (227 MB) exceeds GitHub's 100 MB hard limit so the big
+  tables need LFS regardless; full graph as pydantic dicts ~1.9 GB resident;
+  point lookups dict ~3 us / SQLite ~30 us / DuckDB ~16 ms; raw filter/adjacency
+  scans ~150 ms (need explicit indexes). Decision (confirms+sharpens the
+  provisional lean): ship Parquet+zstd partitioned per table/language under LFS;
+  keep small curated tables as JSONL in normal git; runtime stays in-memory dicts
+  for the sample but promotes hot tables to SQLite point lookups for the full
+  corpus (measured trigger, not "maybe later"); DuckDB is a build/QA reader only;
+  do not ship a .duckdb/.sqlite as canonical. Decision memo + drafted
+  `.gitattributes`/partitioning folded into `03_storage_indexing.md` and the
+  Storage section of `00-concepts-brainstorm.md`. Scratch deps `pyarrow`+`duckdb`
+  installed into the venv (not added to pyproject).
+- 2026-06-16 : per review - refined the phase-3 storage decision to ship *all*
+  tables (including the small curated `false_friends`/`concept_relations`) as
+  Parquet under LFS for uniformity, overturning the "small tables as JSONL in
+  normal git" point: a 50k-row textual diff is not meaningfully reviewable and a
+  model change rewrites every line, so line-diffability is a false comfort and a
+  single distribution path avoids special cases. Replaced the lost human-readable
+  artifact with an explicit inspect/edit workflow (DuckDB SQL + a thin `inspect`
+  CLI for reading; `export_table`->edit JSONL->`import_table` with pydantic
+  validation for edits; schema changes regenerate from ingestion, not line
+  patches). Updated the memo in `03_storage_indexing.md` (gitattributes now one
+  `data/lexicon/**/*.parquet` rule), the brainstorm Storage section, and the
+  notebook decision-memo cell.
+- 2026-06-16 : reviewed and expanded the phase 4 plan with phase-3 learnings
+  (still planned). Added a "Phase 3 inputs (decided)" section (Parquet+zstd under
+  LFS, two-tier runtime, DuckDB inspect-only, indexes mandatory, deps to
+  pyproject); made the codec seam Parquet-specific (nested pyarrow schemas,
+  per-language partitioning) and added the inspect/edit tooling (`inspect` CLI +
+  `export_table`/`import_table`). Added a "Runtime modes (dict vs SQLite)"
+  subsection tying the ~1.9 GB resident finding to a resident-mode (sample) vs
+  SQLite-mode (full corpus) engine swap behind one query surface. Answered the
+  open hydration question: the back-ref fields do **not** exist on the current
+  thin models - phase 4 adds `Lemma.senses`, `Concept.senses` (+`lemmas` view),
+  `Sense.lemma`/`Sense.concept` as `exclude=True` store-populated fields (no
+  `Lemma.concepts`; concepts reached via senses), resolving the `Sense`<->`Lemma`
+  cycle with `TYPE_CHECKING` + `model_rebuild()`; hydration is resident-mode only,
+  SQLite mode uses store query methods. Expanded Tests/Done-when accordingly.
+- 2026-06-16 : per review, four refinements to the phase 4 plan. (1) Dropped the
+  `inspect` CLI; corpus interaction is now a thin notebook under a new general
+  top-level `notebooks/` folder (distinct from `scratch_space/`) calling package
+  functions (`inspect_table`, `export_table`/`import_table`) - no logic in the
+  notebook. (2) Reinstated `Lemma.concepts` as a hydrated `exclude=True` field:
+  the phase-2 drift argument applies only to the *persisted* shape, and a hydrated
+  (never-written) back-ref cannot drift, so it is safe and convenient (derived
+  from senses at hydration). (3) Corrected the circular-ref mechanics after
+  checking the pydantic v2 docs: `model_rebuild()` needs the referenced classes in
+  the *runtime* namespace, so a TYPE_CHECKING-only import is insufficient - the
+  rebuild must run in a module that really imports all three model classes (forward
+  refs stay strings; `_types_namespace` as a last resort). (4) Documented an
+  explicit fallback: if hydration is fragile, drop the back-ref fields and keep
+  navigation in store query methods + helpers (clean, mode-agnostic, fully
+  specified), with hydrated fields the preferred-but-optional ergonomics.
+- 2026-06-16 : executed phase 4 (status done). New modules in
+  `src/lang_tools/lexicon/`: `codec.py` (Parquet/zstd seam `_load_table`/
+  `_dump_table` over the phase-3 pyarrow schemas, lazy `pyarrow` import so the
+  `store` extra stays optional, per-language partitioning for `lemmas`/`senses`,
+  `MalformedRecordError`/`UnknownTableError`/`StoreDependencyMissingError`);
+  `hydration.py` (`NotHydratedError`/`SenseNotHydratedError` + a `require` guard
+  helper); `corpus.py` (`inspect_table` via DuckDB, `export_table`/`import_table`
+  validated JSONL round-trip). Reshaped the models: added the `exclude=True`
+  store-hydrated back-refs (`Lemma.senses`/`Lemma.concepts`,
+  `Concept.senses`/`Concept.lemmas`, `Sense.lemma`/`Sense.concept`) with
+  `resolve_*` guard accessors; circular refs resolved via `model_rebuild()` in
+  the store module (parent-namespace pickup, not TYPE_CHECKING-only - confirmed
+  the runtime-namespace requirement). Generalised `lemma_store.py` into
+  `LexiconStore` (registries, look-aside indexes incl. both-endpoint false-friend
+  and concept-relation indexing, eager `_hydrate()`, slug-collision warning, the
+  full query surface) with a `LexiconStoreMode` resident/SQLite seam (SQLite
+  raises `SqliteModeNotImplementedError` until phase-5 data) and a default store +
+  delegating module helpers; lemmas still load from the bootstrap CSV sample
+  (keeps the webapp lemma API green), concept/sense/edge tables load from Parquet
+  (empty until phase 5). Webapp: new `concepts_router` (concept fetch + relations)
+  registered in `main`/conftest; false-friends endpoint on `lemmas_router`.
+  Notebook `notebooks/lexicon_corpus/explore.ipynb` (thin caller). Deps: `pyarrow`
+  + `duckdb` graduated to a `store` optional extra in `pyproject.toml`. Tests:
+  `test_codec`, `test_lexicon_store`, `test_corpus`, `test_concepts_api` (codec
+  round-trip incl. nested/map columns + lean dump, indexing both directions,
+  false-friend symmetry, directional-vs-symmetric concept relations, hydration +
+  unhydrated-guard, inspect/edit round-trip + malformed-row rejection, missing-id
+  empties, SQLite-mode error). Relaxed `*.ipynb` ruff per-file-ignores (ANN/D/
+  S101/S608/E402/I001/PLR2004/PLW0108) so exploratory notebooks pass `ruff check
+  .`. Docs: `docs/library/lexicon.md` gained store/query + hydration + storage +
+  inspect/edit sections; `frozen_api.md` lists the new surface. Suite green:
+  119 passed, ruff clean, pyright 0 errors. `data/**` is already LFS-tracked, so
+  the drafted `data/lexicon/**/*.parquet` rule needs no `.gitattributes` change.
+  lang-tutor stays red until phase 9 (deliberate).
+- 2026-06-16 : per review, corrected the SQLite-mode hydration claim. Hydration is
+  just "call the query methods and attach the result", so SQLite mode *can*
+  hydrate - the real split is timing/scope: resident mode hydrates the whole graph
+  eagerly at load (shared instances); SQLite mode hydrates per object on demand at
+  fetch time, but **bounded** (1-2 hops, guard marks the edge - the lemma<->sense
+  cycle would otherwise walk the whole graph), **opt-in per call** (each fetch
+  costs N ~30 us queries; default off for bulk/filtered reads), and with **no
+  shared-instance identity**. Updated the Runtime-modes and Hydration sections.
+- 2026-06-16 : fleshed phase 5 into a plan of record (status planned). Reframed the
+  phase around the real hard part - **separating a deterministic re-runnable build
+  from durable manual curation** - not OMW parsing. Architecture: three pure stages
+  (acquire -> build -> overlay) over two layers - a disposable generated base
+  (`data/lexicon/_base/`, byte-identical from pinned raw inputs) and a committed
+  curated overlay (`data/lexicon/_overlay/*.jsonl`, field-level patches keyed by
+  id). Shipped Parquet = base + overlay merge, fully reproducible from
+  `(raw, build code, overlay)`. Provenance carried as extra Parquet columns
+  (`source`/`source_ref`/`build_version`, source enum omw|kaikki|llm|manual) added
+  to `_DROP_ON_LOAD` so models stay thin; a `_build.json` manifest pins wn/ILI +
+  kaikki versions. This answers the user's "idempotency fails" worry: in-place
+  mutation is designed out (base never hand-edited, curation is an *input*), so a
+  rare full rebuild reproduces the shipped tables with hand edits reapplied - and
+  it is the clean seam to phase 8 (phase 5 builds base + overlay mechanism, phase 8
+  writes overlay entries, never the base). Module layout extends `ingestion/`
+  (`provenance`/`acquire`/`sources/{omw,kaikki}`/`build`/`overlay`/`pipeline`),
+  reusing `wiktionary.py`/`dedup.py`; `wn` new lazy dep. Two thin driver notebooks
+  under `notebooks/lexicon_ingest/` (01 download, 02 build); answered the notebook
+  question - the existing `explore` notebook starts working once build writes
+  Parquet and inspects fine at full scale (DuckDB-over-Parquet, not resident); the
+  size worry only hits resident-mode store load (the phase-4 SQLite-mode trigger),
+  and phase 5 ships only a sample slice. LLM granularity collapse kept as an
+  optional seam, not a "done" requirement. Open points flagged for the user:
+  overlay representation, committed output (sample vs full), LLM collapse placement.
+- 2026-06-16 : per review, reshaped phase 5 - dropped the committed base/overlay/
+  provenance-patch architecture (rejected: an LLM-driven curation stream could grow
+  to ~100k patch lines, and "regenerate examples" edits do not belong in a patch
+  file). New model: the **Parquet tables are the source of truth**; phase 5 is a
+  one-time initial build (acquire -> transform -> write Parquet + committed sample
+  slice), and subsequent edits update the Parquet directly via the phase-4 corpus
+  round-trip. A future re-ingestion of updated OMW/kaikki becomes a **smart merge**
+  against the curated Parquet - genuinely the hard part, but rare and not needed
+  for the initial build, so **deferred** (own later phase or folded into phase 8).
+  Kept one lightweight `source` provenance column (`omw|kaikki|llm|manual`, in
+  `_DROP_ON_LOAD` so models stay thin) + a `_build.json` version manifest as the
+  only seam the deferred merge needs. LLM granularity collapse stays an optional
+  seam (confirmed). Committed output decided: create+commit a sample slice now.
+  Added phase 5.1 (status draft) for the SQLite runtime mode - ingest the
+  source-of-truth Parquet into SQLite and serve the phase-4 query surface from it,
+  with an explicit optional assessment of dropping the in-memory resident mode
+  entirely (the double mode is awkward). Next: brainstorm the deferred-merge
+  mechanics and the resident-vs-SQLite-only question before either becomes execution
+  -ready.
+- 2026-06-16 : resolved both brainstorm threads. (Q1, merge baseline) decision B -
+  do not commit a base snapshot; the `_build.json` manifest pins source versions and
+  the transform is deterministic, so the machine baseline is *reconstructible* from
+  the regenerable raw cache; 2-way-vs-3-way merge deferred. Folded into 05's
+  provenance section. (Q2, runtime) committed to **SQLite-only** - remove resident
+  mode outright. Decided to do the engine swap **before** phase 5: renamed
+  `05.1_sqlite_mode.md` -> `04.1_sqlite_mode.md` (status planned), reframed from
+  "add SQLite mode / maybe drop resident" to "collapse to one SQLite engine, delete
+  resident + `_hydrate`/`LexiconStoreMode`/`SqliteModeNotImplementedError`".
+  Rationale: under SQLite-only those are dead code, so settling the engine first
+  means phase 5 is written once against the final engine, not reworked. Recorded the
+  one consequence as 4.1's open point: removing resident also removes the
+  bootstrap-CSV->dict path that keeps the webapp lemma API green, so 4.1 must
+  convert bootstrap CSV -> sample Parquet -> SQLite (recommended, non-throwaway) or
+  let the webapp lemma API go red until phase 5. Added two cross-cutting key
+  decisions (Parquet-as-source-of-truth, SQLite-only). Phase 5 now depends on 4.1.
+- 2026-06-16 : resolved 4.1's bootstrap-data-source open point - keep the webapp
+  green via a small **hand-authored sample**, authored now (the id constructors +
+  models + codec already exist; no OMW needed for a handful). Pipeline reuses
+  existing machinery: committed sample **JSONL** seed -> `import_table`
+  (JSONL->Parquet round-trip) -> sample Parquet -> build SQLite. Format is JSONL not
+  CSV (nested `Concept.definitions`/`Lemma` examples don't fit CSV; ~50-row sample
+  is diffable in normal git, unlike the 50k-row tables the phase-3 no-JSONL rule
+  targeted). Sample is richer than lemma-only on purpose (a few concepts/senses +
+  one false-friend pair + one concept relation) so 4.1's SQLite adjacency queries
+  get real parity tests, doubling as the phase-9 seed. Consistency call: **Parquet
+  stays the single source of truth**; the committed JSONL is a readable seed/input
+  (same role the raw OMW/kaikki cache plays for the full corpus), not a competing
+  truth - corpus.py's "JSONL never committed" wording gets a sample-seed carve-out.
+  Remaining 4.1 sub-decision left for execution: commit the generated sample Parquet
+  (lean) vs build it on demand from the JSONL seed.

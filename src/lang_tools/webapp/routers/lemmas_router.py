@@ -8,8 +8,10 @@ in-process read surface `lang-tutor` consumed in phase 2; the content contract
 The content is public, so the endpoints require no authentication.
 
 Routes:
-    GET /api/v1/lemmas             - list lemmas, filtered by language and/or topic.
-    GET /api/v1/lemmas/{lemma_id}  - fetch a single lemma by its deterministic id.
+    GET /api/v1/lemmas                            - list lemmas, filtered by
+        language and/or topic.
+    GET /api/v1/lemmas/{lemma_id}                 - fetch a single lemma by id.
+    GET /api/v1/lemmas/{lemma_id}/false-friends   - the lemma's false-friend edges.
 """
 
 from typing import Annotated
@@ -18,12 +20,27 @@ from fastapi import APIRouter
 from fastapi import HTTPException
 from fastapi import Query
 from fastapi import status
+from pydantic import BaseModel
 
 from lang_tools.lexicon.lemma import Lemma
+from lang_tools.lexicon.lemma_store import get_false_friends_for_lemma
 from lang_tools.lexicon.lemma_store import get_lemma_by_id
 from lang_tools.lexicon.lemma_store import get_lemmas_filtered
+from lang_tools.lexicon.relations import FalseFriendRelation
 
 router = APIRouter(prefix="/api/v1/lemmas", tags=["lemmas"])
+
+
+class FalseFriendHit(BaseModel):
+    """One false-friend match: the other lemma plus the edge connecting it.
+
+    Attributes:
+        lemma: The misleading-cognate counterpart of the queried lemma.
+        relation: The false-friend edge (similarity, learner notes).
+    """
+
+    lemma: Lemma
+    relation: FalseFriendRelation
 
 
 @router.get("", summary="List lemmas")
@@ -69,3 +86,23 @@ async def read_lemma(lemma_id: str) -> Lemma:
             detail=f"Lemma not found: {lemma_id}",
         )
     return lemma
+
+
+@router.get("/{lemma_id}/false-friends", summary="List a lemma's false friends")
+async def read_false_friends(lemma_id: str) -> list[FalseFriendHit]:
+    """Return the false-friend matches of a lemma.
+
+    Each match pairs the counterpart lemma with the edge that links them
+    (similarity score and per-language learner notes). Fetched on demand so the
+    plain lemma payload stays lean.
+
+    Args:
+        lemma_id: The deterministic id of the queried lemma.
+
+    Returns:
+        The false-friend hits (empty when the lemma has none).
+    """
+    return [
+        FalseFriendHit(lemma=other, relation=edge)
+        for other, edge in get_false_friends_for_lemma(lemma_id)
+    ]

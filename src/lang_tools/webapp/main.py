@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from fastapi_tools import create_app
 
 from lang_tools.params.lang_tools_params import get_webapp_params
+from lang_tools.webapp.routers.concepts_router import router as concepts_router
 from lang_tools.webapp.routers.lemmas_router import router as lemmas_router
 
 
@@ -23,5 +24,5 @@ def build_app() -> FastAPI:
 
     return create_app(
         config=config,
-        extra_routers=[lemmas_router],
+        extra_routers=[lemmas_router, concepts_router],
     )

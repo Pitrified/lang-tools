@@ -1,54 +1,156 @@
 ---
-status: draft
+status: planned
 ---
 
 # Phase 5 - initial ingestion pipeline
 
-> Draft. Scope sketch to hold the overarching story; not yet the plan of record.
-
 ## Overview
 
-Build the pipeline that produces the real lexical dataset from external sources,
-in a deliberate order: OMW as the concept backbone, Wiktionary as enrichment, an
-LLM for mapping/granularity only. Writes the formats from phase 3 into the
-registries from phase 4. Context:
-[`00-concepts-brainstorm.md`](00-concepts-brainstorm.md), "Bootstrap source".
-This phase extends the existing `lexicon/ingestion/` subpackage.
+A **one-time initial build** that populates the lexical dataset from external
+sources and writes it into the phase-3 Parquet format / phase-4 store. Order:
+**OMW (via `wn`) as the concept backbone, kaikki/Wiktionary as enrichment, LLM for
+granularity/mapping only** (optional). Context:
+[`00-concepts-brainstorm.md`](00-concepts-brainstorm.md) ("Bootstrap source",
+"First slice"); builds on the phase-4 `codec.py` seam and the
+[`04.1`](04.1_sqlite_mode.md) SQLite-only `LexiconStore` (the runtime engine is
+settled before this phase). Extends `src/lang_tools/lexicon/ingestion/`.
 
-## What this phase will cover (in order)
+## Source-of-truth model (the key decision)
 
-1. **OMW backbone** - via the `wn` library (`pip install wn`), download wordnets
-   for en/pt/es/fr/it; export synsets to `Concept` rows (id =
-   `c__{slug}__{hash[:12]}` from the ILI key, `definitions`, `lemmas`). Emit the
-   matching `Lemma` rows and `Sense` edges straight from synset members. The ILI
-   gives cross-lingual cognate grouping for free.
-2. **Wiktionary enrichment** - pull per-language JSONL from kaikki.org
-   (wiktextract) to fill sparse `definitions` and example fields, keyed by lemma
-   and joined onto OMW synsets. Kept in a separate enrichment layer (license
-   reasons - phase 10).
-3. **LLM mapping/granularity** - use the LLM only to collapse WordNet's overly
-   fine senses to learner-appropriate granularity and to disambiguate joins,
-   verifiable against OMW - never as a primary data source.
+**The Parquet tables under `data/lexicon/` are the source of truth.** Phase 5 does
+the *initial* population only. After that:
 
-## Cross-cutting concerns
+- Edits (hand or LLM) **update the Parquet directly** through the phase-4 corpus
+  tooling (`export_table` -> edit -> `import_table`). There is no separate
+  committed-patch / overlay layer - that was rejected: an LLM-driven curation
+  stream could grow to 100k lines of patches, and "regenerate examples" style
+  edits do not belong in a patch file. The canonical rows just *are* the data.
+- A future **re-ingestion of updated OMW/kaikki is a smart merge** against the
+  existing (possibly hand-curated) Parquet, not a from-scratch rebuild that
+  overwrites curation. **That merge is deferred** - phase 5 does not design or
+  implement it (see "Deferred: re-ingestion merge").
 
-- **Granularity** - start with WordNet synsets as-is; merge closely related
-  senses or introduce a "concept cluster" layer if too fine (decided during this
-  phase).
-- **Idempotency & provenance** - re-runnable ingestion, each row tagged with its
-  source for the dataset card and for maintenance (phase 8).
-- **Scope** - target languages pt/fr/es/it/en only.
+This makes phase 5 simple and linear: download -> transform -> write Parquet (+ a
+committed sample slice). No base/shipped split, no overlay reapply.
+
+### Provenance as the merge seam (lightweight)
+
+Each row carries a single lightweight `source` tag (`omw|kaikki|llm`, and `manual`
+once hand-edited via the corpus round-trip). This is the **one** seam the deferred
+merge will need: it lets a future re-ingestion refresh machine-generated rows
+while leaving hand-curated rows alone. It stays **off** the thin pydantic models -
+an extra Parquet column added to `codec._DROP_ON_LOAD`, same trick as the computed
+ids.
+
+**Save enough metadata to rebuild the machine output** (the merge baseline,
+decision B). The `data/lexicon/_build.json` manifest pins the exact source versions
+(wn wordnet + ILI version, kaikki dump date) and the transform is deterministic, so
+"what upstream originally gave us" is **reconstructible** by re-running the pinned
+transform against the (regenerable) raw cache - no committed base snapshot needed.
+That reconstructible baseline is what a future merge diffs against; whether the
+merge ends up 2-way (ours vs new-upstream) or 3-way (old-upstream vs new-upstream
+vs ours) is **deferred** - phase 5 only guarantees the baseline can be rebuilt. The
+manifest also feeds the phase-10 dataset card.
+
+## Goals
+
+1. Acquire raw OMW + kaikki for `en/pt/es/fr/it` into a local, reproducible cache
+   (gitignored - regenerable, not LFS).
+2. Transform that cache into `concepts` / `lemmas` / `senses` Parquet (the source
+   of truth), each row `source`-tagged, written via `codec._dump_table`.
+3. Carve and **commit a small sample slice** for `lang-tutor` + tests.
+4. Two thin driver notebooks (download, transform); the existing `explore`
+   notebook becomes useful (reads what the transform writes).
+5. `LexiconStore.from_data_fol` loads the result; spot-checks confirm cross-lingual
+   grouping (shared ILI) and gloss coverage.
+
+## Pipeline (two stages, one truth)
+
+```
+sources (OMW via wn, kaikki JSONL)
+   │  stage A: acquire   (download → raw cache + _build.json manifest)
+   ▼
+data/_raw/lexicon/…                  (gitignored; reproducible; not LFS)
+   │  stage B: transform (raw → concepts/lemmas/senses, source-tagged)
+   ▼
+data/lexicon/*.parquet               ← SOURCE OF TRUTH (LexiconStore reads this)
+   └─ carve → committed sample slice (for lang-tutor + tests)
+```
+
+After stage B, the Parquet is authoritative; further edits go through the phase-4
+corpus round-trip, not back through this pipeline.
+
+## Module layout (extends `ingestion/`)
+
+```
+src/lang_tools/lexicon/ingestion/
+  acquire.py        # download_omw(langs), fetch_kaikki(langs) → raw cache + manifest
+  sources/
+    omw.py          # wn-backed: synset → (Concept, [Lemma], [Sense]) records
+    kaikki.py       # kaikki JSONL → enrichment records (wraps existing wiktionary.py)
+  transform.py      # raw cache → source-tagged concept/lemma/sense rows
+  sample.py         # carve a small committed slice from the full tables
+  pipeline.py       # build_initial(langs, data_fol): acquire? → transform → write → sample
+```
+
+Reuses `wiktionary.py` (`load_wiktionary_jsonl`, `WikiRecord`, `WikiSense`) and
+`dedup.py`. `wn` is a new lazy-imported dependency (under the `store`/`ingest`
+extra) so the base package stays light, same pattern as `pyarrow`/`duckdb`.
+
+### OMW → models mapping
+
+- synset → `Concept` (id `c__{slug}__{hash[:12]}` from ILI key; `definitions` from
+  per-language glosses), `source=omw`.
+- synset members → thin `Lemma` rows (`lemma_id` = sha1 of `language::normalized`),
+  `source=omw`.
+- membership → `Sense` edges straight from synset members, `source=omw`.
+- kaikki fills sparse `Concept.definitions` / examples, joined by `(lemma,
+  language)` onto synsets, `source=kaikki`, license-isolated (phase 10).
+
+LLM granularity collapse (over-fine WordNet senses → learner granularity) is an
+**optional seam, not a "done" requirement**: deterministic OMW-as-is is the default
+output; the LLM pass is wired but off by default and verifiable against OMW.
+
+## Notebooks
+
+Thin callers under a new `notebooks/lexicon_ingest/` (logic stays in the package):
+
+- `01_download.ipynb` → `acquire.*`. Writes raw cache + manifest. Run rarely.
+- `02_transform.ipynb` → `pipeline.build_initial`. Writes the source-of-truth
+  Parquet + sample slice.
+
+The existing `notebooks/lexicon_corpus/explore.ipynb` is unchanged and starts
+returning rows once `02_transform` writes Parquet - it queries via
+DuckDB-over-Parquet (`inspect_table`), which does **not** load the corpus resident,
+so it inspects full scale fine.
+
+## Deferred: re-ingestion merge
+
+A future refresh of OMW/kaikki must merge new upstream data into the existing,
+possibly hand-curated Parquet **without clobbering curation** - using the `source`
+tag to decide what is safe to refresh (machine rows) vs preserve (`manual` rows).
+This is genuinely the hard part, but it is **rare** (OMW/kaikki move slowly) and
+**not needed for the initial build**, so it is deferred. Likely home: its own
+later phase or folded into phase 8 (maintenance). Phase 5 only ensures the seam
+exists (the `source` column + the manifest).
 
 ## Out of scope
 
-- Frequency and CEFR values (phase 6) and semantic relations (phase 7), though
-  the pipeline leaves hooks for both.
-- Final sample-data selection and consumer wiring (phase 9); license finalization
-  (phase 10).
+- The re-ingestion smart merge (deferred, above).
+- Runtime engine work: it is settled *before* this phase in
+  [`04.1_sqlite_mode.md`](04.1_sqlite_mode.md) (SQLite-only). Phase 5 just writes
+  Parquet the already-built engine reads.
+- Frequency / CEFR (phase 6) and semantic relations beyond false friends (phase 7)
+  - the schema leaves hooks but populates nothing.
+- The ongoing LLM maintenance loop (phase 8); final consumer wiring (phase 9);
+  license finalization + dataset card (phase 10, the manifest is its input).
 
-## Done when (draft)
+## Done when
 
-- Running the pipeline produces concepts/lemmas/senses for the five languages in
-  the chosen format, loadable by the phase-4 store; spot-checks confirm
+- `pipeline.build_initial` produces `concepts`/`lemmas`/`senses` Parquet for the
+  five languages, loadable by `LexiconStore.from_data_fol`; spot-checks confirm
   cross-lingual grouping and gloss coverage.
+- A committed sample slice exists and the phase-4 store + webapp load it green.
+- `source` provenance columns + `_build.json` manifest are written and round-trip
+  through the codec (dropped on model load, present in the file).
 - `uv run pytest && uv run ruff check . && uv run pyright` passes.

@@ -1,0 +1,378 @@
+"""Parquet codec seam for the lexical corpus (the on-disk format boundary).
+
+Per the phase-3 decision the canonical format is **Parquet (zstd)**, every
+table, with the large tables (`lemmas` / `senses`) partitioned per language and
+all of it under git-LFS. This module is the only place that touches the on-disk
+format: `_load_table` / `_dump_table` hide it behind a stable signature so the
+rest of the store imports the seam, never ``pyarrow``.
+
+``pyarrow`` is an **optional** dependency (the ``store`` extra). It is imported
+lazily inside the functions here so that importing `lang_tools.lexicon` - which
+``lang-tutor`` does for the lemma read surface alone - does not require the
+columnar engine. A caller that reaches the codec without the extra installed
+gets a clear `StoreDependencyMissingError`.
+
+On-disk layout under ``<data_fol>/lexicon/``:
+
+    lemmas/<lang>.parquet          # partitioned per language
+    senses/<lang>.parquet          # partitioned per language (else _all.parquet)
+    concepts.parquet               # single file
+    false_friends.parquet          # single file
+    concept_relations.parquet      # single file
+
+The persisted shape is **lean**: only the source fields plus the computed ``id``
+(kept as an index column). Cosmetic computed fields (`has_accent`,
+`accented_chars`, `length`) and the store-hydrated back-references (`senses`,
+`concepts`, `lemma`, ...) are excluded - the latter automatically, via their
+``exclude=True`` field spec.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+from typing import Any
+
+from lang_tools.lexicon.concept import Concept
+from lang_tools.lexicon.lemma import Lemma
+from lang_tools.lexicon.relations import ConceptRelation
+from lang_tools.lexicon.relations import FalseFriendRelation
+from lang_tools.lexicon.sense import Sense
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from pydantic import BaseModel
+
+#: Subdirectory of the data folder holding the whole lexical corpus.
+LEXICON_SUBDIR = "lexicon"
+
+#: Tables stored one Parquet file per language (the large ones).
+PARTITIONED: frozenset[str] = frozenset({"lemmas", "senses"})
+
+#: Model class backing each table.
+_MODELS: dict[str, type[BaseModel]] = {
+    "lemmas": Lemma,
+    "concepts": Concept,
+    "senses": Sense,
+    "false_friends": FalseFriendRelation,
+    "concept_relations": ConceptRelation,
+}
+
+#: Ordered persisted columns per table (the pyarrow schema field order).
+_COLUMNS: dict[str, list[str]] = {
+    "lemmas": [
+        "id",
+        "text",
+        "language",
+        "normalized",
+        "part_of_speech",
+        "topics",
+        "examples",
+        "sources",
+    ],
+    "concepts": ["id", "definitions"],
+    "senses": [
+        "id",
+        "lemma_id",
+        "concept_id",
+        "token_frequency",
+        "sense_frequency",
+        "frequency_is_estimated",
+        "cefr_level",
+        "cefr_is_estimated",
+    ],
+    "false_friends": [
+        "lemma_id_a",
+        "lemma_id_b",
+        "similarity_score",
+        "explanation_notes",
+    ],
+    "concept_relations": ["concept_id_a", "concept_id_b", "relation_type"],
+}
+
+#: Columns stored as a Parquet ``map<string,string>`` (read back as a dict).
+_MAP_COLUMNS: dict[str, frozenset[str]] = {
+    "concepts": frozenset({"definitions"}),
+    "false_friends": frozenset({"explanation_notes"}),
+}
+
+#: Columns the constructor does not accept (computed) and must be dropped on load.
+_DROP_ON_LOAD: dict[str, frozenset[str]] = {
+    "lemmas": frozenset({"id"}),
+    "concepts": frozenset(),
+    "senses": frozenset({"id"}),
+    "false_friends": frozenset(),
+    "concept_relations": frozenset(),
+}
+
+
+class UnknownTableError(KeyError):
+    """Raised when a table name is not one of the known lexical tables."""
+
+    def __init__(self, name: str) -> None:
+        """Initialize with the offending table name.
+
+        Args:
+            name: The unrecognized table name.
+        """
+        super().__init__(f"Unknown lexical table: {name!r} (known: {sorted(_MODELS)})")
+        self.name = name
+
+
+class StoreDependencyMissingError(ImportError):
+    """Raised when the codec is used without the optional ``store`` extra."""
+
+    def __init__(self) -> None:
+        """Initialize with install guidance."""
+        super().__init__(
+            "The Parquet codec needs the 'store' extra. Install it with "
+            "`uv sync --extra store` (pyarrow + duckdb).",
+        )
+
+
+class MalformedRecordError(ValueError):
+    """Raised when a stored row cannot be parsed into its table's model."""
+
+    def __init__(self, name: str, row: dict[str, Any], cause: Exception) -> None:
+        """Initialize with the table, the offending row, and the cause.
+
+        Args:
+            name: The table the row belongs to.
+            row: The raw row that failed validation.
+            cause: The underlying validation error.
+        """
+        super().__init__(f"Malformed {name} record: {row!r} ({cause})")
+        self.name = name
+        self.row = row
+        self.cause = cause
+
+
+def _require_pyarrow() -> tuple[Any, Any]:
+    """Import ``pyarrow`` lazily, mapping absence to a clear error.
+
+    Returns:
+        The ``pyarrow`` and ``pyarrow.parquet`` modules.
+
+    Raises:
+        StoreDependencyMissingError: When ``pyarrow`` is not installed.
+    """
+    try:
+        import pyarrow as pa  # noqa: PLC0415 - lazy so the extra stays optional
+        import pyarrow.parquet as pq  # noqa: PLC0415
+    except ImportError as exc:  # pragma: no cover - exercised only without the extra
+        raise StoreDependencyMissingError from exc
+    return pa, pq
+
+
+def _schema(name: str) -> Any:  # noqa: ANN401 - pyarrow.Schema, kept lazy
+    """Build the pyarrow schema for a table (lazy, so pyarrow stays optional)."""
+    pa, _ = _require_pyarrow()
+    example = pa.struct([("sentence", pa.string()), ("translation", pa.string())])
+    str_map = pa.map_(pa.string(), pa.string())
+    schemas = {
+        "lemmas": pa.schema(
+            [
+                ("id", pa.string()),
+                ("text", pa.string()),
+                ("language", pa.string()),
+                ("normalized", pa.string()),
+                ("part_of_speech", pa.string()),
+                ("topics", pa.list_(pa.string())),
+                ("examples", pa.list_(example)),
+                ("sources", pa.list_(pa.string())),
+            ],
+        ),
+        "concepts": pa.schema([("id", pa.string()), ("definitions", str_map)]),
+        "senses": pa.schema(
+            [
+                ("id", pa.string()),
+                ("lemma_id", pa.string()),
+                ("concept_id", pa.string()),
+                ("token_frequency", pa.float64()),
+                ("sense_frequency", pa.float64()),
+                ("frequency_is_estimated", pa.bool_()),
+                ("cefr_level", pa.string()),
+                ("cefr_is_estimated", pa.bool_()),
+            ],
+        ),
+        "false_friends": pa.schema(
+            [
+                ("lemma_id_a", pa.string()),
+                ("lemma_id_b", pa.string()),
+                ("similarity_score", pa.float64()),
+                ("explanation_notes", str_map),
+            ],
+        ),
+        "concept_relations": pa.schema(
+            [
+                ("concept_id_a", pa.string()),
+                ("concept_id_b", pa.string()),
+                ("relation_type", pa.string()),
+            ],
+        ),
+    }
+    return schemas[name]
+
+
+def model_class(name: str) -> type[BaseModel]:
+    """Return the model class backing a table.
+
+    Args:
+        name: Table name.
+
+    Returns:
+        The pydantic model class for the table.
+
+    Raises:
+        UnknownTableError: If `name` is not a known table.
+    """
+    if name not in _MODELS:
+        raise UnknownTableError(name)
+    return _MODELS[name]
+
+
+def row_from_model(name: str, model: BaseModel) -> dict[str, Any]:
+    """Project a model down to its lean persisted row (Parquet column order).
+
+    Args:
+        name: Table the model belongs to.
+        model: The model instance to serialize.
+
+    Returns:
+        A dict holding exactly the persisted columns for the table.
+    """
+    dumped = model.model_dump()
+    return {col: dumped.get(col) for col in _COLUMNS[name]}
+
+
+def model_from_row(name: str, row: dict[str, Any]) -> BaseModel:
+    """Build a model from a stored row, normalizing map columns.
+
+    Args:
+        name: Table the row belongs to.
+        row: The raw row (e.g. from Parquet ``to_pylist`` or JSONL).
+
+    Returns:
+        The validated model instance.
+
+    Raises:
+        MalformedRecordError: If the row fails model validation.
+    """
+    cleaned = {k: v for k, v in row.items() if k not in _DROP_ON_LOAD[name]}
+    for col in _MAP_COLUMNS.get(name, frozenset()):
+        value = cleaned.get(col)
+        # pyarrow reads a map<string,string> back as a list of (k, v) tuples.
+        if value is None:
+            cleaned[col] = {}
+        elif not isinstance(value, dict):
+            cleaned[col] = dict(value)
+    try:
+        return model_class(name).model_validate(cleaned)
+    except ValueError as exc:
+        raise MalformedRecordError(name, row, exc) from exc
+
+
+def _table_dir(data_fol: Path) -> Path:
+    """Return the corpus directory under a data folder."""
+    return data_fol / LEXICON_SUBDIR
+
+
+def _read_parquet(path: Path) -> list[dict[str, Any]]:
+    """Read one Parquet file into a list of raw row dicts (empty if missing)."""
+    if not path.exists():
+        return []
+    _, pq = _require_pyarrow()
+    return pq.read_table(path).to_pylist()
+
+
+def _load_table(
+    name: str,
+    *,
+    data_fol: Path,
+    lang: str | None = None,
+) -> list[Any]:
+    """Load a table from Parquet into validated models.
+
+    Args:
+        name: Table name (see `PARTITIONED` for the per-language ones).
+        data_fol: Project data folder; the corpus lives under
+            ``<data_fol>/lexicon/``.
+        lang: For a partitioned table, read only this language's file. Ignored
+            for single-file tables.
+
+    Returns:
+        The validated models, or an empty list when the file(s) do not exist.
+
+    Raises:
+        UnknownTableError: If `name` is not a known table.
+        MalformedRecordError: If a stored row fails validation.
+    """
+    if name not in _MODELS:
+        raise UnknownTableError(name)
+    table_dir = _table_dir(data_fol)
+    rows: list[dict[str, Any]] = []
+    if name in PARTITIONED:
+        part_dir = table_dir / name
+        if lang is not None:
+            rows = _read_parquet(part_dir / f"{lang}.parquet")
+        elif part_dir.exists():
+            for path in sorted(part_dir.glob("*.parquet")):
+                rows.extend(_read_parquet(path))
+    else:
+        rows = _read_parquet(table_dir / f"{name}.parquet")
+    return [model_from_row(name, row) for row in rows]
+
+
+def _write_parquet(path: Path, rows: list[dict[str, Any]], schema: Any) -> None:  # noqa: ANN401
+    """Write raw rows to one Parquet file (zstd), creating parent dirs."""
+    pa, pq = _require_pyarrow()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    table = pa.Table.from_pylist(rows, schema=schema)
+    pq.write_table(table, path, compression="zstd")
+
+
+def _dump_table(
+    name: str,
+    models: list[Any],
+    *,
+    data_fol: Path,
+    lang: str | None = None,
+) -> None:
+    """Write a table of models to Parquet (zstd).
+
+    Partitioned tables are split per language: `lemmas` by each lemma's
+    ``language`` field; `senses` only when `lang` is supplied (otherwise a
+    single ``_all.parquet``, since a sense's language is a join the ingestion
+    phase owns), so the seam never guesses.
+
+    Args:
+        name: Table name.
+        models: The model instances to persist.
+        data_fol: Project data folder.
+        lang: Force a single per-language file for a partitioned table.
+
+    Raises:
+        UnknownTableError: If `name` is not a known table.
+    """
+    if name not in _MODELS:
+        raise UnknownTableError(name)
+    table_dir = _table_dir(data_fol)
+    schema = _schema(name)
+    rows = [row_from_model(name, m) for m in models]
+
+    if name not in PARTITIONED:
+        _write_parquet(table_dir / f"{name}.parquet", rows, schema)
+        return
+
+    part_dir = table_dir / name
+    if lang is not None:
+        _write_parquet(part_dir / f"{lang}.parquet", rows, schema)
+        return
+    if name == "lemmas":
+        by_lang: dict[str, list[dict[str, Any]]] = {}
+        for row in rows:
+            by_lang.setdefault(row["language"], []).append(row)
+        for lang_code, lang_rows in by_lang.items():
+            _write_parquet(part_dir / f"{lang_code}.parquet", lang_rows, schema)
+        return
+    _write_parquet(part_dir / "_all.parquet", rows, schema)

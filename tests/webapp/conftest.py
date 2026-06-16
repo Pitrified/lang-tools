@@ -17,6 +17,7 @@ from fastapi_tools.config.webapp_config import SessionConfig
 from fastapi_tools.config.webapp_config import WebappConfig
 import pytest
 
+from lang_tools.webapp.routers.concepts_router import router as concepts_router
 from lang_tools.webapp.routers.lemmas_router import router as lemmas_router
 
 
@@ -46,7 +47,10 @@ def test_config() -> WebappConfig:
 @pytest.fixture
 def app(test_config: WebappConfig) -> FastAPI:
     """Build the content read API application."""
-    return create_app(config=test_config, extra_routers=[lemmas_router])
+    return create_app(
+        config=test_config,
+        extra_routers=[lemmas_router, concepts_router],
+    )
 
 
 @pytest.fixture

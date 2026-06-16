@@ -12,9 +12,9 @@ The models below are the **persisted** shape: thin, id-only records that are the
 on-disk source of truth. Each edge is stored once, in one place, so nothing
 drifts. Convenience navigation between objects (`sense.lemma`, `concept.lemmas`,
 `lemma.senses`, ...) is a **representation-layer** concern: it is hydrated by the
-store at load time and excluded from serialization, and is built in a later
-phase. The persisted records never carry object back-references or derivable
-membership.
+store at load time (see "Store and queries") and excluded from serialization.
+The persisted records never carry object back-references or derivable
+membership, so `model_dump()` stays byte-stable.
 
 ## `Lemma` model
 
@@ -86,6 +86,69 @@ connect:
   canonical-ordering trick.
 
 Both reject self-edges with a `SelfRelationError`.
+
+## Store and queries
+
+`LexiconStore` (`lang_tools.lexicon.lemma_store`) is the read/query layer over
+the whole graph. It loads every table, builds the look-aside indexes the app
+needs, and hydrates the representation-layer back-references the persisted models
+leave empty. The module also exposes a process-wide default store (built at
+import) and thin delegating helpers - the stable surface `lang-tutor` and the
+webapp consume:
+
+- Lemmas: `get_all_lemmas`, `get_lemma_by_id`, `get_lemmas_by_language`,
+  `get_lemmas_by_topic`, `get_lemmas_filtered`.
+- Concepts: `get_all_concepts`, `get_concept_by_id`.
+- Adjacency: `concepts_for_lemma`, `lemmas_for_concept` (optional `language`),
+  `senses_for_lemma`, `senses_for_concept`.
+- Edges: `get_false_friends_for_lemma` (returns `(other_lemma, edge)` pairs,
+  resolving symmetry), `concept_relations_for` (optional `relation_type`).
+
+These are point lookups and bounded adjacency joins, not aggregations.
+
+### Hydration and the guard
+
+After loading, the store populates the serialization-excluded back-references:
+`sense.lemma` / `sense.concept`, `lemma.senses` / `lemma.concepts`, and
+`concept.senses` / `concept.lemmas` (the last a per-language grouping). Read them
+through the `resolve_*` accessors (`sense.resolve_lemma()`,
+`lemma.resolve_senses()`, `concept.resolve_lemmas()`, ...): an object built ad
+hoc - before the store hydrated it - raises `NotHydratedError`
+(`SenseNotHydratedError` for a sense endpoint) rather than returning `None`
+silently. The persisted `lemma_id` / `concept_id` stay the always-available
+fallback.
+
+The circular back-references (`Lemma` <-> `Sense` <-> `Concept`) are resolved by
+calling `model_rebuild()` on all three classes in the store module, where every
+referenced class is in the runtime namespace.
+
+### Storage format and runtime modes
+
+The corpus is **Parquet (zstd)** under `data/lexicon/`, one file per table, with
+the large tables (`lemmas` / `senses`) partitioned per language, all under
+git-LFS. The on-disk format is hidden behind a codec seam
+(`lang_tools.lexicon.codec`, the optional `store` extra): the rest of the store
+never imports `pyarrow`. The store serves the same query surface over two
+engines - in-memory dicts (**resident mode**, the default for the small sample
+data) and indexed SQLite point lookups (**SQLite mode**, for the ~1.9 GB-resident
+full corpus; its indexed implementation lands with the ingestion phase). Until
+the sample corpus is regenerated as Parquet, the default store keeps sourcing its
+lemmas from the bootstrap CSVs.
+
+### Inspect and edit
+
+Nothing human-readable is committed, so `lang_tools.lexicon.corpus` exposes
+explicit operations over the Parquet (driven from `notebooks/lexicon_corpus/`, a
+thin caller):
+
+- `inspect_table(name, *, data_fol, lang=, where=, limit=)` runs read-only
+  DuckDB SQL over the Parquet - no import step.
+- `export_table` / `import_table` are the validated edit round-trip: export to a
+  transient JSONL, hand/LLM-edit it, then re-import. The import validates **every
+  row through the pydantic model** (a renamed/missing column or bad value raises
+  `MalformedRecordError`) before rewriting the canonical Parquet. The JSONL is
+  scratch, never committed; schema changes regenerate from ingestion, not
+  line-patched.
 
 ## Ingestion
 

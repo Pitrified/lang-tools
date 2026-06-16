@@ -35,8 +35,15 @@ store. These read helpers are the in-process content surface phase 2 consumes
   lemma <-> concept edge hosting per-sense frequency / CEFR).
 - `FalseFriendRelation`, `ConceptRelation` - decoupled relation edge tables.
 - `lemma_id`, `concept_id`, `sense_id` - deterministic id constructors.
+- `LexiconStore`, `get_store` - the read/query store over the whole graph.
 - `get_all_lemmas`, `get_lemma_by_id`, `get_lemmas_by_language`,
-  `get_lemmas_by_topic`, `get_lemmas_filtered` - read/query helpers.
+  `get_lemmas_by_topic`, `get_lemmas_filtered` - lemma read/query helpers.
+- `get_all_concepts`, `get_concept_by_id`, `concepts_for_lemma`,
+  `lemmas_for_concept`, `senses_for_lemma`, `senses_for_concept`,
+  `get_false_friends_for_lemma`, `concept_relations_for` - concept/sense/edge
+  read helpers.
+- `NotHydratedError`, `SenseNotHydratedError` - raised by the `resolve_*`
+  back-reference accessors before the store hydrates an object.
 
 Importing `lang_tools.lexicon` loads the bootstrap content from disk (see the
 content layout below).

@@ -17,11 +17,18 @@ Persistence note:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from pydantic import BaseModel
 from pydantic import Field
 from pydantic import field_validator
 
 from lang_tools.lexicon.concept_id import CONCEPT_ID_RE
+from lang_tools.lexicon.hydration import require
+
+if TYPE_CHECKING:
+    from lang_tools.lexicon.lemma import Lemma
+    from lang_tools.lexicon.sense import Sense
 
 
 class InvalidConceptIdError(ValueError):
@@ -48,10 +55,25 @@ class Concept(BaseModel):
         definitions: Per-language canonical gloss, keyed by ISO 639-1 code
             (e.g. ``{"en": "...", "pt": "..."}``). The canonical home for
             glosses, which no longer live on `Lemma`.
+        senses: Resolved `Sense` edges into this concept. Store-hydrated, never
+            persisted (``exclude=True``); ``None`` until hydration. Read via
+            `resolve_senses` to fail loud when unhydrated.
+        lemmas: Per-language grouping of the lemmas that realise this concept,
+            keyed by ISO 639-1 code. Derived from `senses` at hydration (never
+            persisted), so it cannot drift from the sense table on disk. Read
+            via `resolve_lemmas` to fail loud when unhydrated.
     """
 
     id: str
     definitions: dict[str, str] = Field(default_factory=dict)
+
+    # Representation-layer back-references; see `Sense.lemma` for the contract.
+    senses: list[Sense] | None = Field(default=None, exclude=True, repr=False)
+    lemmas: dict[str, list[Lemma]] | None = Field(
+        default=None,
+        exclude=True,
+        repr=False,
+    )
 
     @field_validator("id")
     @classmethod
@@ -60,3 +82,25 @@ class Concept(BaseModel):
         if not CONCEPT_ID_RE.match(value):
             raise InvalidConceptIdError(value)
         return value
+
+    def resolve_senses(self) -> list[Sense]:
+        """Return the hydrated `Sense` edges into this concept.
+
+        Returns:
+            The senses linking lemmas to this concept (possibly empty).
+
+        Raises:
+            NotHydratedError: If the store has not hydrated `senses`.
+        """
+        return require(self.senses, "Concept", "senses")
+
+    def resolve_lemmas(self) -> dict[str, list[Lemma]]:
+        """Return the hydrated per-language lemma grouping.
+
+        Returns:
+            Mapping of language code to the lemmas realising this concept.
+
+        Raises:
+            NotHydratedError: If the store has not hydrated `lemmas`.
+        """
+        return require(self.lemmas, "Concept", "lemmas")

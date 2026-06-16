@@ -24,6 +24,21 @@ ignore = [
     "F401",   # unused import
     "S311",   # Standard pseudo-random generators
     "T20",    # print found
+    # Exploratory notebooks are prototyping scratch, not library code: do not
+    # require type annotations, docstrings, or production-grade SQL/asserts.
+    "ANN001", # Missing type annotation for function argument
+    "ANN201", # Missing return type annotation for public function
+    "ANN202", # Missing return type annotation for private function
+    "D100",   # Missing docstring in public module
+    "D101",   # Missing docstring in public class
+    "D103",   # Missing docstring in public function
+    "D401",   # First line of docstring should be in imperative mood
+    "E402",   # Module level import not at top of file
+    "I001",   # Import block is un-sorted or un-formatted
+    "PLR2004", # Magic value used in comparison
+    "PLW0108", # Lambda may be unnecessary
+    "S101",   # Use of assert detected
+    "S608",   # Possible SQL injection via string-based query construction
 ]
 "tests/*" = [
     "ARG001", # Unused function argument: mocks and similar

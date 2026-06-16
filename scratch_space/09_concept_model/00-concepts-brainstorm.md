@@ -402,6 +402,19 @@ def get_false_friends_for_lemma(lemma_id: str) -> list[tuple[Lemma, FalseFriendR
 Analogous concept indexes: `_CONCEPTS_BY_ID`, plus `concepts_for_lemma(lemma_id)`
 and `lemmas_for_concept(concept_id, language=None)`.
 
+> **Built (phase 4).** The store is now `LexiconStore`
+> (`lang_tools.lexicon.lemma_store`): registries + look-aside indexes
+> (`_SENSES_BY_LEMMA_ID`/`_SENSES_BY_CONCEPT_ID`, the both-endpoint
+> false-friend and concept-relation indexes), eager `_hydrate()` of the
+> `exclude=True` back-references, and the full query surface above plus
+> `concept_relations_for` / `senses_for_*`. The on-disk format sits behind a
+> Parquet codec seam (`codec.py`, the optional `store` extra) and the access
+> engine is swappable behind one surface (resident dicts now; an SQLite-mode seam
+> raising `SqliteModeNotImplementedError` until the full corpus exists). Back-refs
+> are read through `resolve_*` accessors that raise `NotHydratedError` /
+> `SenseNotHydratedError` when unhydrated. See
+> [`04_store_layer.md`](04_store_layer.md).
+
 ### Storage format, git-LFS friendliness, and scaling
 
 The shipped dataset should stay **git-LFS friendly**: large, mostly-append-only
@@ -424,6 +437,30 @@ sub-plan) covering:
 Provisional lean: keep ingestion outputs as partitioned JSONL/CSV under LFS;
 revisit a SQLite build artifact only if query latency or memory become real
 problems. The analysis sub-plan confirms or overturns this.
+
+**Decision (phase 3, measured).** Experiments at the OMW 5-language scale (1M
+senses; see [`03_storage_indexing.md`](03_storage_indexing.md) "Decision memo")
+settle it on two separable axes:
+
+- **Ship Parquet+zstd, partitioned per table and per language** (`senses`/
+  `lemmas`) under git-LFS - ~8.6x smaller than JSONL (40.9 vs 350.3 MB total),
+  every per-table file < 25 MB, and directly DuckDB-queryable for build/QA. As
+  JSONL the `senses` table (227 MB) blows past GitHub's 100 MB hard limit, so the
+  big tables need LFS regardless and JSONL's diff benefit is lost there.
+- **Ship *all* tables as Parquet under LFS, including the small curated ones, for
+  uniformity** (one distribution path, no special cases): a 50k-row textual diff
+  is not meaningfully reviewable, and a model change rewrites every JSONL line, so
+  line-diffability is a false comfort. Human inspection/editing is an explicit
+  workflow over the Parquet (DuckDB SQL / a thin `inspect` CLI for reading;
+  `export_table`->edit JSONL->`import_table` with pydantic validation for edits),
+  not a committed line-oriented file; schema changes regenerate from ingestion.
+- **Runtime: in-memory dicts only for the tiny sample data; promote the hot
+  tables to SQLite indexed point lookups for the full corpus.** The full graph as
+  pydantic dicts is ~1.9 GB resident (infeasible on a 512 MB dyno); SQLite gives
+  ~30 us point lookups at ~0 resident. DuckDB is ~500x slower on point lookups
+  (16 ms) - a build/QA tool, not the hot path. Do not ship a `.duckdb`/`.sqlite`
+  as the canonical artifact; any runtime SQLite is built from the Parquet. Every
+  filter/adjacency access needs an explicit index (a raw scan is ~150 ms).
 
 ### Why the edge table over embedded `false_friends`
 
@@ -652,6 +689,17 @@ canonical gloss.
   `Concept.definitions`; `Lemma` keeps none. Raw source glosses are not carried as
   provenance now; if wanted they return in the ingestion phase (5) where they are
   produced.
+- **Store layer, indexes, and hydration.** Resolved (phase 4): built `LexiconStore`
+  with registries, look-aside indexes, eager back-ref hydration, and the full
+  query surface, over a Parquet codec seam and a resident/SQLite engine seam.
+  Back-refs (`lemma.senses`/`concepts`, `concept.senses`/`lemmas`,
+  `sense.lemma`/`concept`) are `exclude=True` store-populated fields read through
+  `resolve_*` guards; circular refs resolved via `model_rebuild()` in the store
+  module. The `Lemma.concepts` back-ref is reinstated as a hydrated field (the
+  phase-2 drift argument applies only to the *persisted* shape). Webapp gained
+  concept/relation read endpoints; a `corpus.py` inspect/edit surface and a
+  `notebooks/lexicon_corpus/` driver replace the dropped human-readable artifact.
+  See [`04_store_layer.md`](04_store_layer.md).
 
 ## Open questions
 
