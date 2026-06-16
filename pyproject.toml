@@ -12,6 +12,7 @@ dependencies = [
     "loguru>=0.7.3",
     "ollama-haystack>=2.3.0",
     "openai>=1.63.0",
+    "pyarrow>=18.0.0",
     "tiktoken>=0.9.0",
 ]
 
@@ -19,8 +20,9 @@ dependencies = [
 webapp = [
     "fastapi-tools @ git+https://github.com/Pitrified/fastapi-tools@v0.1.0",
 ]
+# DuckDB powers the inspect/QA path only (`corpus.inspect_table`); the runtime
+# store reads Parquet via pyarrow, which is a base dependency.
 store = [
-    "pyarrow>=18.0.0",
     "duckdb>=1.1.0",
 ]
 

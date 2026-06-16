@@ -1,82 +1,69 @@
-# Bootstrap Lemma Data
+# Bootstrap Sample Seed
 
-The `data/bootstrap/` directory contains starter vocabulary CSV files for each supported language. These are loaded automatically at import time by `lang_tools.lexicon.lemma_store`, the in-process content surface that consumers (such as `lang-tutor`) read from.
+`data/bootstrap/` holds a small, committed **JSONL sample seed** for the lexical
+graph: a handful of cross-lingual concepts with their lemmas, sense edges, and a
+couple of relation edges. It is a **developer input, not a runtime source** - the
+store reads Parquet only (see [the lexicon library docs](../library/lexicon.md)).
+The seed is the editable, diffable text that the *sample* Parquet corpus is built
+from; the full corpus comes from the ingestion phase.
 
-## Available Languages
+## Files
 
-| File | Language | Lemmas |
-|------|----------|-------|
-| `pt.csv` | Portuguese | ~50 |
-| `fr.csv` | French | ~50 |
-| `es.csv` | Spanish | ~50 |
-| `it.csv` | Italian | ~50 |
-| `de.csv` | German | ~50 |
-| `en.csv` | English | ~50 |
+| File | Table |
+|------|-------|
+| `lemmas.jsonl` | thin lexical tokens (all languages in one file) |
+| `concepts.jsonl` | language-independent concepts / synsets |
+| `senses.jsonl` | the lemma <-> concept edges |
+| `false_friends.jsonl` | false-friend token pairs |
+| `concept_relations.jsonl` | typed concept-to-concept edges |
 
-## CSV Format
+Each line is one row in the **lean codec shape** - exactly the columns the Parquet
+codec persists (`lang_tools.lexicon.codec`), which is the model minus the
+store-hydrated back-references. For example a lemma row:
 
-Each CSV uses the format expected by `lang_tools.lexicon.ingestion.csv_loader.load_csv()`:
-
-```csv
-text,language,part_of_speech,frequency,topics,translation_en,example_sentence,example_translation
-casa,pt,noun,high,"home,basics",house,Eu moro nessa casa.,I live in this house.
+```json
+{"id": "5a99...", "text": "Haus", "language": "de", "normalized": "haus", "part_of_speech": "noun", "topics": ["home", "basics"], "examples": [{"sentence": "Ich wohne in diesem Haus.", "translation": "I live in this house."}], "sources": ["csv"]}
 ```
 
-Required columns: `text`, `language`
+JSONL (not CSV) because the models carry nested fields - `Concept.definitions` is
+a per-language map, `Lemma.examples` is a list of objects - that do not fit a flat
+CSV. A ~50-row sample is diffable in normal git, so the seed is committed even
+though the large corpus tables are not.
 
-Optional columns:
-- `part_of_speech` - noun, verb, adjective, etc.
-- `frequency` - high, medium, or low
-- `topics` - comma-separated topic tags
-- `translation_<lang>` - one column per target language (e.g. `translation_en`)
-- `example_sentence` + `example_translation`
-- `false_friend_language`, `false_friend_word`, `false_friend_meaning`, `false_friend_similarity`
+## Turning the seed into a corpus
 
-## How Consumers Use This Data
+The store has a single load path: it reads `data/lexicon/` Parquet and raises
+`CorpusNotFoundError` when none is present. A fresh checkout therefore has no
+runtime corpus until you build one. For the sample, run the parquetize notebook:
 
-The lemma store loads all bootstrap CSVs automatically via `lang_tools.lexicon.lemma_store`:
+```text
+notebooks/lexicon_corpus/parquetize_seed.ipynb
+```
+
+It loops `lang_tools.lexicon.corpus.import_table` over each seed file, validating
+every row through its pydantic model and writing the canonical Parquet under
+`data/lexicon/` (gitignored). After that the store and the webapp read the sample.
+
+## How consumers read it
+
+Once the corpus exists, the read surface (used by the webapp and `lang-tutor`) is
+the default store, built lazily on first use from the Parquet:
 
 ```python
 from lang_tools.lexicon.lemma_store import get_all_lemmas, get_lemmas_filtered
 
-# All loaded lemmas
-lemmas = get_all_lemmas()
-
-# Filter by language
+lemmas = get_all_lemmas()                  # all lemmas
 pt_lemmas = get_lemmas_filtered(language="pt")
-
-# Filter by topic
 food_lemmas = get_lemmas_filtered(topic="food")
 ```
 
-No database setup is needed. The lemma store is an in-memory read-only list populated at module import time.
+## Editing the sample
 
-## Adding More Lemmas
+- Edit a `data/bootstrap/*.jsonl` file directly (it is the source), then re-run
+  the parquetize notebook to rebuild `data/lexicon/`.
+- Or use the validated round-trip in [explore.ipynb](../library/lexicon.md):
+  `export_table` -> edit a transient JSONL -> `import_table`, which rewrites the
+  Parquet only after every row validates.
 
-1. Edit or add a CSV in `data/bootstrap/` following the format above.
-2. Restart the consuming process. Lemmas are loaded at import time.
-
-For programmatic ingestion from other sources (Wiktionary, LLM-generated), see the ingestion modules:
-
-```python
-from lang_tools.lexicon.ingestion.csv_loader import load_csv
-from lang_tools.lexicon.ingestion.wiktionary import load_wiktionary_jsonl
-
-# Load a custom CSV
-lemmas = list(load_csv(Path("my_lemmas.csv")))
-```
-
-## Using the Ingestion Pipeline in a Script
-
-```python
-"""Example: load bootstrap CSVs and print stats."""
-from pathlib import Path
-from lang_tools.lexicon.ingestion.csv_loader import load_csv
-
-bootstrap_dir = Path("data/bootstrap")
-for csv_path in sorted(bootstrap_dir.glob("*.csv")):
-    lemmas = list(load_csv(csv_path))
-    print(f"{csv_path.name}: {len(lemmas)} lemmas")
-    accented = sum(1 for lemma in lemmas if lemma.has_accent)
-    print(f"  - {accented} with accents")
-```
+Schema changes are not edits: adding or removing a column regenerates the tables
+from the ingestion pipeline, never line-patched.

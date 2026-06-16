@@ -402,18 +402,21 @@ def get_false_friends_for_lemma(lemma_id: str) -> list[tuple[Lemma, FalseFriendR
 Analogous concept indexes: `_CONCEPTS_BY_ID`, plus `concepts_for_lemma(lemma_id)`
 and `lemmas_for_concept(concept_id, language=None)`.
 
-> **Built (phase 4).** The store is now `LexiconStore`
-> (`lang_tools.lexicon.lemma_store`): registries + look-aside indexes
-> (`_SENSES_BY_LEMMA_ID`/`_SENSES_BY_CONCEPT_ID`, the both-endpoint
-> false-friend and concept-relation indexes), eager `_hydrate()` of the
-> `exclude=True` back-references, and the full query surface above plus
-> `concept_relations_for` / `senses_for_*`. The on-disk format sits behind a
-> Parquet codec seam (`codec.py`, the optional `store` extra) and the access
-> engine is swappable behind one surface (resident dicts now; an SQLite-mode seam
-> raising `SqliteModeNotImplementedError` until the full corpus exists). Back-refs
-> are read through `resolve_*` accessors that raise `NotHydratedError` /
-> `SenseNotHydratedError` when unhydrated. See
-> [`04_store_layer.md`](04_store_layer.md).
+> **Built (phase 4, refined in 4.1 / 4.2).** The store is now `LexiconStore`
+> (`lang_tools.lexicon.lemma_store`): a **single indexed SQLite engine** built
+> from the corpus on load, answering the full query surface above
+> (`concept_relations_for` / `senses_for_*` included) with `SELECT`s. There is no
+> resident/SQLite dual mode - the phase-4 resident dicts, eager `_hydrate()`,
+> `LexiconStoreMode`, and `SqliteModeNotImplementedError` were removed in 4.1;
+> back-refs are now filled **on demand** by `hydrate_lemma`/`hydrate_concept`/
+> `hydrate_sense` (bounded 1-2 hops, fresh instances) and read through `resolve_*`
+> accessors that raise `NotHydratedError` / `SenseNotHydratedError` when
+> unhydrated. The on-disk format sits behind a Parquet codec seam (`codec.py`);
+> `from_data_fol` has a **single load path** - it reads `data/lexicon/` Parquet
+> only and raises `CorpusNotFoundError` when absent (4.2). `pyarrow` is a base
+> dependency; `duckdb` (the `store` extra) backs the inspect/QA path alone. See
+> [`04_store_layer.md`](04_store_layer.md), [`04.1_sqlite_mode.md`](04.1_sqlite_mode.md),
+> [`04.2_seed_data.md`](04.2_seed_data.md).
 
 ### Storage format, git-LFS friendliness, and scaling
 
@@ -461,6 +464,10 @@ settle it on two separable axes:
   (16 ms) - a build/QA tool, not the hot path. Do not ship a `.duckdb`/`.sqlite`
   as the canonical artifact; any runtime SQLite is built from the Parquet. Every
   filter/adjacency access needs an explicit index (a raw scan is ~150 ms).
+  *(Superseded by 4.1/4.2: the runtime is **SQLite-only** for both sample and full
+  corpus - no in-memory dict mode - and the store reads Parquet only, so SQLite is
+  always built from `data/lexicon/`. DuckDB-as-build/QA-tool and the
+  Parquet-as-source-of-truth points stand.)*
 
 ### Why the edge table over embedded `false_friends`
 
@@ -673,9 +680,12 @@ canonical gloss.
 - **Concept granularity.** Resolved as a direction: start with WordNet synsets
   as-is, then merge closely related senses or add a "concept cluster" layer above
   synsets if too fine. Confirmed during the ingestion phase.
-- **Storage format / git-LFS.** Direction set (line-oriented files under LFS,
-  SQLite only if needed) but needs the dedicated analysis sub-plan. See "Storage
-  format, git-LFS friendliness, and scaling".
+- **Storage format / git-LFS.** Resolved (phase 3, refined 4.1/4.2): ship **all
+  tables as Parquet+zstd under git-LFS** (large tables partitioned per language),
+  no committed DB blob and no line-oriented files. The runtime is a **SQLite-only**
+  engine built from that Parquet; the store reads Parquet only (single load path,
+  `CorpusNotFoundError` when absent). DuckDB is build/QA only. See "Storage format,
+  git-LFS friendliness, and scaling" and [`03_storage_indexing.md`](03_storage_indexing.md).
 - **Promote the sense edge now, or later?** Resolved (phase 2): promote now. The
   explicit `Sense` is the canonical membership record and hosts per-sense frequency
   and CEFR; `Lemma.concept_ids` and `Concept.lemmas` both drop as derivable. See
@@ -689,17 +699,21 @@ canonical gloss.
   `Concept.definitions`; `Lemma` keeps none. Raw source glosses are not carried as
   provenance now; if wanted they return in the ingestion phase (5) where they are
   produced.
-- **Store layer, indexes, and hydration.** Resolved (phase 4): built `LexiconStore`
-  with registries, look-aside indexes, eager back-ref hydration, and the full
-  query surface, over a Parquet codec seam and a resident/SQLite engine seam.
-  Back-refs (`lemma.senses`/`concepts`, `concept.senses`/`lemmas`,
-  `sense.lemma`/`concept`) are `exclude=True` store-populated fields read through
-  `resolve_*` guards; circular refs resolved via `model_rebuild()` in the store
-  module. The `Lemma.concepts` back-ref is reinstated as a hydrated field (the
-  phase-2 drift argument applies only to the *persisted* shape). Webapp gained
-  concept/relation read endpoints; a `corpus.py` inspect/edit surface and a
-  `notebooks/lexicon_corpus/` driver replace the dropped human-readable artifact.
-  See [`04_store_layer.md`](04_store_layer.md).
+- **Store layer, indexes, and hydration.** Resolved (phase 4, refined 4.1/4.2):
+  built `LexiconStore` with the full query surface over a Parquet codec seam. The
+  engine is a **single indexed SQLite database** (4.1 removed the resident dicts,
+  eager `_hydrate()`, and the `LexiconStoreMode`/`SqliteModeNotImplementedError`
+  seam); back-refs (`lemma.senses`/`concepts`, `concept.senses`/`lemmas`,
+  `sense.lemma`/`concept`) are `exclude=True` fields filled **on demand** by the
+  `hydrate_*` methods and read through `resolve_*` guards; circular refs resolved
+  via `model_rebuild()` in the store module. The `Lemma.concepts` back-ref is a
+  hydrated field (the phase-2 drift argument applies only to the *persisted*
+  shape). `from_data_fol` reads `data/lexicon/` Parquet only - one load path,
+  `CorpusNotFoundError` when absent (4.2). Webapp gained concept/relation read
+  endpoints; a `corpus.py` inspect/edit surface and a `notebooks/lexicon_corpus/`
+  driver (with a `parquetize_seed.ipynb` for the sample) replace the dropped
+  human-readable artifact. See [`04_store_layer.md`](04_store_layer.md),
+  [`04.1_sqlite_mode.md`](04.1_sqlite_mode.md), [`04.2_seed_data.md`](04.2_seed_data.md).
 
 ## Open questions
 

@@ -92,9 +92,9 @@ Both reject self-edges with a `SelfRelationError`.
 `LexiconStore` (`lang_tools.lexicon.lemma_store`) is the read/query layer over
 the whole graph. It builds a single **indexed SQLite database** from the corpus
 and answers every query with `SELECT`s, reconstructing the thin models through
-the codec. The module also exposes a process-wide default store (built at import)
-and thin delegating helpers - the stable surface `lang-tutor` and the webapp
-consume:
+the codec. The module also exposes a process-wide default store (built lazily on
+first use) and thin delegating helpers - the stable surface `lang-tutor` and the
+webapp consume:
 
 - Lemmas: `get_all_lemmas`, `get_lemma_by_id`, `get_lemmas_by_language`,
   `get_lemmas_by_topic`, `get_lemmas_filtered`.
@@ -129,19 +129,21 @@ referenced class is in the runtime namespace.
 The source-of-truth corpus is **Parquet (zstd)** under `data/lexicon/`, one file
 per table, with the large tables (`lemmas` / `senses`) partitioned per language,
 all under git-LFS. The on-disk format is hidden behind a codec seam
-(`lang_tools.lexicon.codec`, the optional `store` extra): the rest of the store
-never imports `pyarrow`.
+(`lang_tools.lexicon.codec`). `pyarrow` is a base dependency (reading the corpus
+is the store's only load path); `duckdb`, the `store` extra, backs the inspect/QA
+path alone.
 
 The runtime engine is **SQLite only** - one indexed database, built from the
 corpus on load and never committed (rebuilt from its source each time). There is
 no resident/SQLite dual mode: the full corpus as in-memory pydantic dicts is
 ~1.9 GB resident, so a single SQLite code path serves both the tiny sample and
-the full corpus at ~0 resident. `from_data_fol` builds the database from the
-Parquet under `data/lexicon/` when it exists; until the ingestion phase produces
-that Parquet, it builds from the committed JSONL **sample seed** under
-`data/bootstrap/` (a small, diffable, text-only seed - the readable input the
-sample Parquet is generated from). SQLite is in the standard library, so the
-seed path needs no `store` extra.
+the full corpus at ~0 resident. `from_data_fol` has a **single load path**: it
+reads the Parquet under `data/lexicon/` and raises `CorpusNotFoundError` when the
+folder holds no corpus. The full corpus is produced by the ingestion phase; for
+local development the committed JSONL **sample seed** under `data/bootstrap/` (a
+small, diffable, text-only fixture) is turned into that Parquet by the
+`parquetize_seed.ipynb` notebook. The seed is an input, never a runtime source -
+the store always reads Parquet.
 
 ### Inspect and edit
 

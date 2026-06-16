@@ -14,8 +14,9 @@ Public API:
         concept_relations_for: concept/sense/edge read helpers.
 
 The read/query helpers are the stable surface ``lang-tutor`` imports to pull
-the lemma pool it drills the user on. Importing this subpackage loads the
-bootstrap content from disk (see `lang_tools.lexicon.lemma_store`).
+the lemma pool it drills the user on. The default store loads the Parquet corpus
+lazily on first use - importing this subpackage never touches disk (see
+`lang_tools.lexicon.lemma_store`).
 """
 
 from lang_tools.lexicon.concept import Concept
@@ -25,6 +26,7 @@ from lang_tools.lexicon.hydration import SenseNotHydratedError
 from lang_tools.lexicon.lemma import Lemma
 from lang_tools.lexicon.lemma import LemmaExample
 from lang_tools.lexicon.lemma_id import lemma_id
+from lang_tools.lexicon.lemma_store import CorpusNotFoundError
 from lang_tools.lexicon.lemma_store import LexiconStore
 from lang_tools.lexicon.lemma_store import concept_relations_for
 from lang_tools.lexicon.lemma_store import concepts_for_lemma
@@ -48,6 +50,7 @@ from lang_tools.lexicon.sense_id import sense_id
 __all__ = [
     "Concept",
     "ConceptRelation",
+    "CorpusNotFoundError",
     "FalseFriendRelation",
     "Lemma",
     "LemmaExample",

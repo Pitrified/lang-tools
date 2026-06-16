@@ -31,11 +31,17 @@ cd lang-tools
 git lfs pull
 ```
 
-Verify the content is real and not a pointer stub:
+Verify the committed sample seed is readable text (it lives in normal git, not
+LFS):
 
 ```bash
-head -1 data/bootstrap/pt.csv   # should be the CSV header, not "version https://git-lfs..."
+head -1 data/bootstrap/lemmas.jsonl   # should be a JSON object, one lemma per line
 ```
+
+The runtime store reads a **Parquet corpus** under `data/lexicon/` (LFS-tracked;
+gitignored until the ingestion phase ships it). It is not bundled - build it from
+the sample seed with `notebooks/lexicon_corpus/parquetize_seed.ipynb`, or pull the
+full corpus, otherwise the read APIs raise `CorpusNotFoundError`.
 
 ## 3. Install dependencies (including the webapp extra)
 

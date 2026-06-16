@@ -16,11 +16,12 @@ Why SQLite only:
 
 Data source:
     `from_data_fol` builds the SQLite database from the source-of-truth Parquet
-    under ``data/lexicon/`` when it exists (the full corpus, produced by the
-    ingestion phase). Until then it builds from the committed JSONL **sample
-    seed** under ``data/bootstrap/`` (text, diffable; the readable input that the
-    sample Parquet is generated from). The SQLite file itself is never committed -
-    it is rebuilt from its source on load.
+    under ``data/lexicon/`` - the single load path. The full corpus is produced
+    by the ingestion phase; for local development the committed JSONL **sample
+    seed** under ``data/bootstrap/`` is turned into that Parquet by the parquetize
+    notebook (under ``notebooks/``). When no Parquet is present `from_data_fol`
+    raises `CorpusNotFoundError`. The SQLite file itself is never committed - it
+    is rebuilt from the Parquet on load.
 
 Back-references:
     The persisted models leave their convenience back-references
@@ -42,7 +43,6 @@ from loguru import logger as lg
 
 from lang_tools.lexicon.codec import _COLUMNS
 from lang_tools.lexicon.codec import LEXICON_SUBDIR
-from lang_tools.lexicon.codec import StoreDependencyMissingError
 from lang_tools.lexicon.codec import _load_table
 from lang_tools.lexicon.codec import model_from_row
 from lang_tools.lexicon.codec import row_from_model
@@ -98,6 +98,19 @@ _INDEXES: dict[str, tuple[str, ...]] = {
 
 #: Tables whose first column (``id``) is a unique primary key.
 _HAS_ID_PK: frozenset[str] = frozenset({"lemmas", "concepts", "senses"})
+
+
+class CorpusNotFoundError(FileNotFoundError):
+    """Raised when no Parquet corpus is present at the expected location."""
+
+    def __init__(self, corpus_dir: Path) -> None:
+        """Initialize with the corpus directory that was checked.
+
+        Args:
+            corpus_dir: The ``<data_fol>/lexicon`` directory that holds no corpus.
+        """
+        super().__init__(f"Corpus not found at {corpus_dir}")
+        self.corpus_dir = corpus_dir
 
 
 def _dedupe_by_id(items: list[Concept]) -> list[Concept]:
@@ -476,51 +489,59 @@ class LexiconStore:
         return sense
 
 
-def _parquet_present(data_fol: Path) -> bool:
+def _corpus_present(data_fol: Path) -> bool:
     """Return True when a Parquet corpus exists under ``<data_fol>/lexicon/``."""
     lex = data_fol / LEXICON_SUBDIR
     return (lex / "concepts.parquet").exists() or (lex / "lemmas").is_dir()
 
 
-def _load_seed_models(data_fol: Path) -> dict[str, list]:
-    """Load the committed JSONL sample seed under ``<data_fol>/bootstrap/``."""
-    seed_dir = data_fol / "bootstrap"
-    tables: dict[str, list] = {}
-    for name in TABLES:
-        path = seed_dir / f"{name}.jsonl"
-        models: list = []
-        if path.exists():
-            with path.open("r", encoding="utf-8") as fh:
-                models = [
-                    model_from_row(name, json.loads(line))
-                    for line in fh
-                    if line.strip()
-                ]
-        else:
-            lg.warning("Sample seed missing: {}", path)
-        tables[name] = models
-    return tables
-
-
 def _load_corpus_models(data_fol: Path) -> dict[str, list]:
-    """Load every table as models, from Parquet when present, else the seed."""
-    if _parquet_present(data_fol):
-        try:
-            return {name: _load_table(name, data_fol=data_fol) for name in TABLES}
-        except StoreDependencyMissingError:
-            lg.warning(
-                "Parquet corpus present but the 'store' extra is missing; "
-                "falling back to the JSONL sample seed.",
-            )
-    return _load_seed_models(data_fol)
+    """Load every table as models from the Parquet corpus.
+
+    Args:
+        data_fol: Project data folder; the corpus lives under
+            ``<data_fol>/lexicon/``.
+
+    Returns:
+        The validated models per table.
+
+    Raises:
+        CorpusNotFoundError: When no Parquet corpus is present.
+    """
+    if not _corpus_present(data_fol):
+        raise CorpusNotFoundError(data_fol / LEXICON_SUBDIR)
+    return {name: _load_table(name, data_fol=data_fol) for name in TABLES}
 
 
-_STORE = LexiconStore.from_data_fol(get_lang_tools_params().paths.data_fol)
+#: Process-wide default store, built lazily on first `get_store()` call so that
+#: importing this module never touches disk (a fresh checkout has no Parquet
+#: until the parquetize notebook or the ingestion phase produces it).
+_store: LexiconStore | None = None
 
 
 def get_store() -> LexiconStore:
-    """Return the process-wide default store."""
-    return _STORE
+    """Return the process-wide default store, building it on first use.
+
+    Raises:
+        CorpusNotFoundError: When no Parquet corpus is present at the configured
+            data folder.
+    """
+    global _store  # noqa: PLW0603 - module-level lazy singleton
+    if _store is None:
+        _store = LexiconStore.from_data_fol(get_lang_tools_params().paths.data_fol)
+    return _store
+
+
+def set_store(store: LexiconStore) -> None:
+    """Override the process-wide default store (tests / fixtures)."""
+    global _store  # noqa: PLW0603 - module-level lazy singleton
+    _store = store
+
+
+def reset_store() -> None:
+    """Drop the cached default store so the next `get_store()` rebuilds it."""
+    global _store  # noqa: PLW0603 - module-level lazy singleton
+    _store = None
 
 
 # --- Module-level delegating helpers (the stable read surface) -----------
@@ -528,22 +549,22 @@ def get_store() -> LexiconStore:
 
 def get_all_lemmas() -> list[Lemma]:
     """Return all lemmas."""
-    return _STORE.get_all_lemmas()
+    return get_store().get_all_lemmas()
 
 
 def get_lemma_by_id(lemma_id: str) -> Lemma | None:
     """Look up a lemma by its deterministic id."""
-    return _STORE.get_lemma_by_id(lemma_id)
+    return get_store().get_lemma_by_id(lemma_id)
 
 
 def get_lemmas_by_language(language: str) -> list[Lemma]:
     """Filter lemmas by language code."""
-    return _STORE.get_lemmas_by_language(language)
+    return get_store().get_lemmas_by_language(language)
 
 
 def get_lemmas_by_topic(topic: str) -> list[Lemma]:
     """Filter lemmas containing a given topic tag."""
-    return _STORE.get_lemmas_by_topic(topic)
+    return get_store().get_lemmas_by_topic(topic)
 
 
 def get_lemmas_filtered(
@@ -551,44 +572,44 @@ def get_lemmas_filtered(
     topic: str | None = None,
 ) -> list[Lemma]:
     """Filter lemmas by language and/or topic."""
-    return _STORE.get_lemmas_filtered(language=language, topic=topic)
+    return get_store().get_lemmas_filtered(language=language, topic=topic)
 
 
 def get_all_concepts() -> list[Concept]:
     """Return all concepts."""
-    return _STORE.get_all_concepts()
+    return get_store().get_all_concepts()
 
 
 def get_concept_by_id(concept_id: str) -> Concept | None:
     """Look up a concept by its id."""
-    return _STORE.get_concept_by_id(concept_id)
+    return get_store().get_concept_by_id(concept_id)
 
 
 def senses_for_lemma(lemma_id: str) -> list[Sense]:
     """Return the sense edges of a lemma."""
-    return _STORE.senses_for_lemma(lemma_id)
+    return get_store().senses_for_lemma(lemma_id)
 
 
 def senses_for_concept(concept_id: str) -> list[Sense]:
     """Return the sense edges into a concept."""
-    return _STORE.senses_for_concept(concept_id)
+    return get_store().senses_for_concept(concept_id)
 
 
 def concepts_for_lemma(lemma_id: str) -> list[Concept]:
     """Return the concepts a lemma realises."""
-    return _STORE.concepts_for_lemma(lemma_id)
+    return get_store().concepts_for_lemma(lemma_id)
 
 
 def lemmas_for_concept(concept_id: str, language: str | None = None) -> list[Lemma]:
     """Return the lemmas realising a concept, optionally filtered by language."""
-    return _STORE.lemmas_for_concept(concept_id, language=language)
+    return get_store().lemmas_for_concept(concept_id, language=language)
 
 
 def get_false_friends_for_lemma(
     lemma_id: str,
 ) -> list[tuple[Lemma, FalseFriendRelation]]:
     """Return each false friend of a lemma as ``(other_lemma, edge)``."""
-    return _STORE.get_false_friends_for_lemma(lemma_id)
+    return get_store().get_false_friends_for_lemma(lemma_id)
 
 
 def concept_relations_for(
@@ -596,4 +617,4 @@ def concept_relations_for(
     relation_type: str | None = None,
 ) -> list[ConceptRelation]:
     """Return the concept relations touching a concept."""
-    return _STORE.concept_relations_for(concept_id, relation_type=relation_type)
+    return get_store().concept_relations_for(concept_id, relation_type=relation_type)

@@ -1,14 +1,13 @@
 """Tests for the SQLite-backed lexical store (`lang_tools.lexicon.lemma_store`)."""
 
-import json
-
 import pytest
 
-from lang_tools.lexicon.codec import row_from_model
+from lang_tools.lexicon.codec import _dump_table
 from lang_tools.lexicon.concept import Concept
 from lang_tools.lexicon.hydration import NotHydratedError
 from lang_tools.lexicon.hydration import SenseNotHydratedError
 from lang_tools.lexicon.lemma import Lemma
+from lang_tools.lexicon.lemma_store import CorpusNotFoundError
 from lang_tools.lexicon.lemma_store import LexiconStore
 from lang_tools.lexicon.relations import ConceptRelation
 from lang_tools.lexicon.relations import FalseFriendRelation
@@ -183,24 +182,21 @@ def test_missing_ids_return_empty_or_none() -> None:
     assert store.concept_relations_for("missing") == []
 
 
-def test_from_data_fol_loads_the_sample_seed(tmp_path) -> None:  # noqa: ANN001
-    """A store built from the committed JSONL seed answers the query surface."""
-    seed = tmp_path / "bootstrap"
-    seed.mkdir()
-
+def test_from_data_fol_loads_the_parquet_corpus(tmp_path) -> None:  # noqa: ANN001
+    """A store built from the Parquet corpus answers the query surface."""
     casa = Lemma(text="casa", language="pt", topics=["home"])
     cid = "c__house__cd9c39a2ce7a"
-    rows = {
-        "lemmas": [casa],
-        "concepts": [Concept(id=cid, definitions={"en": "a house"})],
-        "senses": [Sense(lemma_id=casa.id, concept_id=cid)],
-    }
-    for name, models in rows.items():
-        with (seed / f"{name}.jsonl").open("w", encoding="utf-8") as fh:
-            for model in models:
-                fh.write(json.dumps(row_from_model(name, model), ensure_ascii=False))
-                fh.write("\n")
+    concept = Concept(id=cid, definitions={"en": "a house"})
+    _dump_table("lemmas", [casa], data_fol=tmp_path)
+    _dump_table("concepts", [concept], data_fol=tmp_path)
+    _dump_table("senses", [Sense(lemma_id=casa.id, concept_id=cid)], data_fol=tmp_path)
 
     store = LexiconStore.from_data_fol(tmp_path)
     assert [lem.text for lem in store.get_all_lemmas()] == ["casa"]
     assert [c.id for c in store.concepts_for_lemma(casa.id)] == [cid]
+
+
+def test_from_data_fol_missing_corpus_raises(tmp_path) -> None:  # noqa: ANN001
+    """A data folder with no Parquet corpus raises CorpusNotFoundError."""
+    with pytest.raises(CorpusNotFoundError):
+        LexiconStore.from_data_fol(tmp_path)

@@ -45,8 +45,8 @@ store. These read helpers are the in-process content surface phase 2 consumes
 - `NotHydratedError`, `SenseNotHydratedError` - raised by the `resolve_*`
   back-reference accessors before the store hydrates an object.
 
-Importing `lang_tools.lexicon` loads the bootstrap content from disk (see the
-content layout below).
+The default store loads the Parquet corpus from disk lazily on first use (see the
+content layout below); importing `lang_tools.lexicon` never touches disk.
 
 ### `lang_tools.llm` (content-producing chains)
 
@@ -86,14 +86,16 @@ data/
   bootstrap/                          # committed JSONL sample seed (text, diffable)
     lemmas.jsonl  concepts.jsonl  senses.jsonl
     false_friends.jsonl  concept_relations.jsonl
-  lexicon/                            # source-of-truth Parquet (ingestion phase)
+  lexicon/                            # source-of-truth Parquet (gitignored, built)
 ```
 
 - **Sample seed**: the committed `data/bootstrap/*.jsonl` files (the lean codec
-  row shape) seed the store until the ingestion phase produces the full Parquet
-  corpus under `data/lexicon/`. Loaded by `lang_tools.lexicon.lemma_store` via
-  `LangToolsPaths.data_fol`, which builds the SQLite runtime engine from whichever
-  source is present (Parquet preferred, seed otherwise).
+  row shape) are a dev **input**, not a runtime source. The store reads Parquet
+  only: `parquetize_seed.ipynb` turns the seed into the sample Parquet under
+  `data/lexicon/` (gitignored), and the ingestion phase produces the full corpus
+  there. `lang_tools.lexicon.lemma_store` builds the SQLite runtime engine from
+  that Parquet via `LangToolsPaths.data_fol`, raising `CorpusNotFoundError` when
+  none is present.
 - **Sentences / conversations**: currently *generated on the fly* by the
   conversation and splitter chains and **not** stored (per the design note,
   stored sentence content is out of scope for now). When promoted to stored

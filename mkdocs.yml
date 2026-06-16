@@ -79,6 +79,7 @@ nav:
       - UV Package Manager: guides/uv.md
       - Pre-commit Hooks: guides/pre_commit.md
       - Params / Config Pattern: guides/params_config.md
+      - Bootstrap sample seed: guides/bootstrap_data.md
       - Running the read service: guides/run_service.md
   - Library:
       - Overview: library/index.md

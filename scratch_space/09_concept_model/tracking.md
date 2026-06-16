@@ -37,6 +37,12 @@ split as the design firms up.
 - **SQLite-only runtime.** The resident-dict mode is removed; one SQLite engine
   serves the whole query surface (phase 4.1, before phase 5). Supersedes phase 4's
   resident/SQLite dual-mode + `_hydrate`/`LexiconStoreMode` seam.
+- **Single load path: the store reads Parquet only** (phase 4.2). `from_data_fol`
+  reads `data/lexicon/` Parquet and raises `CorpusNotFoundError` when absent - no
+  JSONL-seed fallback. The committed `data/bootstrap/*.jsonl` seed is a dev
+  **input**, parquetized into the sample corpus by `parquetize_seed.ipynb`.
+  Consequently `pyarrow` is a base dependency (`duckdb` stays the inspect-only
+  `store` extra), and the default store builds lazily on first `get_store()`.
 
 ## Phases (proposed)
 
@@ -47,6 +53,7 @@ split as the design firms up.
 | 3  | Storage & indexing analysis   | [`03_storage_indexing.md`](03_storage_indexing.md)       | done | Two-axis (storage format x access engine) analysis: ship Parquet under LFS, query via dicts/SQLite/DuckDB; decided by measured numbers. |
 | 4  | Store layer + indexes         | [`04_store_layer.md`](04_store_layer.md)                 | done | Extend `lemma_store` with concept/sense/edge registries, look-aside indexes, and back-ref hydration; query surface feeds phase 3. |
 | 4.1 | SQLite-only runtime engine   | [`04.1_sqlite_mode.md`](04.1_sqlite_mode.md)             | done   | Collapse the store to a single SQLite engine and remove resident mode; sequenced before phase 5 so the engine is settled. Supersedes phase 4's dual-mode. |
+| 4.2 | Single load path (Parquet-only) | [`04.2_seed_data.md`](04.2_seed_data.md)              | done   | Remove the JSONL-seed loader + pyarrow-missing fallback; the store reads Parquet only. Seed becomes a dev input parquetized by a notebook. pyarrow -> base dep. |
 | 5  | Initial ingestion pipeline    | [`05_ingestion.md`](05_ingestion.md)                     | planned | One-time initial build: OMW via `wn` -> concepts, kaikki enrichment, optional LLM granularity. Parquet is the source of truth; re-ingestion merge deferred. |
 | 6  | Frequency & complexity        | [`06_frequency_complexity.md`](06_frequency_complexity.md) | draft  | Per-sense token/sense frequency (`wordfreq`, sense-tag weights) and CEFR complexity (graded lists / estimated).        |
 | 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | draft  | Ingest hypernymy/hyponymy and antonymy as typed edges from OMW.                                                        |
@@ -384,3 +391,25 @@ Append-only. Newest at the bottom.
   hydration + a `from_data_fol` seed round-trip; webapp lemma/concept APIs stay green.
   Docs updated (`lexicon.md` store/hydration/storage sections, `frozen_api.md` content
   layout). Suite green: 120 passed, ruff clean, pyright 0 errors.
+- 2026-06-17 : brainstormed and executed phase 4.2 (status done) - collapsed the
+  store's two model-loaders into one. The `from_data_fol` JSONL-seed fallback and
+  the pyarrow-missing degrade path are gone; the store reads **Parquet only** and
+  raises `CorpusNotFoundError` ("Corpus not found at <path>") when the corpus is
+  absent. Rationale (in `04.2_seed_data.md`): pyarrow is mandatory the moment the
+  phase-5 Parquet ships, so the stdlib-only seed path bought only a pre-phase-5
+  sample convenience at the cost of a permanent second code path + a store/inspect
+  divergence. The committed `data/bootstrap/*.jsonl` seed becomes a pure **dev
+  input**, turned into the (gitignored) sample Parquet by the new thin
+  `notebooks/lexicon_corpus/parquetize_seed.ipynb` (loops `import_table`). Decisions
+  folded from the user's answers: `pyarrow` promoted to base `dependencies`,
+  `duckdb` stays the inspect-only `store` extra; the eager import-time `_STORE`
+  became a **lazy** `get_store()` (+ `set_store`/`reset_store`) so a corpus-less
+  checkout stays importable (eager+raise would break every import); store target is
+  the existing `data_fol` param, so tests point it at a tmp dir. Rewrote the
+  `from_data_fol` test as a Parquet round-trip + a missing-corpus test; added a
+  session fixture that parquetizes the seed into a tmp corpus and `set_store`s it for
+  the webapp APIs. `explore.ipynb` now builds a store at a chosen folder (commented
+  swap line + "parquetize first" note). Docs updated (`lexicon.md`, `frozen_api.md`,
+  codec docstring). Suite green: 121 passed, ruff clean, pyright 0 errors. Note:
+  `docs/guides/bootstrap_data.md` is stale from before 4.1 (describes CSV +
+  in-memory + import-time load) and was left for a separate cleanup.

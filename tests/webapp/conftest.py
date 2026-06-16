@@ -17,8 +17,34 @@ from fastapi_tools.config.webapp_config import SessionConfig
 from fastapi_tools.config.webapp_config import WebappConfig
 import pytest
 
+from lang_tools.lexicon.corpus import import_table
+from lang_tools.lexicon.lemma_store import TABLES
+from lang_tools.lexicon.lemma_store import LexiconStore
+from lang_tools.lexicon.lemma_store import reset_store
+from lang_tools.lexicon.lemma_store import set_store
+from lang_tools.params.lang_tools_params import get_lang_tools_params
 from lang_tools.webapp.routers.concepts_router import router as concepts_router
 from lang_tools.webapp.routers.lemmas_router import router as lemmas_router
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _seed_default_store(tmp_path_factory: pytest.TempPathFactory) -> Generator[None]:
+    """Point the process-wide store at a Parquet corpus built from the sample seed.
+
+    The store reads Parquet only, so the webapp read APIs need a materialised
+    corpus. This parquetizes the committed JSONL seed into a session tmp folder -
+    the programmatic equivalent of running ``parquetize_seed.ipynb`` - and sets it
+    as the default store for the duration of the test session.
+    """
+    seed_fol = get_lang_tools_params().paths.data_fol / "bootstrap"
+    corpus_fol = tmp_path_factory.mktemp("corpus")
+    for name in TABLES:
+        seed = seed_fol / f"{name}.jsonl"
+        if seed.exists():
+            import_table(name, seed, data_fol=corpus_fol)
+    set_store(LexiconStore.from_data_fol(corpus_fol))
+    yield
+    reset_store()
 
 
 @pytest.fixture

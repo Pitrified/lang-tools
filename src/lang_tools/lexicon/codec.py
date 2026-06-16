@@ -6,11 +6,11 @@ all of it under git-LFS. This module is the only place that touches the on-disk
 format: `_load_table` / `_dump_table` hide it behind a stable signature so the
 rest of the store imports the seam, never ``pyarrow``.
 
-``pyarrow`` is an **optional** dependency (the ``store`` extra). It is imported
-lazily inside the functions here so that importing `lang_tools.lexicon` - which
-``lang-tutor`` does for the lemma read surface alone - does not require the
-columnar engine. A caller that reaches the codec without the extra installed
-gets a clear `StoreDependencyMissingError`.
+``pyarrow`` is a **base** dependency: reading the Parquet corpus is the store's
+only load path, so the columnar engine is always available. It is still imported
+lazily inside the functions here to keep module import cheap. ``duckdb`` (the
+``store`` extra) backs the inspect/QA path only; a caller that reaches it without
+the extra installed gets a clear `StoreDependencyMissingError`.
 
 On-disk layout under ``<data_fol>/lexicon/``:
 
@@ -120,13 +120,13 @@ class UnknownTableError(KeyError):
 
 
 class StoreDependencyMissingError(ImportError):
-    """Raised when the codec is used without the optional ``store`` extra."""
+    """Raised when the inspect/QA path is used without the optional ``store`` extra."""
 
     def __init__(self) -> None:
         """Initialize with install guidance."""
         super().__init__(
-            "The Parquet codec needs the 'store' extra. Install it with "
-            "`uv sync --extra store` (pyarrow + duckdb).",
+            "This path needs the 'store' extra (duckdb). Install it with "
+            "`uv sync --extra store`.",
         )
 
 
