@@ -36,8 +36,8 @@ split as the design firms up.
 | -- | ----------------------------- | -------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------- |
 | 1  | Rename `Word` -> `Lemma`      | [`01_rename_word_to_lemma.md`](01_rename_word_to_lemma.md) | done | Preliminary mechanical refactor `Word`->`Lemma` (and `lang-tutor`) so later phases use literature vocabulary.          |
 | 2  | Core data models              | [`02_core_models.md`](02_core_models.md)                 | done | Define thin `Lemma`, `Concept`, explicit `Sense` edge, `FalseFriendRelation`, generic relation edge; concept id scheme. |
-| 3  | Storage & indexing analysis   | [`03_storage_indexing.md`](03_storage_indexing.md)       | draft  | Assess git-LFS-friendly formats (CSV/JSONL vs SQLite), scale/perf/memory limits, whether a DB can live in LFS.         |
-| 4  | Store layer + indexes         | [`04_store_layer.md`](04_store_layer.md)                 | draft  | Extend/replace `lemma_store` with concept/sense/edge registries and look-aside indexes.                                |
+| 3  | Storage & indexing analysis   | [`03_storage_indexing.md`](03_storage_indexing.md)       | planned | Two-axis (storage format x access engine) analysis: ship Parquet under LFS, query via dicts/SQLite/DuckDB; decided by measured numbers. |
+| 4  | Store layer + indexes         | [`04_store_layer.md`](04_store_layer.md)                 | planned | Extend `lemma_store` with concept/sense/edge registries, look-aside indexes, and back-ref hydration; query surface feeds phase 3. |
 | 5  | Initial ingestion pipeline    | [`05_ingestion.md`](05_ingestion.md)                     | draft  | OMW via `wn` -> concepts, then kaikki enrichment, then LLM granularity/mapping; the order and how.                     |
 | 6  | Frequency & complexity        | [`06_frequency_complexity.md`](06_frequency_complexity.md) | draft  | Per-sense token/sense frequency (`wordfreq`, sense-tag weights) and CEFR complexity (graded lists / estimated).        |
 | 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | draft  | Ingest hypernymy/hyponymy and antonymy as typed edges from OMW.                                                        |
@@ -54,6 +54,9 @@ Likely merge/split points as we iterate:
   same per-sense home so they stay one phase.
 - Phase 7 (relations) may fold into 5 (ingestion) since OMW supplies the edges.
 - Phase 3 (storage analysis) gates 4 and 5 and may reshape the model in 2.
+  Phases 3 and 4 are planned in lockstep but executed staged: phase 4's query
+  surface is phase 3's benchmark target, and phase 3's format decision gates
+  phase 4's implementation (see both sub-plans' "Sequencing" sections).
 
 ## Log
 
@@ -142,3 +145,30 @@ Append-only. Newest at the bottom.
   `glosses`) and is therefore red until its consumer uplift in phase 9 - this is
   the deliberate phase-2 scope boundary (no store/concept data exists to migrate it
   onto yet).
+- 2026-06-16 : fleshed phase 3 into a plan of record (status planned) after a web
+  survey (DuckDB, Parquet, SQLite, git-LFS/DVC). Key reframing: storage format and
+  query engine are separable axes - DuckDB queries CSV/JSONL/Parquet directly, so
+  we can keep LFS-friendly files and still get SQL on top without committing a DB
+  blob. Surveyed both axes in tables with cited sources; flagged that git LFS does
+  not delta-compress (so JSONL's diff benefit only pays off in *normal* git, making
+  the size measurement the pivot), that DuckDB's native `.duckdb` format is
+  version-unstable (official remedy is export-to-Parquet, so do not ship it), and
+  that `wn` already stores OMW in SQLite. Provisional recommendation: ship Parquet
+  partitioned per table/language under LFS, keep a JSONL export for inspection,
+  runtime stays in-memory dicts (promote hot tables to SQLite point lookups only if
+  measured memory/latency demands). Refines the brainstorm's CSV/JSONL-vs-SQLite
+  lean; the executed phase will confirm/overturn with measured numbers and fold the
+  memo back into the brainstorm.
+- 2026-06-16 : fleshed phase 4 into a plan of record (status planned) and resolved
+  the phase 3/4 sequencing question (plan in lockstep, execute staged). Led the
+  plan with the read/query surface + access-pattern table (point lookups + bounded
+  adjacency joins, not aggregations) so it doubles as phase 3's benchmark target.
+  Introduced a codec seam (`_load_table`/`_dump_table`) so phase 3's experiment
+  serializers promote into the real loader instead of being throwaway. Specified
+  the back-ref hydration (store-owned `_hydrate()` pass over the phase-2
+  `exclude=True` fields) and resolved the unhydrated-`Sense` guard: accessor raises
+  `SenseNotHydratedError` (lazy store resolution considered and rejected for
+  coupling/bug-hiding); `lemma_id`/`concept_id` stay the fallback. Added concept/
+  relation read endpoints (lean lemma payload kept). Mirrored a "Sequencing with
+  phase 4" note into `03_storage_indexing.md`; phase-4 implementation deliberately
+  waits on phase 3's format decision. lang-tutor stays red until phase 9.
