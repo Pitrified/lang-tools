@@ -90,11 +90,11 @@ Both reject self-edges with a `SelfRelationError`.
 ## Store and queries
 
 `LexiconStore` (`lang_tools.lexicon.lemma_store`) is the read/query layer over
-the whole graph. It loads every table, builds the look-aside indexes the app
-needs, and hydrates the representation-layer back-references the persisted models
-leave empty. The module also exposes a process-wide default store (built at
-import) and thin delegating helpers - the stable surface `lang-tutor` and the
-webapp consume:
+the whole graph. It builds a single **indexed SQLite database** from the corpus
+and answers every query with `SELECT`s, reconstructing the thin models through
+the codec. The module also exposes a process-wide default store (built at import)
+and thin delegating helpers - the stable surface `lang-tutor` and the webapp
+consume:
 
 - Lemmas: `get_all_lemmas`, `get_lemma_by_id`, `get_lemmas_by_language`,
   `get_lemmas_by_topic`, `get_lemmas_filtered`.
@@ -108,32 +108,40 @@ These are point lookups and bounded adjacency joins, not aggregations.
 
 ### Hydration and the guard
 
-After loading, the store populates the serialization-excluded back-references:
-`sense.lemma` / `sense.concept`, `lemma.senses` / `lemma.concepts`, and
-`concept.senses` / `concept.lemmas` (the last a per-language grouping). Read them
-through the `resolve_*` accessors (`sense.resolve_lemma()`,
-`lemma.resolve_senses()`, `concept.resolve_lemmas()`, ...): an object built ad
-hoc - before the store hydrated it - raises `NotHydratedError`
-(`SenseNotHydratedError` for a sense endpoint) rather than returning `None`
-silently. The persisted `lemma_id` / `concept_id` stay the always-available
-fallback.
+The serialization-excluded back-references (`sense.lemma` / `sense.concept`,
+`lemma.senses` / `lemma.concepts`, `concept.senses` / `concept.lemmas`) are
+filled **on demand**, per call, by the store's `hydrate_lemma`,
+`hydrate_concept`, and `hydrate_sense` methods - a bounded 1-2 hop SQLite read,
+not an eager whole-graph pass. Hydrated instances are built fresh on each call,
+so there is no shared-instance identity. Read the back-references through the
+`resolve_*` accessors (`sense.resolve_lemma()`, `lemma.resolve_senses()`,
+`concept.resolve_lemmas()`, ...): an object that was not hydrated raises
+`NotHydratedError` (`SenseNotHydratedError` for a sense endpoint) rather than
+returning `None` silently. The persisted `lemma_id` / `concept_id` stay the
+always-available fallback.
 
 The circular back-references (`Lemma` <-> `Sense` <-> `Concept`) are resolved by
 calling `model_rebuild()` on all three classes in the store module, where every
 referenced class is in the runtime namespace.
 
-### Storage format and runtime modes
+### Storage format and the runtime engine
 
-The corpus is **Parquet (zstd)** under `data/lexicon/`, one file per table, with
-the large tables (`lemmas` / `senses`) partitioned per language, all under
-git-LFS. The on-disk format is hidden behind a codec seam
+The source-of-truth corpus is **Parquet (zstd)** under `data/lexicon/`, one file
+per table, with the large tables (`lemmas` / `senses`) partitioned per language,
+all under git-LFS. The on-disk format is hidden behind a codec seam
 (`lang_tools.lexicon.codec`, the optional `store` extra): the rest of the store
-never imports `pyarrow`. The store serves the same query surface over two
-engines - in-memory dicts (**resident mode**, the default for the small sample
-data) and indexed SQLite point lookups (**SQLite mode**, for the ~1.9 GB-resident
-full corpus; its indexed implementation lands with the ingestion phase). Until
-the sample corpus is regenerated as Parquet, the default store keeps sourcing its
-lemmas from the bootstrap CSVs.
+never imports `pyarrow`.
+
+The runtime engine is **SQLite only** - one indexed database, built from the
+corpus on load and never committed (rebuilt from its source each time). There is
+no resident/SQLite dual mode: the full corpus as in-memory pydantic dicts is
+~1.9 GB resident, so a single SQLite code path serves both the tiny sample and
+the full corpus at ~0 resident. `from_data_fol` builds the database from the
+Parquet under `data/lexicon/` when it exists; until the ingestion phase produces
+that Parquet, it builds from the committed JSONL **sample seed** under
+`data/bootstrap/` (a small, diffable, text-only seed - the readable input the
+sample Parquet is generated from). SQLite is in the standard library, so the
+seed path needs no `store` extra.
 
 ### Inspect and edit
 

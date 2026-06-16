@@ -1,47 +1,61 @@
-"""In-memory read/query store for the whole lexical graph.
+"""SQLite-backed read/query store for the whole lexical graph.
 
-The store is the read layer over lemmas, concepts, senses, and the decoupled
-relation edges. It loads each table through the Parquet codec seam
-(`lang_tools.lexicon.codec`), builds the look-aside indexes the app needs, and
-hydrates the representation-layer back-references (`sense.lemma`, `lemma.senses`,
-`concept.lemmas`, ...) that the persisted models leave empty.
+The store is the single read layer over lemmas, concepts, senses, and the
+decoupled relation edges. It builds **one** engine - an indexed SQLite database -
+and serves every query (point lookups, bounded adjacency joins, filtered reads)
+with ``SELECT``s, reconstructing the thin pydantic models through the Parquet
+codec seam (`lang_tools.lexicon.codec`).
 
-Runtime modes (from the phase-3 memory cliff):
+Why SQLite only:
     The full corpus as in-memory pydantic dicts is ~1.9 GB resident, infeasible
-    on a small dyno, so the store exposes **one query surface** over two
-    interchangeable engines. **Resident mode** (the default, used for the small
-    bootstrap/sample data) loads every table into dicts and hydrates the whole
-    graph eagerly. **SQLite mode** (for the full corpus) serves the same surface
-    from indexed ``SELECT``s at ~0 resident; its indexed implementation lands
-    with phase-5 data, so this phase ships the seam (the `LexiconStoreMode`
-    switch) with resident mode implemented and SQLite mode raising a clear,
-    not-yet-implemented error.
+    on a small dyno. SQLite point lookups run at ~0 resident (~30 us/lookup), so
+    the store keeps a single code path over SQLite for both the tiny sample and
+    the full corpus, instead of a resident/SQLite dual mode. The earlier
+    dual-mode seam (resident dicts, eager whole-graph hydration, a mode switch)
+    is gone.
 
-Sample-data note:
-    Until phase 9 regenerates the sample corpus as Parquet, the default store
-    keeps sourcing its **lemmas** from the existing bootstrap CSVs (the resident
-    sample data); the concept/sense/edge tables load from Parquet under
-    ``data/lexicon/`` and are empty until the ingestion phase produces them.
+Data source:
+    `from_data_fol` builds the SQLite database from the source-of-truth Parquet
+    under ``data/lexicon/`` when it exists (the full corpus, produced by the
+    ingestion phase). Until then it builds from the committed JSONL **sample
+    seed** under ``data/bootstrap/`` (text, diffable; the readable input that the
+    sample Parquet is generated from). The SQLite file itself is never committed -
+    it is rebuilt from its source on load.
+
+Back-references:
+    The persisted models leave their convenience back-references
+    (`sense.lemma`, `lemma.senses`, `concept.lemmas`, ...) empty. They are filled
+    **on demand**, per call, by the ``hydrate_*`` methods (a bounded 1-2 hop
+    SQLite read), not eagerly across the whole graph. Hydrated instances are
+    fresh per call - there is no shared-instance identity. An un-hydrated
+    back-reference read through ``resolve_*`` raises `NotHydratedError`.
 """
 
 from __future__ import annotations
 
 from collections import defaultdict
-from enum import StrEnum
+import json
+import sqlite3
 from typing import TYPE_CHECKING
 
 from loguru import logger as lg
 
+from lang_tools.lexicon.codec import _COLUMNS
+from lang_tools.lexicon.codec import LEXICON_SUBDIR
 from lang_tools.lexicon.codec import StoreDependencyMissingError
 from lang_tools.lexicon.codec import _load_table
+from lang_tools.lexicon.codec import model_from_row
+from lang_tools.lexicon.codec import row_from_model
 from lang_tools.lexicon.concept import Concept
-from lang_tools.lexicon.ingestion.csv_loader import load_csv
 from lang_tools.lexicon.lemma import Lemma
 from lang_tools.lexicon.sense import Sense
 from lang_tools.params.lang_tools_params import get_lang_tools_params
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from pathlib import Path
+
+    from pydantic import BaseModel
 
     from lang_tools.lexicon.relations import ConceptRelation
     from lang_tools.lexicon.relations import FalseFriendRelation
@@ -54,23 +68,36 @@ Sense.model_rebuild()
 Concept.model_rebuild()
 Lemma.model_rebuild()
 
+#: The lexical tables, in dependency order (lemmas/concepts before the edges).
+TABLES: tuple[str, ...] = (
+    "lemmas",
+    "concepts",
+    "senses",
+    "false_friends",
+    "concept_relations",
+)
 
-class LexiconStoreMode(StrEnum):
-    """Access engine behind the store's single query surface."""
+#: Columns stored as JSON text in SQLite (the list / dict model fields). Every
+#: other column binds to a native SQLite value.
+_JSON_COLUMNS: dict[str, frozenset[str]] = {
+    "lemmas": frozenset({"topics", "examples", "sources"}),
+    "concepts": frozenset({"definitions"}),
+    "senses": frozenset(),
+    "false_friends": frozenset({"explanation_notes"}),
+    "concept_relations": frozenset(),
+}
 
-    RESIDENT = "resident"
-    SQLITE = "sqlite"
+#: Secondary indexes per table (beyond the implicit primary key on ``id``).
+_INDEXES: dict[str, tuple[str, ...]] = {
+    "lemmas": ("language",),
+    "concepts": (),
+    "senses": ("lemma_id", "concept_id"),
+    "false_friends": ("lemma_id_a", "lemma_id_b"),
+    "concept_relations": ("concept_id_a", "concept_id_b"),
+}
 
-
-class SqliteModeNotImplementedError(NotImplementedError):
-    """Raised when SQLite mode is requested before its phase-5 implementation."""
-
-    def __init__(self) -> None:
-        """Initialize with a fixed, descriptive message."""
-        super().__init__(
-            "SQLite store mode is specified but not implemented yet; it lands "
-            "with the full-corpus data in phase 5. Use resident mode for now.",
-        )
+#: Tables whose first column (``id``) is a unique primary key.
+_HAS_ID_PK: frozenset[str] = frozenset({"lemmas", "concepts", "senses"})
 
 
 def _dedupe_by_id(items: list[Concept]) -> list[Concept]:
@@ -84,25 +111,86 @@ def _dedupe_by_id(items: list[Concept]) -> list[Concept]:
     return out
 
 
-class LexiconStore:
-    """Read/query store over the whole lexical graph (resident mode).
+def _build_schema(conn: sqlite3.Connection) -> None:
+    """Create the table and index schema for every lexical table."""
+    for name in TABLES:
+        cols = _COLUMNS[name]
+        defs = [
+            f"{col} TEXT PRIMARY KEY" if (col == "id" and name in _HAS_ID_PK) else col
+            for col in cols
+        ]
+        conn.execute(f"CREATE TABLE {name} ({', '.join(defs)})")
+        for col in _INDEXES[name]:
+            conn.execute(f"CREATE INDEX idx_{name}_{col} ON {name} ({col})")
 
-    Attributes:
-        mode: The access engine in use (`LexiconStoreMode`).
+
+def _populate(conn: sqlite3.Connection, tables: dict[str, Sequence[BaseModel]]) -> None:
+    """Insert every model into its table, JSON-encoding the nested columns."""
+    for name in TABLES:
+        cols = _COLUMNS[name]
+        json_cols = _JSON_COLUMNS[name]
+        placeholders = ", ".join("?" for _ in cols)
+        sql = f"INSERT INTO {name} ({', '.join(cols)}) VALUES ({placeholders})"  # noqa: S608
+        rows = []
+        for model in tables.get(name, []):
+            row = row_from_model(name, model)
+            rows.append(
+                tuple(
+                    json.dumps(row[col], ensure_ascii=False)
+                    if col in json_cols
+                    else row[col]
+                    for col in cols
+                ),
+            )
+        conn.executemany(sql, rows)
+    conn.commit()
+
+
+def _row_to_model(name: str, row: sqlite3.Row) -> BaseModel:
+    """Rebuild a model from a SQLite row, JSON-decoding the nested columns."""
+    data = dict(row)
+    for col in _JSON_COLUMNS[name]:
+        if data.get(col) is not None:
+            data[col] = json.loads(data[col])
+    return model_from_row(name, data)
+
+
+def _select_cols(name: str, alias: str | None = None) -> str:
+    """Return the comma-joined column list for a table, optionally alias-qualified."""
+    prefix = f"{alias}." if alias else ""
+    return ", ".join(f"{prefix}{col}" for col in _COLUMNS[name])
+
+
+class LexiconStore:
+    """SQLite-backed read/query store over the whole lexical graph.
+
+    Build it with `from_data_fol` (loads the corpus from disk) or `from_models`
+    (in tests / ingestion, from in-memory model lists). Both signatures of the
+    query surface match the pre-SQLite store, so callers, the webapp, and
+    `lang-tutor` do not change shape.
     """
 
-    def __init__(
-        self,
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        """Wrap an already-built, populated SQLite connection.
+
+        Args:
+            conn: A connection whose schema is built and tables populated. Use
+                `from_models` / `from_data_fol` rather than calling this directly.
+        """
+        self._conn = conn
+
+    @classmethod
+    def from_models(
+        cls,
         *,
         lemmas: list[Lemma],
         concepts: list[Concept],
         senses: list[Sense],
         false_friends: list[FalseFriendRelation],
         concept_relations: list[ConceptRelation],
-        mode: LexiconStoreMode = LexiconStoreMode.RESIDENT,
-        hydrate: bool = True,
-    ) -> None:
-        """Build the registries, indexes, and (optionally) hydrate the graph.
+        db_path: Path | None = None,
+    ) -> LexiconStore:
+        """Build a store by loading model lists into a fresh SQLite database.
 
         Args:
             lemmas: All lemmas.
@@ -110,111 +198,58 @@ class LexiconStore:
             senses: All sense edges.
             false_friends: All false-friend edges.
             concept_relations: All concept-relation edges.
-            mode: Access engine; only `LexiconStoreMode.RESIDENT` is implemented.
-            hydrate: Populate the back-reference fields after indexing.
+            db_path: On-disk database path; an in-memory database when None
+                (the default - the sample corpus is tiny). The full corpus passes
+                a path so the build is paid once.
 
-        Raises:
-            SqliteModeNotImplementedError: If `mode` is SQLite.
+        Returns:
+            The assembled store.
         """
-        if mode is LexiconStoreMode.SQLITE:
-            raise SqliteModeNotImplementedError
-        self.mode = mode
-
-        self._all_lemmas = lemmas
-        self._all_concepts = concepts
-        self._all_senses = senses
-        self._all_false_friends = false_friends
-        self._all_concept_relations = concept_relations
-
-        # Primary-key indexes (the hot point lookups).
-        self._lemmas_by_id: dict[str, Lemma] = {lem.id: lem for lem in lemmas}
-        self._concepts_by_id: dict[str, Concept] = {c.id: c for c in concepts}
-
-        # Look-aside adjacency indexes.
-        self._senses_by_lemma_id: dict[str, list[Sense]] = defaultdict(list)
-        self._senses_by_concept_id: dict[str, list[Sense]] = defaultdict(list)
-        for sense in senses:
-            self._senses_by_lemma_id[sense.lemma_id].append(sense)
-            self._senses_by_concept_id[sense.concept_id].append(sense)
-
-        # A false-friend edge is stored once (canonical a < b); index it under
-        # both endpoints so a lookup by either lemma finds it.
-        self._false_friends_by_lemma_id: dict[str, list[FalseFriendRelation]] = (
-            defaultdict(list)
+        target = str(db_path) if db_path is not None else ":memory:"
+        conn = sqlite3.connect(target, check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        _build_schema(conn)
+        _populate(
+            conn,
+            {
+                "lemmas": lemmas,
+                "concepts": concepts,
+                "senses": senses,
+                "false_friends": false_friends,
+                "concept_relations": concept_relations,
+            },
         )
-        for edge in false_friends:
-            self._false_friends_by_lemma_id[edge.lemma_id_a].append(edge)
-            self._false_friends_by_lemma_id[edge.lemma_id_b].append(edge)
-
-        # Concept relations: index under both endpoints for traversal; the typed
-        # query method below respects directional vs symmetric semantics.
-        self._concept_relations_by_id: dict[str, list[ConceptRelation]] = defaultdict(
-            list,
-        )
-        for rel in concept_relations:
-            self._concept_relations_by_id[rel.concept_id_a].append(rel)
-            self._concept_relations_by_id[rel.concept_id_b].append(rel)
-
-        self._warn_on_slug_collisions()
-        if hydrate:
-            self._hydrate()
+        cls._warn_on_slug_collisions(concepts)
+        return cls(conn)
 
     @classmethod
     def from_data_fol(
         cls,
         data_fol: Path,
         *,
-        lemmas: list[Lemma] | None = None,
-        mode: LexiconStoreMode = LexiconStoreMode.RESIDENT,
-        hydrate: bool = True,
+        db_path: Path | None = None,
     ) -> LexiconStore:
-        """Load every table from the Parquet corpus and build the store.
+        """Build the store from the on-disk corpus.
+
+        Loads the source-of-truth Parquet under ``<data_fol>/lexicon/`` when it
+        exists; otherwise the committed JSONL sample seed under
+        ``<data_fol>/bootstrap/``. Either way the rows are validated through the
+        codec and loaded into a fresh SQLite database.
 
         Args:
-            data_fol: Project data folder; the corpus lives under
-                ``<data_fol>/lexicon/``.
-            lemmas: Override the lemma table (used by the default store to keep
-                serving the bootstrap-CSV sample until phase 9). When None,
-                lemmas load from Parquet like the other tables.
-            mode: Access engine.
-            hydrate: Populate back-references after indexing.
+            data_fol: Project data folder.
+            db_path: On-disk SQLite path, or None for an in-memory database.
 
         Returns:
-            The assembled store. Tables with no Parquet files load empty; if the
-            optional ``store`` extra (pyarrow) is missing, the Parquet-backed
-            tables load empty and a warning is logged.
+            The assembled store (empty tables when neither source is present).
         """
-        try:
-            loaded_lemmas = lemmas if lemmas is not None else _load_table(
-                "lemmas",
-                data_fol=data_fol,
-            )
-            concepts = _load_table("concepts", data_fol=data_fol)
-            senses = _load_table("senses", data_fol=data_fol)
-            false_friends = _load_table("false_friends", data_fol=data_fol)
-            concept_relations = _load_table("concept_relations", data_fol=data_fol)
-        except StoreDependencyMissingError:
-            lg.warning(
-                "Parquet codec unavailable (install the 'store' extra); "
-                "concept/sense/edge tables load empty.",
-            )
-            loaded_lemmas = lemmas or []
-            concepts, senses = [], []
-            false_friends, concept_relations = [], []
-        return cls(
-            lemmas=loaded_lemmas,
-            concepts=concepts,
-            senses=senses,
-            false_friends=false_friends,
-            concept_relations=concept_relations,
-            mode=mode,
-            hydrate=hydrate,
-        )
+        return cls.from_models(**_load_corpus_models(data_fol), db_path=db_path)
 
-    def _warn_on_slug_collisions(self) -> None:
+    @staticmethod
+    def _warn_on_slug_collisions(concepts: Sequence[Concept]) -> None:
         """Warn when two concepts share a readable slug (ids stay unique via hash)."""
         ids_by_slug: dict[str, set[str]] = defaultdict(set)
-        for concept in self._all_concepts:
+        for concept in concepts:
             # id shape: c__{slug}__{hash[:12]}; the slug is everything between.
             slug = concept.id[len("c__") : concept.id.rfind("__")]
             ids_by_slug[slug].add(concept.id)
@@ -222,45 +257,39 @@ class LexiconStore:
             if len(ids) > 1:
                 lg.warning("Concept slug collision: {!r} used by {}", slug, sorted(ids))
 
-    def _hydrate(self) -> None:
-        """Populate the serialization-excluded back-references across the graph."""
-        for sense in self._all_senses:
-            sense.lemma = self._lemmas_by_id.get(sense.lemma_id)
-            sense.concept = self._concepts_by_id.get(sense.concept_id)
+    # --- internal query helpers ------------------------------------------
 
-        for lemma in self._all_lemmas:
-            lemma_senses = self._senses_by_lemma_id.get(lemma.id, [])
-            lemma.senses = lemma_senses
-            lemma.concepts = _dedupe_by_id(
-                [s.concept for s in lemma_senses if s.concept is not None],
-            )
-
-        for concept in self._all_concepts:
-            concept_senses = self._senses_by_concept_id.get(concept.id, [])
-            concept.senses = concept_senses
-            grouped: dict[str, list[Lemma]] = defaultdict(list)
-            for sense in concept_senses:
-                if sense.lemma is not None:
-                    grouped[sense.lemma.language].append(sense.lemma)
-            concept.lemmas = dict(grouped)
+    def _query(self, name: str, sql: str, params: tuple[object, ...] = ()) -> list:
+        """Run a SELECT and rebuild each row into `name`'s model."""
+        cur = self._conn.execute(sql, params)
+        return [_row_to_model(name, row) for row in cur.fetchall()]
 
     # --- Lemma reads -----------------------------------------------------
 
     def get_all_lemmas(self) -> list[Lemma]:
         """Return all lemmas."""
-        return self._all_lemmas
+        return self._query("lemmas", f"SELECT {_select_cols('lemmas')} FROM lemmas")  # noqa: S608
 
     def get_lemma_by_id(self, lemma_id: str) -> Lemma | None:
         """Look up a lemma by its deterministic id (None when absent)."""
-        return self._lemmas_by_id.get(lemma_id)
+        rows = self._query(
+            "lemmas",
+            f"SELECT {_select_cols('lemmas')} FROM lemmas WHERE id = ?",  # noqa: S608
+            (lemma_id,),
+        )
+        return rows[0] if rows else None
 
     def get_lemmas_by_language(self, language: str) -> list[Lemma]:
         """Filter lemmas by language code."""
-        return [lem for lem in self._all_lemmas if lem.language == language]
+        return self._query(
+            "lemmas",
+            f"SELECT {_select_cols('lemmas')} FROM lemmas WHERE language = ?",  # noqa: S608
+            (language,),
+        )
 
     def get_lemmas_by_topic(self, topic: str) -> list[Lemma]:
         """Filter lemmas carrying a given topic tag."""
-        return [lem for lem in self._all_lemmas if topic in lem.topics]
+        return [lem for lem in self.get_all_lemmas() if topic in lem.topics]
 
     def get_lemmas_filtered(
         self,
@@ -268,9 +297,11 @@ class LexiconStore:
         topic: str | None = None,
     ) -> list[Lemma]:
         """Filter lemmas by language and/or topic."""
-        results = self._all_lemmas
-        if language:
-            results = [lem for lem in results if lem.language == language]
+        results = (
+            self.get_lemmas_by_language(language)
+            if language
+            else self.get_all_lemmas()
+        )
         if topic:
             results = [lem for lem in results if topic in lem.topics]
         return results
@@ -279,29 +310,46 @@ class LexiconStore:
 
     def get_all_concepts(self) -> list[Concept]:
         """Return all concepts."""
-        return self._all_concepts
+        return self._query(
+            "concepts",
+            f"SELECT {_select_cols('concepts')} FROM concepts",  # noqa: S608
+        )
 
     def get_concept_by_id(self, concept_id: str) -> Concept | None:
         """Look up a concept by its id (None when absent)."""
-        return self._concepts_by_id.get(concept_id)
+        rows = self._query(
+            "concepts",
+            f"SELECT {_select_cols('concepts')} FROM concepts WHERE id = ?",  # noqa: S608
+            (concept_id,),
+        )
+        return rows[0] if rows else None
 
     # --- Adjacency reads -------------------------------------------------
 
     def senses_for_lemma(self, lemma_id: str) -> list[Sense]:
         """Return the sense edges of a lemma (empty when absent)."""
-        return self._senses_by_lemma_id.get(lemma_id, [])
+        return self._query(
+            "senses",
+            f"SELECT {_select_cols('senses')} FROM senses WHERE lemma_id = ?",  # noqa: S608
+            (lemma_id,),
+        )
 
     def senses_for_concept(self, concept_id: str) -> list[Sense]:
         """Return the sense edges into a concept (empty when absent)."""
-        return self._senses_by_concept_id.get(concept_id, [])
+        return self._query(
+            "senses",
+            f"SELECT {_select_cols('senses')} FROM senses WHERE concept_id = ?",  # noqa: S608
+            (concept_id,),
+        )
 
     def concepts_for_lemma(self, lemma_id: str) -> list[Concept]:
         """Return the concepts a lemma realises, de-duplicated (empty when absent)."""
-        concepts = [
-            self._concepts_by_id[s.concept_id]
-            for s in self._senses_by_lemma_id.get(lemma_id, [])
-            if s.concept_id in self._concepts_by_id
-        ]
+        concepts = self._query(
+            "concepts",
+            f"SELECT {_select_cols('concepts', 'c')} FROM senses s "  # noqa: S608
+            "JOIN concepts c ON c.id = s.concept_id WHERE s.lemma_id = ?",
+            (lemma_id,),
+        )
         return _dedupe_by_id(concepts)
 
     def lemmas_for_concept(
@@ -310,26 +358,33 @@ class LexiconStore:
         language: str | None = None,
     ) -> list[Lemma]:
         """Return the lemmas realising a concept, optionally filtered by language."""
-        lemmas = [
-            self._lemmas_by_id[s.lemma_id]
-            for s in self._senses_by_concept_id.get(concept_id, [])
-            if s.lemma_id in self._lemmas_by_id
-        ]
+        sql = (
+            f"SELECT {_select_cols('lemmas', 'l')} FROM senses s "  # noqa: S608
+            "JOIN lemmas l ON l.id = s.lemma_id WHERE s.concept_id = ?"
+        )
+        params: tuple[object, ...] = (concept_id,)
         if language is not None:
-            lemmas = [lem for lem in lemmas if lem.language == language]
-        return lemmas
+            sql += " AND l.language = ?"
+            params = (concept_id, language)
+        return self._query("lemmas", sql, params)
 
     def get_false_friends_for_lemma(
         self,
         lemma_id: str,
     ) -> list[tuple[Lemma, FalseFriendRelation]]:
         """Return each false friend of a lemma as ``(other_lemma, edge)``."""
+        edges = self._query(
+            "false_friends",
+            f"SELECT {_select_cols('false_friends')} FROM false_friends "  # noqa: S608
+            "WHERE lemma_id_a = ? OR lemma_id_b = ?",
+            (lemma_id, lemma_id),
+        )
         out: list[tuple[Lemma, FalseFriendRelation]] = []
-        for edge in self._false_friends_by_lemma_id.get(lemma_id, []):
+        for edge in edges:
             other_id = (
                 edge.lemma_id_b if edge.lemma_id_a == lemma_id else edge.lemma_id_a
             )
-            other = self._lemmas_by_id.get(other_id)
+            other = self.get_lemma_by_id(other_id)
             if other is not None:
                 out.append((other, edge))
         return out
@@ -352,31 +407,115 @@ class LexiconStore:
         Returns:
             The matching relation edges (empty when absent).
         """
-        edges = self._concept_relations_by_id.get(concept_id, [])
+        sql = (
+            f"SELECT {_select_cols('concept_relations')} FROM concept_relations "  # noqa: S608
+            "WHERE (concept_id_a = ? OR concept_id_b = ?)"
+        )
+        params: tuple[object, ...] = (concept_id, concept_id)
         if relation_type is not None:
-            edges = [e for e in edges if e.relation_type == relation_type]
-        return edges
+            sql += " AND relation_type = ?"
+            params = (concept_id, concept_id, relation_type)
+        return self._query("concept_relations", sql, params)
+
+    # --- On-demand hydration (bounded, opt-in, fresh instances) ----------
+
+    def hydrate_lemma(self, lemma: Lemma) -> Lemma:
+        """Fill `lemma`'s back-references from SQLite (its senses and concepts).
+
+        Bounded to 1-2 hops and built fresh on each call (no shared-instance
+        identity). After this, `lemma.resolve_senses()` / `resolve_concepts()`
+        return populated lists instead of raising.
+
+        Args:
+            lemma: The lemma to hydrate in place.
+
+        Returns:
+            The same `lemma`, with its back-references populated.
+        """
+        senses = self.senses_for_lemma(lemma.id)
+        for sense in senses:
+            sense.lemma = lemma
+            sense.concept = self.get_concept_by_id(sense.concept_id)
+        lemma.senses = senses
+        lemma.concepts = _dedupe_by_id(
+            [s.concept for s in senses if s.concept is not None],
+        )
+        return lemma
+
+    def hydrate_concept(self, concept: Concept) -> Concept:
+        """Fill `concept`'s back-references from SQLite (its senses and lemmas).
+
+        Args:
+            concept: The concept to hydrate in place.
+
+        Returns:
+            The same `concept`, with its back-references populated.
+        """
+        senses = self.senses_for_concept(concept.id)
+        grouped: dict[str, list[Lemma]] = defaultdict(list)
+        for sense in senses:
+            sense.concept = concept
+            sense.lemma = self.get_lemma_by_id(sense.lemma_id)
+            if sense.lemma is not None:
+                grouped[sense.lemma.language].append(sense.lemma)
+        concept.senses = senses
+        concept.lemmas = dict(grouped)
+        return concept
+
+    def hydrate_sense(self, sense: Sense) -> Sense:
+        """Fill a sense's `lemma` / `concept` endpoints from SQLite.
+
+        Args:
+            sense: The sense edge to hydrate in place.
+
+        Returns:
+            The same `sense`, with both endpoints populated.
+        """
+        sense.lemma = self.get_lemma_by_id(sense.lemma_id)
+        sense.concept = self.get_concept_by_id(sense.concept_id)
+        return sense
 
 
-def _load_bootstrap_lemmas() -> list[Lemma]:
-    """Load the bootstrap-CSV sample lemmas (the resident sample data)."""
-    bootstrap_dir = get_lang_tools_params().paths.data_fol / "bootstrap"
-    lemmas: list[Lemma] = []
-    if not bootstrap_dir.exists():
-        lg.warning("Bootstrap dir not found: {}", bootstrap_dir)
-        return lemmas
-    for csv_path in sorted(bootstrap_dir.glob("*.csv")):
-        batch = list(load_csv(csv_path))
-        lg.info("Loaded {} lemmas from {}", len(batch), csv_path.name)
-        lemmas.extend(batch)
-    lg.info("Lemma store initialized: {} total lemmas", len(lemmas))
-    return lemmas
+def _parquet_present(data_fol: Path) -> bool:
+    """Return True when a Parquet corpus exists under ``<data_fol>/lexicon/``."""
+    lex = data_fol / LEXICON_SUBDIR
+    return (lex / "concepts.parquet").exists() or (lex / "lemmas").is_dir()
 
 
-_STORE = LexiconStore.from_data_fol(
-    get_lang_tools_params().paths.data_fol,
-    lemmas=_load_bootstrap_lemmas(),
-)
+def _load_seed_models(data_fol: Path) -> dict[str, list]:
+    """Load the committed JSONL sample seed under ``<data_fol>/bootstrap/``."""
+    seed_dir = data_fol / "bootstrap"
+    tables: dict[str, list] = {}
+    for name in TABLES:
+        path = seed_dir / f"{name}.jsonl"
+        models: list = []
+        if path.exists():
+            with path.open("r", encoding="utf-8") as fh:
+                models = [
+                    model_from_row(name, json.loads(line))
+                    for line in fh
+                    if line.strip()
+                ]
+        else:
+            lg.warning("Sample seed missing: {}", path)
+        tables[name] = models
+    return tables
+
+
+def _load_corpus_models(data_fol: Path) -> dict[str, list]:
+    """Load every table as models, from Parquet when present, else the seed."""
+    if _parquet_present(data_fol):
+        try:
+            return {name: _load_table(name, data_fol=data_fol) for name in TABLES}
+        except StoreDependencyMissingError:
+            lg.warning(
+                "Parquet corpus present but the 'store' extra is missing; "
+                "falling back to the JSONL sample seed.",
+            )
+    return _load_seed_models(data_fol)
+
+
+_STORE = LexiconStore.from_data_fol(get_lang_tools_params().paths.data_fol)
 
 
 def get_store() -> LexiconStore:
@@ -388,7 +527,7 @@ def get_store() -> LexiconStore:
 
 
 def get_all_lemmas() -> list[Lemma]:
-    """Return all bootstrap lemmas."""
+    """Return all lemmas."""
     return _STORE.get_all_lemmas()
 
 

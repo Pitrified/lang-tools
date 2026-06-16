@@ -83,12 +83,17 @@ tree** - never bundled into the wheel.
 
 ```text
 data/
-  bootstrap/
-    en.csv  fr.csv  de.csv  es.csv  it.csv  pt.csv   # per-language lemma files
+  bootstrap/                          # committed JSONL sample seed (text, diffable)
+    lemmas.jsonl  concepts.jsonl  senses.jsonl
+    false_friends.jsonl  concept_relations.jsonl
+  lexicon/                            # source-of-truth Parquet (ingestion phase)
 ```
 
-- **Lemmas**: one CSV per language under `data/bootstrap/`, loaded by
-  `lang_tools.lexicon.lemma_store` via `LangToolsPaths.data_fol`.
+- **Sample seed**: the committed `data/bootstrap/*.jsonl` files (the lean codec
+  row shape) seed the store until the ingestion phase produces the full Parquet
+  corpus under `data/lexicon/`. Loaded by `lang_tools.lexicon.lemma_store` via
+  `LangToolsPaths.data_fol`, which builds the SQLite runtime engine from whichever
+  source is present (Parquet preferred, seed otherwise).
 - **Sentences / conversations**: currently *generated on the fly* by the
   conversation and splitter chains and **not** stored (per the design note,
   stored sentence content is out of scope for now). When promoted to stored

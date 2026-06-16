@@ -46,7 +46,7 @@ split as the design firms up.
 | 2  | Core data models              | [`02_core_models.md`](02_core_models.md)                 | done | Define thin `Lemma`, `Concept`, explicit `Sense` edge, `FalseFriendRelation`, generic relation edge; concept id scheme. |
 | 3  | Storage & indexing analysis   | [`03_storage_indexing.md`](03_storage_indexing.md)       | done | Two-axis (storage format x access engine) analysis: ship Parquet under LFS, query via dicts/SQLite/DuckDB; decided by measured numbers. |
 | 4  | Store layer + indexes         | [`04_store_layer.md`](04_store_layer.md)                 | done | Extend `lemma_store` with concept/sense/edge registries, look-aside indexes, and back-ref hydration; query surface feeds phase 3. |
-| 4.1 | SQLite-only runtime engine   | [`04.1_sqlite_mode.md`](04.1_sqlite_mode.md)             | planned | Collapse the store to a single SQLite engine and remove resident mode; sequenced before phase 5 so the engine is settled. Supersedes phase 4's dual-mode. |
+| 4.1 | SQLite-only runtime engine   | [`04.1_sqlite_mode.md`](04.1_sqlite_mode.md)             | done   | Collapse the store to a single SQLite engine and remove resident mode; sequenced before phase 5 so the engine is settled. Supersedes phase 4's dual-mode. |
 | 5  | Initial ingestion pipeline    | [`05_ingestion.md`](05_ingestion.md)                     | planned | One-time initial build: OMW via `wn` -> concepts, kaikki enrichment, optional LLM granularity. Parquet is the source of truth; re-ingestion merge deferred. |
 | 6  | Frequency & complexity        | [`06_frequency_complexity.md`](06_frequency_complexity.md) | draft  | Per-sense token/sense frequency (`wordfreq`, sense-tag weights) and CEFR complexity (graded lists / estimated).        |
 | 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | draft  | Ingest hypernymy/hyponymy and antonymy as typed edges from OMW.                                                        |
@@ -358,3 +358,29 @@ Append-only. Newest at the bottom.
   truth - corpus.py's "JSONL never committed" wording gets a sample-seed carve-out.
   Remaining 4.1 sub-decision left for execution: commit the generated sample Parquet
   (lean) vs build it on demand from the JSONL seed.
+- 2026-06-16 : executed the CSV->JSONL sample-seed migration. Converted the six
+  `data/bootstrap/*.csv` into one committed `lemmas.jsonl` (301 rows, via `load_csv`
+  + `deduplicate` - de 'essen'/'Essen' normalize to one id, the intended merge),
+  hand-authored `concepts.jsonl` (4: house/water/to-eat cross-lingual + a lemma-less
+  `building` hypernym), `senses.jsonl` (18 edges across 6 langs), `false_friends.jsonl`
+  (1: es 'embarazada' vs en 'embarrassed'), `concept_relations.jsonl` (1: house
+  hypernym building). `git rm`'d the CSVs, force-added the JSONL (data/ is gitignored
+  but bootstrap is force-tracked). All seed rows are the lean codec row shape, so the
+  store / `import_table` consume them directly.
+- 2026-06-16 : executed phase 4.1 (status done). Rewrote `lemma_store.py` to a single
+  SQLite engine: `from_models`/`from_data_fol` build a fresh indexed SQLite DB (PK on
+  `id`, secondary indexes on the adjacency keys; nested list/dict fields stored as JSON
+  text), every query is a `SELECT` reconstructing thin models via the codec. Removed
+  resident mode entirely - `LexiconStoreMode`, `SqliteModeNotImplementedError`,
+  `_hydrate()`, the list-based constructor, and the bootstrap-CSV->dict load path are
+  gone. Back-refs are now opt-in `hydrate_lemma`/`hydrate_concept`/`hydrate_sense`
+  (bounded 1-2 hops, fresh instances, no shared identity); `resolve_*` still raises
+  until hydrated. Sub-decision resolved: **build SQLite on demand from the committed
+  JSONL seed, do not commit Parquet** - `data/` is gitignored and LFS is not
+  materialized, so a text-only seed is the clean hermetic source; `sqlite3` is stdlib so
+  the seed path needs no `store` extra (preserves "lang-tutor reads lemmas without
+  pyarrow"). `from_data_fol` prefers `data/lexicon/` Parquet when present (phase 5),
+  else the seed. Rewrote `test_lexicon_store.py` for the SQLite surface + on-demand
+  hydration + a `from_data_fol` seed round-trip; webapp lemma/concept APIs stay green.
+  Docs updated (`lexicon.md` store/hydration/storage sections, `frozen_api.md` content
+  layout). Suite green: 120 passed, ruff clean, pyright 0 errors.

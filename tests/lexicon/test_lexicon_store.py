@@ -1,14 +1,15 @@
-"""Tests for the lexical store (`lang_tools.lexicon.lemma_store`)."""
+"""Tests for the SQLite-backed lexical store (`lang_tools.lexicon.lemma_store`)."""
+
+import json
 
 import pytest
 
+from lang_tools.lexicon.codec import row_from_model
 from lang_tools.lexicon.concept import Concept
 from lang_tools.lexicon.hydration import NotHydratedError
 from lang_tools.lexicon.hydration import SenseNotHydratedError
 from lang_tools.lexicon.lemma import Lemma
 from lang_tools.lexicon.lemma_store import LexiconStore
-from lang_tools.lexicon.lemma_store import LexiconStoreMode
-from lang_tools.lexicon.lemma_store import SqliteModeNotImplementedError
 from lang_tools.lexicon.relations import ConceptRelation
 from lang_tools.lexicon.relations import FalseFriendRelation
 from lang_tools.lexicon.sense import Sense
@@ -18,9 +19,9 @@ C_BENCH = "c__bench-seat__0022bbccddee"
 C_TRAIN = "c__railway-train__0033ccddeeff"
 
 
-def _build_store(*, hydrate: bool = True) -> LexiconStore:
+def _build_store() -> LexiconStore:
     """Build a small fixture graph: 'banco' (pt) polysemous; 'bank' (en) cognate."""
-    banco = Lemma(text="banco", language="pt")
+    banco = Lemma(text="banco", language="pt", topics=["money"])
     bank = Lemma(text="bank", language="en")
     bench = Lemma(text="bench", language="en")
     lemmas = [banco, bank, bench]
@@ -50,13 +51,12 @@ def _build_store(*, hydrate: bool = True) -> LexiconStore:
             relation_type="hypernym",
         ),
     ]
-    return LexiconStore(
+    return LexiconStore.from_models(
         lemmas=lemmas,
         concepts=concepts,
         senses=senses,
         false_friends=false_friends,
         concept_relations=concept_relations,
-        hydrate=hydrate,
     )
 
 
@@ -77,6 +77,14 @@ def test_point_lookups() -> None:
     assert concept is not None
     assert lemma.text == "banco"
     assert concept.definitions == {"en": "money"}
+
+
+def test_nested_columns_round_trip_through_sqlite() -> None:
+    store = _build_store()
+    bid = _lemma_id(store, "banco", "pt")
+    banco = store.get_lemma_by_id(bid)
+    assert banco is not None
+    assert banco.topics == ["money"]
 
 
 def test_sense_adjacency_both_directions() -> None:
@@ -123,21 +131,25 @@ def test_concept_relations_directional_and_symmetric() -> None:
     assert len(store.concept_relations_for(C_TRAIN, relation_type="hypernym")) == 1
 
 
-def test_hydration_resolves_backrefs() -> None:
+def test_on_demand_hydration_resolves_backrefs() -> None:
     store = _build_store()
     bid = _lemma_id(store, "banco", "pt")
     banco = store.get_lemma_by_id(bid)
     assert banco is not None
-    # lemma.senses / lemma.concepts populated
+    # Un-hydrated by default: resolve_* raises.
+    with pytest.raises(NotHydratedError):
+        banco.resolve_senses()
+    # Opt-in hydration fills the back-references (bounded 1-2 hops).
+    store.hydrate_lemma(banco)
     assert len(banco.resolve_senses()) == 2
     assert {c.id for c in banco.resolve_concepts()} == {C_BANK, C_BENCH}
-    # sense.lemma / sense.concept populated, shared instances in resident mode
     sense = banco.resolve_senses()[0]
     assert sense.resolve_lemma() is banco
-    assert sense.resolve_concept() is store.get_concept_by_id(sense.concept_id)
-    # concept.lemmas grouped by language
+    assert sense.resolve_concept().id == sense.concept_id
+    # concept hydration groups its lemmas by language.
     bank_concept = store.get_concept_by_id(C_BANK)
     assert bank_concept is not None
+    store.hydrate_concept(bank_concept)
     grouped = bank_concept.resolve_lemmas()
     assert {lem.text for lem in grouped["pt"]} == {"banco"}
     assert {lem.text for lem in grouped["en"]} == {"bank"}
@@ -148,18 +160,13 @@ def test_hydration_does_not_leak_into_model_dump() -> None:
     bid = _lemma_id(store, "banco", "pt")
     banco = store.get_lemma_by_id(bid)
     assert banco is not None
+    store.hydrate_lemma(banco)
     dumped = banco.model_dump()
     assert "senses" not in dumped
     assert "concepts" not in dumped
 
 
 def test_unhydrated_accessors_raise() -> None:
-    store = _build_store(hydrate=False)
-    bid = _lemma_id(store, "banco", "pt")
-    banco = store.get_lemma_by_id(bid)
-    assert banco is not None
-    with pytest.raises(NotHydratedError):
-        banco.resolve_senses()
     sense = Sense(lemma_id="x", concept_id=C_BANK)
     with pytest.raises(SenseNotHydratedError):
         sense.resolve_lemma()
@@ -176,13 +183,24 @@ def test_missing_ids_return_empty_or_none() -> None:
     assert store.concept_relations_for("missing") == []
 
 
-def test_sqlite_mode_not_implemented() -> None:
-    with pytest.raises(SqliteModeNotImplementedError):
-        LexiconStore(
-            lemmas=[],
-            concepts=[],
-            senses=[],
-            false_friends=[],
-            concept_relations=[],
-            mode=LexiconStoreMode.SQLITE,
-        )
+def test_from_data_fol_loads_the_sample_seed(tmp_path) -> None:  # noqa: ANN001
+    """A store built from the committed JSONL seed answers the query surface."""
+    seed = tmp_path / "bootstrap"
+    seed.mkdir()
+
+    casa = Lemma(text="casa", language="pt", topics=["home"])
+    cid = "c__house__cd9c39a2ce7a"
+    rows = {
+        "lemmas": [casa],
+        "concepts": [Concept(id=cid, definitions={"en": "a house"})],
+        "senses": [Sense(lemma_id=casa.id, concept_id=cid)],
+    }
+    for name, models in rows.items():
+        with (seed / f"{name}.jsonl").open("w", encoding="utf-8") as fh:
+            for model in models:
+                fh.write(json.dumps(row_from_model(name, model), ensure_ascii=False))
+                fh.write("\n")
+
+    store = LexiconStore.from_data_fol(tmp_path)
+    assert [lem.text for lem in store.get_all_lemmas()] == ["casa"]
+    assert [c.id for c in store.concepts_for_lemma(casa.id)] == [cid]
