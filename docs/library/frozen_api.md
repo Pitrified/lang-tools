@@ -30,9 +30,11 @@ The canonical content model plus the read/query helpers over the on-disk lemma
 store. These read helpers are the in-process content surface phase 2 consumes
 (phase 3 replaces them with HTTP calls).
 
-- `Lemma` and supporting types `Gloss`, `GlossExample`, `LemmaExample`,
-  `FalseFriend`, plus the `FrequencyLevel` literal.
-- `lemma_id` - deterministic id for a `(text, language)` pair.
+- `Lemma` (thin token) and `LemmaExample`.
+- `Concept` (language-independent synset) and `Sense` (the explicit
+  lemma <-> concept edge hosting per-sense frequency / CEFR).
+- `FalseFriendRelation`, `ConceptRelation` - decoupled relation edge tables.
+- `lemma_id`, `concept_id`, `sense_id` - deterministic id constructors.
 - `get_all_lemmas`, `get_lemma_by_id`, `get_lemmas_by_language`,
   `get_lemmas_by_topic`, `get_lemmas_filtered` - read/query helpers.
 

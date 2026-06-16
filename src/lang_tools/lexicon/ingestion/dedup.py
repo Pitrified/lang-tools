@@ -26,10 +26,9 @@ def _merge_lists(left: list, right: list) -> list:
 def merge_lemmas(left: Lemma, right: Lemma) -> Lemma:
     """Return a new `Lemma` that combines fields from `left` and `right`.
 
-    Scalar fields (``part_of_speech``, ``frequency``) prefer non-null over
-    null; if both differ, ``left`` wins. Collection fields (``translations``,
-    ``topics``, ``glosses``, ``examples``, ``false_friends``, ``sources``) are
-    merged. The resulting `text` keeps the `left` spelling so that accent
+    The scalar ``part_of_speech`` prefers non-null over null; if both differ,
+    ``left`` wins. Collection fields (``topics``, ``examples``, ``sources``)
+    are merged. The resulting `text` keeps the `left` spelling so that accent
     information is preserved when one side has it and the other does not.
 
     Args:
@@ -56,12 +55,8 @@ def merge_lemmas(left: Lemma, right: Lemma) -> Lemma:
         language=left.language,
         normalized=left.normalized or right.normalized,
         part_of_speech=left.part_of_speech or right.part_of_speech,
-        frequency=left.frequency or right.frequency,
-        translations={**right.translations, **left.translations},
         topics=_merge_lists(left.topics, right.topics),
-        glosses=_merge_lists(left.glosses, right.glosses),
         examples=_merge_lists(left.examples, right.examples),
-        false_friends=_merge_lists(left.false_friends, right.false_friends),
         sources=_merge_lists(left.sources, right.sources),
     )
 

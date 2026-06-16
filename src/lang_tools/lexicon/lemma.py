@@ -1,15 +1,17 @@
-"""Canonical `Lemma` model and supporting types.
+"""Canonical thin `Lemma` model and supporting types.
 
-The `Lemma` model unifies the per-repo lexical-token shapes from `convo_craft`,
-`brazilian-bites`, `fala-comigo-ai-tutor`, `go-accenter`, and `worldly-words`
-into a single Pydantic schema. See
-``linux-box-cloudflare/scratch_space/vibes/10-language-overview/02-shared-data-layer.md``
-for the full design rationale and source-field mapping.
+The `Lemma` is the lexical *token*: a surface form in one language, with its
+normalized key, part of speech, topic tags, curated examples, and provenance.
+It deliberately carries no meaning of its own - definitions, cross-lingual
+links, frequency, and CEFR complexity all live on the `Concept` and `Sense`
+that the lemma participates in (see `lang_tools.lexicon.concept` and
+`lang_tools.lexicon.sense`). This keeps the token thin and free of the
+per-sense values that the "bank" polysemy trap shows must not live here.
+
+See ``scratch_space/09_concept_model/02_core_models.md`` for the full design.
 """
 
 from __future__ import annotations
-
-from typing import Literal
 
 from pydantic import BaseModel
 from pydantic import Field
@@ -20,32 +22,6 @@ from lang_tools.language.normalization import extract_accented_chars
 from lang_tools.language.normalization import has_accent as _has_accent
 from lang_tools.language.normalization import normalize as _normalize
 from lang_tools.lexicon.lemma_id import lemma_id
-
-FrequencyLevel = Literal["high", "medium", "low"]
-
-
-class GlossExample(BaseModel):
-    """Usage example attached to a Wiktionary-style sense.
-
-    Attributes:
-        text: Example sentence in the lemma's language.
-        translation: English translation (optional).
-    """
-
-    text: str
-    translation: str | None = None
-
-
-class Gloss(BaseModel):
-    """A single sense / definition for a lemma.
-
-    Attributes:
-        text: Definition text (usually English).
-        examples: List of usage examples.
-    """
-
-    text: str
-    examples: list[GlossExample] = Field(default_factory=list)
 
 
 class LemmaExample(BaseModel):
@@ -60,24 +36,11 @@ class LemmaExample(BaseModel):
     translation: str | None = None
 
 
-class FalseFriend(BaseModel):
-    """False-friend metadata pointing at a misleading cognate.
-
-    Attributes:
-        language: ISO 639-1 code of the language the cognate exists in.
-        similar_word: The misleading cognate.
-        similarity_score: Optional 0.0-1.0 visual / phonetic similarity.
-        actual_meaning: What the cognate actually means.
-    """
-
-    language: str
-    similar_word: str
-    similarity_score: float | None = None
-    actual_meaning: str
-
-
 class Lemma(BaseModel):
-    """Unified lemma entity covering vocab, dictionary, and game data sources.
+    """A lexical token: one surface form in one language.
+
+    Meaning is not stored here; reach it through the `Sense` edges that link a
+    lemma to its `Concept`s.
 
     Attributes:
         text: Canonical form with accents preserved.
@@ -85,12 +48,8 @@ class Lemma(BaseModel):
         normalized: Accent-stripped, lowercased form. Auto-derived from `text`
             when not supplied.
         part_of_speech: Lemma class label (``"noun"``, ``"verb"``, ...).
-        frequency: Optional frequency tier.
-        translations: Mapping from target language code to translated text.
         topics: Free-form topic tags.
-        glosses: Wiktionary-style sense list.
         examples: Curated example sentences.
-        false_friends: List of false-friend metadata entries.
         sources: Provenance tags (``"wiktionary"``, ``"csv"``, ``"llm"``, ...).
     """
 
@@ -98,12 +57,8 @@ class Lemma(BaseModel):
     language: str
     normalized: str = ""
     part_of_speech: str | None = None
-    frequency: FrequencyLevel | None = None
-    translations: dict[str, str] = Field(default_factory=dict)
     topics: list[str] = Field(default_factory=list)
-    glosses: list[Gloss] = Field(default_factory=list)
     examples: list[LemmaExample] = Field(default_factory=list)
-    false_friends: list[FalseFriend] = Field(default_factory=list)
     sources: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")

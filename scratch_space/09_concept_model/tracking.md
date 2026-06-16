@@ -35,7 +35,7 @@ split as the design firms up.
 | #  | Phase                         | Plan                                                     | Status | One-liner                                                                                                              |
 | -- | ----------------------------- | -------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------- |
 | 1  | Rename `Word` -> `Lemma`      | [`01_rename_word_to_lemma.md`](01_rename_word_to_lemma.md) | done | Preliminary mechanical refactor `Word`->`Lemma` (and `lang-tutor`) so later phases use literature vocabulary.          |
-| 2  | Core data models              | [`02_core_models.md`](02_core_models.md)                 | planned | Define thin `Lemma`, `Concept`, explicit `Sense` edge, `FalseFriendRelation`, generic relation edge; concept id scheme. |
+| 2  | Core data models              | [`02_core_models.md`](02_core_models.md)                 | done | Define thin `Lemma`, `Concept`, explicit `Sense` edge, `FalseFriendRelation`, generic relation edge; concept id scheme. |
 | 3  | Storage & indexing analysis   | [`03_storage_indexing.md`](03_storage_indexing.md)       | draft  | Assess git-LFS-friendly formats (CSV/JSONL vs SQLite), scale/perf/memory limits, whether a DB can live in LFS.         |
 | 4  | Store layer + indexes         | [`04_store_layer.md`](04_store_layer.md)                 | draft  | Extend/replace `lemma_store` with concept/sense/edge registries and look-aside indexes.                                |
 | 5  | Initial ingestion pipeline    | [`05_ingestion.md`](05_ingestion.md)                     | draft  | OMW via `wn` -> concepts, then kaikki enrichment, then LLM granularity/mapping; the order and how.                     |
@@ -123,3 +123,22 @@ Append-only. Newest at the bottom.
   `Lemma.concept_ids` / `Concept.lemmas`, persistence-vs-representation split, and
   gloss decision back into `00-concepts-brainstorm.md` (model sections + Resolved
   list) so the high-level track stays aligned.
+- 2026-06-16 : executed phase 2 (status done). New modules in
+  `src/lang_tools/lexicon/`: `concept.py` (`Concept` = id + `definitions`, id-shape
+  validator), `sense.py` (`Sense` edge with per-sense frequency/CEFR fields +
+  computed id), `relations.py` (`FalseFriendRelation` canonical `a<b`,
+  `ConceptRelation` stub with `SYMMETRIC_CONCEPT_RELATIONS`, both reject self-edges
+  via `SelfRelationError`), `concept_id.py` (`c__{slug}__{hash[:12]}`,
+  `CONCEPT_ID_RE`, `EmptyConceptSlugError`), `sense_id.py` (16-hex over the ordered
+  endpoint pair). Reshaped `lemma.py` to the thin token (dropped
+  `translations`/`frequency`/`FrequencyLevel`/`glosses`/`Gloss`/`GlossExample`/
+  `false_friends`/`FalseFriend`); kept `LemmaExample`. Updated ingestion
+  (`csv_loader`, `dedup`, `wiktionary`) to build the thin `Lemma` and ignore legacy
+  columns; `__init__` exports the new surface. New tests: `test_concept_id`,
+  `test_sense_id`, `test_sense`, `test_concept`, `test_relations`; updated
+  `test_lemma`/`test_csv_loader`/`test_dedup`. lang-tools green: 92 passed, ruff +
+  pyright clean. Docs refreshed (`docs/library/lexicon.md`, `frozen_api.md`).
+  Note: `lang-tutor` still reads the dropped fields (`translations`/`frequency`/
+  `glosses`) and is therefore red until its consumer uplift in phase 9 - this is
+  the deliberate phase-2 scope boundary (no store/concept data exists to migrate it
+  onto yet).

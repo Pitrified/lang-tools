@@ -16,10 +16,35 @@ def test_load_csv_minimal() -> None:
     assert all(lemma.sources == ["csv"] for lemma in lemmas)
 
 
-def test_load_csv_with_translations() -> None:
-    content = "text,language,translation_en\namor,pt,love\n"
-    lemmas = list(load_csv(StringIO(content)))
-    assert lemmas[0].translations == {"en": "love"}
+def test_load_csv_parses_topics_and_examples() -> None:
+    content = (
+        "text,language,part_of_speech,topics,example_sentence,example_translation\n"
+        "amor,pt,noun,emotions,Eu sinto amor.,I feel love.\n"
+    )
+    lemma = next(load_csv(StringIO(content)))
+    assert lemma.part_of_speech == "noun"
+    assert lemma.topics == ["emotions"]
+    assert lemma.examples[0].sentence == "Eu sinto amor."
+    assert lemma.examples[0].translation == "I feel love."
+
+
+def test_load_csv_ignores_legacy_columns() -> None:
+    content = "text,language,frequency,translation_en\namor,pt,high,love\n"
+    lemma = next(load_csv(StringIO(content)))
+    assert lemma.text == "amor"
+    assert lemma.model_dump().keys() == {
+        "text",
+        "language",
+        "normalized",
+        "part_of_speech",
+        "topics",
+        "examples",
+        "sources",
+        "id",
+        "has_accent",
+        "accented_chars",
+        "length",
+    }
 
 
 def test_load_csv_missing_required_columns() -> None:

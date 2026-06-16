@@ -6,10 +6,7 @@ import csv
 from pathlib import Path
 from typing import IO
 from typing import TYPE_CHECKING
-from typing import cast
 
-from lang_tools.lexicon.lemma import FalseFriend
-from lang_tools.lexicon.lemma import FrequencyLevel
 from lang_tools.lexicon.lemma import Lemma
 from lang_tools.lexicon.lemma import LemmaExample
 
@@ -18,7 +15,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 _CSV_REQUIRED: frozenset[str] = frozenset({"text", "language"})
-_FREQUENCY_VALUES: frozenset[str] = frozenset({"high", "medium", "low"})
 
 
 class CSVColumnsMissingError(ValueError):
@@ -45,19 +41,9 @@ def _row_to_lemma(row: dict[str, str]) -> Lemma:
     text = row["text"].strip()
     language = row["language"].strip().lower()
 
-    translations: dict[str, str] = {}
-    for key, value in row.items():
-        if key.startswith("translation_") and value:
-            translations[key.removeprefix("translation_")] = value.strip()
-
     topics = _split_topics(row.get("topics") or row.get("topic"))
     if row.get("secondary_topics"):
         topics.extend(_split_topics(row["secondary_topics"]))
-
-    freq_raw = (row.get("frequency") or "").strip().lower()
-    frequency: FrequencyLevel | None = (
-        cast("FrequencyLevel", freq_raw) if freq_raw in _FREQUENCY_VALUES else None
-    )
 
     examples: list[LemmaExample] = []
     if row.get("example_sentence"):
@@ -68,27 +54,12 @@ def _row_to_lemma(row: dict[str, str]) -> Lemma:
             ),
         )
 
-    false_friends: list[FalseFriend] = []
-    if row.get("false_friend_language") and row.get("false_friend_word"):
-        score_raw = (row.get("false_friend_similarity") or "").strip()
-        false_friends.append(
-            FalseFriend(
-                language=row["false_friend_language"].strip().lower(),
-                similar_word=row["false_friend_word"].strip(),
-                similarity_score=float(score_raw) if score_raw else None,
-                actual_meaning=(row.get("false_friend_meaning") or "").strip(),
-            ),
-        )
-
     return Lemma(
         text=text,
         language=language,
         part_of_speech=(row.get("part_of_speech") or "").strip() or None,
-        frequency=frequency,
-        translations=translations,
         topics=topics,
         examples=examples,
-        false_friends=false_friends,
         sources=["csv"],
     )
 
@@ -107,12 +78,12 @@ def load_csv(source: Path | IO[str]) -> Iterator[Lemma]:
     The CSV must contain at least ``text`` and ``language`` columns. Optional
     columns include:
 
-    - ``part_of_speech``, ``frequency`` (``high``/``medium``/``low``)
+    - ``part_of_speech``
     - ``topics`` and ``secondary_topics`` (comma-separated)
-    - ``translation_<lang>`` (one column per target language)
     - ``example_sentence`` + ``example_translation``
-    - ``false_friend_language``, ``false_friend_word``, ``false_friend_meaning``,
-      ``false_friend_similarity``
+
+    Any other columns (e.g. frequency or translation columns from older sample
+    files) are ignored, since those signals now live on `Concept` / `Sense`.
 
     Args:
         source: Path to the CSV file or an already-open text stream.

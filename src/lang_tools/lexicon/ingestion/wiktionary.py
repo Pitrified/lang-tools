@@ -16,8 +16,6 @@ from typing import TYPE_CHECKING
 from pydantic import BaseModel
 from pydantic import Field
 
-from lang_tools.lexicon.lemma import Gloss
-from lang_tools.lexicon.lemma import GlossExample
 from lang_tools.lexicon.lemma import Lemma
 
 if TYPE_CHECKING:
@@ -70,26 +68,13 @@ class WikiRecord(BaseModel):
 
 
 def _record_to_lemma(record: WikiRecord, language: str) -> Lemma:
-    glosses: list[Gloss] = []
-    for sense in record.senses:
-        gloss_text = sense.glosses[0] if sense.glosses else ""
-        if not gloss_text:
-            continue
-        examples = [
-            GlossExample(
-                text=ex.get("text", ""),
-                translation=ex.get("english"),
-            )
-            for ex in sense.examples
-            if ex.get("text")
-        ]
-        glosses.append(Gloss(text=gloss_text, examples=examples))
-
+    # Glosses are no longer stored on the thin `Lemma`; they become per-language
+    # `Concept.definitions` during concept mapping (phase 5). Here we keep only
+    # the token fields. `WikiSense` is still parsed so phase 5 can read senses.
     return Lemma(
         text=record.word,
         language=language,
         part_of_speech=record.pos,
-        glosses=glosses,
         sources=["wiktionary"],
     )
 
