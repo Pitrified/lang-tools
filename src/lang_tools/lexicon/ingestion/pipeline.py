@@ -17,10 +17,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import itertools
+import shutil
 from typing import TYPE_CHECKING
 
 from loguru import logger as lg
 
+from lang_tools.lexicon.codec import LEXICON_SUBDIR
 from lang_tools.lexicon.codec import _dump_table
 from lang_tools.lexicon.ingestion.acquire import kaikki_path
 from lang_tools.lexicon.ingestion.acquire import write_manifest
@@ -57,14 +59,36 @@ class BuildSummary:
     manifest_path: Path
 
 
+def _clean_corpus_tables(data_fol: Path) -> None:
+    """Remove existing table artifacts so a build writes a **fresh** corpus.
+
+    Stops stale per-language partitions from a previous build (or an old seed run)
+    lingering in the corpus dir. The ``_build.json`` manifest is left in place (it
+    is overwritten afterwards); the ``_store.sqlite`` cache is dropped so the next
+    store load rebuilds from the new Parquet.
+    """
+    lex = data_fol / LEXICON_SUBDIR
+    if not lex.exists():
+        return
+    for partitioned in ("lemmas", "senses"):
+        shutil.rmtree(lex / partitioned, ignore_errors=True)
+    for single in ("concepts", "false_friends", "concept_relations"):
+        (lex / f"{single}.parquet").unlink(missing_ok=True)
+    # The persisted store cache (see lemma_store.STORE_DB_NAME) is now stale.
+    for cache in ("_store.sqlite", "_store.sqlite.sig"):
+        (lex / cache).unlink(missing_ok=True)
+
+
 def _write_tables(tables: TaggedTables, data_fol: Path) -> dict[str, int]:
     """Write every table to Parquet with its provenance tags; return row counts.
 
-    `lemmas` partition per language automatically (the codec reads each lemma's
-    ``language``); `senses` are grouped per language here (a sense's language is
-    its lemma's language - a join only ingestion knows) so each lands in its own
-    partition file. The single-file tables are written as-is.
+    The corpus dir is cleared first so the build is a fresh write (no stale
+    partitions). `lemmas` partition per language automatically (the codec reads
+    each lemma's ``language``); `senses` are grouped per language here (a sense's
+    language is its lemma's language - a join only ingestion knows) so each lands
+    in its own partition file. The single-file tables are written as-is.
     """
+    _clean_corpus_tables(data_fol)
     _dump_table(
         "lemmas",
         tables.lemmas,

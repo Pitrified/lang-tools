@@ -57,6 +57,7 @@ split as the design firms up.
 | 5  | Initial ingestion pipeline    | [`05_ingestion.md`](05_ingestion.md)                     | done | One-time initial build: OMW via `wn` -> concepts, kaikki enrichment, optional LLM granularity. Parquet is the source of truth; re-ingestion merge deferred. |
 | 5.1 | Ingestion fixes (first real run) | [`05.1_ingestion_fixes.md`](05.1_ingestion_fixes.md)  | done   | Fix four defects from the first real OMW/kaikki run: str `ili`, collection-not-per-lexicon download, ambiguous `it` lexicon, kaikki OOM. One `lang->lexicon` map + lazy filtered kaikki stream. |
 | 5.2 | Real-run perf follow-ups      | [`05.2_perf_followups.md`](05.2_perf_followups.md)       | draft  | Non-blocking observations from the successful en/pt run: considerable slug collisions (-> phase 8 dedup), >5 min store load (cache / avoid `get_all_*`), borderline memory (per-language build restructure). |
+| 5.3 | Load + memory profiling (gate) | [`05.3_load_profiling.md`](05.3_load_profiling.md)      | done | Profiled (>5 min was swap thrash, not CPU; root cause = pydantic double-materialization) and **fixed**: stream lean Parquet rows into a persisted signature-keyed `_store.sqlite`; seed corpus split to `data/bootstrap/lexicon/`. Cold load 16 s / 593 MB (was 1362 MB), warm cache hit ~1 ms. |
 | 6  | Frequency & complexity        | [`06_frequency_complexity.md`](06_frequency_complexity.md) | draft  | Per-sense token/sense frequency (`wordfreq`, sense-tag weights) and CEFR complexity (graded lists / estimated).        |
 | 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | draft  | Ingest hypernymy/hyponymy and antonymy as typed edges from OMW.                                                        |
 | 8  | Maintenance (LLM-based)       | [`08_maintenance.md`](08_maintenance.md)                 | draft  | LLM-assisted upkeep: new lemma->concept mapping, gloss enrichment, slug dedup, validation against OMW.                 |
@@ -482,3 +483,59 @@ Append-only. Newest at the bottom.
   five-language build will likely need the deferred per-language-write restructure.
   None block shipping; the committed sample slice + full build wait on understanding
   (2)/(3) enough to not wedge a small machine.
+- 2026-06-17 : planned phase 5.3 (`05.3_load_profiling.md`, status planned) as the
+  actionable gate for 5.2's Observations 2 and 3 - profile the >5 min full en/pt
+  store load (phase 3 predicts seconds, so the gap is an anomaly to locate, not a
+  generic "optimize models"), measure peak build + load memory separately, and
+  record two decisions: the load-path/query-shape fix (incl. whether to cache the
+  built SQLite and treat bulk `get_all_*` as a smell vs the DuckDB inspect path),
+  and a go/no-go on the per-language-build restructure (5.1 Bug D's "next memory
+  ceiling") before the full five-language build. Measurement + a decision, not a
+  rewrite. Gates the committed sample slice and phases 6/7. 05.2 stays the
+  observation record; 5.3 is the measure-and-fix.
+- 2026-06-17 : profiled phase 5.3 (status in progress) against the real en/pt corpus
+  (192k lemmas / 118k concepts / 272k senses) via
+  `05.3_profiling/profile_load.py` (crash-survivable log to `profile_run.log` -
+  needed because the first attempt OOM-killed). **Key result: the >5 min load is
+  swap thrash, not CPU.** With RAM free the real `from_data_fol` runs in ~21.5 s; the
+  killer is **peak RSS 1362 MB** (en/pt alone) from `_load_corpus_models` building
+  all ~580k pydantic models for all tables and holding them while `_populate`
+  re-dumps each via `row_from_model`. pydantic validate is cheap (~5-9 us/row,
+  ~3.7 s total) - it is the *retention* of every model that drives memory, and
+  memory is what makes the box thrash/OOM. The 05.2 guess (eager `get_all_concepts`)
+  was wrong - the load dominates, not the bulk read. Measured the fix: stream lean
+  Parquet rows straight into SQLite, skipping the pydantic round-trip -> 11.9 s /
+  702 MB (~1.8x faster, ~½ memory). Provisional five-language go: streaming likely
+  makes it feasible (~1.5 GB) without the per-language-write restructure (5.1 Bug D);
+  re-measure at five langs before deciding. Side findings: 15,740 colliding slug
+  groups out of 118k concepts (Obs 1 quantified; also `_warn_on_slug_collisions`
+  spams ~15.7k log lines per load - should summarize), and stale tiny seed
+  partitions (de/es/fr/it ~50 rows, senses/_all 18) mixed into the committed corpus
+  from an earlier parquetize-seed run. Two open decisions before applying the fix:
+  keep opt-in on-load validation? persist the built SQLite (`db_path`) keyed on the
+  manifest vs rebuild `:memory:` each process? Findings written into
+  `05.3_load_profiling.md`.
+- 2026-06-17 : executed phase 5.3 fix (status done) on the user's decisions (skip
+  on-load validation by default, persist SQLite, split the seed corpus). Shipped:
+  `codec.load_raw_table` (model-free lean Parquet read - drops provenance,
+  normalizes map columns) + a shared `_table_paths`/`_read_table_rows` helper;
+  `LexiconStore.from_data_fol(validate=False, use_cache=True)` now **streams** each
+  table's raw rows straight into SQLite one at a time (no ~580k-model
+  materialization) and **persists** the DB to `<corpus>/_store.sqlite`, reused while
+  a content signature (sha256 over each parquet's relpath/size/mtime + `CACHE_VERSION`)
+  is unchanged - a warm load is a bare `sqlite3.connect`. `validate=True` keeps the
+  old model-validating path; `db_path=":memory:"` / `use_cache=False` skip the cache.
+  `_warn_on_slug_collisions` now logs **one** summary line (was ~15.7k). Seed/corpus
+  split: `parquetize_seed.ipynb` builds `data/bootstrap/lexicon/` (its own corpus,
+  co-located with the JSONL seed, gitignored) instead of the real `data/lexicon/`;
+  `explore.ipynb` defaults to that seed corpus with a commented swap to the real
+  build, and steers bulk reads to `inspect_table` (DuckDB) over `get_all_*`.
+  `get_store()` default stays the real corpus (no seed fallback, per 4.2); conftest
+  unaffected (already builds a tmp corpus + `set_store`). Re-measured on real en/pt
+  (`05.3_profiling/profile_after_fix.py`): cold load 16.1 s / **593 MB** (was 21.5 s /
+  1362 MB), warm cache hit **0.001 s**, validate path 23.3 s / 1485 MB. >5 min/OOM
+  resolved. Provisional five-language go: cold ~1.2-1.5 GB projected, feasible +
+  paid once via the cache, so the per-language-write restructure (5.1 Bug D) stays
+  deferred (re-measure at five langs). Tests +3 (raw==validate, cache persist+reuse,
+  cache busts on change); ruff gained a `scratch_space/*` ignore block. Suite green:
+  156 passed, ruff clean, pyright 0 errors.

@@ -319,6 +319,41 @@ def _read_parquet(path: Path) -> list[dict[str, Any]]:
     return pq.read_table(path).to_pylist()
 
 
+def _table_paths(name: str, data_fol: Path, lang: str | None = None) -> list[Path]:
+    """Return the Parquet file path(s) backing a table (partition-aware).
+
+    Args:
+        name: Table name (see `PARTITIONED` for the per-language ones).
+        data_fol: Project data folder; the corpus lives under ``<data_fol>/lexicon/``.
+        lang: For a partitioned table, restrict to this language's file.
+
+    Returns:
+        The candidate Parquet paths (some may not exist yet).
+    """
+    table_dir = _table_dir(data_fol)
+    if name in PARTITIONED:
+        part_dir = table_dir / name
+        if lang is not None:
+            return [part_dir / f"{lang}.parquet"]
+        if part_dir.exists():
+            return sorted(part_dir.glob("*.parquet"))
+        return []
+    return [table_dir / f"{name}.parquet"]
+
+
+def _read_table_rows(
+    name: str,
+    *,
+    data_fol: Path,
+    lang: str | None = None,
+) -> list[dict[str, Any]]:
+    """Read a table's raw Parquet rows across its partitions (no model build)."""
+    rows: list[dict[str, Any]] = []
+    for path in _table_paths(name, data_fol, lang):
+        rows.extend(_read_parquet(path))
+    return rows
+
+
 def _load_table(
     name: str,
     *,
@@ -343,18 +378,50 @@ def _load_table(
     """
     if name not in _MODELS:
         raise UnknownTableError(name)
-    table_dir = _table_dir(data_fol)
-    rows: list[dict[str, Any]] = []
-    if name in PARTITIONED:
-        part_dir = table_dir / name
-        if lang is not None:
-            rows = _read_parquet(part_dir / f"{lang}.parquet")
-        elif part_dir.exists():
-            for path in sorted(part_dir.glob("*.parquet")):
-                rows.extend(_read_parquet(path))
-    else:
-        rows = _read_parquet(table_dir / f"{name}.parquet")
+    rows = _read_table_rows(name, data_fol=data_fol, lang=lang)
     return [model_from_row(name, row) for row in rows]
+
+
+def load_raw_table(
+    name: str,
+    *,
+    data_fol: Path,
+    lang: str | None = None,
+) -> list[dict[str, Any]]:
+    """Load a table's lean persisted rows from Parquet **without building models**.
+
+    This is the fast/lean store-load path: it skips the pydantic validate+dump
+    round-trip `_load_table` pays (the profiling in phase 5.3 showed that retaining
+    every model is what drives the load's memory peak). Each returned row holds
+    exactly the persisted columns (`_COLUMNS[name]`), the on-disk provenance column
+    dropped and any ``map<string,string>`` column normalized to a plain dict.
+
+    Args:
+        name: Table name (see `PARTITIONED` for the per-language ones).
+        data_fol: Project data folder; the corpus lives under ``<data_fol>/lexicon/``.
+        lang: For a partitioned table, read only this language's file.
+
+    Returns:
+        The lean raw rows, or an empty list when the file(s) do not exist.
+
+    Raises:
+        UnknownTableError: If `name` is not a known table.
+    """
+    if name not in _MODELS:
+        raise UnknownTableError(name)
+    cols = _COLUMNS[name]
+    maps = _MAP_COLUMNS.get(name, frozenset())
+    out: list[dict[str, Any]] = []
+    for row in _read_table_rows(name, data_fol=data_fol, lang=lang):
+        clean: dict[str, Any] = {}
+        for col in cols:
+            value = row.get(col)
+            if col in maps and value is not None and not isinstance(value, dict):
+                # pyarrow reads a map<string,string> back as a list of (k, v) tuples.
+                value = dict(value)
+            clean[col] = value
+        out.append(clean)
+    return out
 
 
 def _write_parquet(path: Path, rows: list[dict[str, Any]], schema: Any) -> None:  # noqa: ANN401

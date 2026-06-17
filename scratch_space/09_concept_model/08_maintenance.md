@@ -26,7 +26,7 @@ machinery rather than introducing a parallel path.
   (phase 10).
 - **Slug dedup & integrity** - the pass that catches colliding `c__{slug}__...`
   ids that "should not exist in theory", plus orphaned senses, empty concepts,
-  and asymmetric edges. Grounded by the first real en/pt build (2026-06-18), which
+  and asymmetric edges. Grounded by the first real en/pt build (2026-06-17), which
   produced a **considerable** number of shared slugs - a legibility issue only
   (the `hash[:12]` suffix keeps ids unique), driven by `_pick_slug_source`
   repeatedly falling back to the same English lemma / `"concept"`. See

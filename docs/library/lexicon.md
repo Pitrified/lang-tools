@@ -134,16 +134,31 @@ is the store's only load path); `duckdb`, the `store` extra, backs the inspect/Q
 path alone.
 
 The runtime engine is **SQLite only** - one indexed database, built from the
-corpus on load and never committed (rebuilt from its source each time). There is
-no resident/SQLite dual mode: the full corpus as in-memory pydantic dicts is
-~1.9 GB resident, so a single SQLite code path serves both the tiny sample and
-the full corpus at ~0 resident. `from_data_fol` has a **single load path**: it
-reads the Parquet under `data/lexicon/` and raises `CorpusNotFoundError` when the
-folder holds no corpus. The full corpus is produced by the ingestion phase; for
+corpus on load. There is no resident/SQLite dual mode: the full corpus as
+in-memory pydantic dicts is ~1.9 GB resident, so a single SQLite code path serves
+both the tiny sample and the full corpus at ~0 resident. `from_data_fol` has a
+**single load path**: it reads the Parquet under `data/lexicon/` and raises
+`CorpusNotFoundError` when the folder holds no corpus.
+
+The load is lean and cached (phase 5.3). By default `from_data_fol` **streams**
+each table's lean Parquet rows straight into SQLite, one table at a time, without
+building pydantic models - the profiling showed that retaining ~580k models is
+what drove the load's memory peak (and made a small box swap-thrash / OOM). The
+built database is **persisted** beside the corpus (`<corpus>/_store.sqlite`,
+gitignored) and reused while a content signature over the Parquet files is
+unchanged, so a warm load is a bare `sqlite3.connect` (~1 ms). A changed corpus
+rebuilds automatically. Pass `validate=True` for the slower row-validating path
+(every row parsed through its model, raising `MalformedRecordError` on a bad row),
+or `db_path=":memory:"` / `use_cache=False` to skip the persisted cache. For
+bulk/overview reads of the full corpus prefer `inspect_table` (DuckDB) over
+`get_all_*`, which reconstructs every model.
+
+The full corpus is produced by the ingestion phase under `data/lexicon/`. For
 local development the committed JSONL **sample seed** under `data/bootstrap/` (a
-small, diffable, text-only fixture) is turned into that Parquet by the
-`parquetize_seed.ipynb` notebook. The seed is an input, never a runtime source -
-the store always reads Parquet.
+small, diffable, text-only fixture) is parquetized into its **own** corpus at
+`data/bootstrap/lexicon/` by the `parquetize_seed.ipynb` notebook - kept separate
+from the real `data/lexicon/` build so the two never overwrite each other. The
+seed is an input, never a runtime source - the store always reads Parquet.
 
 ### Inspect and edit
 

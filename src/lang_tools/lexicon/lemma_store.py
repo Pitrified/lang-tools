@@ -18,10 +18,18 @@ Data source:
     `from_data_fol` builds the SQLite database from the source-of-truth Parquet
     under ``data/lexicon/`` - the single load path. The full corpus is produced
     by the ingestion phase; for local development the committed JSONL **sample
-    seed** under ``data/bootstrap/`` is turned into that Parquet by the parquetize
-    notebook (under ``notebooks/``). When no Parquet is present `from_data_fol`
-    raises `CorpusNotFoundError`. The SQLite file itself is never committed - it
-    is rebuilt from the Parquet on load.
+    seed** under ``data/bootstrap/`` is parquetized into its **own** corpus at
+    ``data/bootstrap/lexicon/`` (by the parquetize notebook) so it never collides
+    with the real ``data/lexicon/`` build. When no Parquet is present
+    `from_data_fol` raises `CorpusNotFoundError`.
+
+    Load is lean by default: the Parquet rows stream straight into SQLite without
+    building pydantic models (phase 5.3 showed retaining every model is what drives
+    the load's memory peak). The built database is **persisted** beside the corpus
+    (``<corpus>/_store.sqlite``, gitignored) and reused while a content signature
+    over the Parquet files is unchanged - so a warm load is a bare connect. Pass
+    ``validate=True`` for the slower row-validating path, or ``db_path=":memory:"``
+    / ``use_cache=False`` to skip the persisted cache.
 
 Back-references:
     The persisted models leave their convenience back-references
@@ -35,7 +43,9 @@ Back-references:
 from __future__ import annotations
 
 from collections import defaultdict
+import hashlib
 import json
+from pathlib import Path
 import sqlite3
 from typing import TYPE_CHECKING
 
@@ -44,6 +54,7 @@ from loguru import logger as lg
 from lang_tools.lexicon.codec import _COLUMNS
 from lang_tools.lexicon.codec import LEXICON_SUBDIR
 from lang_tools.lexicon.codec import _load_table
+from lang_tools.lexicon.codec import load_raw_table
 from lang_tools.lexicon.codec import model_from_row
 from lang_tools.lexicon.codec import row_from_model
 from lang_tools.lexicon.concept import Concept
@@ -52,13 +63,21 @@ from lang_tools.lexicon.sense import Sense
 from lang_tools.params.lang_tools_params import get_lang_tools_params
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
     from collections.abc import Sequence
-    from pathlib import Path
 
     from pydantic import BaseModel
 
     from lang_tools.lexicon.relations import ConceptRelation
     from lang_tools.lexicon.relations import FalseFriendRelation
+
+#: Bump to invalidate every persisted SQLite cache after a schema/codec change.
+CACHE_VERSION = 1
+
+#: Filename of the persisted SQLite cache built inside a corpus directory. It is
+#: rebuilt from the Parquet whenever the corpus signature changes; never committed
+#: (the whole ``data/`` tree is gitignored).
+STORE_DB_NAME = "_store.sqlite"
 
 # Resolve the circular back-reference annotations (Lemma <-> Sense <-> Concept)
 # now that all three classes are importable in this namespace. model_rebuild
@@ -159,6 +178,67 @@ def _populate(conn: sqlite3.Connection, tables: dict[str, Sequence[BaseModel]]) 
     conn.commit()
 
 
+def _populate_raw(conn: sqlite3.Connection, data_fol: Path) -> list[str]:
+    """Stream each table's lean Parquet rows straight into SQLite (no models).
+
+    The fast/lean load path: `codec.load_raw_table` produces rows already in the
+    persisted column shape (map columns as dicts, provenance dropped), so each
+    column binds directly - JSON columns are dumped, the rest pass through. This
+    skips the validate+dump round-trip `_populate` pays. Tables are loaded and
+    inserted **one at a time** and freed before the next, so the build's memory
+    peak is one table, not the whole corpus.
+
+    Returns:
+        The concept ids, for the post-build slug-collision summary.
+    """
+    concept_ids: list[str] = []
+    for name in TABLES:
+        cols = _COLUMNS[name]
+        json_cols = _JSON_COLUMNS[name]
+        placeholders = ", ".join("?" for _ in cols)
+        sql = f"INSERT INTO {name} ({', '.join(cols)}) VALUES ({placeholders})"  # noqa: S608
+        raw = load_raw_table(name, data_fol=data_fol)
+        if name == "concepts":
+            concept_ids = [row["id"] for row in raw]
+        conn.executemany(
+            sql,
+            [
+                tuple(
+                    json.dumps(row.get(col), ensure_ascii=False)
+                    if col in json_cols
+                    else row.get(col)
+                    for col in cols
+                )
+                for row in raw
+            ],
+        )
+        raw.clear()
+    conn.commit()
+    return concept_ids
+
+
+def _new_conn(target: str) -> sqlite3.Connection:
+    """Open a SQLite connection with the row factory the store relies on."""
+    conn = sqlite3.connect(target, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def _corpus_signature(corpus_dir: Path) -> str:
+    """Return a content signature over a corpus's Parquet files.
+
+    Hashes the cache version plus each Parquet file's relative path, size, and
+    mtime, so a rebuilt or edited corpus busts the persisted SQLite cache while an
+    unchanged one reuses it. Uses file stats (not the ``_build.json`` manifest) so
+    the seed corpus - which has no manifest - caches too.
+    """
+    parts = [f"v{CACHE_VERSION}"]
+    for path in sorted(corpus_dir.rglob("*.parquet")):
+        st = path.stat()
+        parts.append(f"{path.relative_to(corpus_dir)}:{st.st_size}:{st.st_mtime_ns}")
+    return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()
+
+
 def _row_to_model(name: str, row: sqlite3.Row) -> BaseModel:
     """Rebuild a model from a SQLite row, JSON-decoding the nested columns."""
     data = dict(row)
@@ -219,8 +299,7 @@ class LexiconStore:
             The assembled store.
         """
         target = str(db_path) if db_path is not None else ":memory:"
-        conn = sqlite3.connect(target, check_same_thread=False)
-        conn.row_factory = sqlite3.Row
+        conn = _new_conn(target)
         _build_schema(conn)
         _populate(
             conn,
@@ -232,7 +311,7 @@ class LexiconStore:
                 "concept_relations": concept_relations,
             },
         )
-        cls._warn_on_slug_collisions(concepts)
+        cls._warn_on_slug_collisions(c.id for c in concepts)
         return cls(conn)
 
     @classmethod
@@ -240,35 +319,107 @@ class LexiconStore:
         cls,
         data_fol: Path,
         *,
-        db_path: Path | None = None,
+        db_path: Path | str | None = None,
+        validate: bool = False,
+        use_cache: bool = True,
     ) -> LexiconStore:
-        """Build the store from the on-disk corpus.
+        """Build (or reuse) the store from the on-disk Parquet corpus.
 
-        Loads the source-of-truth Parquet under ``<data_fol>/lexicon/`` when it
-        exists; otherwise the committed JSONL sample seed under
-        ``<data_fol>/bootstrap/``. Either way the rows are validated through the
-        codec and loaded into a fresh SQLite database.
+        By default this is the fast/lean path: lean Parquet rows are streamed
+        straight into SQLite (no pydantic round-trip), and the built database is
+        **persisted** to ``<corpus>/_store.sqlite`` and reused on the next load
+        while the corpus signature is unchanged - a cache hit is a bare
+        ``sqlite3.connect`` (milliseconds, ~no extra memory). A changed corpus
+        rebuilds automatically. See phase 5.3 for the profiling behind this.
 
         Args:
-            data_fol: Project data folder.
-            db_path: On-disk SQLite path, or None for an in-memory database.
+            data_fol: Project data folder; the corpus lives under
+                ``<data_fol>/lexicon/``.
+            db_path: Explicit SQLite path. ``None`` uses the persisted cache file
+                inside the corpus dir; pass ``":memory:"`` for an unpersisted DB.
+            validate: When True, take the slower model-validating load path (every
+                row parsed through its pydantic model, raising
+                `MalformedRecordError` on a bad row) instead of streaming raw rows.
+            use_cache: When False, always rebuild and do not read an existing cache.
 
         Returns:
-            The assembled store (empty tables when neither source is present).
+            The assembled store.
+
+        Raises:
+            CorpusNotFoundError: When no Parquet corpus is present.
         """
-        return cls.from_models(**_load_corpus_models(data_fol), db_path=db_path)
+        corpus_dir = data_fol / LEXICON_SUBDIR
+        if not _corpus_present(data_fol):
+            raise CorpusNotFoundError(corpus_dir)
+
+        in_memory = db_path is not None and str(db_path) == ":memory:"
+        cache_db = (
+            None
+            if in_memory
+            else Path(db_path)
+            if db_path is not None
+            else corpus_dir / STORE_DB_NAME
+        )
+
+        sig = _corpus_signature(corpus_dir) if cache_db is not None else None
+        sig_file = (
+            cache_db.with_suffix(cache_db.suffix + ".sig")
+            if cache_db is not None
+            else None
+        )
+        if (
+            use_cache
+            and cache_db is not None
+            and sig_file is not None
+            and cache_db.exists()
+            and sig_file.exists()
+            and sig_file.read_text(encoding="utf-8") == sig
+        ):
+            lg.debug("Reusing cached store at {}", cache_db)
+            return cls(_new_conn(str(cache_db)))
+
+        if cache_db is not None:  # clear any stale/partial cache before rebuilding
+            cache_db.unlink(missing_ok=True)
+            if sig_file is not None:
+                sig_file.unlink(missing_ok=True)
+
+        if validate:
+            store = cls.from_models(**_load_corpus_models(data_fol), db_path=cache_db)
+        else:
+            conn = _new_conn(str(cache_db) if cache_db is not None else ":memory:")
+            _build_schema(conn)
+            concept_ids = _populate_raw(conn, data_fol)
+            cls._warn_on_slug_collisions(concept_ids)
+            store = cls(conn)
+
+        if sig is not None and sig_file is not None:
+            sig_file.write_text(sig, encoding="utf-8")
+        return store
 
     @staticmethod
-    def _warn_on_slug_collisions(concepts: Sequence[Concept]) -> None:
-        """Warn when two concepts share a readable slug (ids stay unique via hash)."""
+    def _warn_on_slug_collisions(concept_ids: Iterable[str]) -> None:
+        """Warn (once, summarized) when concepts share a readable slug.
+
+        Ids stay unique via the ``hash[:12]`` suffix, so a shared slug is only a
+        legibility issue - phase 8's dedup pass owns it. Emits a single summary
+        line (not one per group: a real corpus has tens of thousands).
+        """
         ids_by_slug: dict[str, set[str]] = defaultdict(set)
-        for concept in concepts:
+        for cid in concept_ids:
             # id shape: c__{slug}__{hash[:12]}; the slug is everything between.
-            slug = concept.id[len("c__") : concept.id.rfind("__")]
-            ids_by_slug[slug].add(concept.id)
-        for slug, ids in ids_by_slug.items():
-            if len(ids) > 1:
-                lg.warning("Concept slug collision: {!r} used by {}", slug, sorted(ids))
+            slug = cid[len("c__") : cid.rfind("__")]
+            ids_by_slug[slug].add(cid)
+        colliding = {slug: ids for slug, ids in ids_by_slug.items() if len(ids) > 1}
+        if colliding:
+            n_concepts = sum(len(ids) for ids in colliding.values())
+            examples = ", ".join(sorted(colliding)[:5])
+            lg.warning(
+                "Concept slug collisions: {} slug groups span {} concepts "
+                "(e.g. {}); ids stay unique via the hash suffix (phase 8 dedup).",
+                len(colliding),
+                n_concepts,
+                examples,
+            )
 
     # --- internal query helpers ------------------------------------------
 

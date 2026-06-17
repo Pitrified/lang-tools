@@ -200,3 +200,61 @@ def test_from_data_fol_missing_corpus_raises(tmp_path) -> None:  # noqa: ANN001
     """A data folder with no Parquet corpus raises CorpusNotFoundError."""
     with pytest.raises(CorpusNotFoundError):
         LexiconStore.from_data_fol(tmp_path)
+
+
+def _write_small_corpus(data_fol) -> str:  # noqa: ANN001
+    """Write a tiny corpus exercising a map column (definitions); return concept id."""
+    casa = Lemma(text="casa", language="pt", topics=["home"])
+    cid = "c__house__cd9c39a2ce7a"
+    concept = Concept(id=cid, definitions={"en": "a house", "pt": "uma casa"})
+    _dump_table("lemmas", [casa], data_fol=data_fol)
+    _dump_table("concepts", [concept], data_fol=data_fol)
+    _dump_table("senses", [Sense(lemma_id=casa.id, concept_id=cid)], data_fol=data_fol)
+    return cid
+
+
+def test_raw_load_matches_validated_load(tmp_path) -> None:  # noqa: ANN001
+    """The default streaming load yields the same models as the validate path."""
+    cid = _write_small_corpus(tmp_path)
+
+    raw = LexiconStore.from_data_fol(tmp_path, db_path=":memory:")
+    validated = LexiconStore.from_data_fol(tmp_path, db_path=":memory:", validate=True)
+
+    assert [lem.text for lem in raw.get_all_lemmas()] == ["casa"]
+    raw_concept = raw.get_concept_by_id(cid)
+    validated_concept = validated.get_concept_by_id(cid)
+    assert raw_concept is not None
+    assert validated_concept is not None
+    # Map column (definitions) round-trips identically through the raw path.
+    assert raw_concept.definitions == {"en": "a house", "pt": "uma casa"}
+    assert raw_concept.definitions == validated_concept.definitions
+
+
+def test_from_data_fol_persists_and_reuses_cache(tmp_path) -> None:  # noqa: ANN001
+    """The built SQLite is persisted beside the corpus and reused on reload."""
+    cid = _write_small_corpus(tmp_path)
+    cache_db = tmp_path / "lexicon" / "_store.sqlite"
+
+    LexiconStore.from_data_fol(tmp_path)
+    assert cache_db.exists()  # persisted beside the corpus
+    assert cache_db.with_suffix(".sqlite.sig").exists()
+
+    # A second load with the corpus unchanged hits the cache and still serves.
+    second = LexiconStore.from_data_fol(tmp_path)
+    assert second.get_concept_by_id(cid) is not None
+
+
+def test_cache_busts_when_corpus_changes(tmp_path) -> None:  # noqa: ANN001
+    """Editing the corpus rebuilds the store instead of serving a stale cache."""
+    _write_small_corpus(tmp_path)
+    first = LexiconStore.from_data_fol(tmp_path)
+    assert len(first.get_all_lemmas()) == 1
+
+    # Add a second lemma language file - the signature changes -> rebuild.
+    _dump_table(
+        "lemmas",
+        [Lemma(text="dog", language="en")],
+        data_fol=tmp_path,
+    )
+    second = LexiconStore.from_data_fol(tmp_path)
+    assert {lem.text for lem in second.get_all_lemmas()} == {"casa", "dog"}

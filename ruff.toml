@@ -52,6 +52,12 @@ ignore = [
     "INP001", # Implicit namespace package
     "T20",    # print found
 ]
+"scratch_space/*" = [
+    "E501",   # Line too long
+    "INP001", # Exploratory scripts are not a package
+    "T20",    # print found (profiling / debug output)
+    "S101",   # Use of assert detected
+]
 
 [lint.pylint]
 max-args = 10
