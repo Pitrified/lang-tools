@@ -16,6 +16,7 @@ in-memory inputs.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import itertools
 from typing import TYPE_CHECKING
 
 from loguru import logger as lg
@@ -32,6 +33,7 @@ from lang_tools.lexicon.ingestion.transform import transform
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from collections.abc import Iterator
     from pathlib import Path
 
     from lang_tools.lexicon.ingestion.sources.kaikki import KaikkiEntry
@@ -114,26 +116,33 @@ def load_sources(
     langs: Iterable[str],
     *,
     data_fol: Path,
-) -> tuple[list[SynsetEntry], list[KaikkiEntry]]:
-    """Read OMW + kaikki from the raw cache into in-memory source records.
+) -> tuple[list[SynsetEntry], Iterator[KaikkiEntry]]:
+    """Read OMW + kaikki from the raw cache into source records.
+
+    The OMW backbone is materialized (bounded, needed in full to derive the join
+    keys); the kaikki dumps are returned as a **lazy** chained iterator so each
+    multi-hundred-MB file is streamed and filtered line-by-line by `transform`
+    rather than held resident (the kaikki OOM fix). Do not ``list()`` the second
+    element.
 
     Args:
         langs: ISO 639-1 codes to read.
         data_fol: Project data folder; the raw cache lives under it.
 
     Returns:
-        The OMW synset entries and the kaikki enrichment entries.
+        The OMW synset entries (a list) and a lazy iterator over the kaikki
+        enrichment entries across all languages.
     """
     langs = list(langs)
     omw_entries = list(wn_synset_entries(langs, data_dir=str(_wn_data_dir(data_fol))))
-    kaikki_entries: list[KaikkiEntry] = []
+    kaikki_streams: list[Iterator[KaikkiEntry]] = []
     for language in langs:
         path = kaikki_path(data_fol, language)
         if path.exists():
-            kaikki_entries.extend(load_kaikki_entries(path, language))
+            kaikki_streams.append(load_kaikki_entries(path, language))
         else:
             lg.warning("No cached kaikki dump for {} at {}", language, path)
-    return omw_entries, kaikki_entries
+    return omw_entries, itertools.chain.from_iterable(kaikki_streams)
 
 
 def _wn_data_dir(data_fol: Path) -> Path:

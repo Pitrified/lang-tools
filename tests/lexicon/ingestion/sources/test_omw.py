@@ -4,8 +4,16 @@ Only the pure half (`slugify`, `group_to_records`) is exercised - the ``wn``-bac
 `wn_synset_entries` needs a download and the optional ``ingest`` extra.
 """
 
+from dataclasses import dataclass
+
+import pytest
+
 from lang_tools.lexicon.concept_id import CONCEPT_ID_RE
+from lang_tools.lexicon.ingestion.sources.omw import OMW_VERSION
 from lang_tools.lexicon.ingestion.sources.omw import SynsetEntry
+from lang_tools.lexicon.ingestion.sources.omw import UnknownOmwLanguageError
+from lang_tools.lexicon.ingestion.sources.omw import _ili_id
+from lang_tools.lexicon.ingestion.sources.omw import _omw_lexicon
 from lang_tools.lexicon.ingestion.sources.omw import group_to_records
 from lang_tools.lexicon.ingestion.sources.omw import slugify
 
@@ -68,6 +76,39 @@ def test_pos_is_mapped() -> None:
     _, lemmas, _ = group_to_records(entries)
     by_text = {lem.text: lem.part_of_speech for lem in lemmas}
     assert by_text == {"run": "verb", "fast": "adjective"}
+
+
+@dataclass
+class _FakeSynset:
+    """A stand-in for a ``wn`` synset exposing only ``.ili`` (no download)."""
+
+    ili: object
+
+
+def test_ili_id_normalizes_str_obj_and_empty() -> None:
+    # wn 1.1.0: .ili is a bare string -> the string *is* the id.
+    assert _ili_id(_FakeSynset(ili="i35545")) == "i35545"
+
+    # A future/older wn could return an object exposing .id.
+    class _Ili:
+        id = "i999"
+
+    assert _ili_id(_FakeSynset(ili=_Ili())) == "i999"
+    # Falsy ILI -> None (the "monolingual" signal group_to_records expects).
+    assert _ili_id(_FakeSynset(ili="")) is None
+    assert _ili_id(_FakeSynset(ili=None)) is None
+
+
+def test_omw_lexicon_maps_known_and_versions() -> None:
+    assert _omw_lexicon("en") == f"omw-en:{OMW_VERSION}"
+    assert _omw_lexicon("pt", "1.4") == "omw-pt:1.4"
+    # `it` deliberately maps to MultiWordNet, not ItalWordNet (omw-iwn).
+    assert _omw_lexicon("it") == f"omw-it:{OMW_VERSION}"
+
+
+def test_omw_lexicon_unknown_language_raises() -> None:
+    with pytest.raises(UnknownOmwLanguageError):
+        _omw_lexicon("xx")
 
 
 def test_records_are_sorted_by_id() -> None:

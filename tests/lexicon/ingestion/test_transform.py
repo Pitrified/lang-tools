@@ -1,5 +1,7 @@
 """Tests for the transform stage (`ingestion.transform`)."""
 
+from collections.abc import Iterator
+
 from lang_tools.lexicon.ingestion.sources.kaikki import KaikkiEntry
 from lang_tools.lexicon.ingestion.sources.omw import SynsetEntry
 from lang_tools.lexicon.ingestion.transform import SOURCE_KAIKKI
@@ -67,3 +69,27 @@ def test_relation_tables_stay_empty() -> None:
     tables = transform(_omw())
     assert tables.false_friends == []
     assert tables.concept_relations == []
+
+
+def test_kaikki_is_streamed_filtered_and_single_pass() -> None:
+    # Mostly non-matching entries (absent from the OMW backbone) interleaved with
+    # one match; wrap them in a counting generator that can only be walked once.
+    yielded = 0
+
+    def kaikki_stream() -> Iterator[KaikkiEntry]:
+        nonlocal yielded
+        for entry in [
+            KaikkiEntry(text="absent-1", language="pt", definitions=["x"]),
+            KaikkiEntry(text="casa", language="pt", definitions=["uma moradia"]),
+            KaikkiEntry(text="absent-2", language="pt", definitions=["y"]),
+        ]:
+            yielded += 1
+            yield entry
+
+    tables = transform(_omw(), kaikki_stream())
+
+    # (a) Only the matching entry is retained; the rest are dropped immediately.
+    assert tables.concepts[0].definitions["pt"] == "uma moradia"
+    assert tables.concept_sources == [SOURCE_KAIKKI]
+    # (b) The iterator was consumed exactly once, in full (streamed, not listed).
+    assert yielded == 3

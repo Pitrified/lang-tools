@@ -204,14 +204,25 @@ sources (OMW via wn, kaikki JSONL)
   synsets (the only place that touches `wn`), and the pure `group_to_records`
   groups them by shared ILI key into one `Concept` per meaning (this is the
   cross-lingual cognate grouping) plus the member `Lemma`s and `Sense` edges.
+  Both the download (`download_omw`) and the read select by a **single explicit
+  lexicon** via the `OMW_LEXICONS` map / `_omw_lexicon` helper, never the `omw`
+  collection or a bare `lang=` filter: the collection pulls every member wordnet
+  and a bare `lang` can match two installed wordnets (`it` matches both `omw-it`
+  and `omw-iwn`) and silently merge them, breaking determinism. An unmapped
+  language raises `UnknownOmwLanguageError`.
 - **`sources.kaikki`** is enrichment only: `load_kaikki_entries` keeps the
   glosses and example sentences (unlike `load_wiktionary_jsonl`) so `transform`
   can fill sparse `Concept.definitions` and attach `Lemma.examples`. It never
-  adds rows.
+  adds rows, and it stays a **lazy line-by-line stream** end to end
+  (`load_sources` chains the per-language dumps; `transform` filters them against
+  the bounded OMW lemma-key set), so the multi-hundred-MB dumps are never held
+  resident.
 - **`transform`** returns `TaggedTables` - the five tables plus a parallel
   per-row provenance tag (`omw` / `kaikki` / `llm` / `manual`). OMW rows are
   tagged `omw`; any row that gains CC-BY-SA kaikki content is re-tagged `kaikki`
-  (the conservative, license-isolating choice).
+  (the conservative, license-isolating choice). The kaikki iterator is consumed
+  exactly once and only matching entries are retained, so peak enrichment memory
+  is bounded by the OMW backbone, not the dump size.
 - **`build_initial`** wires it together: transform, write each table through the
   codec with its tags, write the manifest, then carve and (optionally) write a
   sample slice. Thin notebooks under `notebooks/lexicon_ingest/` drive it.

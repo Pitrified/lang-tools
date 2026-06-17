@@ -55,6 +55,8 @@ split as the design firms up.
 | 4.1 | SQLite-only runtime engine   | [`04.1_sqlite_mode.md`](04.1_sqlite_mode.md)             | done   | Collapse the store to a single SQLite engine and remove resident mode; sequenced before phase 5 so the engine is settled. Supersedes phase 4's dual-mode. |
 | 4.2 | Single load path (Parquet-only) | [`04.2_seed_data.md`](04.2_seed_data.md)              | done   | Remove the JSONL-seed loader + pyarrow-missing fallback; the store reads Parquet only. Seed becomes a dev input parquetized by a notebook. pyarrow -> base dep. |
 | 5  | Initial ingestion pipeline    | [`05_ingestion.md`](05_ingestion.md)                     | done | One-time initial build: OMW via `wn` -> concepts, kaikki enrichment, optional LLM granularity. Parquet is the source of truth; re-ingestion merge deferred. |
+| 5.1 | Ingestion fixes (first real run) | [`05.1_ingestion_fixes.md`](05.1_ingestion_fixes.md)  | done   | Fix four defects from the first real OMW/kaikki run: str `ili`, collection-not-per-lexicon download, ambiguous `it` lexicon, kaikki OOM. One `lang->lexicon` map + lazy filtered kaikki stream. |
+| 5.2 | Real-run perf follow-ups      | [`05.2_perf_followups.md`](05.2_perf_followups.md)       | draft  | Non-blocking observations from the successful en/pt run: considerable slug collisions (-> phase 8 dedup), >5 min store load (cache / avoid `get_all_*`), borderline memory (per-language build restructure). |
 | 6  | Frequency & complexity        | [`06_frequency_complexity.md`](06_frequency_complexity.md) | draft  | Per-sense token/sense frequency (`wordfreq`, sense-tag weights) and CEFR complexity (graded lists / estimated).        |
 | 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | draft  | Ingest hypernymy/hyponymy and antonymy as typed edges from OMW.                                                        |
 | 8  | Maintenance (LLM-based)       | [`08_maintenance.md`](08_maintenance.md)                 | draft  | LLM-assisted upkeep: new lemma->concept mapping, gloss enrichment, slug dedup, validation against OMW.                 |
@@ -443,3 +445,40 @@ Append-only. Newest at the bottom.
   verified end-to-end against in-memory fixtures; a real build is a `01`/`02`
   notebook run on a machine with the `ingest` extra. Deferred per plan:
   re-ingestion smart merge, LLM granularity collapse (seam only).
+- 2026-06-17 : executed phase 5.1 (status done) - the four defects the first real
+  OMW/kaikki run surfaced. (A) `wn` 1.1.0's `Synset.ili` is a bare string, not an
+  object: added `_ili_id(synset)` (tolerates str / `.id`-object / falsy -> `None`)
+  and `wn_synset_entries` uses it. (B/C, shared root) the language was never
+  resolved to a concrete lexicon: added `OMW_LEXICONS` (iso -> lexicon id, `it` ->
+  MultiWordNet `omw-it`, not `omw-iwn`), `OMW_VERSION`, `_omw_lexicon(lang,
+  version)` + `UnknownOmwLanguageError` in `sources/omw.py`. `download_omw` now
+  downloads **per lexicon** (the `omw` collection specifier pulled all ~30
+  wordnets) and records only the requested specs in the manifest; `wn_synset_entries`
+  reads via `wn.Wordnet(lexicon=spec)` (not `lang=`, which merged both Italian
+  wordnets non-deterministically). (D, kaikki OOM) kaikki now stays a lazy
+  single-pass stream: `load_sources` returns `itertools.chain.from_iterable` of the
+  per-language dump generators (was `.extend` into one list), and `transform`
+  computes the bounded OMW lemma-key set and keeps only matching entries while
+  streaming, so peak memory is `|needed|` not the dump size. `download_omw`'s
+  `omw_version` default changed `"omw:1.4"` -> `"1.4"` (bare version; the spec is now
+  built from the map). New regression tests: `_ili_id` over str/obj/empty,
+  `_omw_lexicon` mapping + `UnknownOmwLanguageError`, and a counting one-shot kaikki
+  generator asserting filtered + consumed-exactly-once. Docs: `sources.omw`/`kaikki`/
+  `transform` bullets in `lexicon.md` note lexicon-driven selection and the streamed
+  bounded enrichment. Pre-existing `wn.config` `reportPrivateImportUsage` (surfaced
+  now that `wn` is installed locally) suppressed on the two touched lines. Suite
+  green: 153 passed, ruff clean, pyright 0 errors. Still not run here: the real
+  download + committed sample slice (needs network + `ingest` extra).
+- 2026-06-17 : first **successful** real run of the pipeline (post-5.1) by hand for
+  `en` + `pt` - `01_download` + `02_transform` completed and the `explore` notebook
+  connected to the resulting store. All 5.1 blockers confirmed fixed on real data.
+  Three non-blocking observations recorded as phase 5.2 (status draft,
+  `05.2_perf_followups.md`): (1) considerable concept-slug collisions - legibility
+  only, ids stay unique via the hash; routed to phase 8's slug-dedup pass.
+  (2) the `explore` store load took >5 min on the full en/pt corpus - suspected eager
+  `get_all_concepts`-style full-table reconstruction; follow-up is to profile, cache
+  the built SQLite, and/or use bounded queries (store-layer, ties to Bug D's "next
+  memory ceiling" note). (3) memory borderline on this modest box - the full
+  five-language build will likely need the deferred per-language-write restructure.
+  None block shipping; the committed sample slice + full build wait on understanding
+  (2)/(3) enough to not wedge a small machine.

@@ -45,6 +45,70 @@ _POS_LABELS: dict[str, str] = {
 #: How many slug words to keep, so concept ids stay short but legible.
 _SLUG_WORDS = 4
 
+#: Default OMW release version (the ``:1.4`` suffix on lexicon specifiers).
+OMW_VERSION = "1.4"
+
+#: ISO 639-1 -> OMW lexicon id (without the ``:version`` suffix). OMW lexicon ids
+#: are not always ``omw-{iso}`` (``it`` has two wordnets - MultiWordNet
+#: ``omw-it`` vs ItalWordNet ``omw-iwn``), so the mapping is explicit. Both
+#: ``acquire.download_omw`` (download set) and `wn_synset_entries` (read set) go
+#: through `_omw_lexicon`, so the two can never drift.
+OMW_LEXICONS: dict[str, str] = {
+    "en": "omw-en",
+    "pt": "omw-pt",
+    "es": "omw-es",
+    "fr": "omw-fr",
+    "it": "omw-it",  # MultiWordNet; deliberately not omw-iwn (ItalWordNet)
+}
+
+
+class UnknownOmwLanguageError(KeyError):
+    """Raised when no OMW lexicon is mapped for a language code."""
+
+    def __init__(self, language: str) -> None:
+        """Initialize with the unsupported language code.
+
+        Args:
+            language: The ISO 639-1 code with no mapped OMW lexicon.
+        """
+        super().__init__(
+            f"No OMW lexicon known for {language!r} "
+            f"(known: {sorted(OMW_LEXICONS)}).",
+        )
+        self.language = language
+
+
+def _omw_lexicon(lang: str, version: str = OMW_VERSION) -> str:
+    """Return the versioned OMW lexicon specifier for a language.
+
+    Args:
+        lang: ISO 639-1 code (must be in `OMW_LEXICONS`).
+        version: OMW release version appended as ``:version``.
+
+    Returns:
+        A single-lexicon specifier such as ``"omw-en:1.4"``.
+
+    Raises:
+        UnknownOmwLanguageError: When `lang` has no mapped lexicon.
+    """
+    try:
+        base = OMW_LEXICONS[lang]
+    except KeyError as exc:
+        raise UnknownOmwLanguageError(lang) from exc
+    return f"{base}:{version}"
+
+
+def _ili_id(synset: object) -> str | None:
+    """Normalize a ``wn`` synset's ILI to a plain id string or ``None``.
+
+    In ``wn`` 1.1.0 ``Synset.ili`` is the interlingual-index id as a bare string
+    (e.g. ``"i35545"``) or a falsy value when the synset has no ILI. Earlier/later
+    ``wn`` could return an object exposing ``.id``; tolerate both shapes and map
+    the empty case to ``None`` (the "monolingual, group by synset id" signal).
+    """
+    raw_ili = getattr(synset, "ili", None)
+    return getattr(raw_ili, "id", raw_ili) or None
+
 
 def slugify(text: str) -> str:
     """Return a lowercase, hyphenated, accent-free slug for a concept id.
@@ -173,6 +237,7 @@ def wn_synset_entries(
     langs: Iterable[str],
     *,
     data_dir: str | None = None,
+    omw_version: str = OMW_VERSION,
 ) -> Iterator[SynsetEntry]:
     """Yield `SynsetEntry` records from the installed OMW wordnets (lazy ``wn``).
 
@@ -180,11 +245,17 @@ def wn_synset_entries(
     `group_to_records` carries all the mappable logic. ``wn`` must already have
     the wordnets downloaded (see `acquire.download_omw`).
 
+    The reader selects by **lexicon**, not ``lang=``: a bare ``lang`` filter can
+    match more than one installed wordnet (``it`` matches both ``omw-it`` and
+    ``omw-iwn``) and silently merge them, making the build non-deterministic.
+    Driving from `_omw_lexicon` pins each language to exactly one wordnet.
+
     Args:
-        langs: ISO 639-1 codes to read (e.g. ``["en", "pt"]``). Each maps to the
-            OMW lexicon installed for that language.
+        langs: ISO 639-1 codes to read (e.g. ``["en", "pt"]``). Each maps to a
+            single OMW lexicon via `OMW_LEXICONS`.
         data_dir: Optional override for ``wn``'s data directory; ``None`` uses
             its default (``~/.wn_data``).
+        omw_version: OMW release version used to build the lexicon specifiers.
 
     Yields:
         One `SynsetEntry` per (synset, language).
@@ -192,18 +263,19 @@ def wn_synset_entries(
     Raises:
         IngestDependencyMissingError: When the ``ingest`` extra (``wn``) is not
             installed.
+        UnknownOmwLanguageError: When a language has no mapped OMW lexicon.
     """
     wn = _require_wn()
     if data_dir is not None:
-        wn.config.data_directory = data_dir
+        wn.config.data_directory = data_dir  # pyright: ignore[reportPrivateImportUsage]
     for language in langs:
-        wordnet = wn.Wordnet(lang=language)
+        spec = _omw_lexicon(language, omw_version)
+        wordnet = wn.Wordnet(lexicon=spec)
         for synset in wordnet.synsets():
-            ili = synset.ili
             yield SynsetEntry(
                 language=language,
                 synset_id=synset.id,
-                ili=ili.id if ili is not None else None,
+                ili=_ili_id(synset),
                 definition=synset.definition(),
                 lemmas=tuple(synset.lemmas()),
                 pos=synset.pos,

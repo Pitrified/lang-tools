@@ -23,6 +23,7 @@ from typing import Any
 from loguru import logger as lg
 
 from lang_tools.lexicon.codec import LEXICON_SUBDIR
+from lang_tools.lexicon.ingestion.sources.omw import OMW_VERSION
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -79,42 +80,48 @@ def download_omw(
     langs: Iterable[str],
     *,
     data_fol: Path,
-    omw_version: str = "omw:1.4",
+    omw_version: str = OMW_VERSION,
 ) -> dict[str, Any]:
     """Download the OMW wordnets for `langs` via ``wn`` and return manifest info.
 
-    ``wn`` keeps its own data directory; this points it at the raw cache so the
-    download is reproducible alongside the kaikki dumps. Idempotent: ``wn`` skips
-    a lexicon it already has.
+    Downloads **per lexicon**, not the ``omw`` collection: the collection
+    specifier pulls every member wordnet regardless of `langs`, so we resolve
+    each language to a single lexicon via `_omw_lexicon` and download exactly
+    those. ``wn`` keeps its own data directory; this points it at the raw cache so
+    the download is reproducible alongside the kaikki dumps. Idempotent: ``wn``
+    skips a lexicon it already has.
 
     Args:
         langs: ISO 639-1 codes to install.
         data_fol: Project data folder; ``wn`` data goes under the raw cache.
-        omw_version: The OMW collection spec passed to ``wn.download``.
+        omw_version: OMW release version used to build the lexicon specifiers.
 
     Returns:
-        A manifest fragment recording the ``wn`` version, the OMW spec, and the
-        installed lexicons.
+        A manifest fragment recording the ``wn`` version, the OMW version, the
+        languages, and the exact lexicons requested.
 
     Raises:
         IngestDependencyMissingError: When the ``ingest`` extra (``wn``) is absent.
+        UnknownOmwLanguageError: When a language has no mapped OMW lexicon.
     """
+    from lang_tools.lexicon.ingestion.sources.omw import _omw_lexicon  # noqa: PLC0415
     from lang_tools.lexicon.ingestion.sources.omw import _require_wn  # noqa: PLC0415
 
     wn = _require_wn()
     wn_data = raw_dir(data_fol) / "wn_data"
     wn_data.mkdir(parents=True, exist_ok=True)
-    wn.config.data_directory = str(wn_data)
+    wn.config.data_directory = str(wn_data)  # pyright: ignore[reportPrivateImportUsage]
 
     langs = list(langs)
-    lg.info("Downloading OMW {} for {}", omw_version, langs)
-    wn.download(omw_version)
-    lexicons = sorted({lex.specifier() for lex in wn.lexicons()})
+    specs = [_omw_lexicon(lang, omw_version) for lang in langs]  # raises on unknown
+    lg.info("Downloading OMW {} lexicons {} for {}", omw_version, specs, langs)
+    for spec in specs:
+        wn.download(spec)  # idempotent: wn skips an installed lexicon
     return {
         "wn_version": wn.__version__,
         "omw_version": omw_version,
         "languages": langs,
-        "lexicons": lexicons,
+        "lexicons": specs,  # only what we asked for, not everything installed
         "wn_data_dir": str(wn_data),
     }
 

@@ -143,10 +143,18 @@ def transform(
     """
     concepts, lemmas, senses = group_to_records(omw_entries)
 
+    # kaikki only ever joins onto an OMW lemma, so the usable key set is exactly
+    # the OMW lemma keys - bounded by the backbone, independent of dump size.
+    # Stream the entries and keep only matching ones, so peak memory is |needed|
+    # rather than the (multi-hundred-MB) kaikki dumps. `kaikki_entries` must reach
+    # here as a lazy iterator (see `pipeline.load_sources`); never list() it.
+    needed = {(lem.normalized, lem.language) for lem in lemmas}
     enrichment: dict[tuple[str, str], KaikkiEntry] = {}
     for entry in kaikki_entries:
+        key = entry.key
         # First entry per key wins (kaikki dumps can repeat a headword).
-        enrichment.setdefault(entry.key, entry)
+        if key in needed and key not in enrichment:
+            enrichment[key] = entry
 
     concept_tags = _enrich_concepts(concepts, senses, lemmas, enrichment)
     lemma_tags = _enrich_lemmas(lemmas, enrichment)

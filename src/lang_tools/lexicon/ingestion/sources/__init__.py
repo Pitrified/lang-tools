@@ -9,14 +9,20 @@ dependency.
 
 from lang_tools.lexicon.ingestion.sources.kaikki import KaikkiEntry
 from lang_tools.lexicon.ingestion.sources.kaikki import load_kaikki_entries
+from lang_tools.lexicon.ingestion.sources.omw import OMW_LEXICONS
+from lang_tools.lexicon.ingestion.sources.omw import OMW_VERSION
 from lang_tools.lexicon.ingestion.sources.omw import SynsetEntry
+from lang_tools.lexicon.ingestion.sources.omw import UnknownOmwLanguageError
 from lang_tools.lexicon.ingestion.sources.omw import group_to_records
 from lang_tools.lexicon.ingestion.sources.omw import slugify
 from lang_tools.lexicon.ingestion.sources.omw import wn_synset_entries
 
 __all__ = [
+    "OMW_LEXICONS",
+    "OMW_VERSION",
     "KaikkiEntry",
     "SynsetEntry",
+    "UnknownOmwLanguageError",
     "group_to_records",
     "load_kaikki_entries",
     "slugify",
