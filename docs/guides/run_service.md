@@ -39,9 +39,13 @@ head -1 data/bootstrap/lemmas.jsonl   # should be a JSON object, one lemma per l
 ```
 
 The runtime store reads a **Parquet corpus** under `data/lexicon/` (LFS-tracked;
-gitignored until the ingestion phase ships it). It is not bundled - build it from
-the sample seed with `notebooks/lexicon_corpus/parquetize_seed.ipynb`, or pull the
-full corpus, otherwise the read APIs raise `CorpusNotFoundError`.
+gitignored until the ingestion phase ships it - see
+[frozen_api.md](../library/frozen_api.md#when-and-how-the-parquet-reaches-github)
+for why the Parquet is not on GitHub yet and how to publish it). It is not
+bundled. For a quick local corpus, build one from the committed seed with
+`notebooks/lexicon_corpus/parquetize_seed.ipynb` (it writes to
+`data/bootstrap/lexicon/`); point the store there, or pull/build the full corpus
+under `data/lexicon/`, otherwise the read APIs raise `CorpusNotFoundError`.
 
 ## 3. Install dependencies (including the webapp extra)
 
