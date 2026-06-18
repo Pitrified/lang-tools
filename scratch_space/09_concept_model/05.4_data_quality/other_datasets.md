@@ -7,6 +7,13 @@ where it would slot into the phase plan. Scoped to the five target languages
 ([`../00-concepts-brainstorm.md`](../00-concepts-brainstorm.md), "Background",
 "Frequency", "Complexity"); this consolidates them with current access details.
 
+> **Decided (2026-06-18): drop kaikki.** What the dataset needs - a good English gloss and
+> good concept grouping - comes from OMW/ILI, not kaikki; per-language glosses are not a
+> priority. Examples, if wanted, come from **Tatoeba (CC-BY)**; **Wikidata Lexemes (CC0)**
+> is the clean source if structured senses are ever needed. This removes the only
+> share-alike source. See [`../05.4_data_quality.md`](../05.4_data_quality.md), "emerging
+> direction" (1) and (3), and the licensing-posture table at the bottom.
+
 ## Concept / sense inventories (could extend the backbone)
 
 ### CILI - Collaborative Interlingual Index

@@ -60,6 +60,14 @@ null.
 
 ## kaikki.org (wiktextract) - the enrichment layer
 
+> **Decided (2026-06-18): drop kaikki entirely.** The first full build showed its
+> sense-blind join yields low-quality non-en glosses (the `house` mess) and pulls
+> CC-BY-SA over ~53% of concept glosses, while contributing nothing to what we need (a
+> good English gloss + concept grouping, both from OMW/ILI). Examples, if wanted, come
+> from Tatoeba (CC-BY). See [`../05.4_data_quality.md`](../05.4_data_quality.md),
+> "emerging direction" (1). The inventory below documents what kaikki *would* have
+> provided, for the record.
+
 A kaikki JSONL line is far richer than `WikiRecord`/`KaikkiEntry` parse. `WikiRecord`
 sets `extra="ignore"`, so **every unlisted field is silently dropped**. What we keep:
 the first gloss per missing language (`Concept.definitions`) and example sentences

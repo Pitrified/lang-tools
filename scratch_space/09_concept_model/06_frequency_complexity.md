@@ -6,6 +6,16 @@ status: draft
 
 > Draft. Scope sketch to hold the overarching story; not yet the plan of record.
 
+> **Frequency is a priority signal, not a hard cap (decided 2026-06-18).** The target is
+> support for a language-learning app, but we do **not** hard-filter by frequency: a
+> low-frequency lemma is kept when it is well-connected in the graph or pedagogically
+> important (e.g. irregular verbs), which a top-N cut would wrongly drop. So frequency
+> here orders **enrichment priority** and surfaces a learner-facing core; it does not
+> delete rows. Blanket long-tail pruning is only an **optional cleanup pass** for a
+> specific junk pattern (multiword/`PSEUDOGAP`-style noise), not a corpus boundary. This
+> keeps the phase as annotation + prioritization. Context:
+> [`05.4_data_quality.md`](05.4_data_quality.md), "emerging direction" (2).
+
 ## Overview
 
 Populate the two per-sense learner signals that share one home on the `Sense`

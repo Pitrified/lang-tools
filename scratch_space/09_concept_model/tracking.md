@@ -563,3 +563,26 @@ Append-only. Newest at the bottom.
   10 (license tallies); only reconciliation failures are must-fix-now phase-5 bugs.
   Two corrections to the brainstorm flagged: "OMW is Apache-2.0" is too broad (per-
   lexicon, verify) and wordfreq is frozen/mixed-license data (pin + verify).
+- 2026-06-18 : ran the 5.4 checks on the **real full build** (en/pt/es/fr/it: 117,659
+  concepts / 321,126 lemmas / 491,876 senses). Build is referentially clean (zero
+  dangling edges, zero lemmas-without-sense, POS fully mapped). Headline findings: 70.4%
+  multi-language concepts; gloss coverage en 100% -> it 87.5% -> fr 76.7% -> pt 71.5% ->
+  es 70.1%; 7,220 `definition == lemma` rows (6,568 concepts); ~27% slug collisions (top:
+  common verbs); kaikki touches ~53% of concept glosses (CC-BY-SA surface). New defect
+  found: kaikki glosses often land under the wrong language and are English text / junk
+  (`PSEUDOGAP!`) / form-of notes - sense-blind join. Made the notebook self-generate
+  `report.md` (a `cap`/`write_report` harness; re-running regenerates it) and validated
+  it end-to-end on the corpus. Recorded an **emerging direction**, then
+  **resolved with the user (2026-06-18)** and cross-linked into the brainstorm + phase 6:
+  (1) **drop kaikki** - lemma-only entries contribute nothing to what we need (a good
+  English gloss from OMW/ILI + good concept grouping); per-language glosses are not a
+  priority, so dropping it loses nothing we care about and removes the junk *and* the only
+  viral license; examples (if wanted) from Tatoeba (CC-BY), no LLM gloss backfill needed
+  for the core. (2) **No hard frequency cap** - frequency is a priority/ranking signal,
+  not a corpus boundary; keep low-freq lemmas that are well-connected or pedagogically
+  important (e.g. irregular verbs); long-tail pruning is an optional cleanup pass only, so
+  phase 6 stays annotation + prioritization. (3) Overlapping licenses: CC0 vs permissive/
+  attribution vs viral share-alike; one SA source caps the whole corpus at CC-BY-SA and
+  can't be relicensed down; license rides on text not facts. Accepting all-CC-BY-SA is
+  *valid* but strictly worse (forecloses downstream reuse) and unnecessary once kaikki is
+  dropped, leaving a clean permissive + CC0 + CC-BY stack.

@@ -571,6 +571,17 @@ translations; pull these to fill `definitions` and example fields. Caveats:
 - It is **lemma-centric with no shared concept ids**, so key it by lemma and join
   onto OMW synsets; do not treat it as the concept source.
 
+> **Decided after the first full build (2026-06-18): drop kaikki.** It was adopted mainly
+> because a wiktextract loader already existed, not for fit. The build shows the
+> lemma-level (sense-blind) join produces low-quality non-en glosses (bare English words,
+> `PSEUDOGAP!` junk, form-of notes; 7,220 `definition == lemma` rows) *and* drags CC-BY-SA
+> over ~53% of concept glosses. The dataset only needs **a good English gloss** (OMW ~100%,
+> ILI English gloss as fallback) and **good concept grouping** (OMW/ILI) - neither comes
+> from kaikki, and per-language glosses are not a priority - so dropping it costs nothing
+> we care about and removes the junk and the only viral license at once. Examples, if
+> wanted, come from Tatoeba (CC-BY). Full analysis:
+> [`05.4_data_quality.md`](05.4_data_quality.md), "emerging direction".
+
 ### LLM - mapping only, not a data source
 
 The hard part is mapping lemmas onto OMW synsets and collapsing WordNet's
@@ -602,6 +613,19 @@ the source mix:
   permissive regardless.
 - **`wordfreq` is MIT**; per-list frequency sources (SUBTLEX/OpenSubtitles) must
   be license-checked individually before shipping.
+
+> **How overlapping licenses interact (clarified 2026-06-18).** "Open" is three buckets
+> that combine differently: CC0/public-domain (Wikidata, no conditions), permissive/
+> attribution (Apache/MIT/CC-BY, most OMW lexicons - non-viral), and share-alike
+> (CC-BY-SA: Wiktionary/kaikki, ConceptNet - **viral**). A single CC-BY-SA *text* field
+> cannot be relicensed down, so one SA source caps the whole shipped corpus at CC-BY-SA.
+> The license rides on the copyrightable **text** (`definitions`/`examples`), not the
+> facts (edges/frequencies), and our per-row `source` column tracks it. Since kaikki is
+> the *only* SA source, **dropping it (see the enrichment note above) removes the only
+> viral constraint** and lets the dataset ship permissive + CC0 + CC-BY (attribution
+> only). Note: the brainstorm's "OMW is Apache-2.0" is too broad - OMW licenses are
+> per-lexicon, verify each. Full explanation: [`05.4_data_quality.md`](05.4_data_quality.md),
+> "emerging direction" (3).
 
 Ship a dataset card recording each source, its license, and required attribution.
 
