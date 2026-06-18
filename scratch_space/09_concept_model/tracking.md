@@ -58,6 +58,7 @@ split as the design firms up.
 | 5.1 | Ingestion fixes (first real run) | [`05.1_ingestion_fixes.md`](05.1_ingestion_fixes.md)  | done   | Fix four defects from the first real OMW/kaikki run: str `ili`, collection-not-per-lexicon download, ambiguous `it` lexicon, kaikki OOM. One `lang->lexicon` map + lazy filtered kaikki stream. |
 | 5.2 | Real-run perf follow-ups      | [`05.2_perf_followups.md`](05.2_perf_followups.md)       | draft  | Non-blocking observations from the successful en/pt run: considerable slug collisions (-> phase 8 dedup), >5 min store load (cache / avoid `get_all_*`), borderline memory (per-language build restructure). |
 | 5.3 | Load + memory profiling (gate) | [`05.3_load_profiling.md`](05.3_load_profiling.md)      | done | Profiled (>5 min was swap thrash, not CPU; root cause = pydantic double-materialization) and **fixed**: stream lean Parquet rows into a persisted signature-keyed `_store.sqlite`; seed corpus split to `data/bootstrap/lexicon/`. Cold load 16 s / 593 MB (was 1362 MB), warm cache hit ~1 ms. |
+| 5.4 | Preliminary data quality checks | [`05.4_data_quality.md`](05.4_data_quality.md)         | draft  | Read-only quality pass over the first build: count/emptiness/cross-lingual-balance/trust checks as bounded DuckDB queries; diagnose the `house` "definition = lemma" defect (sparse OMW glosses + sense-blind kaikki join); full OMW/kaikki metadata catalog (kept/dropped/promote); other datasets + licensing. Routes findings to phases 6/7/8/10. md-only. |
 | 6  | Frequency & complexity        | [`06_frequency_complexity.md`](06_frequency_complexity.md) | draft  | Per-sense token/sense frequency (`wordfreq`, sense-tag weights) and CEFR complexity (graded lists / estimated).        |
 | 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | draft  | Ingest hypernymy/hyponymy and antonymy as typed edges from OMW.                                                        |
 | 8  | Maintenance (LLM-based)       | [`08_maintenance.md`](08_maintenance.md)                 | draft  | LLM-assisted upkeep: new lemma->concept mapping, gloss enrichment, slug dedup, validation against OMW.                 |
@@ -539,3 +540,26 @@ Append-only. Newest at the bottom.
   deferred (re-measure at five langs). Tests +3 (raw==validate, cache persist+reuse,
   cache busts on change); ruff gained a `scratch_space/*` ignore block. Suite green:
   156 passed, ruff clean, pyright 0 errors.
+- 2026-06-18 : drafted phase 5.4 (`05.4_data_quality.md`, status draft) - a read-only
+  quality pass over the first build (md-only, no code/data edits). Specified the
+  preliminary checks as bounded DuckDB (`inspect_table`) queries, not a store load
+  (honours 5.3: `get_all_*` reconstruction is the cost): volumes + edge reconciliation,
+  emptiness/degenerate cardinality (empty/single-member/single-language concepts,
+  lemmas-without-sense, dangling edges), cross-lingual balance + ILI-backed vs
+  monolingual share + per-language kaikki match rate, and trust/dedup signals (OMW-vs-
+  kaikki POS agreement, slug collisions, `definition == lemma`, near-dup lemmas).
+  Diagnosed the notebook's `house` case: not a bug but two stacked quality defects -
+  sparse non-English OMW glosses + a sense-blind `(text, language)` kaikki join that
+  attaches a lemma's most-common gloss to whatever synset it is a member of, so the
+  family-sense concept gets the building gloss or a bare `house` translation. Wrote
+  three companions under `05.4_data_quality/`: `models_explained.md` (Concept/Lemma/
+  Sense field-by-field with source+meaning, POS-trust answer, the `house` diagnosis),
+  `metadata_catalog.md` (every OMW/`wn` + kaikki field marked kept/dropped/promote?,
+  with a promote shortlist: synset examples, the relation graph, `tag_count` sense
+  freqs, lexfile, kaikki tags/topics, per-lexicon licenses), and `other_datasets.md`
+  (CILI, BabelNet, Wikidata Lexemes/CC0, ConceptNet, PanLex, wordfreq, SUBTLEX, Kelly,
+  EVP/Oxford, Tatoeba - metadata/access/license, with a phase-10 licensing-posture
+  table). Findings route to 6 (freq/CEFR), 7 (relations), 8 (gloss/slug/POS cleanup),
+  10 (license tallies); only reconciliation failures are must-fix-now phase-5 bugs.
+  Two corrections to the brainstorm flagged: "OMW is Apache-2.0" is too broad (per-
+  lexicon, verify) and wordfreq is frozen/mixed-license data (pin + verify).
