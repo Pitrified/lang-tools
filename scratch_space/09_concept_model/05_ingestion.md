@@ -1,8 +1,21 @@
 ---
 status: done
+superseded_in_part_by: 05.5_cleanup.md
 ---
 
 # Phase 5 - initial ingestion pipeline
+
+> **Partly superseded by [`05.5_cleanup.md`](05.5_cleanup.md) (2026-06-20).** The OMW
+> backbone, Parquet-as-source-of-truth, the `source` provenance seam, and the `_build.json`
+> manifest below all still stand. What is **being removed** is the kaikki/Wiktionary
+> enrichment leg (drop-kaikki decided 2026-06-18): treat every kaikki acquire/transform/
+> source-module reference here as superseded. `Concept.definitions` now come from OMW plus a
+> CILI English fallback only.
+>
+> **Still TODO, tracked in 5.5:** delete `sources/kaikki.py` + `_enrich_concepts`, drop
+> kaikki from `acquire`/manifest/deps (Step 1), add the CILI English-gloss fallback
+> (Step 2), promote the permissive OMW fields - examples/lexfile/`tag_count`/relations -
+> (Step 4), then rebuild (Step 7). The `source` enum keeps `kaikki` as a legacy value only.
 
 ## Overview
 
@@ -104,8 +117,11 @@ extra) so the base package stays light, same pattern as `pyarrow`/`duckdb`.
 - synset members → thin `Lemma` rows (`lemma_id` = sha1 of `language::normalized`),
   `source=omw`.
 - membership → `Sense` edges straight from synset members, `source=omw`.
-- kaikki fills sparse `Concept.definitions` / examples, joined by `(lemma,
-  language)` onto synsets, `source=kaikki`, license-isolated (phase 10).
+- ~~kaikki fills sparse `Concept.definitions` / examples, joined by `(lemma,
+  language)` onto synsets, `source=kaikki`, license-isolated (phase 10).~~ **Removed in
+  [`05.5_cleanup.md`](05.5_cleanup.md):** the sense-blind join was the `house` defect and
+  the only CC-BY-SA source. Replaced by a CILI English-gloss fallback (5.5 Step 2);
+  examples come from OMW `synset.examples()` / Tatoeba instead (5.5 Steps 3-4).
 
 LLM granularity collapse (over-fine WordNet senses → learner granularity) is an
 **optional seam, not a "done" requirement**: deterministic OMW-as-is is the default

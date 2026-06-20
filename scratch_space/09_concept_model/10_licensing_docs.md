@@ -14,14 +14,20 @@ is the closing phase that turns the working data into something publishable.
 Context: [`00-concepts-brainstorm.md`](00-concepts-brainstorm.md), "Licensing -
 free and open dataset". Depends on the source mix being final (phases 5-7).
 
+> **From the 5.5 cleanup (2026-06-20).** The CC-BY-SA open question below is **resolved**:
+> kaikki is dropped (decided 2026-06-18, executed in [`05.5_cleanup.md`](05.5_cleanup.md)),
+> so there is no share-alike source to isolate. The shipped posture is permissive-OMW
+> (verify per lexicon - the brainstorm's blanket "Apache-2.0" is wrong) + CC0 Wikidata
+> (optional) + CC-BY Tatoeba (examples) + a new permissive CILI English-gloss fallback
+> (`source=cili`), with **no CC-BY-SA anywhere** and an attribution-only dataset card. This
+> phase then only verifies per-source licenses and writes the card.
+
 ## What this phase will cover
 
-- **License decision** - the core (OMW, Apache-2.0; `wordfreq`, MIT) is
-  permissive. The open question is the CC-BY-SA Wiktionary enrichment: choose
-  among (a) isolate it in a separately-licensed layer with attribution, (b) accept
-  CC-BY-SA for the whole dataset as an acceptable open license, or (c) drop
-  Wiktionary text and use it only to guide freshly-written LLM glosses. Decide and
-  record.
+- **License decision** - **settled by the 5.5 cleanup**: drop kaikki/Wiktionary text
+  (option (c)/drop), leaving a clean permissive + CC0 + CC-BY stack with no share-alike.
+  This phase records it rather than choosing it. Any future kaikki use stays
+  license-isolated or routes through an LLM rewrite so the shipped text is original.
 - **Per-source attribution** - confirm and document the license of each input,
   including per-list frequency sources (SUBTLEX/OpenSubtitles) and CEFR graded
   lists, which must be license-checked individually before shipping.

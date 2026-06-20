@@ -15,6 +15,10 @@ by the new pipeline, and point the store and `lang-tutor` at it. This is the
 migration)". Depends on phases 2-7 being far enough along to emit a coherent
 slice.
 
+> **From the 5.5 cleanup (2026-06-20).** Regenerate the sample slice from the kaikki-free
+> rebuild (Step 6 of [`05.5_cleanup.md`](05.5_cleanup.md)); the carve must stay
+> referentially closed (no dangling edges, no lemma without a sense).
+
 ## What this phase will cover
 
 - **Sample selection** - a small, curated slice from the phase-5 pipeline: a

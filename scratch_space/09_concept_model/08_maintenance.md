@@ -15,6 +15,13 @@ upkeep loop that keeps the lexical graph healthy after the initial ingestion
 "Bootstrap source" (LLM mapping) and "Uplift plan". Reuses the ingestion
 machinery rather than introducing a parallel path.
 
+> **From the 5.5 cleanup (2026-06-20).** Steps 5-6 of
+> [`05.5_cleanup.md`](05.5_cleanup.md) are this phase's concrete first run over the
+> kaikki-free rebuild: slug dedup, `definition == lemma` repair, orphan / empty-concept
+> review, OMW-internal POS review, and an optional license-clean LLM gloss backfill, then
+> re-running the 05.4 check harness as a regression gate. The LLM stays propose-for-review
+> for anything that changes meaning, auto-apply only for mechanical slug fixes.
+
 ## What this phase will cover
 
 - **New lemma -> concept mapping** - when a new lemma enters (e.g. from the

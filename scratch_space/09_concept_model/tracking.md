@@ -54,11 +54,12 @@ split as the design firms up.
 | 4  | Store layer + indexes         | [`04_store_layer.md`](04_store_layer.md)                 | done | Extend `lemma_store` with concept/sense/edge registries, look-aside indexes, and back-ref hydration; query surface feeds phase 3. |
 | 4.1 | SQLite-only runtime engine   | [`04.1_sqlite_mode.md`](04.1_sqlite_mode.md)             | done   | Collapse the store to a single SQLite engine and remove resident mode; sequenced before phase 5 so the engine is settled. Supersedes phase 4's dual-mode. |
 | 4.2 | Single load path (Parquet-only) | [`04.2_seed_data.md`](04.2_seed_data.md)              | done   | Remove the JSONL-seed loader + pyarrow-missing fallback; the store reads Parquet only. Seed becomes a dev input parquetized by a notebook. pyarrow -> base dep. |
-| 5  | Initial ingestion pipeline    | [`05_ingestion.md`](05_ingestion.md)                     | done | One-time initial build: OMW via `wn` -> concepts, kaikki enrichment, optional LLM granularity. Parquet is the source of truth; re-ingestion merge deferred. |
+| 5  | Initial ingestion pipeline    | [`05_ingestion.md`](05_ingestion.md)                     | done* | One-time initial build: OMW via `wn` -> concepts, kaikki enrichment, optional LLM granularity. Parquet is the source of truth; re-ingestion merge deferred. *(\*kaikki enrichment leg superseded by 5.5)* |
 | 5.1 | Ingestion fixes (first real run) | [`05.1_ingestion_fixes.md`](05.1_ingestion_fixes.md)  | done   | Fix four defects from the first real OMW/kaikki run: str `ili`, collection-not-per-lexicon download, ambiguous `it` lexicon, kaikki OOM. One `lang->lexicon` map + lazy filtered kaikki stream. |
 | 5.2 | Real-run perf follow-ups      | [`05.2_perf_followups.md`](05.2_perf_followups.md)       | draft  | Non-blocking observations from the successful en/pt run: considerable slug collisions (-> phase 8 dedup), >5 min store load (cache / avoid `get_all_*`), borderline memory (per-language build restructure). |
 | 5.3 | Load + memory profiling (gate) | [`05.3_load_profiling.md`](05.3_load_profiling.md)      | done | Profiled (>5 min was swap thrash, not CPU; root cause = pydantic double-materialization) and **fixed**: stream lean Parquet rows into a persisted signature-keyed `_store.sqlite`; seed corpus split to `data/bootstrap/lexicon/`. Cold load 16 s / 593 MB (was 1362 MB), warm cache hit ~1 ms. |
 | 5.4 | Preliminary data quality checks | [`05.4_data_quality.md`](05.4_data_quality.md)         | draft  | Read-only quality pass over the first build: count/emptiness/cross-lingual-balance/trust checks as bounded DuckDB queries; diagnose the `house` "definition = lemma" defect (sparse OMW glosses + sense-blind kaikki join); full OMW/kaikki metadata catalog (kept/dropped/promote); other datasets + licensing. Routes findings to phases 6/7/8/10. md-only. |
+| 5.5 | Cleanup: re-cut around OMW backbone | [`05.5_cleanup.md`](05.5_cleanup.md)            | draft  | Execute 5.4's drop-kaikki decision: hard-delete the kaikki enrichment path, anchor on the concept/gloss/sense triple (OMW + CILI English fallback), one isolated loader per dataset, promote permissive OMW fields (examples/lexfile/`tag_count`/relations) for phases 6/7, LLM cleanup pass, regression-gated rebuild with no CC-BY-SA. Reopens phase 5's enrichment leg. |
 | 6  | Frequency & complexity        | [`06_frequency_complexity.md`](06_frequency_complexity.md) | draft  | Per-sense token/sense frequency (`wordfreq`, sense-tag weights) and CEFR complexity (graded lists / estimated).        |
 | 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | draft  | Ingest hypernymy/hyponymy and antonymy as typed edges from OMW.                                                        |
 | 8  | Maintenance (LLM-based)       | [`08_maintenance.md`](08_maintenance.md)                 | draft  | LLM-assisted upkeep: new lemma->concept mapping, gloss enrichment, slug dedup, validation against OMW.                 |
@@ -586,3 +587,21 @@ Append-only. Newest at the bottom.
   can't be relicensed down; license rides on text not facts. Accepting all-CC-BY-SA is
   *valid* but strictly worse (forecloses downstream reuse) and unnecessary once kaikki is
   dropped, leaving a clean permissive + CC0 + CC-BY stack.
+- 2026-06-20 : drafted phase 5.5 (`05.5_cleanup.md`, status draft) - the *act* step that
+  executes 5.4's drop-kaikki decision (5.4 was measure-only). Seven steps: (1) hard-delete
+  the kaikki enrichment path from ingestion (loader, `_enrich_concepts`, manifest entries,
+  deps; guard test that no built row is `source=kaikki`); (2) guarantee the English gloss +
+  add a permissive CILI fallback (`source=cili`), keep only real non-en OMW glosses; (3) one
+  isolated loader per dataset (OMW backbone, CILI fallback, Tatoeba/Wikidata deferred),
+  cross-source fills sense-aware or they don't ship; (4) promote permissive OMW fields now -
+  `synset.examples()` (home = `Sense` edge, attached at each source's granularity), lexfile,
+  `sense.id` + `tag_count`/SemCor weights, hypernym/hyponym + antonym edges - feeding phases
+  6/7, with frequency/connectivity also ranking enrichment priority; (5) LLM cleanup pass
+  (slug dedup, `definition==lemma` repair, orphan review, OMW-internal POS review, optional
+  license-clean gloss backfill), propose-for-review; (6) maintenance loop re-running the 05.4
+  checks as a regression gate; (7) rebuild en/pt/es/fr/it and snapshot a no-CC-BY-SA posture.
+  Propagated into 05_ingestion (banner + `superseded_in_part_by`; the kaikki leg flagged
+  superseded with a still-TODO list; row marked `done*`), 06/07/08/09/10 (cleanup-input
+  notes; phase 10's CC-BY-SA open question marked resolved), and the 05.4 companions. Added
+  the 5.5 row to the phase table. Also tightened the global CLAUDE.md style rule (drop hype
+  adjectives/adverbs; plain headers, no parentheticals).

@@ -16,6 +16,12 @@ stays flat (sense grouping) and these edges sit beside it. Context:
 beyond false friends". May fold into phase 5 (ingestion) since OMW supplies the
 edges in the same traversal.
 
+> **From the 5.5 cleanup (2026-06-20).** Step 4 of
+> [`05.5_cleanup.md`](05.5_cleanup.md) captures `synset.hypernyms/hyponyms` and sense
+> `antonyms` during the kaikki-free rebuild, in the same OMW traversal - so the edges this
+> phase needs are already emitted by the cleanup build. This phase then types, stores, and
+> prunes them. This reinforces the "may fold into phase 5" note above.
+
 ## What this phase will cover
 
 - **Hypernymy / hyponymy (is-a)** - the WordNet backbone. Directional, stored on

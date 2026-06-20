@@ -16,6 +16,14 @@ status: draft
 > keeps the phase as annotation + prioritization. Context:
 > [`05.4_data_quality.md`](05.4_data_quality.md), "emerging direction" (2).
 
+> **From the 5.5 cleanup (2026-06-20).** The kaikki-free rebuild carries the inputs this
+> phase needs straight from OMW: `sense.id` plus `sense.counts()` / `tag_count` (SemCor,
+> English) as the weights for splitting token frequency across senses, and `synset.lexfile`
+> as a coarse difficulty class. Example sentences land on the `Sense` edge alongside these
+> signals (attached at each source's granularity; see
+> [`05.5_cleanup.md`](05.5_cleanup.md) Step 4). Frequency and graph connectivity also rank
+> which concepts the phase-8 enrichment touches first.
+
 ## Overview
 
 Populate the two per-sense learner signals that share one home on the `Sense`

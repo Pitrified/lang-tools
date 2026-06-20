@@ -12,7 +12,9 @@ where it would slot into the phase plan. Scoped to the five target languages
 > priority. Examples, if wanted, come from **Tatoeba (CC-BY)**; **Wikidata Lexemes (CC0)**
 > is the clean source if structured senses are ever needed. This removes the only
 > share-alike source. See [`../05.4_data_quality.md`](../05.4_data_quality.md), "emerging
-> direction" (1) and (3), and the licensing-posture table at the bottom.
+> direction" (1) and (3), and the licensing-posture table at the bottom. Step 3 of
+> [`../05.5_cleanup.md`](../05.5_cleanup.md) fixes each source's role: OMW backbone, CILI
+> English-gloss fallback, Tatoeba examples (deferred), Wikidata Lexemes (deferred probe).
 
 ## Concept / sense inventories (could extend the backbone)
 

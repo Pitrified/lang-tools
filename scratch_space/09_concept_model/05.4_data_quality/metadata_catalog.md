@@ -110,6 +110,9 @@ to use kaikki as *guidance* without inheriting the license.
 
 ## Quick "promote shortlist" (for later phases)
 
+> Step 4 of [`../05.5_cleanup.md`](../05.5_cleanup.md) acts on items 1-4 now (during the
+> kaikki-free rebuild); CILI is promoted as the English-gloss fallback in 5.5 Step 2.
+
 Highest value, lowest cost first:
 
 1. **`synset.examples()`** (OMW, permissive) - examples without the CC-BY-SA tax. *(6/8)*
