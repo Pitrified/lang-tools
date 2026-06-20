@@ -1,22 +1,21 @@
 """Pipeline: the one-time initial build (acquire? -> transform -> write -> sample).
 
-`build_initial` is the single entry point that turns the OMW backbone and kaikki
-enrichment into the source-of-truth Parquet under ``data/lexicon/`` plus a small
-committed sample slice. It is linear by design (the source-of-truth model has no
-base/overlay split): read sources, transform, write each table through the codec
-with its provenance tags, write the ``_build.json`` manifest, then carve and write
-the sample.
+`build_initial` is the single entry point that turns the OMW backbone into the
+source-of-truth Parquet under ``data/lexicon/`` plus a small committed sample
+slice. It is linear by design (the source-of-truth model has no base/overlay
+split): read sources, transform, write each table through the codec with its
+provenance tags, write the ``_build.json`` manifest, then carve and write the
+sample.
 
 Sources can be supplied directly (tests, or a notebook that already loaded them)
-or read from the raw cache produced by `acquire`. The heavy ``wn``/HTTP work lives
-in `acquire`; this module only wires stages together, so it is fully testable with
+or read from the raw cache produced by `acquire`. The heavy ``wn`` work lives in
+`acquire`; this module only wires stages together, so it is fully testable with
 in-memory inputs.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-import itertools
 import shutil
 from typing import TYPE_CHECKING
 
@@ -24,21 +23,17 @@ from loguru import logger as lg
 
 from lang_tools.lexicon.codec import LEXICON_SUBDIR
 from lang_tools.lexicon.codec import _dump_table
-from lang_tools.lexicon.ingestion.acquire import kaikki_path
 from lang_tools.lexicon.ingestion.acquire import write_manifest
 from lang_tools.lexicon.ingestion.sample import DEFAULT_SAMPLE_CONCEPTS
 from lang_tools.lexicon.ingestion.sample import carve_sample
-from lang_tools.lexicon.ingestion.sources.kaikki import load_kaikki_entries
 from lang_tools.lexicon.ingestion.sources.omw import wn_synset_entries
 from lang_tools.lexicon.ingestion.transform import TaggedTables
 from lang_tools.lexicon.ingestion.transform import transform
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from collections.abc import Iterator
     from pathlib import Path
 
-    from lang_tools.lexicon.ingestion.sources.kaikki import KaikkiEntry
     from lang_tools.lexicon.ingestion.sources.omw import SynsetEntry
 
 
@@ -140,33 +135,22 @@ def load_sources(
     langs: Iterable[str],
     *,
     data_fol: Path,
-) -> tuple[list[SynsetEntry], Iterator[KaikkiEntry]]:
-    """Read OMW + kaikki from the raw cache into source records.
+) -> list[SynsetEntry]:
+    """Read the OMW backbone from the raw cache into source records.
 
-    The OMW backbone is materialized (bounded, needed in full to derive the join
-    keys); the kaikki dumps are returned as a **lazy** chained iterator so each
-    multi-hundred-MB file is streamed and filtered line-by-line by `transform`
-    rather than held resident (the kaikki OOM fix). Do not ``list()`` the second
-    element.
+    OMW is the sole source (the kaikki enrichment leg was removed in phase 5.5).
+    The backbone is materialized: it is bounded and needed in full to build the
+    concept/lemma/sense tables.
 
     Args:
         langs: ISO 639-1 codes to read.
         data_fol: Project data folder; the raw cache lives under it.
 
     Returns:
-        The OMW synset entries (a list) and a lazy iterator over the kaikki
-        enrichment entries across all languages.
+        The OMW synset entries for the requested languages.
     """
     langs = list(langs)
-    omw_entries = list(wn_synset_entries(langs, data_dir=str(_wn_data_dir(data_fol))))
-    kaikki_streams: list[Iterator[KaikkiEntry]] = []
-    for language in langs:
-        path = kaikki_path(data_fol, language)
-        if path.exists():
-            kaikki_streams.append(load_kaikki_entries(path, language))
-        else:
-            lg.warning("No cached kaikki dump for {} at {}", language, path)
-    return omw_entries, itertools.chain.from_iterable(kaikki_streams)
+    return list(wn_synset_entries(langs, data_dir=str(_wn_data_dir(data_fol))))
 
 
 def _wn_data_dir(data_fol: Path) -> Path:
@@ -181,7 +165,6 @@ def build_initial(
     *,
     data_fol: Path,
     omw_entries: Iterable[SynsetEntry] | None = None,
-    kaikki_entries: Iterable[KaikkiEntry] | None = None,
     sample_data_fol: Path | None = None,
     max_sample_concepts: int = DEFAULT_SAMPLE_CONCEPTS,
     extra_manifest: dict | None = None,
@@ -194,8 +177,6 @@ def build_initial(
             under ``<data_fol>/lexicon/``.
         omw_entries: OMW synset entries; when ``None`` they are read from the raw
             cache under `data_fol` (requires the ``ingest`` extra).
-        kaikki_entries: kaikki enrichment entries; when ``None`` they are read
-            from the raw cache (absent dumps are simply skipped).
         sample_data_fol: When given, the carved sample slice is written there as
             its own Parquet corpus (e.g. a tmp dir the test/seed consumes).
         max_sample_concepts: Concept cap for the carved sample.
@@ -206,12 +187,10 @@ def build_initial(
         A `BuildSummary` with row counts and the manifest path.
     """
     langs = list(langs)
-    if omw_entries is None or kaikki_entries is None:
-        loaded_omw, loaded_kaikki = load_sources(langs, data_fol=data_fol)
-        omw_entries = loaded_omw if omw_entries is None else omw_entries
-        kaikki_entries = loaded_kaikki if kaikki_entries is None else kaikki_entries
+    if omw_entries is None:
+        omw_entries = load_sources(langs, data_fol=data_fol)
 
-    tables = transform(omw_entries, kaikki_entries)
+    tables = transform(omw_entries)
     counts = _write_tables(tables, data_fol)
 
     sample = carve_sample(tables, max_concepts=max_sample_concepts)

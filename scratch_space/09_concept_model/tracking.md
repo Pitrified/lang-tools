@@ -59,7 +59,7 @@ split as the design firms up.
 | 5.2 | Real-run perf follow-ups      | [`05.2_perf_followups.md`](05.2_perf_followups.md)       | draft  | Non-blocking observations from the successful en/pt run: considerable slug collisions (-> phase 8 dedup), >5 min store load (cache / avoid `get_all_*`), borderline memory (per-language build restructure). |
 | 5.3 | Load + memory profiling (gate) | [`05.3_load_profiling.md`](05.3_load_profiling.md)      | done | Profiled (>5 min was swap thrash, not CPU; root cause = pydantic double-materialization) and **fixed**: stream lean Parquet rows into a persisted signature-keyed `_store.sqlite`; seed corpus split to `data/bootstrap/lexicon/`. Cold load 16 s / 593 MB (was 1362 MB), warm cache hit ~1 ms. |
 | 5.4 | Preliminary data quality checks | [`05.4_data_quality.md`](05.4_data_quality.md)         | draft  | Read-only quality pass over the first build: count/emptiness/cross-lingual-balance/trust checks as bounded DuckDB queries; diagnose the `house` "definition = lemma" defect (sparse OMW glosses + sense-blind kaikki join); full OMW/kaikki metadata catalog (kept/dropped/promote); other datasets + licensing. Routes findings to phases 6/7/8/10. md-only. |
-| 5.5 | Cleanup: re-cut around OMW backbone | [`05.5_cleanup.md`](05.5_cleanup.md)            | draft  | Execute 5.4's drop-kaikki decision: hard-delete the kaikki enrichment path, anchor on the concept/gloss/sense triple (OMW + CILI English fallback), one isolated loader per dataset, promote permissive OMW fields (examples/lexfile/`tag_count`/relations) for phases 6/7, LLM cleanup pass, regression-gated rebuild with no CC-BY-SA. Reopens phase 5's enrichment leg. |
+| 5.5 | Cleanup: re-cut around OMW backbone | [`05.5_cleanup.md`](05.5_cleanup.md)            | in progress | Execute 5.4's drop-kaikki decision: hard-delete the kaikki enrichment path, anchor on the concept/gloss/sense triple (OMW + CILI English fallback), one isolated loader per dataset, promote permissive OMW fields (examples/lexfile/`tag_count`/relations) for phases 6/7, LLM cleanup pass, regression-gated rebuild with no CC-BY-SA. Reopens phase 5's enrichment leg. **Step 1 done** (kaikki removed); Steps 2-7 pending. |
 | 6  | Frequency & complexity        | [`06_frequency_complexity.md`](06_frequency_complexity.md) | draft  | Per-sense token/sense frequency (`wordfreq`, sense-tag weights) and CEFR complexity (graded lists / estimated).        |
 | 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | draft  | Ingest hypernymy/hyponymy and antonymy as typed edges from OMW.                                                        |
 | 8  | Maintenance (LLM-based)       | [`08_maintenance.md`](08_maintenance.md)                 | draft  | LLM-assisted upkeep: new lemma->concept mapping, gloss enrichment, slug dedup, validation against OMW.                 |
@@ -605,3 +605,18 @@ Append-only. Newest at the bottom.
   notes; phase 10's CC-BY-SA open question marked resolved), and the 05.4 companions. Added
   the 5.5 row to the phase table. Also tightened the global CLAUDE.md style rule (drop hype
   adjectives/adverbs; plain headers, no parentheticals).
+- 2026-06-20 : implemented 5.5 **Step 1** (remove kaikki from the ingestion code; hard
+  delete). Deleted `sources/kaikki.py` + `wiktionary.py` (`KaikkiEntry`, `WikiRecord`,
+  `WikiSense`, `load_wiktionary_jsonl`) and their tests; dropped `_enrich_concepts` /
+  `_enrich_lemmas` from `transform.py` so `transform(omw_entries)` is OMW-only and tags
+  every row `omw`; removed `fetch_kaikki` / `kaikki_path` / `UnknownKaikkiLanguageError` /
+  the kaikki URL+lang map from `acquire.py`; dropped `kaikki_entries` from `load_sources` /
+  `build_initial` in `pipeline.py`; cleaned both ingestion `__init__.py` exports; removed
+  the `fetch_kaikki` import+cells from `01_download.ipynb`. `SOURCE_KAIKKI` kept as a
+  documented legacy provenance value (no writer sets it; old Parquet still round-trips
+  through the codec). Rewrote the transform/pipeline/acquire tests to OMW-only and added a
+  standing guard `test_no_row_is_tagged_kaikki`. No kaikki-specific dependency existed
+  (stdlib `json`/`urllib`), so none was removed; `wn` stays for OMW. Verified: 146 passed,
+  ruff clean on changed paths, pyright 0 errors. Definitions now come from OMW glosses only
+  - the CILI English fallback is Step 2 (pending), so non-en gloss coverage is expected to
+  drop until then. Updated 05_ingestion.md (Step-1-done banner) and 05.5 (Step 1 status).

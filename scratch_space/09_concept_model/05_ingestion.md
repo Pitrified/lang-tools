@@ -7,15 +7,19 @@ superseded_in_part_by: 05.5_cleanup.md
 
 > **Partly superseded by [`05.5_cleanup.md`](05.5_cleanup.md) (2026-06-20).** The OMW
 > backbone, Parquet-as-source-of-truth, the `source` provenance seam, and the `_build.json`
-> manifest below all still stand. What is **being removed** is the kaikki/Wiktionary
-> enrichment leg (drop-kaikki decided 2026-06-18): treat every kaikki acquire/transform/
-> source-module reference here as superseded. `Concept.definitions` now come from OMW plus a
-> CILI English fallback only.
+> manifest below all still stand. The kaikki/Wiktionary enrichment leg has been **removed**
+> (drop-kaikki decided 2026-06-18): treat every kaikki acquire/transform/source-module
+> reference here as superseded. `Concept.definitions` currently come from **OMW glosses
+> only** (a CILI English fallback is the next step, not yet built).
 >
-> **Still TODO, tracked in 5.5:** delete `sources/kaikki.py` + `_enrich_concepts`, drop
-> kaikki from `acquire`/manifest/deps (Step 1), add the CILI English-gloss fallback
-> (Step 2), promote the permissive OMW fields - examples/lexfile/`tag_count`/relations -
-> (Step 4), then rebuild (Step 7). The `source` enum keeps `kaikki` as a legacy value only.
+> **5.5 Step 1 done (2026-06-20):** `sources/kaikki.py` + `wiktionary.py` deleted,
+> `_enrich_concepts`/`_enrich_lemmas` gone, `fetch_kaikki` removed from `acquire`, exports
+> and the download notebook cleaned, a `test_no_row_is_tagged_kaikki` guard added. The
+> `source` enum keeps `kaikki` as a legacy value only.
+>
+> **Still TODO, tracked in 5.5:** add the CILI English-gloss fallback (Step 2), promote the
+> permissive OMW fields - examples/lexfile/`tag_count`/relations - (Step 4), then rebuild
+> (Step 7).
 
 ## Overview
 

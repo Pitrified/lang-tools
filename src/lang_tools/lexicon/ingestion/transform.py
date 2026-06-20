@@ -1,20 +1,18 @@
-"""Transform stage: OMW backbone + kaikki enrichment -> source-tagged tables.
+"""Transform stage: OMW backbone -> source-tagged tables.
 
 This is the pure, deterministic core of the initial build. It takes the OMW
-synset entries (the concept backbone) and the kaikki enrichment entries and
-produces the five lexical tables, each row carrying a single lightweight
-provenance tag so a future re-ingestion merge can refresh machine rows while
-leaving hand-curated (`manual`) rows alone.
+synset entries (the concept backbone) and produces the five lexical tables, each
+row carrying a single lightweight provenance tag so a future re-ingestion merge
+can refresh machine rows while leaving hand-curated (`manual`) rows alone.
 
 Provenance policy (one tag per row, the seam the deferred merge needs):
 
-- Every concept/lemma/sense **originates** from OMW, so its default tag is
-  ``omw``.
-- kaikki is enrichment only: it never adds rows, it fills sparse
-  `Concept.definitions` and attaches `Lemma.examples`. Because kaikki text is
-  CC-BY-SA, any row that ends up carrying kaikki content is re-tagged ``kaikki``
-  (the conservative, license-isolating choice - it flags exactly the rows the
-  share-alike obligation can touch). Senses carry no text, so they stay ``omw``.
+- Every concept/lemma/sense **originates** from OMW, so its tag is ``omw``.
+- ``SOURCE_KAIKKI`` remains defined as a **legacy** provenance value: the kaikki
+  enrichment leg was removed in phase 5.5 (the sense-blind join produced the
+  `house` defect and was the only CC-BY-SA source), so no row this stage writes
+  is ever tagged ``kaikki``. The value is kept only so old Parquet that still
+  carries it round-trips through the codec.
 
 The optional LLM granularity-collapse pass is a deferred seam, not wired here:
 the deterministic OMW-as-is output is the default and the only thing this stage
@@ -31,10 +29,8 @@ from lang_tools.lexicon.ingestion.sources.omw import group_to_records
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from collections.abc import Mapping
 
     from lang_tools.lexicon.concept import Concept
-    from lang_tools.lexicon.ingestion.sources.kaikki import KaikkiEntry
     from lang_tools.lexicon.ingestion.sources.omw import SynsetEntry
     from lang_tools.lexicon.lemma import Lemma
     from lang_tools.lexicon.relations import ConceptRelation
@@ -43,6 +39,8 @@ if TYPE_CHECKING:
 
 #: Provenance tag values (the on-disk `codec.PROVENANCE_COL` column).
 SOURCE_OMW = "omw"
+#: Legacy provenance value: the kaikki enrichment leg was dropped in phase 5.5;
+#: no row written today carries it, but old Parquet may still reference it.
 SOURCE_KAIKKI = "kaikki"
 SOURCE_LLM = "llm"
 SOURCE_MANUAL = "manual"
@@ -75,95 +73,25 @@ class TaggedTables:
     concept_relation_sources: list[str] = field(default_factory=list)
 
 
-def _enrich_concepts(
-    concepts: list[Concept],
-    senses: list[Sense],
-    lemmas: list[Lemma],
-    enrichment: Mapping[tuple[str, str], KaikkiEntry],
-) -> list[str]:
-    """Fill sparse `Concept.definitions` from kaikki; return per-concept tags.
-
-    A concept's missing per-language gloss is filled from the kaikki entry of any
-    of that concept's lemmas in that language. A concept that gains any kaikki
-    gloss is tagged `SOURCE_KAIKKI`, else `SOURCE_OMW`.
-    """
-    lemma_by_id = {lemma.id: lemma for lemma in lemmas}
-    lemmas_by_concept: dict[str, list[Lemma]] = {}
-    for sense in senses:
-        lemma = lemma_by_id.get(sense.lemma_id)
-        if lemma is not None:
-            lemmas_by_concept.setdefault(sense.concept_id, []).append(lemma)
-
-    tags: list[str] = []
-    for concept in concepts:
-        touched = False
-        for lemma in lemmas_by_concept.get(concept.id, []):
-            if lemma.language in concept.definitions:
-                continue
-            entry = enrichment.get((lemma.normalized, lemma.language))
-            if entry is not None and entry.definitions:
-                concept.definitions[lemma.language] = entry.definitions[0]
-                touched = True
-        tags.append(SOURCE_KAIKKI if touched else SOURCE_OMW)
-    return tags
-
-
-def _enrich_lemmas(
-    lemmas: list[Lemma],
-    enrichment: Mapping[tuple[str, str], KaikkiEntry],
-) -> list[str]:
-    """Attach kaikki example sentences to lemmas; return per-lemma tags."""
-    tags: list[str] = []
-    for lemma in lemmas:
-        entry = enrichment.get((lemma.normalized, lemma.language))
-        if entry is not None and entry.examples:
-            lemma.examples = [*lemma.examples, *entry.examples]
-            if SOURCE_KAIKKI not in lemma.sources:
-                lemma.sources = [*lemma.sources, SOURCE_KAIKKI]
-            tags.append(SOURCE_KAIKKI)
-        else:
-            tags.append(SOURCE_OMW)
-    return tags
-
-
-def transform(
-    omw_entries: Iterable[SynsetEntry],
-    kaikki_entries: Iterable[KaikkiEntry] = (),
-) -> TaggedTables:
-    """Build the source-tagged lexical tables from OMW + kaikki inputs.
+def transform(omw_entries: Iterable[SynsetEntry]) -> TaggedTables:
+    """Build the source-tagged lexical tables from the OMW backbone.
 
     Args:
-        omw_entries: Flattened OMW synset entries (the concept backbone).
-        kaikki_entries: Optional enrichment entries; when empty the output is
-            pure deterministic OMW-as-is.
+        omw_entries: Flattened OMW synset entries (the concept backbone). This is
+            the sole source: definitions come from OMW glosses only (with a CILI
+            English fallback added in phase 5.5 Step 2), never from kaikki.
 
     Returns:
-        The populated `TaggedTables` (false-friend / concept-relation tables stay
-        empty - those arrive in phase 7).
+        The populated `TaggedTables`, every row tagged ``omw`` (false-friend /
+        concept-relation tables stay empty - those arrive in phase 7).
     """
     concepts, lemmas, senses = group_to_records(omw_entries)
 
-    # kaikki only ever joins onto an OMW lemma, so the usable key set is exactly
-    # the OMW lemma keys - bounded by the backbone, independent of dump size.
-    # Stream the entries and keep only matching ones, so peak memory is |needed|
-    # rather than the (multi-hundred-MB) kaikki dumps. `kaikki_entries` must reach
-    # here as a lazy iterator (see `pipeline.load_sources`); never list() it.
-    needed = {(lem.normalized, lem.language) for lem in lemmas}
-    enrichment: dict[tuple[str, str], KaikkiEntry] = {}
-    for entry in kaikki_entries:
-        key = entry.key
-        # First entry per key wins (kaikki dumps can repeat a headword).
-        if key in needed and key not in enrichment:
-            enrichment[key] = entry
-
-    concept_tags = _enrich_concepts(concepts, senses, lemmas, enrichment)
-    lemma_tags = _enrich_lemmas(lemmas, enrichment)
-
     return TaggedTables(
         lemmas=lemmas,
-        lemma_sources=lemma_tags,
+        lemma_sources=[SOURCE_OMW] * len(lemmas),
         concepts=concepts,
-        concept_sources=concept_tags,
+        concept_sources=[SOURCE_OMW] * len(concepts),
         senses=senses,
         sense_sources=[SOURCE_OMW] * len(senses),
     )

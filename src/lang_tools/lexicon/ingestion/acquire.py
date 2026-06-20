@@ -1,15 +1,16 @@
-"""Acquire stage: download raw OMW + kaikki into a reproducible local cache.
+"""Acquire stage: download the raw OMW backbone into a reproducible local cache.
 
-This is stage A of the initial build: pull the external sources into a gitignored
-``data/_raw/lexicon/`` cache and pin their exact versions in a ``_build.json``
+This is stage A of the initial build: pull OMW into a gitignored
+``data/_raw/lexicon/`` cache and pin its exact version in a ``_build.json``
 manifest. The cache is regenerable (not LFS, not committed); the manifest is the
 seam a future re-ingestion merge diffs against - it records *what upstream
 originally gave us* so the deterministic transform can rebuild the machine
 baseline without a committed snapshot.
 
-The actual network calls are isolated and lazy: `download_omw` wraps ``wn`` (the
-``ingest`` extra) and `fetch_kaikki` is a thin HTTP GET. The manifest read/write
-helpers are pure and unit-tested; the downloads are not exercised in tests.
+The network call is isolated and lazy: `download_omw` wraps ``wn`` (the
+``ingest`` extra). The manifest read/write helpers are pure and unit-tested; the
+download is not exercised in tests. The kaikki enrichment fetch was removed in
+phase 5.5 (OMW + a CILI English fallback cover the gloss need).
 """
 
 from __future__ import annotations
@@ -35,45 +36,10 @@ RAW_SUBDIR = "_raw/lexicon"
 #: Manifest filename written under ``<data_fol>/lexicon/`` (pins source versions).
 MANIFEST_NAME = "_build.json"
 
-#: kaikki.org per-language dump URL template (full Wiktionary extraction).
-KAIKKI_URL_TEMPLATE = (
-    "https://kaikki.org/dictionary/{name}/kaikki.org-dictionary-{name}.jsonl"
-)
-
-#: ISO 639-1 -> kaikki language folder name (its dumps are keyed by English name).
-_KAIKKI_LANG_NAMES: dict[str, str] = {
-    "en": "English",
-    "pt": "Portuguese",
-    "es": "Spanish",
-    "fr": "French",
-    "it": "Italian",
-}
-
 
 def raw_dir(data_fol: Path) -> Path:
     """Return the raw-cache directory under a data folder."""
     return data_fol / RAW_SUBDIR
-
-
-def kaikki_path(data_fol: Path, language: str) -> Path:
-    """Return the cached kaikki JSONL path for a language."""
-    return raw_dir(data_fol) / f"kaikki_{language}.jsonl"
-
-
-class UnknownKaikkiLanguageError(KeyError):
-    """Raised when no kaikki dump name is known for a language code."""
-
-    def __init__(self, language: str) -> None:
-        """Initialize with the unsupported language code.
-
-        Args:
-            language: The ISO 639-1 code with no known kaikki dump.
-        """
-        super().__init__(
-            f"No kaikki dump name known for {language!r} "
-            f"(known: {sorted(_KAIKKI_LANG_NAMES)}).",
-        )
-        self.language = language
 
 
 def download_omw(
@@ -88,8 +54,8 @@ def download_omw(
     specifier pulls every member wordnet regardless of `langs`, so we resolve
     each language to a single lexicon via `_omw_lexicon` and download exactly
     those. ``wn`` keeps its own data directory; this points it at the raw cache so
-    the download is reproducible alongside the kaikki dumps. Idempotent: ``wn``
-    skips a lexicon it already has.
+    the download is reproducible. Idempotent: ``wn`` skips a lexicon it already
+    has.
 
     Args:
         langs: ISO 639-1 codes to install.
@@ -124,47 +90,6 @@ def download_omw(
         "lexicons": specs,  # only what we asked for, not everything installed
         "wn_data_dir": str(wn_data),
     }
-
-
-def fetch_kaikki(
-    langs: Iterable[str],
-    *,
-    data_fol: Path,
-    overwrite: bool = False,
-) -> dict[str, Any]:
-    """Download the kaikki.org JSONL dumps for `langs` into the raw cache.
-
-    Args:
-        langs: ISO 639-1 codes to fetch.
-        data_fol: Project data folder; dumps land under the raw cache.
-        overwrite: Re-download even when a cached dump already exists.
-
-    Returns:
-        A manifest fragment mapping each language to its source URL and the
-        UTC date it was fetched.
-
-    Raises:
-        UnknownKaikkiLanguageError: When a language has no known kaikki dump.
-    """
-    import urllib.request  # noqa: PLC0415 - lazy; only the download path needs it
-
-    raw_dir(data_fol).mkdir(parents=True, exist_ok=True)
-    fetched: dict[str, Any] = {}
-    for language in langs:
-        if language not in _KAIKKI_LANG_NAMES:
-            raise UnknownKaikkiLanguageError(language)
-        dest = kaikki_path(data_fol, language)
-        url = KAIKKI_URL_TEMPLATE.format(name=_KAIKKI_LANG_NAMES[language])
-        if dest.exists() and not overwrite:
-            lg.info("kaikki {} already cached at {}", language, dest)
-        else:
-            lg.info("Fetching kaikki {} from {}", language, url)
-            urllib.request.urlretrieve(url, dest)  # noqa: S310 - fixed https kaikki host
-        fetched[language] = {
-            "url": url,
-            "fetched_at": datetime.now(UTC).date().isoformat(),
-        }
-    return fetched
 
 
 def manifest_path(data_fol: Path) -> Path:

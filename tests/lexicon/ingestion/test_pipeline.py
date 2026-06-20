@@ -1,8 +1,8 @@
 """Tests for the initial-build pipeline (`ingestion.pipeline`).
 
-Drives `build_initial` with in-memory OMW/kaikki inputs (no network, no ``wn``),
-then confirms the source-of-truth Parquet loads back through `LexiconStore` and
-that provenance is written on disk but dropped on model load.
+Drives `build_initial` with in-memory OMW inputs (no network, no ``wn``), then
+confirms the source-of-truth Parquet loads back through `LexiconStore` and that
+provenance is written on disk but dropped on model load.
 """
 
 from pathlib import Path
@@ -12,7 +12,6 @@ import pyarrow.parquet as pq
 from lang_tools.lexicon.codec import PROVENANCE_COL
 from lang_tools.lexicon.ingestion.acquire import read_manifest
 from lang_tools.lexicon.ingestion.pipeline import build_initial
-from lang_tools.lexicon.ingestion.sources.kaikki import KaikkiEntry
 from lang_tools.lexicon.ingestion.sources.omw import SynsetEntry
 from lang_tools.lexicon.lemma_store import LexiconStore
 
@@ -20,20 +19,14 @@ from lang_tools.lexicon.lemma_store import LexiconStore
 def _omw() -> list[SynsetEntry]:
     return [
         SynsetEntry("en", "en-1", "i001", "a building for living", ("house",), "n"),
-        SynsetEntry("pt", "pt-1", "i001", None, ("casa",), "n"),
+        SynsetEntry("pt", "pt-1", "i001", "uma moradia", ("casa",), "n"),
         SynsetEntry("en", "en-2", "i002", "a flow of water", ("river",), "n"),
         SynsetEntry("pt", "pt-2", "i002", "um curso de agua", ("rio",), "n"),
     ]
 
 
 def test_build_writes_parquet_manifest_and_loads_via_store(tmp_path: Path) -> None:
-    kaikki = [KaikkiEntry(text="casa", language="pt", definitions=["uma moradia"])]
-    summary = build_initial(
-        ["en", "pt"],
-        data_fol=tmp_path,
-        omw_entries=_omw(),
-        kaikki_entries=kaikki,
-    )
+    summary = build_initial(["en", "pt"], data_fol=tmp_path, omw_entries=_omw())
 
     assert summary.counts == {
         "lemmas": 4,
@@ -54,7 +47,7 @@ def test_build_writes_parquet_manifest_and_loads_via_store(tmp_path: Path) -> No
     assert len(concepts) == 1
     casa_lemmas = store.lemmas_for_concept(concepts[0].id, language="pt")
     assert {lem.text for lem in casa_lemmas} == {"casa"}
-    # Gloss coverage came from kaikki enrichment for pt.
+    # Gloss coverage comes from the OMW backbone, per language.
     assert concepts[0].definitions["pt"] == "uma moradia"
 
 
@@ -63,7 +56,6 @@ def test_manifest_pins_languages_and_counts(tmp_path: Path) -> None:
         ["en", "pt"],
         data_fol=tmp_path,
         omw_entries=_omw(),
-        kaikki_entries=[],
         extra_manifest={"wn_version": "0.9.5", "omw_version": "omw:1.4"},
     )
     manifest = read_manifest(tmp_path)
@@ -74,18 +66,12 @@ def test_manifest_pins_languages_and_counts(tmp_path: Path) -> None:
     assert "built_at" in manifest
 
 
-def test_provenance_written_on_disk_but_dropped_on_load(tmp_path: Path) -> None:
-    build_initial(
-        ["en", "pt"],
-        data_fol=tmp_path,
-        omw_entries=_omw(),
-        kaikki_entries=[KaikkiEntry(text="casa", language="pt", definitions=["m"])],
-    )
-    # The Parquet carries the source column...
+def test_provenance_is_omw_only_on_disk_and_dropped_on_load(tmp_path: Path) -> None:
+    build_initial(["en", "pt"], data_fol=tmp_path, omw_entries=_omw())
+    # The Parquet carries the source column, every row tagged omw (no kaikki).
     table = pq.read_table(tmp_path / "lexicon" / "concepts.parquet")
     assert PROVENANCE_COL in table.column_names
-    sources = set(table.column(PROVENANCE_COL).to_pylist())
-    assert sources == {"omw", "kaikki"}
+    assert set(table.column(PROVENANCE_COL).to_pylist()) == {"omw"}
 
     # ...but the loaded model never sees it.
     store = LexiconStore.from_data_fol(tmp_path)
@@ -99,7 +85,6 @@ def test_sample_carved_to_separate_corpus(tmp_path: Path) -> None:
         ["en", "pt"],
         data_fol=tmp_path,
         omw_entries=_omw(),
-        kaikki_entries=[],
         sample_data_fol=sample_fol,
         max_sample_concepts=1,
     )
