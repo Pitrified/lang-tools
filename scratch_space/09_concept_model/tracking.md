@@ -674,3 +674,62 @@ Append-only. Newest at the bottom.
   assumed. Findings rewrite Step 4 from "promote these fields" to "promote these fields, at
   this granularity, with this propagation rule" and feed phases 6/7. Added the 5.54 row to the
   phase table and a banner on 5.5 Step 4 linking the sub-plan. No code yet.
+- 2026-06-21 : implemented phase 5.54 **Stage 0** (dataset staging). New
+  `src/lang_tools/lexicon/ingestion/staging/` subpackage, one adapter per candidate
+  dataset following the `sources` discipline (network / optional-dep work isolated,
+  pure cores unit-tested): `base.py` (staging paths, the `StagedDataset` record, the
+  `_staging.json` manifest read/write, a zstd Parquet writer, a known-license
+  registry), `tatoeba.py` (`download_tatoeba_sentences` HTTPS fetch + `parse_tatoeba_tsv`
+  + the sense-blind, word-boundary, accent-insensitive, capped `build_lemma_sentence_index`),
+  `frequency.py` (`stage_frequency_list` via lazy `wordfreq` -> `(word, rank, zipf)`,
+  `EnrichDependencyMissingError`), `wikidata.py` (`probe_wikidata_lexemes` CC0
+  count+sample with pure SPARQL builders), `cefr.py` (`stage_cefr_list` parsing a
+  user-provided graded list for validation only - no baked download), and `__init__.py`
+  (the staging contract + registry, exports, `omw_cili_staged_records`). Added `wordfreq`
+  as a new lazy `enrich` optional extra in `pyproject.toml`. Lean
+  `notebooks/lexicon_enrich/stage0.ipynb` wires the calls and writes the manifest; logic
+  stays in the package. Tests (+21, under `tests/lexicon/ingestion/staging/`): base
+  paths/manifest/parquet round-trip, Tatoeba parse + index (token-not-substring, multiword
+  contiguity, accent-insensitive, cap), Wikidata query builders + result flatteners + lang
+  map, CEFR parse + CSV->parquet stage, frequency dependency guard (happy path gated on the
+  extra). Verified: 172 passed / 1 skipped, ruff clean (the only repo ruff errors are
+  pre-existing in the 05.4 scratch notebook), pyright 0 errors. Docs: a "Stage 0 dataset
+  staging" subsection in `lexicon.md`. Updated 05.54 (Stage-0 code-landed note). Network /
+  `wordfreq` calls not run here; the staging notebook run is the next step.
+- 2026-06-21 : phase 5.54 Stage-0 follow-ups from the first staging run. (1) **Tatoeba
+  index perf** - the first `build_lemma_sentence_index` was O(sentences * forms) (millions
+  x hundreds of thousands) and never finished after 6 min; rewrote it to a token-driven
+  O(sentences * tokens) scan (single forms via a token->form dict, multiword via bounded
+  n-grams up to the longest indexed form), with per-sentence dedupe. (2) **Wikidata** - the
+  public SPARQL endpoint 429s (~1 req/min, a global count is the culprit), so it is not
+  viable for a real pull; added the **CC0 lexeme dump** path (`WIKIDATA_LEXEME_DUMP_URL`,
+  ~590 MB `latest-lexemes.json.gz`): `stream_lexeme_dump` + pure `parse_lexeme_dump_records`
+  + `stage_wikidata_lexeme_dump` (per-language tables, exact counts, streamed). Kept
+  `probe_wikidata_lexemes` as a gentle fallback - backs off on 429 honouring `Retry-After`,
+  count off by default. (3) **CEFR** - confirmed no clean permissive multilingual list:
+  Kelly (en/it) is the real download but `.xls` + CC-BY-NC-SA, pt/es/fr have none (estimate
+  in phase 6), Oxford/EVP guidance-only. Encoded `KNOWN_CEFR_SOURCES` + `CefrSource` and a
+  delimited-URL `download_cefr_list`; acceptable since the list is validation-only and never
+  shipped. URLs verified via web (Wikimedia dumps index; the Leeds Kelly mirror). Tests +9
+  (Tatoeba dedupe, Wikidata dump parser / `_first_lemma` / unknown-language). Verified: 176
+  passed / 1 skipped, ruff clean, pyright 0 errors. Updated the stage0 notebook (dump path +
+  CEFR registry cells), `lexicon.md`, and 05.54 (Stage-0 source assessment). Network /
+  `wordfreq` / dump downloads still not run here.
+- 2026-06-21 : made Stage-0 fully automatic and ran the small downloads. Added
+  `download_lexeme_dump` (streams the ~590 MB CC0 dump in 8 MiB chunks, creates the
+  dir - the cause of the manual `curl` failure - skips if present) and
+  `download_cefr_source` (downloads + parses a registered CEFR source by name).
+  Added `xlrd` to the `enrich` extra and a `read_xls_cefr_rows` reader so the Kelly
+  `.xls` lists parse directly (no manual conversion). Verified the real Kelly files
+  and found their per-language sheets differ: **en** is `ID/Word/Part of Speech/CEFR/
+  Points` (levels wrapped in curly quotes `“A1”`), **it** is `Lemma/Pos/Points` with
+  the CEFR band in `Points`; fixed the registry columns and added curly-quote level
+  cleaning. Ran the staging for real into `data/_raw/lexicon/staging/`: frequency
+  (wordfreq, 50k rows x en/pt/es/fr/it), CEFR (Kelly en 7549 rows clean A1-C2; it
+  6865 rows, ~1516 with a blank band - a real Kelly-it quirk), and wrote
+  `_staging.json`. The Wikidata 590 MB dump and Tatoeba per-language sentence
+  downloads are left to a notebook run (too large to pull here). The stage0 notebook
+  now downloads + stages everything automatically (prereq `uv sync --extra enrich
+  --extra ingest --extra store`). Tests +3 (curly-quote levels, unknown /
+  undownloadable CEFR source); the frequency happy-path test now runs (wordfreq
+  installed). Verified: 178 passed / 1 skipped, ruff clean, pyright 0 errors.

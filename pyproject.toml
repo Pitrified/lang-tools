@@ -31,6 +31,13 @@ store = [
 ingest = [
     "wn>=0.9.5",
 ]
+# Phase-5.54 Stage-0 staging extras, all optional and lazily imported:
+# `wordfreq` for the frequency lists, `xlrd` to read the legacy `.xls` Kelly CEFR
+# lists (`ingestion.staging.frequency` / `.cefr`).
+enrich = [
+    "wordfreq>=3.0.0",
+    "xlrd>=2.0.1",
+]
 
 [build-system]
 requires = ["hatchling"]

@@ -254,3 +254,43 @@ always drops it on load so it never reaches the thin pydantic models (the same
 trick as the computed `id`). It is the one lightweight seam the deferred
 re-ingestion merge needs - refresh machine rows, preserve hand-curated `manual`
 ones - and it keeps the runtime store (which loads through the codec) untouched.
+
+### Stage 0 dataset staging (phase 5.54)
+
+Separate from the build, `ingestion.staging` pulls the enrichment-candidate
+datasets into a read-only cache under `data/_raw/lexicon/staging/` so the
+phase-5.54 exploration notebooks read clean inputs. Staging never writes the
+source-of-truth Parquet; it only fills the gitignored cache and a `_staging.json`
+manifest that records each dataset's source, version, and **license** (so the
+phase-10 posture is auditable from the cache alone). Each adapter follows the
+`sources` discipline: network and optional-dependency work is isolated in the
+impure functions, while the parsers, query builders, and the lemma index are pure
+and unit-tested.
+
+- **`staging.tatoeba`** - `download_tatoeba_sentences` fetches the per-language
+  sentence export (HTTPS, isolated); `parse_tatoeba_tsv` and
+  `build_lemma_sentence_index` are pure. The index is a **sense-blind** lemma-only
+  join (word-boundary, accent-insensitive, capped per lemma), so it is for
+  examples only - never glosses.
+- **`staging.frequency`** - `stage_frequency_list` writes per-language
+  `(word, rank, zipf)` via `wordfreq` (the lazy `enrich` extra; absence raises
+  `EnrichDependencyMissingError`). This is the language-level frequency signal,
+  distinct from concept commonness.
+- **`staging.wikidata`** - the public SPARQL endpoint is throttled (a global count
+  returns HTTP 429), so the viable source is the **CC0 lexeme dump**:
+  `download_lexeme_dump` streams the ~590 MB `latest-lexemes.json.gz` (creating its
+  dir, skipping if present), then `stream_lexeme_dump` / `parse_lexeme_dump_records`
+  / `stage_wikidata_lexeme_dump` write per-language tables with exact counts.
+  `probe_wikidata_lexemes` stays as a gentle SPARQL fallback (backs off on 429,
+  count off by default).
+- **`staging.cefr`** - graded lists for **validation only** (never merged, so even
+  share-alike / non-commercial is fine). `download_cefr_source` fetches and parses a
+  registered source by name; the Kelly en/it `.xls` lists are read via `xlrd` (their
+  per-language sheets differ - en is `Word`/`CEFR`, it is `Lemma`/`Points`).
+  `KNOWN_CEFR_SOURCES` records each candidate (Kelly en/it CC-BY-NC-SA, Oxford
+  guidance-only, the pt/es/fr gap); `download_cefr_list` handles any delimited
+  (CSV/TSV) URL and `stage_cefr_list` a local file.
+
+`omw_cili_staged_records` records the OMW backbone and CILI resource (already
+staged by `acquire.download_omw`) in the same manifest. The thin
+`notebooks/lexicon_enrich/stage0.ipynb` wires the calls and writes the manifest.
