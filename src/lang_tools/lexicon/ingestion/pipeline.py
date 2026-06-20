@@ -26,12 +26,14 @@ from lang_tools.lexicon.codec import _dump_table
 from lang_tools.lexicon.ingestion.acquire import write_manifest
 from lang_tools.lexicon.ingestion.sample import DEFAULT_SAMPLE_CONCEPTS
 from lang_tools.lexicon.ingestion.sample import carve_sample
+from lang_tools.lexicon.ingestion.sources.cili import load_cili_glosses
 from lang_tools.lexicon.ingestion.sources.omw import wn_synset_entries
 from lang_tools.lexicon.ingestion.transform import TaggedTables
 from lang_tools.lexicon.ingestion.transform import transform
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from collections.abc import Mapping
     from pathlib import Path
 
     from lang_tools.lexicon.ingestion.sources.omw import SynsetEntry
@@ -135,22 +137,27 @@ def load_sources(
     langs: Iterable[str],
     *,
     data_fol: Path,
-) -> list[SynsetEntry]:
-    """Read the OMW backbone from the raw cache into source records.
+) -> tuple[list[SynsetEntry], dict[str, str]]:
+    """Read the OMW backbone and CILI gloss map from the raw cache.
 
-    OMW is the sole source (the kaikki enrichment leg was removed in phase 5.5).
-    The backbone is materialized: it is bounded and needed in full to build the
-    concept/lemma/sense tables.
+    OMW is the backbone (it creates the rows); CILI is an annotator keyed by ILI
+    id (the permissive English-gloss fallback). Both read the same ``wn`` cache;
+    each is loaded by its own single-responsibility adapter (phase 5.5 Step 3).
+    The backbone is materialized (bounded, needed in full to build the tables);
+    the CILI map is a small ``{ili_id: gloss}`` dict.
 
     Args:
         langs: ISO 639-1 codes to read.
         data_fol: Project data folder; the raw cache lives under it.
 
     Returns:
-        The OMW synset entries for the requested languages.
+        The OMW synset entries and the CILI gloss map for the requested languages.
     """
     langs = list(langs)
-    return list(wn_synset_entries(langs, data_dir=str(_wn_data_dir(data_fol))))
+    wn_dir = str(_wn_data_dir(data_fol))
+    omw_entries = list(wn_synset_entries(langs, data_dir=wn_dir))
+    cili_glosses = load_cili_glosses(data_dir=wn_dir)
+    return omw_entries, cili_glosses
 
 
 def _wn_data_dir(data_fol: Path) -> Path:
@@ -165,6 +172,7 @@ def build_initial(
     *,
     data_fol: Path,
     omw_entries: Iterable[SynsetEntry] | None = None,
+    cili_glosses: Mapping[str, str] | None = None,
     sample_data_fol: Path | None = None,
     max_sample_concepts: int = DEFAULT_SAMPLE_CONCEPTS,
     extra_manifest: dict | None = None,
@@ -175,8 +183,13 @@ def build_initial(
         langs: ISO 639-1 codes being built.
         data_fol: Project data folder; the source-of-truth Parquet is written
             under ``<data_fol>/lexicon/``.
-        omw_entries: OMW synset entries; when ``None`` they are read from the raw
-            cache under `data_fol` (requires the ``ingest`` extra).
+        omw_entries: OMW synset entries; when ``None`` they (and `cili_glosses`)
+            are read from the raw cache under `data_fol` (requires the ``ingest``
+            extra).
+        cili_glosses: ``{ili_id: english_gloss}`` map for the English-gloss
+            fallback; when ``None`` and `omw_entries` is also ``None`` it is read
+            from the cache. Pass it explicitly (with `omw_entries`) to exercise
+            the fallback from in-memory inputs.
         sample_data_fol: When given, the carved sample slice is written there as
             its own Parquet corpus (e.g. a tmp dir the test/seed consumes).
         max_sample_concepts: Concept cap for the carved sample.
@@ -188,9 +201,11 @@ def build_initial(
     """
     langs = list(langs)
     if omw_entries is None:
-        omw_entries = load_sources(langs, data_fol=data_fol)
+        omw_entries, loaded_cili = load_sources(langs, data_fol=data_fol)
+        if cili_glosses is None:
+            cili_glosses = loaded_cili
 
-    tables = transform(omw_entries)
+    tables = transform(omw_entries, cili_glosses)
     counts = _write_tables(tables, data_fol)
 
     sample = carve_sample(tables, max_concepts=max_sample_concepts)

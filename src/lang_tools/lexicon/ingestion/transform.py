@@ -34,6 +34,7 @@ from lang_tools.lexicon.ingestion.sources.omw import group_to_records
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from collections.abc import Mapping
 
     from lang_tools.lexicon.concept import Concept
     from lang_tools.lexicon.ingestion.sources.omw import SynsetEntry
@@ -79,20 +80,29 @@ class TaggedTables:
     concept_relation_sources: list[str] = field(default_factory=list)
 
 
-def transform(omw_entries: Iterable[SynsetEntry]) -> TaggedTables:
+def transform(
+    omw_entries: Iterable[SynsetEntry],
+    cili_glosses: Mapping[str, str] | None = None,
+) -> TaggedTables:
     """Build the source-tagged lexical tables from the OMW backbone.
 
     Args:
-        omw_entries: Flattened OMW synset entries (the concept backbone). This is
-            the sole source: definitions come from OMW glosses only (with a CILI
-            English fallback added in phase 5.5 Step 2), never from kaikki.
+        omw_entries: Flattened OMW synset entries (the concept backbone). OMW is
+            the sole source of rows: definitions come from OMW glosses only,
+            never from kaikki.
+        cili_glosses: Optional ``{ili_id: english_gloss}`` map from the `cili`
+            loader, used only to fill a concept's missing English gloss (tagged
+            ``cili``); ``None`` disables the fallback.
 
     Returns:
         The populated `TaggedTables`. Lemmas/senses are tagged ``omw``; concepts
         are ``omw`` or ``cili`` per `group_to_records` (false-friend /
         concept-relation tables stay empty - those arrive in phase 7).
     """
-    concepts, lemmas, senses, concept_sources = group_to_records(omw_entries)
+    concepts, lemmas, senses, concept_sources = group_to_records(
+        omw_entries,
+        cili_glosses,
+    )
 
     return TaggedTables(
         lemmas=lemmas,

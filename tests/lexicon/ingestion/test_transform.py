@@ -40,15 +40,10 @@ def test_no_row_is_tagged_kaikki() -> None:
 
 def test_cili_fallback_tags_concept_cili() -> None:
     # An ILI-backed concept with no English OMW gloss gets its English gloss from
-    # the CILI fallback, and that concept row is tagged cili; lemmas/senses stay
+    # the CILI gloss map, and that concept row is tagged cili; lemmas/senses stay
     # omw (CILI only touches the concept gloss).
-    entries = [
-        SynsetEntry(
-            "pt", "pt-1", "i9", "uma moradia", ("casa",), "n",
-            ili_definition="a building for living",
-        ),
-    ]
-    tables = transform(entries)
+    entries = [SynsetEntry("pt", "pt-1", "i9", "uma moradia", ("casa",), "n")]
+    tables = transform(entries, {"i9": "a building for living"})
     assert tables.concepts[0].definitions["en"] == "a building for living"
     assert tables.concept_sources == [SOURCE_CILI]
     assert set(tables.lemma_sources) == {SOURCE_OMW}

@@ -51,16 +51,14 @@ def test_shared_ili_groups_into_one_cross_lingual_concept() -> None:
 
 
 def test_cili_fills_missing_english_gloss_and_tags_cili() -> None:
-    # An ILI-backed concept with no English OMW gloss: the CILI English gloss
-    # (carried on `ili_definition`) fills the en slot and the concept is tagged
-    # cili. Non-English OMW glosses are untouched.
-    entries = [
-        SynsetEntry(
-            "pt", "pt-1", "i7", "uma moradia", ("casa",), "n",
-            ili_definition="a building for living",
-        ),
-    ]
-    concepts, _, _, sources = group_to_records(entries)
+    # An ILI-backed concept with no English OMW gloss: the CILI gloss map (keyed
+    # by ILI id) fills the en slot and the concept is tagged cili. Non-English
+    # OMW glosses are untouched.
+    entries = [SynsetEntry("pt", "pt-1", "i7", "uma moradia", ("casa",), "n")]
+    concepts, _, _, sources = group_to_records(
+        entries,
+        {"i7": "a building for living"},
+    )
     assert concepts[0].definitions == {
         "pt": "uma moradia",
         "en": "a building for living",
@@ -71,14 +69,26 @@ def test_cili_fills_missing_english_gloss_and_tags_cili() -> None:
 def test_cili_not_used_when_english_gloss_present() -> None:
     # OMW already has the English gloss, so the ILI fallback is ignored and the
     # concept stays tagged omw.
-    entries = [
-        SynsetEntry(
-            "en", "en-1", "i7", "a building for living", ("house",), "n",
-            ili_definition="ignored ili gloss",
-        ),
-    ]
+    entries = [SynsetEntry("en", "en-1", "i7", "a dwelling", ("house",), "n")]
+    concepts, _, _, sources = group_to_records(entries, {"i7": "ignored"})
+    assert concepts[0].definitions == {"en": "a dwelling"}
+    assert sources == [SOURCE_OMW]
+
+
+def test_cili_skipped_for_ili_orphan() -> None:
+    # No ILI -> grouped by synset id -> the CILI map cannot key it, so the concept
+    # stays omw with no English gloss even when the map is non-empty.
+    entries = [SynsetEntry("pt", "pt-1", None, "uma moradia", ("casa",), "n")]
+    concepts, _, _, sources = group_to_records(entries, {"i7": "a building for living"})
+    assert "en" not in concepts[0].definitions
+    assert sources == [SOURCE_OMW]
+
+
+def test_no_cili_map_disables_fallback() -> None:
+    # Default (no map): a missing English gloss stays missing and tagged omw.
+    entries = [SynsetEntry("pt", "pt-1", "i7", "uma moradia", ("casa",), "n")]
     concepts, _, _, sources = group_to_records(entries)
-    assert concepts[0].definitions == {"en": "a building for living"}
+    assert "en" not in concepts[0].definitions
     assert sources == [SOURCE_OMW]
 
 

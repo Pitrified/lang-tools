@@ -24,6 +24,13 @@ superseded_in_part_by: 05.5_cleanup.md
 > `omw-en` has ~100% gloss coverage, so the English gloss is already present. It is kept as
 > a documented dormant safety net for a future English-excluded build.
 >
+> **5.5 Step 3 done (2026-06-20):** one isolated loader per dataset. CILI moved to its own
+> `sources/cili.py` (`load_cili_glosses`), `SynsetEntry` is pure OMW again, and the CILI
+> gloss map is threaded as an explicit argument (`load_sources` -> `transform` ->
+> `group_to_records`) rather than riding on OMW's records. The loader contract is documented
+> in `sources/__init__.py`; Tatoeba/Wikidata stay deferred. So the `Module layout` /
+> `sources/` shape below is now `omw.py` (backbone) + `cili.py` (annotator), not `kaikki.py`.
+>
 > **Still TODO, tracked in 5.5:** promote the permissive OMW fields -
 > examples/lexfile/`tag_count`/relations - (Step 4), then rebuild (Step 7).
 

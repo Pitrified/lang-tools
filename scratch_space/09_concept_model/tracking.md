@@ -59,7 +59,7 @@ split as the design firms up.
 | 5.2 | Real-run perf follow-ups      | [`05.2_perf_followups.md`](05.2_perf_followups.md)       | draft  | Non-blocking observations from the successful en/pt run: considerable slug collisions (-> phase 8 dedup), >5 min store load (cache / avoid `get_all_*`), borderline memory (per-language build restructure). |
 | 5.3 | Load + memory profiling (gate) | [`05.3_load_profiling.md`](05.3_load_profiling.md)      | done | Profiled (>5 min was swap thrash, not CPU; root cause = pydantic double-materialization) and **fixed**: stream lean Parquet rows into a persisted signature-keyed `_store.sqlite`; seed corpus split to `data/bootstrap/lexicon/`. Cold load 16 s / 593 MB (was 1362 MB), warm cache hit ~1 ms. |
 | 5.4 | Preliminary data quality checks | [`05.4_data_quality.md`](05.4_data_quality.md)         | draft  | Read-only quality pass over the first build: count/emptiness/cross-lingual-balance/trust checks as bounded DuckDB queries; diagnose the `house` "definition = lemma" defect (sparse OMW glosses + sense-blind kaikki join); full OMW/kaikki metadata catalog (kept/dropped/promote); other datasets + licensing. Routes findings to phases 6/7/8/10. md-only. |
-| 5.5 | Cleanup: re-cut around OMW backbone | [`05.5_cleanup.md`](05.5_cleanup.md)            | in progress | Execute 5.4's drop-kaikki decision: hard-delete the kaikki enrichment path, anchor on the concept/gloss/sense triple (OMW + CILI English fallback), one isolated loader per dataset, promote permissive OMW fields (examples/lexfile/`tag_count`/relations) for phases 6/7, LLM cleanup pass, regression-gated rebuild with no CC-BY-SA. Reopens phase 5's enrichment leg. **Steps 1-2 done** (kaikki removed; CILI English fallback added); Steps 3-7 pending. |
+| 5.5 | Cleanup: re-cut around OMW backbone | [`05.5_cleanup.md`](05.5_cleanup.md)            | in progress | Execute 5.4's drop-kaikki decision: hard-delete the kaikki enrichment path, anchor on the concept/gloss/sense triple (OMW + CILI English fallback), one isolated loader per dataset, promote permissive OMW fields (examples/lexfile/`tag_count`/relations) for phases 6/7, LLM cleanup pass, regression-gated rebuild with no CC-BY-SA. Reopens phase 5's enrichment leg. **Steps 1-3 done** (kaikki removed; CILI English fallback; one isolated loader per dataset); Steps 4-7 pending. |
 | 6  | Frequency & complexity        | [`06_frequency_complexity.md`](06_frequency_complexity.md) | draft  | Per-sense token/sense frequency (`wordfreq`, sense-tag weights) and CEFR complexity (graded lists / estimated).        |
 | 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | draft  | Ingest hypernymy/hyponymy and antonymy as typed edges from OMW.                                                        |
 | 8  | Maintenance (LLM-based)       | [`08_maintenance.md`](08_maintenance.md)                 | draft  | LLM-assisted upkeep: new lemma->concept mapping, gloss enrichment, slug dedup, validation against OMW.                 |
@@ -647,3 +647,15 @@ Append-only. Newest at the bottom.
   English-excluded build, rather than removing it. Annotated the fallback in `sources/omw.py`
   and updated 05.5 / 05_ingestion / metadata_catalog with the finding. Added loguru progress
   logs to both notebooks plus a provenance-check cell (asserts no kaikki).
+- 2026-06-20 : implemented 5.5 **Step 3** (one isolated loader per dataset). Pulled CILI out
+  of the OMW adapter into its own `sources/cili.py` (`load_cili_glosses` -> `{ili_id: gloss}`,
+  streaming `find_ilis`), so `SynsetEntry` is pure OMW again - dropped the `ili_definition`
+  field it carried in Step 2 (OMW's record holding another source's data). The CILI gloss map
+  is now an explicit input threaded through: `load_sources` returns `(omw_entries,
+  cili_glosses)`; `build_initial`/`transform` take a `cili_glosses` arg; `group_to_records`
+  applies the fallback keyed by ILI id. Wrote the loader contract into `sources/__init__.py`
+  (create-rows vs annotate-by-declared-key; sense-aware-or-it-doesn't-ship; per-row source +
+  license) with the adapter registry (omw backbone, cili annotator, Tatoeba/Wikidata
+  deferred, kaikki removed). Tests now exercise the fallback via the gloss-map param (added
+  ili-orphan and no-map cases). Verified: 151 passed, ruff clean, pyright 0 errors. Updated
+  05.5 (Step 3 status) and 05_ingestion (Step-3 banner). Steps 4-7 remain.
