@@ -60,6 +60,7 @@ split as the design firms up.
 | 5.3 | Load + memory profiling (gate) | [`05.3_load_profiling.md`](05.3_load_profiling.md)      | done | Profiled (>5 min was swap thrash, not CPU; root cause = pydantic double-materialization) and **fixed**: stream lean Parquet rows into a persisted signature-keyed `_store.sqlite`; seed corpus split to `data/bootstrap/lexicon/`. Cold load 16 s / 593 MB (was 1362 MB), warm cache hit ~1 ms. |
 | 5.4 | Preliminary data quality checks | [`05.4_data_quality.md`](05.4_data_quality.md)         | draft  | Read-only quality pass over the first build: count/emptiness/cross-lingual-balance/trust checks as bounded DuckDB queries; diagnose the `house` "definition = lemma" defect (sparse OMW glosses + sense-blind kaikki join); full OMW/kaikki metadata catalog (kept/dropped/promote); other datasets + licensing. Routes findings to phases 6/7/8/10. md-only. |
 | 5.5 | Cleanup: re-cut around OMW backbone | [`05.5_cleanup.md`](05.5_cleanup.md)            | in progress | Execute 5.4's drop-kaikki decision: hard-delete the kaikki enrichment path, anchor on the concept/gloss/sense triple (OMW + CILI English fallback), one isolated loader per dataset, promote permissive OMW fields (examples/lexfile/`tag_count`/relations) for phases 6/7, LLM cleanup pass, regression-gated rebuild with no CC-BY-SA. Reopens phase 5's enrichment leg. **Steps 1-3 done** (kaikki removed; CILI English fallback; one isolated loader per dataset); Steps 4-7 pending. |
+| 5.54 | Data enrichment (explore first) | [`05.54_data_enrich/05.54_data_enrich.md`](05.54_data_enrich/05.54_data_enrich.md) | draft | Sub-plan expanding 5.5 Step 4: stage the candidate datasets (OMW unused fields, CILI, Tatoeba, Wikidata, frequency list, CEFR), then a data-exploration pass over five topics (examples, categories/POS, SemCor + cross-language frequency propagation, relations, complexity) so each enrichment decision is grounded in numbers. Tests the concept-level-vs-language-level propagation assumption rather than assuming it. Findings rewrite Step 4 and feed phases 6/7. |
 | 6  | Frequency & complexity        | [`06_frequency_complexity.md`](06_frequency_complexity.md) | draft  | Per-sense token/sense frequency (`wordfreq`, sense-tag weights) and CEFR complexity (graded lists / estimated).        |
 | 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | draft  | Ingest hypernymy/hyponymy and antonymy as typed edges from OMW.                                                        |
 | 8  | Maintenance (LLM-based)       | [`08_maintenance.md`](08_maintenance.md)                 | draft  | LLM-assisted upkeep: new lemma->concept mapping, gloss enrichment, slug dedup, validation against OMW.                 |
@@ -659,3 +660,17 @@ Append-only. Newest at the bottom.
   deferred, kaikki removed). Tests now exercise the fallback via the gloss-map param (added
   ili-orphan and no-map cases). Verified: 151 passed, ruff clean, pyright 0 errors. Updated
   05.5 (Step 3 status) and 05_ingestion (Step-3 banner). Steps 4-7 remain.
+- 2026-06-21 : drafted phase 5.54 (`05.54_data_enrich/05.54_data_enrich.md`, status draft) -
+  a sub-plan that expands 5.5 Step 4, which was under-specified (it named fields to promote
+  and asserted their granularity without data). Reframed it as explore-first: a Stage-0 that
+  stages every candidate dataset (OMW unused fields, CILI, Tatoeba, Wikidata slice, a
+  per-language frequency list, a CEFR/graded list for validation - each with manifest +
+  license), then a data-exploration pass over the five topics from the brief (examples,
+  categories/POS, SemCor + cross-language frequency propagation, relations, complexity). Each
+  topic is written as what-we-want / candidate-datasets / open-questions / exploration /
+  decision-it-unlocks. The cross-cutting axis is concept-level (propagates across languages)
+  vs language-level (per-lemma); the propagation hypothesis (common concept = common word
+  everywhere; obscure concept = hard word everywhere) is to be tested against real data, not
+  assumed. Findings rewrite Step 4 from "promote these fields" to "promote these fields, at
+  this granularity, with this propagation rule" and feed phases 6/7. Added the 5.54 row to the
+  phase table and a banner on 5.5 Step 4 linking the sub-plan. No code yet.
