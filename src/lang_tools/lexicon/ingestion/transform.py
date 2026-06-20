@@ -7,7 +7,11 @@ can refresh machine rows while leaving hand-curated (`manual`) rows alone.
 
 Provenance policy (one tag per row, the seam the deferred merge needs):
 
-- Every concept/lemma/sense **originates** from OMW, so its tag is ``omw``.
+- Every lemma/sense **originates** from OMW, so its tag is ``omw``. A concept is
+  ``omw`` too, unless its English gloss came from the CILI/ILI fallback (phase
+  5.5 Step 2), in which case it is ``cili`` - both permissive. The per-concept
+  tags are decided in `group_to_records` (which owns the fallback) and threaded
+  through here.
 - ``SOURCE_KAIKKI`` remains defined as a **legacy** provenance value: the kaikki
   enrichment leg was removed in phase 5.5 (the sense-blind join produced the
   `house` defect and was the only CC-BY-SA source), so no row this stage writes
@@ -25,6 +29,7 @@ from dataclasses import dataclass
 from dataclasses import field
 from typing import TYPE_CHECKING
 
+from lang_tools.lexicon.ingestion.sources.omw import SOURCE_OMW
 from lang_tools.lexicon.ingestion.sources.omw import group_to_records
 
 if TYPE_CHECKING:
@@ -37,9 +42,10 @@ if TYPE_CHECKING:
     from lang_tools.lexicon.relations import FalseFriendRelation
     from lang_tools.lexicon.sense import Sense
 
-#: Provenance tag values (the on-disk `codec.PROVENANCE_COL` column).
-SOURCE_OMW = "omw"
-#: Legacy provenance value: the kaikki enrichment leg was dropped in phase 5.5;
+#: Provenance tag values (the on-disk `codec.PROVENANCE_COL` column). ``SOURCE_OMW``
+#: and ``SOURCE_CILI`` are owned by the OMW adapter (it emits those rows);
+#: ``SOURCE_OMW`` is re-exported here so callers have one provenance vocabulary.
+#: Legacy ``SOURCE_KAIKKI``: the kaikki enrichment leg was dropped in phase 5.5;
 #: no row written today carries it, but old Parquet may still reference it.
 SOURCE_KAIKKI = "kaikki"
 SOURCE_LLM = "llm"
@@ -82,16 +88,17 @@ def transform(omw_entries: Iterable[SynsetEntry]) -> TaggedTables:
             English fallback added in phase 5.5 Step 2), never from kaikki.
 
     Returns:
-        The populated `TaggedTables`, every row tagged ``omw`` (false-friend /
+        The populated `TaggedTables`. Lemmas/senses are tagged ``omw``; concepts
+        are ``omw`` or ``cili`` per `group_to_records` (false-friend /
         concept-relation tables stay empty - those arrive in phase 7).
     """
-    concepts, lemmas, senses = group_to_records(omw_entries)
+    concepts, lemmas, senses, concept_sources = group_to_records(omw_entries)
 
     return TaggedTables(
         lemmas=lemmas,
         lemma_sources=[SOURCE_OMW] * len(lemmas),
         concepts=concepts,
-        concept_sources=[SOURCE_OMW] * len(concepts),
+        concept_sources=concept_sources,
         senses=senses,
         sense_sources=[SOURCE_OMW] * len(senses),
     )

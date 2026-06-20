@@ -36,6 +36,10 @@ RAW_SUBDIR = "_raw/lexicon"
 #: Manifest filename written under ``<data_fol>/lexicon/`` (pins source versions).
 MANIFEST_NAME = "_build.json"
 
+#: ``wn`` project id for the Collaborative Interlingual Index (the permissive
+#: English ILI glosses used as the concept English-gloss fallback, phase 5.5).
+CILI_PROJECT = "cili"
+
 
 def raw_dir(data_fol: Path) -> Path:
     """Return the raw-cache directory under a data folder."""
@@ -62,9 +66,13 @@ def download_omw(
         data_fol: Project data folder; ``wn`` data goes under the raw cache.
         omw_version: OMW release version used to build the lexicon specifiers.
 
+    Also downloads the CILI resource (`CILI_PROJECT`): it carries the
+    language-independent English ILI glosses that `sources.omw` uses as the
+    English-gloss fallback (phase 5.5 Step 2). Like the lexicons it is idempotent.
+
     Returns:
         A manifest fragment recording the ``wn`` version, the OMW version, the
-        languages, and the exact lexicons requested.
+        languages, the exact lexicons requested, and the ILI resource.
 
     Raises:
         IngestDependencyMissingError: When the ``ingest`` extra (``wn``) is absent.
@@ -83,11 +91,14 @@ def download_omw(
     lg.info("Downloading OMW {} lexicons {} for {}", omw_version, specs, langs)
     for spec in specs:
         wn.download(spec)  # idempotent: wn skips an installed lexicon
+    lg.info("Downloading ILI resource {} (English gloss fallback)", CILI_PROJECT)
+    wn.download(CILI_PROJECT)  # idempotent: the permissive CILI English glosses
     return {
         "wn_version": wn.__version__,
         "omw_version": omw_version,
         "languages": langs,
         "lexicons": specs,  # only what we asked for, not everything installed
+        "ili_resource": CILI_PROJECT,
         "wn_data_dir": str(wn_data),
     }
 

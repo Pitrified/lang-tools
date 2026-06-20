@@ -9,17 +9,23 @@ superseded_in_part_by: 05.5_cleanup.md
 > backbone, Parquet-as-source-of-truth, the `source` provenance seam, and the `_build.json`
 > manifest below all still stand. The kaikki/Wiktionary enrichment leg has been **removed**
 > (drop-kaikki decided 2026-06-18): treat every kaikki acquire/transform/source-module
-> reference here as superseded. `Concept.definitions` currently come from **OMW glosses
-> only** (a CILI English fallback is the next step, not yet built).
+> reference here as superseded. `Concept.definitions` now come from **OMW glosses plus a
+> CILI English fallback** (English-only; non-en stays OMW-only).
 >
 > **5.5 Step 1 done (2026-06-20):** `sources/kaikki.py` + `wiktionary.py` deleted,
 > `_enrich_concepts`/`_enrich_lemmas` gone, `fetch_kaikki` removed from `acquire`, exports
 > and the download notebook cleaned, a `test_no_row_is_tagged_kaikki` guard added. The
 > `source` enum keeps `kaikki` as a legacy value only.
 >
-> **Still TODO, tracked in 5.5:** add the CILI English-gloss fallback (Step 2), promote the
-> permissive OMW fields - examples/lexfile/`tag_count`/relations - (Step 4), then rebuild
-> (Step 7).
+> **5.5 Step 2 done (2026-06-20):** `group_to_records` fills the English gloss from the ILI
+> CILI definition when OMW is blank and tags that concept `cili`; `acquire.download_omw`
+> now also downloads the `cili` resource. The five-language build shows this fallback fires
+> **0 times** (provenance `{omw: 117659}`): an ILI implies a Princeton/English synset, and
+> `omw-en` has ~100% gloss coverage, so the English gloss is already present. It is kept as
+> a documented dormant safety net for a future English-excluded build.
+>
+> **Still TODO, tracked in 5.5:** promote the permissive OMW fields -
+> examples/lexfile/`tag_count`/relations - (Step 4), then rebuild (Step 7).
 
 ## Overview
 

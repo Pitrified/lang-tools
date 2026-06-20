@@ -59,7 +59,7 @@ split as the design firms up.
 | 5.2 | Real-run perf follow-ups      | [`05.2_perf_followups.md`](05.2_perf_followups.md)       | draft  | Non-blocking observations from the successful en/pt run: considerable slug collisions (-> phase 8 dedup), >5 min store load (cache / avoid `get_all_*`), borderline memory (per-language build restructure). |
 | 5.3 | Load + memory profiling (gate) | [`05.3_load_profiling.md`](05.3_load_profiling.md)      | done | Profiled (>5 min was swap thrash, not CPU; root cause = pydantic double-materialization) and **fixed**: stream lean Parquet rows into a persisted signature-keyed `_store.sqlite`; seed corpus split to `data/bootstrap/lexicon/`. Cold load 16 s / 593 MB (was 1362 MB), warm cache hit ~1 ms. |
 | 5.4 | Preliminary data quality checks | [`05.4_data_quality.md`](05.4_data_quality.md)         | draft  | Read-only quality pass over the first build: count/emptiness/cross-lingual-balance/trust checks as bounded DuckDB queries; diagnose the `house` "definition = lemma" defect (sparse OMW glosses + sense-blind kaikki join); full OMW/kaikki metadata catalog (kept/dropped/promote); other datasets + licensing. Routes findings to phases 6/7/8/10. md-only. |
-| 5.5 | Cleanup: re-cut around OMW backbone | [`05.5_cleanup.md`](05.5_cleanup.md)            | in progress | Execute 5.4's drop-kaikki decision: hard-delete the kaikki enrichment path, anchor on the concept/gloss/sense triple (OMW + CILI English fallback), one isolated loader per dataset, promote permissive OMW fields (examples/lexfile/`tag_count`/relations) for phases 6/7, LLM cleanup pass, regression-gated rebuild with no CC-BY-SA. Reopens phase 5's enrichment leg. **Step 1 done** (kaikki removed); Steps 2-7 pending. |
+| 5.5 | Cleanup: re-cut around OMW backbone | [`05.5_cleanup.md`](05.5_cleanup.md)            | in progress | Execute 5.4's drop-kaikki decision: hard-delete the kaikki enrichment path, anchor on the concept/gloss/sense triple (OMW + CILI English fallback), one isolated loader per dataset, promote permissive OMW fields (examples/lexfile/`tag_count`/relations) for phases 6/7, LLM cleanup pass, regression-gated rebuild with no CC-BY-SA. Reopens phase 5's enrichment leg. **Steps 1-2 done** (kaikki removed; CILI English fallback added); Steps 3-7 pending. |
 | 6  | Frequency & complexity        | [`06_frequency_complexity.md`](06_frequency_complexity.md) | draft  | Per-sense token/sense frequency (`wordfreq`, sense-tag weights) and CEFR complexity (graded lists / estimated).        |
 | 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | draft  | Ingest hypernymy/hyponymy and antonymy as typed edges from OMW.                                                        |
 | 8  | Maintenance (LLM-based)       | [`08_maintenance.md`](08_maintenance.md)                 | draft  | LLM-assisted upkeep: new lemma->concept mapping, gloss enrichment, slug dedup, validation against OMW.                 |
@@ -620,3 +620,30 @@ Append-only. Newest at the bottom.
   ruff clean on changed paths, pyright 0 errors. Definitions now come from OMW glosses only
   - the CILI English fallback is Step 2 (pending), so non-en gloss coverage is expected to
   drop until then. Updated 05_ingestion.md (Step-1-done banner) and 05.5 (Step 1 status).
+- 2026-06-20 : implemented 5.5 **Step 2** (guarantee the English gloss + CILI fallback).
+  `sources/omw.py`: added the `SOURCE_OMW`/`SOURCE_CILI` provenance constants (owned here,
+  re-exported by `transform`), a `SynsetEntry.ili_definition` field, and the English-gloss
+  fallback in `group_to_records` - when OMW left a concept's English gloss blank it fills
+  from the ILI's CILI definition and tags that concept `cili` (non-en glosses stay OMW-only,
+  blank when OMW has none). `group_to_records` now returns a 4th value, the per-concept
+  source tags; `transform` threads them into `TaggedTables.concept_sources`. `wn_synset_entries`
+  loads the ILI glosses once (`wn.ili.get_all()` -> `ILI.definition()`, keyed by id) and
+  stamps `ili_definition`; `acquire.download_omw` now also `wn.download("cili")` (recorded in
+  the manifest as `ili_resource`). API note: in `wn` 1.1.0 `synset.ili` is a bare id string,
+  not an object, so the gloss is read via the loaded CILI resource, not `synset.ili.definition()`;
+  with no resource the fallback just does not fire. Tests: updated `test_omw` for the 4-tuple,
+  added fallback-fires / not-when-english-present / cili-threads-through-transform cases.
+  Verified: 149 passed, ruff clean, pyright 0 errors. Updated 05_ingestion.md (Step-2 banner)
+  and 05.5 (Step 2 status). Steps 3-7 remain.
+- 2026-06-20 : ran the kaikki-free five-language build via the notebooks (01_download +
+  02_transform) to validate Steps 1-2 end-to-end. Result: 117,659 concepts / 321,126 lemmas
+  / 491,876 senses (matches the pre-cleanup shape); CILI loaded (117,659 ILI glosses); concept
+  provenance is `{omw: 117659}` with **no kaikki and no cili**. So the Step-1 guard holds on
+  real data and the **Step-2 CILI fallback fires 0 times**: structurally, an ILI exists only
+  because a Princeton/English synset does and `omw-en` (Princeton WN 3.0) has ~100% gloss
+  coverage, so every ILI-backed concept already has an English OMW gloss; non-English concepts
+  that lack one are ILI-orphans the CILI lookup cannot reach. Decision (with the user): **keep
+  the CILI fallback as a documented dormant safety net** (cheap ~1s ILI load) for a future
+  English-excluded build, rather than removing it. Annotated the fallback in `sources/omw.py`
+  and updated 05.5 / 05_ingestion / metadata_catalog with the finding. Added loguru progress
+  logs to both notebooks plus a provenance-check cell (asserts no kaikki).

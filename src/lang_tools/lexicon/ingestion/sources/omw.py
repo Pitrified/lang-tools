@@ -23,6 +23,8 @@ from dataclasses import dataclass
 import re
 from typing import TYPE_CHECKING
 
+from loguru import logger as lg
+
 from lang_tools.language.normalization import normalize
 from lang_tools.lexicon.concept import Concept
 from lang_tools.lexicon.concept_id import concept_id
@@ -32,6 +34,13 @@ from lang_tools.lexicon.sense import Sense
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from collections.abc import Iterator
+
+#: Provenance tags this adapter emits (the on-disk `codec.PROVENANCE_COL` values).
+#: A concept built from OMW glosses is ``omw``; one whose English gloss is the
+#: CILI/ILI fallback (phase 5.5 Step 2) is ``cili``. Both are permissive.
+#: `transform` re-exports ``SOURCE_OMW`` and owns the remaining tags.
+SOURCE_OMW = "omw"
+SOURCE_CILI = "cili"
 
 #: WordNet single-letter part-of-speech codes -> our labels.
 _POS_LABELS: dict[str, str] = {
@@ -142,6 +151,11 @@ class SynsetEntry:
         definition: The synset gloss in `language`, if any.
         lemmas: The synset's member lemma forms in `language`.
         pos: WordNet part-of-speech code (``"n"``, ``"v"``, ...), if any.
+        ili_definition: The language-independent English gloss of this synset's
+            ILI (the CILI definition), if the ILI resource is loaded and carries
+            one. It is the same for every language sharing the ILI; the
+            English-gloss fallback in `group_to_records` uses it when OMW has no
+            English gloss for the concept.
     """
 
     language: str
@@ -150,6 +164,7 @@ class SynsetEntry:
     definition: str | None
     lemmas: tuple[str, ...]
     pos: str | None = None
+    ili_definition: str | None = None
 
 
 def _grouping_key(entry: SynsetEntry) -> str:
@@ -179,7 +194,7 @@ def _pick_slug_source(group: list[SynsetEntry]) -> str:
 
 def group_to_records(
     entries: Iterable[SynsetEntry],
-) -> tuple[list[Concept], list[Lemma], list[Sense]]:
+) -> tuple[list[Concept], list[Lemma], list[Sense], list[str]]:
     """Group flattened synset entries by ILI into concept/lemma/sense models.
 
     All entries that share an ILI become **one** `Concept` whose `definitions`
@@ -188,17 +203,25 @@ def group_to_records(
     de-duplicated by `Lemma.id` (a form shared by two synsets is one token);
     senses are de-duplicated by ``(lemma_id, concept_id)``.
 
+    English-gloss policy (phase 5.5 Step 2): the English gloss is the
+    load-bearing field, so when OMW left it blank the concept falls back to the
+    group's `ili_definition` (the permissive CILI English gloss). Such a concept
+    is tagged `SOURCE_CILI`; everything else is `SOURCE_OMW`. Non-English glosses
+    are OMW-only and stay empty when OMW has none (no fabrication).
+
     Args:
         entries: The flattened synset entries (from `wn_synset_entries` or fakes).
 
     Returns:
-        The concepts, lemmas, and senses, each sorted by id for determinism.
+        The concepts, lemmas, senses (each sorted by id for determinism), and a
+        per-concept provenance tag list parallel to the sorted concepts.
     """
     grouped: dict[str, list[SynsetEntry]] = {}
     for entry in entries:
         grouped.setdefault(_grouping_key(entry), []).append(entry)
 
     concepts: list[Concept] = []
+    concept_source_by_id: dict[str, str] = {}
     lemmas: dict[str, Lemma] = {}
     senses: dict[tuple[str, str], Sense] = {}
 
@@ -210,7 +233,24 @@ def group_to_records(
         for entry in group:
             if entry.definition and entry.language not in definitions:
                 definitions[entry.language] = entry.definition
+        source = SOURCE_OMW
+        # CILI English fallback: OMW left English blank, so use the
+        # language-independent ILI gloss (permissive) and flag the row.
+        # Dormant for English-inclusive OMW builds: an ILI exists only because a
+        # Princeton/English synset does, and `omw-en` (Princeton WN 3.0) has ~100%
+        # gloss coverage, so an ILI-backed concept already has an English gloss.
+        # Verified 0 hits on the en/pt/es/fr/it build (2026-06-20); kept as a
+        # safety net for a future build that excludes the English wordnet.
+        if "en" not in definitions:
+            ili_gloss = next(
+                (e.ili_definition for e in group if e.ili_definition),
+                None,
+            )
+            if ili_gloss:
+                definitions["en"] = ili_gloss
+                source = SOURCE_CILI
         concepts.append(Concept(id=cid, definitions=definitions))
+        concept_source_by_id[cid] = source
 
         for entry in group:
             pos = _POS_LABELS.get(entry.pos or "")
@@ -230,7 +270,8 @@ def group_to_records(
     concepts.sort(key=lambda c: c.id)
     sorted_lemmas = sorted(lemmas.values(), key=lambda lem: lem.id)
     sorted_senses = sorted(senses.values(), key=lambda s: s.id)
-    return concepts, sorted_lemmas, sorted_senses
+    concept_sources = [concept_source_by_id[c.id] for c in concepts]
+    return concepts, sorted_lemmas, sorted_senses, concept_sources
 
 
 def wn_synset_entries(
@@ -268,18 +309,45 @@ def wn_synset_entries(
     wn = _require_wn()
     if data_dir is not None:
         wn.config.data_directory = data_dir  # pyright: ignore[reportPrivateImportUsage]
+    ili_definitions = _load_ili_definitions()
     for language in langs:
         spec = _omw_lexicon(language, omw_version)
         wordnet = wn.Wordnet(lexicon=spec)
         for synset in wordnet.synsets():
+            ili = _ili_id(synset)
             yield SynsetEntry(
                 language=language,
                 synset_id=synset.id,
-                ili=_ili_id(synset),
+                ili=ili,
                 definition=synset.definition(),
                 lemmas=tuple(synset.lemmas()),
                 pos=synset.pos,
+                ili_definition=ili_definitions.get(ili) if ili else None,
             )
+
+
+def _load_ili_definitions() -> dict[str, str]:
+    """Map ILI id -> English CILI gloss from the loaded ILI resource.
+
+    Reads ``wn``'s Interlingual Index (the ``cili`` resource added by
+    `acquire.download_omw`) and returns ``{ili_id: gloss}`` for the English-gloss
+    fallback in `group_to_records`. Uses the streaming `find_ilis` query (yields
+    ``(id, status, definition, metadata)`` rows) and keeps only the two short
+    strings, so it never materializes the ~117k ILI objects that `get_all` would;
+    the retained map is a few tens of MB - negligible next to the corpus itself.
+    Returns an empty map when no ILI resource is loaded, so the fallback simply
+    does not fire rather than erroring.
+    """
+    from wn import ili as wn_ili  # noqa: PLC0415 - lazy; only the read path needs it
+
+    # `find_ilis` is a public, documented wn function but is missing from
+    # `wn.ili.__all__`, so pyright reports it as a private import; it is not.
+    rows = wn_ili.find_ilis()  # pyright: ignore[reportPrivateImportUsage]
+    definitions: dict[str, str] = {
+        ili_id: gloss for ili_id, _status, gloss, _metadata in rows if gloss
+    }
+    lg.info("Loaded {} ILI English glosses for the gloss fallback", len(definitions))
+    return definitions
 
 
 class IngestDependencyMissingError(ImportError):

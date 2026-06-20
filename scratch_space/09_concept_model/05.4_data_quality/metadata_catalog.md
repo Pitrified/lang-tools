@@ -27,7 +27,7 @@ flatten currently keeps only `synset.id`, `ili`, `definition()`, `lemmas()`, `po
 | `synset.meronyms()` / `holonyms()` | **dropped** | **promote? (phase 7)** - part-of relations |
 | `synset.relations(...)` (similar, also_see, entails, causes, attribute, domain) | **dropped** | **promote? (phase 7)** - the rest of the typed concept graph |
 | `synset.lexfile` / lexicographer file | **dropped** | coarse semantic category (`noun.person`, `verb.motion`); cheap **promote? (phase 6/8)** signal for clustering/difficulty |
-| `synset.ili.definition()` (CILI English gloss) | **dropped** | a *language-independent* English gloss; useful canonical fallback when a language gloss is missing (phase 8) |
+| `synset.ili.definition()` (CILI English gloss) | **kept (5.5), dormant** | a *language-independent* English gloss; wired as the English-gloss fallback when OMW is blank, tagged `cili` (5.5 Step 2). Read via the loaded CILI resource (`wn.ili.find_ilis()`), not off `synset.ili` (a bare id string in `wn` 1.1.0). Fires **0 times** on the en/pt/es/fr/it build: an ILI implies a Princeton/English synset and `omw-en` has ~100% gloss coverage, so it is a dormant safety net for English-excluded builds |
 | `synset.metadata()` | **dropped** | source/confidence notes where a wordnet provides them |
 
 ### Sense / word level (`wn.Sense`, `wn.Word`)
