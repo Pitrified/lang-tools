@@ -31,12 +31,15 @@ store = [
 ingest = [
     "wn>=0.9.5",
 ]
-# Phase-5.54 Stage-0 staging extras, all optional and lazily imported:
-# `wordfreq` for the frequency lists, `xlrd` to read the legacy `.xls` Kelly CEFR
-# lists (`ingestion.staging.frequency` / `.cefr`).
+# Phase-5.54 Stage-0 staging + exploration extras, all optional. The staging
+# adapters lazy-import `wordfreq` (frequency lists) and `xlrd` (the legacy `.xls`
+# Kelly CEFR lists); `pandas` and `matplotlib` are used only by the phase-5.54
+# exploration notebooks (`notebooks/lexicon_enrich/`), never by the package.
 enrich = [
     "wordfreq>=3.0.0",
     "xlrd>=2.0.1",
+    "pandas>=2.2.0",
+    "matplotlib>=3.9.0",
 ]
 
 [build-system]

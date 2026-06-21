@@ -293,4 +293,15 @@ and unit-tested.
 
 `omw_cili_staged_records` records the OMW backbone and CILI resource (already
 staged by `acquire.download_omw`) in the same manifest. The thin
-`notebooks/lexicon_enrich/stage0.ipynb` wires the calls and writes the manifest.
+`notebooks/lexicon_enrich/00_stage.ipynb` wires the calls and writes the manifest.
+
+Five topic notebooks (`notebooks/lexicon_enrich/01_examples` ..
+`05_complexity`) read that staged cache plus the OMW wordnets and end each in a
+findings cell. They are exploration only (they use the `enrich` extra's `pandas`
+/ `matplotlib`, never imported by the package) and back the phase-5.54 decisions:
+OMW examples / definitions / lexfile / relations are carried on the English
+synset but every synset is 100% ILI-linked, so they propagate to the concept for
+free; SemCor concept commonness correlates with per-language frequency (en 0.47,
+predicts es 0.34 / it 0.49); and lemma frequency is the strongest difficulty
+signal against Kelly CEFR (-0.66), with the concept-level call holding in 87% of
+en->it cases. See [`05.54_data_enrich.md`](../../scratch_space/09_concept_model/05.54_data_enrich/05.54_data_enrich.md).

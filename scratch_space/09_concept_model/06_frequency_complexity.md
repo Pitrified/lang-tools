@@ -24,6 +24,26 @@ status: draft
 > [`05.5_cleanup.md`](05.5_cleanup.md) Step 4). Frequency and graph connectivity also rank
 > which concepts the phase-8 enrichment touches first.
 
+> **From the 5.54 exploration (2026-06-21).** The topic notebooks
+> ([`notebooks/lexicon_enrich/03_semcor_frequency`, `05_complexity`](../../notebooks/lexicon_enrich/))
+> measured the two design questions this phase rested on:
+> - **Two distinct frequency signals, and the concept one propagates.** Lemma token
+>   frequency is language-level. SemCor concept commonness (counts summed to the ILI) is
+>   concept-level: it correlates 0.47 with the independent en frequency list and predicts the
+>   *other* language's lemma frequency (es 0.34, it 0.49). So carry a concept-level commonness
+>   signal cross-language and refine it per language with that language's token frequency.
+> - **The English sense split is the prior for languages with no sense-tagged corpus.** SemCor
+>   covers only 17% of en senses (skewed: median 2, max 10,742) and zero non-en senses, but
+>   senses share the ILI, so the English `tag_count` distribution is the default weighting for
+>   splitting another language's lemma frequency across its senses (`frequency_is_estimated`).
+> - **Complexity is mostly concept-level.** Against Kelly CEFR (en, 24,595 concepts) lemma
+>   frequency is the strongest signal (pearson -0.66); commonness and hypernym depth add
+>   weaker, same-direction signal. The concept-level call travels: 87% of en-easy concepts are
+>   also high-frequency in Italian. So compute most of complexity once at the concept level
+>   (commonness + depth + lexfile, propagated via ILI) with a thin per-language overlay (token
+>   frequency rank, word length). Kelly (en/it, CC-BY-NC-SA) is **validation only, never
+>   shipped**; pt/es/fr have no graded list and stay estimated.
+
 ## Overview
 
 Populate the two per-sense learner signals that share one home on the `Sense`
@@ -43,23 +63,40 @@ from phase 2 and the ingested data from phase 5.
 - **Sense frequency** (hard) - populate where a sense-tagged source exists;
   otherwise approximate by splitting token frequency across senses using WordNet
   sense-tag counts (`tag_count`, SemCor) as weights, and set
-  `frequency_is_estimated = True`.
+  `frequency_is_estimated = True`. Since SemCor is English-only but senses share
+  the ILI, use the **English sense-tag distribution as the cross-language prior**
+  for languages with no sense-tagged corpus (5.54 Topic 3).
+- **Concept commonness** (new, concept-level) - sum SemCor counts to the ILI for a
+  cross-language commonness signal that propagates (5.54 Topic 3: 0.47 vs en
+  frequency, predicts es 0.34 / it 0.49); refine per language with token frequency
+  rather than recomputing from scratch.
 
 ### Complexity (CEFR)
 
-- Map lemmas/senses to A1..C2 from CEFR-graded word lists (English Vocabulary
-  Profile, Oxford 3000-5000, Kelly project for several languages), joined like
-  the frequency lists.
-- Where no graded list exists, estimate from a blend of frequency band, lemma
-  length/morphology, and an LLM judgment; set `cefr_is_estimated = True`.
+- Compute most of complexity at the **concept level** (commonness + hypernym depth
+  + lexfile, propagated via ILI) with a thin per-language overlay (token frequency
+  rank, lemma length/morphology) - 5.54 Topic 5 found the concept-level call holds
+  in 87% of en->it cases, and lemma frequency is the strongest single signal
+  (pearson -0.66 vs Kelly CEFR en).
+- Validate the estimate against a graded list **for en/it only** (Kelly, staged at
+  `data/_raw/lexicon/staging/cefr/`); Kelly is CC-BY-NC-SA, **validation-only,
+  never merged into the shipped data**.
+- Where no graded list exists (pt/es/fr), estimate from the concept-level signal
+  plus the per-language overlay and an LLM judgment; set `cefr_is_estimated = True`.
 - Cache a coarse lemma-level CEFR (easiest sense) on `Lemma`.
 
 ## Open points to resolve here
 
-- The exact sense-frequency approximation per language.
+- The exact sense-frequency approximation per language (the English sense split as
+  prior is confirmed usable; the math - smoothing, fallback when a concept has no
+  en counts - is still open).
+- How much weight the per-language overlay gets on top of the concept-level
+  complexity score (Topic 5 says it is thin but non-zero - 13% of en-easy concepts
+  disagree in it).
 - The CEFR estimation blend and how heavily to trust it (and how to surface
   `*_is_estimated` to the tutor).
-- Per-list licensing (hand off specifics to phase 10).
+- Per-list licensing (hand off specifics to phase 10); Kelly's CC-BY-NC-SA is why
+  it stays validation-only.
 
 ## Out of scope
 

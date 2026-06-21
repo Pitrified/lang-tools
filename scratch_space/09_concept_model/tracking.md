@@ -60,7 +60,7 @@ split as the design firms up.
 | 5.3 | Load + memory profiling (gate) | [`05.3_load_profiling.md`](05.3_load_profiling.md)      | done | Profiled (>5 min was swap thrash, not CPU; root cause = pydantic double-materialization) and **fixed**: stream lean Parquet rows into a persisted signature-keyed `_store.sqlite`; seed corpus split to `data/bootstrap/lexicon/`. Cold load 16 s / 593 MB (was 1362 MB), warm cache hit ~1 ms. |
 | 5.4 | Preliminary data quality checks | [`05.4_data_quality.md`](05.4_data_quality.md)         | draft  | Read-only quality pass over the first build: count/emptiness/cross-lingual-balance/trust checks as bounded DuckDB queries; diagnose the `house` "definition = lemma" defect (sparse OMW glosses + sense-blind kaikki join); full OMW/kaikki metadata catalog (kept/dropped/promote); other datasets + licensing. Routes findings to phases 6/7/8/10. md-only. |
 | 5.5 | Cleanup: re-cut around OMW backbone | [`05.5_cleanup.md`](05.5_cleanup.md)            | in progress | Execute 5.4's drop-kaikki decision: hard-delete the kaikki enrichment path, anchor on the concept/gloss/sense triple (OMW + CILI English fallback), one isolated loader per dataset, promote permissive OMW fields (examples/lexfile/`tag_count`/relations) for phases 6/7, LLM cleanup pass, regression-gated rebuild with no CC-BY-SA. Reopens phase 5's enrichment leg. **Steps 1-3 done** (kaikki removed; CILI English fallback; one isolated loader per dataset); Steps 4-7 pending. |
-| 5.54 | Data enrichment (explore first) | [`05.54_data_enrich/05.54_data_enrich.md`](05.54_data_enrich/05.54_data_enrich.md) | draft | Sub-plan expanding 5.5 Step 4: stage the candidate datasets (OMW unused fields, CILI, Tatoeba, Wikidata, frequency list, CEFR), then a data-exploration pass over five topics (examples, categories/POS, SemCor + cross-language frequency propagation, relations, complexity) so each enrichment decision is grounded in numbers. Tests the concept-level-vs-language-level propagation assumption rather than assuming it. Findings rewrite Step 4 and feed phases 6/7. |
+| 5.54 | Data enrichment (explore first) | [`05.54_data_enrich/05.54_data_enrich.md`](05.54_data_enrich/05.54_data_enrich.md) | exploration done | Sub-plan expanding 5.5 Step 4: stage the candidate datasets (OMW unused fields, CILI, Tatoeba, Wikidata, frequency list, CEFR), then a data-exploration pass over five topics (examples, categories/POS, SemCor + cross-language frequency propagation, relations, complexity) so each enrichment decision is grounded in numbers. Tests the concept-level-vs-language-level propagation assumption rather than assuming it. Findings rewrite Step 4 and feed phases 6/7. |
 | 6  | Frequency & complexity        | [`06_frequency_complexity.md`](06_frequency_complexity.md) | draft  | Per-sense token/sense frequency (`wordfreq`, sense-tag weights) and CEFR complexity (graded lists / estimated).        |
 | 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | draft  | Ingest hypernymy/hyponymy and antonymy as typed edges from OMW.                                                        |
 | 8  | Maintenance (LLM-based)       | [`08_maintenance.md`](08_maintenance.md)                 | draft  | LLM-assisted upkeep: new lemma->concept mapping, gloss enrichment, slug dedup, validation against OMW.                 |
@@ -687,7 +687,7 @@ Append-only. Newest at the bottom.
   user-provided graded list for validation only - no baked download), and `__init__.py`
   (the staging contract + registry, exports, `omw_cili_staged_records`). Added `wordfreq`
   as a new lazy `enrich` optional extra in `pyproject.toml`. Lean
-  `notebooks/lexicon_enrich/stage0.ipynb` wires the calls and writes the manifest; logic
+  `notebooks/lexicon_enrich/00_stage.ipynb` wires the calls and writes the manifest; logic
   stays in the package. Tests (+21, under `tests/lexicon/ingestion/staging/`): base
   paths/manifest/parquet round-trip, Tatoeba parse + index (token-not-substring, multiword
   contiguity, accent-insensitive, cap), Wikidata query builders + result flatteners + lang
@@ -712,7 +712,7 @@ Append-only. Newest at the bottom.
   delimited-URL `download_cefr_list`; acceptable since the list is validation-only and never
   shipped. URLs verified via web (Wikimedia dumps index; the Leeds Kelly mirror). Tests +9
   (Tatoeba dedupe, Wikidata dump parser / `_first_lemma` / unknown-language). Verified: 176
-  passed / 1 skipped, ruff clean, pyright 0 errors. Updated the stage0 notebook (dump path +
+  passed / 1 skipped, ruff clean, pyright 0 errors. Updated the 00_stage notebook (dump path +
   CEFR registry cells), `lexicon.md`, and 05.54 (Stage-0 source assessment). Network /
   `wordfreq` / dump downloads still not run here.
 - 2026-06-21 : made Stage-0 fully automatic and ran the small downloads. Added
@@ -728,8 +728,45 @@ Append-only. Newest at the bottom.
   (wordfreq, 50k rows x en/pt/es/fr/it), CEFR (Kelly en 7549 rows clean A1-C2; it
   6865 rows, ~1516 with a blank band - a real Kelly-it quirk), and wrote
   `_staging.json`. The Wikidata 590 MB dump and Tatoeba per-language sentence
-  downloads are left to a notebook run (too large to pull here). The stage0 notebook
+  downloads are left to a notebook run (too large to pull here). The 00_stage notebook
   now downloads + stages everything automatically (prereq `uv sync --extra enrich
   --extra ingest --extra store`). Tests +3 (curly-quote levels, unknown /
   undownloadable CEFR source); the frequency happy-path test now runs (wordfreq
   installed). Verified: 178 passed / 1 skipped, ruff clean, pyright 0 errors.
+- 2026-06-21 : built + ran the five phase-5.54 **topic exploration notebooks**
+  (`notebooks/lexicon_enrich/01_examples` .. `05_complexity`), each a thin caller
+  over the staged cache + OMW wordnets ending in a findings cell. Added `pandas` +
+  `matplotlib` to the `enrich` extra (notebooks only; the package never imports
+  them). Key findings, all reproduced by the cells: every OMW-sourced field
+  (examples, definitions, lexfile, relations) sits on the English synset but every
+  synset is 100% ILI-linked, so all are concept-level and propagate for free.
+  Topic 1: OMW examples en 27% / it 4% / pt-es-fr 0%; Tatoeba richer but
+  sense-blind + CC-BY -> ship OMW only, defer Tatoeba. Topic 2: lexfile en-only
+  (45 lexfiles) but ILI-resolved; synset POS clean (`n v a s r`). Topic 3: SemCor
+  covers 17% of en senses (skewed); concept commonness correlates 0.47 with en
+  frequency and predicts es 0.34 / it 0.49 -> the propagation hypothesis holds.
+  Topic 4: synset graph dense (hypernym/hyponym 89,089 each, 7% isolated); antonym
+  / derivation are sense-level. Topic 5: lemma frequency strongest vs Kelly CEFR
+  (-0.66); the concept-level difficulty call holds in 87% of en->it cases.
+  Findings folded into 05.54 (Findings section + done-when ticks) and `lexicon.md`.
+  Verified: pytest 178 passed / 1 skipped, ruff clean (src/tests/notebooks),
+  pyright 0 errors; all five notebooks execute end to end with no errors. Findings
+  folded into 05.54 (Findings section + done-when ticks) and `lexicon.md`.
+- 2026-06-21 : rewrote **05.5 Step 4** from "promote these fields" to "promote at
+  this granularity, with this propagation rule", citing the topic findings. The
+  settling fact: every OMW field sits on the English synset but every synset is
+  100% ILI-linked, so all are concept-level and propagate. Examples: OMW only
+  (concept-level, fan out to senses), Tatoeba deferred (lemma-level, sense-blind,
+  CC-BY). lexfile: concept-level field on `Concept` (en-only source, ILI-resolved).
+  SemCor: carry `sense.id` through; commonness is concept-level and propagates
+  (weighting + cross-language prior are phase 6). Relations: hypernym/hyponym (+
+  holonym/meronym/similar) from the synset traversal, antonym from the sense
+  traversal, all ILI-keyed; expose connectivity to phase 6.
+- 2026-06-21 : folded the 5.54 findings into **phase 6** (a 5.54 banner: two
+  frequency signals with the concept one propagating, the English sense split as
+  cross-language prior, concept-level complexity validated against Kelly en/it;
+  added a concept-commonness bullet and the validation-only Kelly note) and
+  **phase 7** (a 5.54 banner on the measured graph: dense ILI-keyed synset edges,
+  sense-level antonym/derivation, 7% isolated; added connectivity + holonym/meronym
+  as cheap add-ons). All five 05.54 done-when items are now ticked; phase status
+  set to "exploration done". Markdown only - no code touched.
