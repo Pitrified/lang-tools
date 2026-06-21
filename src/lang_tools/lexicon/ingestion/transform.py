@@ -65,7 +65,8 @@ class TaggedTables:
         concepts: Synsets and their tags.
         senses: Lemma <-> concept edges and their tags (always ``omw`` here).
         false_friends: False-friend edges; empty in the initial build (phase 7).
-        concept_relations: Concept edges; empty in the initial build (phase 7).
+        concept_relations: Concept edges; the OMW hypernym edges are populated in
+            the initial build (5.5 Step 4); richer types arrive in phase 7.
     """
 
     lemmas: list[Lemma] = field(default_factory=list)
@@ -96,10 +97,11 @@ def transform(
 
     Returns:
         The populated `TaggedTables`. Lemmas/senses are tagged ``omw``; concepts
-        are ``omw`` or ``cili`` per `group_to_records` (false-friend /
-        concept-relation tables stay empty - those arrive in phase 7).
+        are ``omw`` or ``cili`` per `group_to_records`. Concept-relation rows hold
+        the OMW hypernym edges (tagged ``omw``); the false-friend table stays empty
+        (those arrive in phase 7).
     """
-    concepts, lemmas, senses, concept_sources = group_to_records(
+    concepts, lemmas, senses, concept_sources, concept_relations = group_to_records(
         omw_entries,
         cili_glosses,
     )
@@ -111,4 +113,6 @@ def transform(
         concept_sources=concept_sources,
         senses=senses,
         sense_sources=[SOURCE_OMW] * len(senses),
+        concept_relations=concept_relations,
+        concept_relation_sources=[SOURCE_OMW] * len(concept_relations),
     )

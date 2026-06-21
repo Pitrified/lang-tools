@@ -35,6 +35,8 @@ def _sample_concept() -> Concept:
     return Concept(
         id="c__bank-money__0011aabbccdd",
         definitions={"pt": "instituicao financeira", "en": "a financial institution"},
+        lexfile="noun.possession",
+        examples={"en": ["she went to the bank", "open a bank account"]},
     )
 
 
@@ -65,6 +67,9 @@ def test_concept_map_column_round_trips(tmp_path: Path) -> None:
         "pt": "instituicao financeira",
         "en": "a financial institution",
     }
+    # The phase-5.5 Step-4 concept-level fields survive too.
+    assert loaded.lexfile == "noun.possession"
+    assert loaded.examples == {"en": ["she went to the bank", "open a bank account"]}
 
 
 def test_false_friend_map_and_canonical_order_round_trip(tmp_path: Path) -> None:

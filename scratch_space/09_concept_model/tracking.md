@@ -762,6 +762,27 @@ Append-only. Newest at the bottom.
   (weighting + cross-language prior are phase 6). Relations: hypernym/hyponym (+
   holonym/meronym/similar) from the synset traversal, antonym from the sense
   traversal, all ILI-keyed; expose connectivity to phase 6.
+- 2026-06-21 : implemented the **05.5 Step 4 first slice** (the three concept-level
+  fields, end to end). `Concept` gained `lexfile` (str) + `examples`
+  (`dict[str, list[str]]`, per-language, sorted/de-duped); `SynsetEntry` gained
+  `lexfile` / `examples` / `hypernyms`; `group_to_records` now also builds
+  `Concept.lexfile` (English synset preferred), `Concept.examples`, and the OMW
+  `hypernym` `ConceptRelation` edges via a two-pass `(language, synset_id) ->
+  concept_id` resolution (child=`concept_id_a`, parent=`concept_id_b`; hyponymy is
+  the reverse read, not stored; unresolved targets dropped + logged). Threaded
+  through `transform`, codec (concepts schema +`lexfile` string +`examples`
+  `map<string,list<string>>`; `_MAP_COLUMNS`/`_JSON_COLUMNS` updated) and the SQLite
+  store; `lemma_store.CACHE_VERSION` -> 2. Decisions baked from the review: examples
+  not duplicated (concept grain on `Concept`, `Lemma.examples` reserved); antonym
+  deferred (sense-level, needs a new edge table, kept in mind); the cross-language
+  sense-split prior marked **approximate** (no non-en per-sense signal; always
+  `frequency_is_estimated`); the Kelly -0.66 marked partly circular; Wikidata parked;
+  `derivation` excluded. Tests +5 (lexfile preference, per-language example dedupe,
+  directional hypernym edge, dedupe+dangling drop, plus codec/store round-trip of the
+  new fields). Verified: 182 passed / 1 skipped, ruff clean, pyright 0 errors. Docs:
+  `lexicon.md` Concept + relation sections; 05.5 Step 4 implemented banner + caveats;
+  06 prior/CEFR caveats. Deferred: phase-6 weighting, phase-7 antonym +
+  holonym/meronym/similar + connectivity.
 - 2026-06-21 : folded the 5.54 findings into **phase 6** (a 5.54 banner: two
   frequency signals with the concept one propagating, the English sense split as
   cross-language prior, concept-level complexity validated against Kelly en/it;

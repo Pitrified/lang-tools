@@ -26,7 +26,12 @@ def _build_store() -> LexiconStore:
     lemmas = [banco, bank, bench]
 
     concepts = [
-        Concept(id=C_BANK, definitions={"en": "money"}),
+        Concept(
+            id=C_BANK,
+            definitions={"en": "money"},
+            lexfile="noun.possession",
+            examples={"en": ["she went to the bank"]},
+        ),
         Concept(id=C_BENCH, definitions={"en": "a seat"}),
     ]
     senses = [
@@ -84,6 +89,11 @@ def test_nested_columns_round_trip_through_sqlite() -> None:
     banco = store.get_lemma_by_id(bid)
     assert banco is not None
     assert banco.topics == ["money"]
+    # Concept-level lexfile (plain column) + examples (JSON column) survive SQLite.
+    concept = store.get_concept_by_id(C_BANK)
+    assert concept is not None
+    assert concept.lexfile == "noun.possession"
+    assert concept.examples == {"en": ["she went to the bank"]}
 
 
 def test_sense_adjacency_both_directions() -> None:

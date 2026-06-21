@@ -38,16 +38,30 @@ lemma.length        # 4
 
 ## `Concept` model
 
-A `Concept` is a language-independent unit of meaning (a synset). It stores only
-its `id` and per-language canonical `definitions`; membership (which lemmas
+A `Concept` is a language-independent unit of meaning (a synset). It stores its
+`id`, per-language canonical `definitions`, and the two concept-level enrichment
+fields from phase 5.5 Step 4 - `lexfile` (the coarse WordNet lexicographer class,
+e.g. `noun.motion`) and per-language `examples`. Both are ILI-keyed, so they are
+the same in every language: OMW carries them on the English/Princeton synset and
+they propagate to the concept (phase 5.54 Topics 1-2). Membership (which lemmas
 belong to it) is not stored here - it is derivable from the `Sense` edges.
+
+Granularity note: example sentences live at the granularity their source
+provides. OMW examples are concept-level, so they go on `Concept.examples`;
+`Lemma.examples` stays for genuinely lemma-level sources. Today only OMW fills
+either, so `Lemma.examples` is empty in the build.
 
 ```python
 from lang_tools.lexicon.concept import Concept
 from lang_tools.lexicon.concept_id import concept_id
 
 cid = concept_id("library-building", "omw-en-03660909-n")  # c__{slug}__{hash[:12]}
-concept = Concept(id=cid, definitions={"en": "a place full of books"})
+concept = Concept(
+    id=cid,
+    definitions={"en": "a place full of books"},
+    lexfile="noun.artifact",
+    examples={"en": ["she returned the books to the library"]},
+)
 ```
 
 The id is supplied (not computed): it is built at ingestion from the stable
@@ -83,7 +97,12 @@ connect:
 - `ConceptRelation` is a typed concept-to-concept edge (`"hypernym"`,
   `"meronym"`, `"related"`, ...). Directional types keep their source/target
   order; symmetric types (see `SYMMETRIC_CONCEPT_RELATIONS`) reuse the
-  canonical-ordering trick.
+  canonical-ordering trick. The initial build now populates the OMW `hypernym`
+  edges (`concept_id_a` is the more specific child, `concept_id_b` its parent);
+  **hyponymy is the same edge read in reverse**, so it is not stored separately,
+  and a hypernym target that does not resolve to a concept is dropped and logged,
+  never emitted half-formed. Antonymy is deferred (it is sense-level and needs its
+  own future edge table, a sibling of `FalseFriendRelation`).
 
 Both reject self-edges with a `SelfRelationError`.
 

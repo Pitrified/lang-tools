@@ -36,6 +36,11 @@ status: draft
 >   covers only 17% of en senses (skewed: median 2, max 10,742) and zero non-en senses, but
 >   senses share the ILI, so the English `tag_count` distribution is the default weighting for
 >   splitting another language's lemma frequency across its senses (`frequency_is_estimated`).
+>   Caveat (decision 2026-06-21): the exploration validated *aggregate* concept-commonness
+>   propagation, **not** that the within-lemma sense split transfers - that finer check was not
+>   run. But there is no other per-sense signal for those languages, so we treat the English
+>   split as an **approximate** prior, always flag it `frequency_is_estimated`, and move on
+>   rather than block phase 6 on a check we cannot ground without non-en sense-tagged data.
 > - **Complexity is mostly concept-level.** Against Kelly CEFR (en, 24,595 concepts) lemma
 >   frequency is the strongest signal (pearson -0.66); commonness and hypernym depth add
 >   weaker, same-direction signal. The concept-level call travels: 87% of en-easy concepts are
@@ -43,6 +48,10 @@ status: draft
 >   (commonness + depth + lexfile, propagated via ILI) with a thin per-language overlay (token
 >   frequency rank, word length). Kelly (en/it, CC-BY-NC-SA) is **validation only, never
 >   shipped**; pt/es/fr have no graded list and stay estimated.
+>   Caveat (#2): the -0.66 is partly circular - Kelly's CEFR bands were themselves built
+>   largely from corpus frequency, so this confirms the pipeline is consistent, not that
+>   frequency independently predicts *human-perceived* difficulty. Read it as a sanity check,
+>   not independent validation.
 
 ## Overview
 

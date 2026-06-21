@@ -55,6 +55,14 @@ class Concept(BaseModel):
         definitions: Per-language canonical gloss, keyed by ISO 639-1 code
             (e.g. ``{"en": "...", "pt": "..."}``). The canonical home for
             glosses, which no longer live on `Lemma`.
+        lexfile: Coarse WordNet lexicographer class (e.g. ``"noun.motion"``), a
+            concept-level field carried on the English/ILI synset and shared
+            across languages (phase 5.54 Topic 2). ``None`` when the concept has
+            no English synset to source it from.
+        examples: Per-language concept-level example sentences, keyed by ISO
+            639-1 code. OMW examples live on the synset (concept), not a member
+            lemma, so they belong here; lemma-level sources keep using
+            `Lemma.examples` instead (phase 5.54 Topic 1).
         senses: Resolved `Sense` edges into this concept. Store-hydrated, never
             persisted (``exclude=True``); ``None`` until hydration. Read via
             `resolve_senses` to fail loud when unhydrated.
@@ -66,6 +74,8 @@ class Concept(BaseModel):
 
     id: str
     definitions: dict[str, str] = Field(default_factory=dict)
+    lexfile: str | None = None
+    examples: dict[str, list[str]] = Field(default_factory=dict)
 
     # Representation-layer back-references; see `Sense.lemma` for the contract.
     senses: list[Sense] | None = Field(default=None, exclude=True, repr=False)

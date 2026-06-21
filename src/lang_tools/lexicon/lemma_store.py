@@ -72,7 +72,9 @@ if TYPE_CHECKING:
     from lang_tools.lexicon.relations import FalseFriendRelation
 
 #: Bump to invalidate every persisted SQLite cache after a schema/codec change.
-CACHE_VERSION = 1
+#: v2: concepts gained ``lexfile`` + ``examples`` and hypernym `ConceptRelation`
+#: edges are now populated (phase 5.54 / 5.5 Step 4).
+CACHE_VERSION = 2
 
 #: Filename of the persisted SQLite cache built inside a corpus directory. It is
 #: rebuilt from the Parquet whenever the corpus signature changes; never committed
@@ -100,7 +102,7 @@ TABLES: tuple[str, ...] = (
 #: other column binds to a native SQLite value.
 _JSON_COLUMNS: dict[str, frozenset[str]] = {
     "lemmas": frozenset({"topics", "examples", "sources"}),
-    "concepts": frozenset({"definitions"}),
+    "concepts": frozenset({"definitions", "examples"}),
     "senses": frozenset(),
     "false_friends": frozenset({"explanation_notes"}),
     "concept_relations": frozenset(),

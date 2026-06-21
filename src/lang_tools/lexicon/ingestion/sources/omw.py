@@ -25,10 +25,13 @@ from dataclasses import dataclass
 import re
 from typing import TYPE_CHECKING
 
+from loguru import logger as lg
+
 from lang_tools.language.normalization import normalize
 from lang_tools.lexicon.concept import Concept
 from lang_tools.lexicon.concept_id import concept_id
 from lang_tools.lexicon.lemma import Lemma
+from lang_tools.lexicon.relations import ConceptRelation
 from lang_tools.lexicon.sense import Sense
 
 if TYPE_CHECKING:
@@ -152,6 +155,13 @@ class SynsetEntry:
         definition: The synset gloss in `language`, if any.
         lemmas: The synset's member lemma forms in `language`.
         pos: WordNet part-of-speech code (``"n"``, ``"v"``, ...), if any.
+        lexfile: WordNet lexicographer class (e.g. ``"noun.motion"``), if any.
+            Concept-level: present on the English synset, shared via the ILI.
+        examples: The synset's example sentences in `language` (concept-level).
+        hypernyms: Lexicon-local synset ids this synset points to as hypernyms
+            (same wordnet, so same `language`). Resolved to `ConceptRelation`
+            edges in `group_to_records`; hyponymy is the same edge read in
+            reverse, so it is not stored separately.
     """
 
     language: str
@@ -160,6 +170,9 @@ class SynsetEntry:
     definition: str | None
     lemmas: tuple[str, ...]
     pos: str | None = None
+    lexfile: str | None = None
+    examples: tuple[str, ...] = ()
+    hypernyms: tuple[str, ...] = ()
 
 
 def _grouping_key(entry: SynsetEntry) -> str:
@@ -187,10 +200,78 @@ def _pick_slug_source(group: list[SynsetEntry]) -> str:
     return "concept"
 
 
+def _pick_lexfile(group: list[SynsetEntry]) -> str | None:
+    """Return the concept's lexfile, preferring the English synset's.
+
+    lexfile is carried on the English/ILI synset (phase 5.54 Topic 2); the group
+    shares an ILI, so the English entry's lexfile is the concept's. Falls back to
+    any member's lexfile so an English-excluded build still gets one where present.
+    """
+    for entry in group:
+        if entry.language == "en" and entry.lexfile:
+            return entry.lexfile
+    for entry in group:
+        if entry.lexfile:
+            return entry.lexfile
+    return None
+
+
+def _group_examples(group: list[SynsetEntry]) -> dict[str, list[str]]:
+    """Collect a concept's example sentences per language (sorted, de-duplicated).
+
+    OMW examples live on the synset, so they are concept-level; each entry carries
+    them in its own language. Sorting + de-duping keeps the output deterministic
+    (the persisted shape must be byte-stable). Languages with no example are
+    omitted rather than stored empty.
+    """
+    by_lang: dict[str, set[str]] = {}
+    for entry in group:
+        for example in entry.examples:
+            if example:
+                by_lang.setdefault(entry.language, set()).add(example)
+    return {lang: sorted(examples) for lang, examples in sorted(by_lang.items())}
+
+
+def _hypernym_edges(
+    grouped: Mapping[str, list[SynsetEntry]],
+    key_to_cid: Mapping[tuple[str, str], str],
+) -> tuple[list[ConceptRelation], int]:
+    """Resolve OMW hypernym links to deduped, sorted `ConceptRelation` edges.
+
+    Each ``hypernym`` target is a lexicon-local synset id in the same language, so
+    it resolves through `key_to_cid` (built from every ingested synset). An edge is
+    directional: ``concept_id_a`` is the more specific child, ``concept_id_b`` its
+    hypernym (the parent); hyponymy is this edge read in reverse, so it is not
+    stored separately. A target that does not resolve (filtered out / cross-lexicon)
+    is counted as dangling and dropped, never emitted as a half edge.
+
+    Returns:
+        The sorted unique hypernym edges and the dropped-dangling-edge count.
+    """
+    edges: set[tuple[str, str]] = set()
+    dangling = 0
+    for group in grouped.values():
+        for entry in group:
+            child = key_to_cid.get((entry.language, entry.synset_id))
+            if child is None:  # pragma: no cover - the entry is always in the map
+                continue
+            for target in entry.hypernyms:
+                parent = key_to_cid.get((entry.language, target))
+                if parent is None:
+                    dangling += 1
+                elif parent != child:  # OMW never self-links; guard anyway
+                    edges.add((child, parent))
+    relations = [
+        ConceptRelation(concept_id_a=a, concept_id_b=b, relation_type="hypernym")
+        for a, b in sorted(edges)
+    ]
+    return relations, dangling
+
+
 def group_to_records(
     entries: Iterable[SynsetEntry],
     cili_glosses: Mapping[str, str] | None = None,
-) -> tuple[list[Concept], list[Lemma], list[Sense], list[str]]:
+) -> tuple[list[Concept], list[Lemma], list[Sense], list[str], list[ConceptRelation]]:
     """Group flattened synset entries by ILI into concept/lemma/sense models.
 
     All entries that share an ILI become **one** `Concept` whose `definitions`
@@ -215,9 +296,17 @@ def group_to_records(
             output), consulted only to fill a missing English gloss. ``None``
             disables the fallback (every concept stays `SOURCE_OMW`).
 
+    Phase 5.5 Step 4 fields, all concept-level (ILI-keyed, so they propagate):
+    each concept also gets its `lexfile` (from the English synset, see
+    `_pick_lexfile`) and per-language `examples` (from the synset, see
+    `_group_examples`), and the OMW ``hypernym`` links become directional
+    `ConceptRelation` edges (see `_hypernym_edges`). A hypernym target that does
+    not resolve to a concept is dropped and logged, never emitted half-formed.
+
     Returns:
-        The concepts, lemmas, senses (each sorted by id for determinism), and a
-        per-concept provenance tag list parallel to the sorted concepts.
+        The concepts, lemmas, senses (each sorted by id for determinism), the
+        per-concept provenance tag list parallel to the sorted concepts, and the
+        sorted unique hypernym `ConceptRelation` edges.
     """
     glosses = cili_glosses or {}
     grouped: dict[str, list[SynsetEntry]] = {}
@@ -228,6 +317,7 @@ def group_to_records(
     concept_source_by_id: dict[str, str] = {}
     lemmas: dict[str, Lemma] = {}
     senses: dict[tuple[str, str], Sense] = {}
+    key_to_cid: dict[tuple[str, str], str] = {}
 
     for key, group in grouped.items():
         slug = slugify(_pick_slug_source(group))
@@ -245,10 +335,18 @@ def group_to_records(
             if gloss:
                 definitions["en"] = gloss
                 source = SOURCE_CILI
-        concepts.append(Concept(id=cid, definitions=definitions))
+        concepts.append(
+            Concept(
+                id=cid,
+                definitions=definitions,
+                lexfile=_pick_lexfile(group),
+                examples=_group_examples(group),
+            ),
+        )
         concept_source_by_id[cid] = source
 
         for entry in group:
+            key_to_cid[(entry.language, entry.synset_id)] = cid
             pos = _POS_LABELS.get(entry.pos or "")
             for form in entry.lemmas:
                 lemma = Lemma(
@@ -263,11 +361,15 @@ def group_to_records(
                     Sense(lemma_id=lemma.id, concept_id=cid),
                 )
 
+    relations, dangling = _hypernym_edges(grouped, key_to_cid)
+    if dangling:
+        lg.info("Dropped {} hypernym edge(s) with an unresolved target", dangling)
+
     concepts.sort(key=lambda c: c.id)
     sorted_lemmas = sorted(lemmas.values(), key=lambda lem: lem.id)
     sorted_senses = sorted(senses.values(), key=lambda s: s.id)
     concept_sources = [concept_source_by_id[c.id] for c in concepts]
-    return concepts, sorted_lemmas, sorted_senses, concept_sources
+    return concepts, sorted_lemmas, sorted_senses, concept_sources, relations
 
 
 def wn_synset_entries(
@@ -316,6 +418,9 @@ def wn_synset_entries(
                 definition=synset.definition(),
                 lemmas=tuple(synset.lemmas()),
                 pos=synset.pos,
+                lexfile=synset.lexfile(),
+                examples=tuple(synset.examples()),
+                hypernyms=tuple(h.id for h in synset.hypernyms()),
             )
 
 

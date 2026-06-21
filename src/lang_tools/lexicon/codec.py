@@ -77,7 +77,7 @@ _COLUMNS: dict[str, list[str]] = {
         "examples",
         "sources",
     ],
-    "concepts": ["id", "definitions"],
+    "concepts": ["id", "definitions", "lexfile", "examples"],
     "senses": [
         "id",
         "lemma_id",
@@ -97,9 +97,12 @@ _COLUMNS: dict[str, list[str]] = {
     "concept_relations": ["concept_id_a", "concept_id_b", "relation_type"],
 }
 
-#: Columns stored as a Parquet ``map<string,string>`` (read back as a dict).
+#: Columns stored as a Parquet ``map<...>`` (read back as a dict). ``definitions``
+#: is ``map<string,string>``; ``examples`` is ``map<string,list<string>>`` - both
+#: come back from pyarrow as a list of ``(key, value)`` tuples and normalize to a
+#: dict the same way.
 _MAP_COLUMNS: dict[str, frozenset[str]] = {
-    "concepts": frozenset({"definitions"}),
+    "concepts": frozenset({"definitions", "examples"}),
     "false_friends": frozenset({"explanation_notes"}),
 }
 
@@ -209,7 +212,14 @@ def _schema(name: str) -> Any:  # noqa: ANN401 - pyarrow.Schema, kept lazy
                 ("sources", pa.list_(pa.string())),
             ],
         ),
-        "concepts": pa.schema([("id", pa.string()), ("definitions", str_map)]),
+        "concepts": pa.schema(
+            [
+                ("id", pa.string()),
+                ("definitions", str_map),
+                ("lexfile", pa.string()),
+                ("examples", pa.map_(pa.string(), pa.list_(pa.string()))),
+            ],
+        ),
         "senses": pa.schema(
             [
                 ("id", pa.string()),
