@@ -61,6 +61,7 @@ split as the design firms up.
 | 5.4 | Preliminary data quality checks | [`05.4_data_quality.md`](05.4_data_quality.md)         | draft  | Read-only quality pass over the first build: count/emptiness/cross-lingual-balance/trust checks as bounded DuckDB queries; diagnose the `house` "definition = lemma" defect (sparse OMW glosses + sense-blind kaikki join); full OMW/kaikki metadata catalog (kept/dropped/promote); other datasets + licensing. Routes findings to phases 6/7/8/10. md-only. |
 | 5.5 | Cleanup: re-cut around OMW backbone | [`05.5_cleanup.md`](05.5_cleanup.md)            | in progress | Execute 5.4's drop-kaikki decision: hard-delete the kaikki enrichment path, anchor on the concept/gloss/sense triple (OMW + CILI English fallback), one isolated loader per dataset, promote permissive OMW fields (examples/lexfile/`tag_count`/relations) for phases 6/7, LLM cleanup pass, regression-gated rebuild with no CC-BY-SA. Reopens phase 5's enrichment leg. **Steps 1-4 and 6-7 done** (kaikki removed; CILI English fallback; one isolated loader per dataset; Step-4 field promotion; rebuild + gate + license snapshot via 05.56); only Step 5 (LLM cleanup) remains, now sized at a 20-row `def==lemma` residue. |
 | 5.54 | Data enrichment (explore first) | [`05.54_data_enrich/05.54_data_enrich.md`](05.54_data_enrich/05.54_data_enrich.md) | exploration done | Sub-plan expanding 5.5 Step 4: stage the candidate datasets (OMW unused fields, CILI, Tatoeba, Wikidata, frequency list, CEFR), then a data-exploration pass over five topics (examples, categories/POS, SemCor + cross-language frequency propagation, relations, complexity) so each enrichment decision is grounded in numbers. Tests the concept-level-vs-language-level propagation assumption rather than assuming it. Findings rewrite Step 4 and feed phases 6/7. |
+| 5.55 | LLM cleanup (slug legibility + gloss repair) | [`05.55_llm_cleanup/05.55_llm_cleanup.md`](05.55_llm_cleanup/05.55_llm_cleanup.md) | planned | Sub-plan executing 5.5 Step 5, sized from the 05.56 gate: deterministic lexfile slug tier (~halves 47,015 colliding concepts; ids rebuilt, never patched; LLM tier-2 qualifiers deferred to phase 8 with the committed-table + Batch-API decisions made) + re-scope the `def==lemma` check to gloss-equals-sole-member and LLM-repair the genuinely-thin remainder; orphan/POS items measured clean and closed. First run of the phase-8 loop shape. |
 | 5.56 | Rebuild + regression gate    | [`05.56_rebuild_gate/05.56_rebuild_gate.md`](05.56_rebuild_gate/05.56_rebuild_gate.md) | done | Executed 5.5 Steps 7+6: 5-language rebuild from the re-cut pipeline (117,659 concepts / 321,126 lemmas / 491,876 senses + 97,666 hypernym edges, ~140 s / 1.5 GB); checks + renderer extracted to `lexicon/quality.py` (notebook = thin caller, report auto-generated); all four invariants pass (`def==lemma` 7,220 -> 20); per-lexicon license snapshot found **omw-pt CC BY-SA / omw-fr CeCILL-C** (routed to phase 10). |
 | 6  | Frequency & complexity        | [`06_frequency_complexity.md`](06_frequency_complexity.md) | draft  | Per-sense token/sense frequency (`wordfreq`, sense-tag weights) and CEFR complexity (graded lists / estimated).        |
 | 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | draft  | Ingest hypernymy/hyponymy and antonymy as typed edges from OMW.                                                        |
@@ -834,3 +835,48 @@ Append-only. Newest at the bottom.
   phase 10 (banner added there). Docs: quality-checks section in `lexicon.md`. Suite
   green: 190 passed / 1 skipped, ruff clean, pyright 0 errors. Next: 5.5 Step 5 (LLM
   cleanup) sized from the 20-row residue, then phases 6/7.
+- 2026-07-11 : drafted phase 5.55 (`05.55_llm_cleanup/05.55_llm_cleanup.md`, status draft) -
+  the sub-plan for 5.5 Step 5, sized from the fresh 05.56 gate instead of the sketch. Two
+  of the five sketch items measured **closed** (0 orphan / 0 no-gloss concepts; POS fully
+  mapped with no null bucket) and gloss backfill stays deferred, so the phase reduces to:
+  (A) slug legibility via tiered construction in the pipeline - measured that
+  slug+lexfile deterministically resolves only ~half the collisions (47,015 colliding
+  concepts / 15,740 groups -> 23,476 / 9,782 remain as true same-lexfile polysemy, e.g.
+  two `aaron` persons), so tier 2 is an LLM gloss-derived qualifier per group,
+  propose-for-review, baked in as a committed build input; ids are **rebuilt, never
+  patched** (a slug changes `c__{slug}__{hash}` everywhere; lang-tutor unaffected, lemma
+  ids stable); (B) classify the 20 `def==lemma` rows (mostly benign gloss==other-member
+  coincidences like Baton Rouge / "capital of Louisiana", a few genuinely thin) and
+  LLM-repair via export/import with `source=llm`; (C) record keep-all policy for
+  multiword/digit/long lemmas after a spot-check. Five open questions (tier-2 now vs
+  phase 8, commit the qualifier table, re-scope the def==lemma check for benign
+  coincidences, suspicious-lemma policy, model tier) left as Q1-Q5 ANS placeholders in
+  the sub-plan. Banner added on 05.5 Step 5; row added to the phase table. Markdown only -
+  no code touched.
+- 2026-07-11 : resolved 5.55's open questions with the user and promoted the sub-plan to
+  **planned**. Q1: slug tier 2 (LLM qualifiers) **deferred to phase 8** - this phase ships
+  the deterministic tiers 0-1 only (halves the 47,015 colliding concepts at zero LLM
+  cost); Q2: when phase 8 runs tier 2, the reviewed qualifier table is a **committed
+  build input** (small JSONL in normal git, keyed by ILI grouping key); Q3: the
+  `definition == lemma` check is **re-scoped** to count only gloss-equals-sole-member
+  (benign gloss-equals-other-member coincidences like Baton Rouge / "capital of
+  Louisiana" are valid OMW glosses and stay untouched), baseline re-measured; Q5:
+  estimated the LLM job instead of picking a tier blind - tier-2 qualifiers batched
+  ~25 groups/request = ~1.5M in / ~0.3M out tokens, via the Batch API (-50%) ~$1.50
+  (Haiku 4.5) / ~$3 (Sonnet 5 intro) / ~$7.50 (Opus 4.8), so cost does not constrain
+  the model choice; this phase's gloss repair (~20 rows) is <$0.10 on any tier. Q4
+  (suspicious-lemma keep-all policy) stays open with the keep-all proposal standing.
+  Consequence: 5.55's only LLM chain is the gloss-repair one; the tier-2 spec + cost
+  estimate handed to phase 8 (banner added in 08_maintenance.md). Markdown only.
+- 2026-07-11 : answered 5.55's Q4 by spot-checking the suspicious-lemma categories on
+  the rebuilt corpus. Multiword (115,044: "water pill", "Sir John Ross"), digit-bearing
+  (1,063: "atomic number 100", "39th", "December 31"), and very-long English (673:
+  taxonomy / organization names) are all legitimate - **keep the categories**. The long
+  tail exposed real, localized junk: **32 fr lemmas are URL-encoded Wikipedia anchors**
+  ("...#Le th.C3.A9.C3.A2tre...", from WOLF's wiki derivation) - to be dropped
+  deterministically in 5.55's pipeline pass (with their senses; gate reconciliation
+  guards against orphaning) - and ~150 non-en sentence-like forms (gloss pasted as the
+  member form, e.g. pt "alimentar um bebê com o leite...") flagged to phase 8 review
+  rather than auto-dropped (fuzzy boundary with legitimate long names). Folded into
+  the sub-plan (Q4 ANS + work item C). All five 5.55 questions are now resolved;
+  the plan stays **planned** and is ready to execute. Markdown only.

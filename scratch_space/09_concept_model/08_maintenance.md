@@ -15,6 +15,15 @@ upkeep loop that keeps the lexical graph healthy after the initial ingestion
 "Bootstrap source" (LLM mapping) and "Uplift plan". Reuses the ingestion
 machinery rather than introducing a parallel path.
 
+> **From phase 5.55 (2026-07-11).** The slug **tier-2 qualifier job is this phase's
+> first real LLM task**: LLM-pick a 1-3 word gloss-derived qualifier for each of the
+> ~9,782 same-lexfile collision groups (~23,476 concepts) left after 5.55's
+> deterministic lexfile tier. Decisions already made: the reviewed qualifier table is a
+> **committed build input** (small JSONL in normal git, keyed by ILI grouping key), and
+> the job runs through the **Batch API** (-50%); sized at ~1.5M in / ~0.3M out tokens ≈
+> $1.50 (Haiku) to $7.50 (Opus) - cost does not constrain the model choice. Spec in
+> [`05.55_llm_cleanup/05.55_llm_cleanup.md`](05.55_llm_cleanup/05.55_llm_cleanup.md).
+
 > **From the 5.5 cleanup (2026-06-20).** Steps 5-6 of
 > [`05.5_cleanup.md`](05.5_cleanup.md) are this phase's concrete first run over the
 > kaikki-free rebuild: slug dedup, `definition == lemma` repair, orphan / empty-concept
