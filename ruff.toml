@@ -18,6 +18,10 @@ ignore = [
 ]
 
 [lint.per-file-ignores]
+# The quality-check registry interpolates internal read_parquet(...) sources
+# into every query; no user input reaches the SQL (same rationale as the
+# inline waivers in corpus.py).
+"src/lang_tools/lexicon/quality.py" = ["S608"]
 "*.ipynb" = [
     "E501",   # Line too long
     "ERA001", # Found commented-out code

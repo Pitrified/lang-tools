@@ -194,6 +194,28 @@ thin caller):
   scratch, never committed; schema changes regenerate from ingestion, not
   line-patched.
 
+### Data-quality checks (phase 05.56)
+
+`lang_tools.lexicon.quality` holds the read-only QA pass over a built corpus,
+extracted from the 05.4 diagnosis notebook so the SQL and the report prose have
+one source of truth. `run_quality_checks(data_fol)` executes a registry of named
+DuckDB checks (row counts, edge reconciliation, gloss/example/lexfile coverage,
+slug collisions, `definition == lemma`, provenance snapshot, ...) and returns a
+typed `QualityReport`; `render_report` / `write_report` turn it into a markdown
+report that leads with four regression invariants:
+
+- kaikki-tagged rows are 0 (the 5.5 cleanup holds on disk);
+- dangling sense / relation endpoints are 0;
+- lemmas without a sense are 0;
+- `definition == lemma` rows are sharply below the recorded kaikki-era baseline
+  (`DEFINITION_EQUALS_LEMMA_BASELINE`).
+
+The notebook under `scratch_space/09_concept_model/05.4_data_quality/` is a thin
+caller that regenerates `report.md` wholesale on every run - the report is
+generated, never authored. Re-run it after every re-ingestion or maintenance
+pass; it is the lightweight regression harness. Needs the `store` extra
+(DuckDB); a missing corpus raises `CorpusNotFoundError`.
+
 ## Ingestion
 
 `lang_tools.lexicon.ingestion` exposes three loaders, all yielding thin `Lemma`

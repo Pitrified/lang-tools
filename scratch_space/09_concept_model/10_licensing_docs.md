@@ -22,6 +22,17 @@ free and open dataset". Depends on the source mix being final (phases 5-7).
 > (`source=cili`), with **no CC-BY-SA anywhere** and an attribution-only dataset card. This
 > phase then only verifies per-source licenses and writes the card.
 
+> **From the 05.56 rebuild gate (2026-07-11): the per-lexicon verification landed and the
+> "no CC-BY-SA anywhere" posture does not hold at the lexicon level.** As packaged in
+> OMW 1.4: omw-en = WordNet license (permissive), omw-es / omw-it = CC BY 3.0, but
+> **omw-pt (OpenWN-PT) = CC BY-SA** and **omw-fr (WOLF) = CeCILL-C** (weak copyleft).
+> Dropping kaikki removed the *added* share-alike text; the Portuguese backbone itself is
+> share-alike as OMW distributes it. Upstream OpenWordnet-PT (github.com/own-pt) has since
+> relicensed to CC-BY 4.0, so the open decision for this phase is: (a) re-source pt from
+> upstream own-pt (clean fix), (b) per-language licensing on the partitioned tables, or
+> (c) accept SA for the pt slice. WOLF/CeCILL-C needs the same treatment. Full snapshot in
+> [`05.56_rebuild_gate/05.56_rebuild_gate.md`](05.56_rebuild_gate/05.56_rebuild_gate.md) Findings.
+
 ## What this phase will cover
 
 - **License decision** - **settled by the 5.5 cleanup**: drop kaikki/Wiktionary text

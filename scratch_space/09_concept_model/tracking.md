@@ -59,9 +59,9 @@ split as the design firms up.
 | 5.2 | Real-run perf follow-ups      | [`05.2_perf_followups.md`](05.2_perf_followups.md)       | draft  | Non-blocking observations from the successful en/pt run: considerable slug collisions (-> phase 8 dedup), >5 min store load (cache / avoid `get_all_*`), borderline memory (per-language build restructure). |
 | 5.3 | Load + memory profiling (gate) | [`05.3_load_profiling.md`](05.3_load_profiling.md)      | done | Profiled (>5 min was swap thrash, not CPU; root cause = pydantic double-materialization) and **fixed**: stream lean Parquet rows into a persisted signature-keyed `_store.sqlite`; seed corpus split to `data/bootstrap/lexicon/`. Cold load 16 s / 593 MB (was 1362 MB), warm cache hit ~1 ms. |
 | 5.4 | Preliminary data quality checks | [`05.4_data_quality.md`](05.4_data_quality.md)         | draft  | Read-only quality pass over the first build: count/emptiness/cross-lingual-balance/trust checks as bounded DuckDB queries; diagnose the `house` "definition = lemma" defect (sparse OMW glosses + sense-blind kaikki join); full OMW/kaikki metadata catalog (kept/dropped/promote); other datasets + licensing. Routes findings to phases 6/7/8/10. md-only. |
-| 5.5 | Cleanup: re-cut around OMW backbone | [`05.5_cleanup.md`](05.5_cleanup.md)            | in progress | Execute 5.4's drop-kaikki decision: hard-delete the kaikki enrichment path, anchor on the concept/gloss/sense triple (OMW + CILI English fallback), one isolated loader per dataset, promote permissive OMW fields (examples/lexfile/`tag_count`/relations) for phases 6/7, LLM cleanup pass, regression-gated rebuild with no CC-BY-SA. Reopens phase 5's enrichment leg. **Steps 1-3 done** (kaikki removed; CILI English fallback; one isolated loader per dataset); Steps 4-7 pending. |
+| 5.5 | Cleanup: re-cut around OMW backbone | [`05.5_cleanup.md`](05.5_cleanup.md)            | in progress | Execute 5.4's drop-kaikki decision: hard-delete the kaikki enrichment path, anchor on the concept/gloss/sense triple (OMW + CILI English fallback), one isolated loader per dataset, promote permissive OMW fields (examples/lexfile/`tag_count`/relations) for phases 6/7, LLM cleanup pass, regression-gated rebuild with no CC-BY-SA. Reopens phase 5's enrichment leg. **Steps 1-4 and 6-7 done** (kaikki removed; CILI English fallback; one isolated loader per dataset; Step-4 field promotion; rebuild + gate + license snapshot via 05.56); only Step 5 (LLM cleanup) remains, now sized at a 20-row `def==lemma` residue. |
 | 5.54 | Data enrichment (explore first) | [`05.54_data_enrich/05.54_data_enrich.md`](05.54_data_enrich/05.54_data_enrich.md) | exploration done | Sub-plan expanding 5.5 Step 4: stage the candidate datasets (OMW unused fields, CILI, Tatoeba, Wikidata, frequency list, CEFR), then a data-exploration pass over five topics (examples, categories/POS, SemCor + cross-language frequency propagation, relations, complexity) so each enrichment decision is grounded in numbers. Tests the concept-level-vs-language-level propagation assumption rather than assuming it. Findings rewrite Step 4 and feed phases 6/7. |
-| 5.56 | Rebuild + regression gate    | [`05.56_rebuild_gate/05.56_rebuild_gate.md`](05.56_rebuild_gate/05.56_rebuild_gate.md) | draft | Sub-plan executing 5.5 Steps 7+6 together (the corpus was last built 2026-06-18, before kaikki removal + Step 4): full 5-language rebuild from the re-cut pipeline, extract the 05.4 DuckDB checks + report renderer into a tested package module run only from the notebook (no slice-based pytest gate; report auto-written, never copy-pasted), confirm the four invariants (kaikki 0%, edges 0, `def==lemma` sharply down), regenerate `report.md`, per-lexicon OMW license snapshot. Sequenced before Step 5 so the LLM cleanup budget is sized from the clean corpus's real residue. |
+| 5.56 | Rebuild + regression gate    | [`05.56_rebuild_gate/05.56_rebuild_gate.md`](05.56_rebuild_gate/05.56_rebuild_gate.md) | done | Executed 5.5 Steps 7+6: 5-language rebuild from the re-cut pipeline (117,659 concepts / 321,126 lemmas / 491,876 senses + 97,666 hypernym edges, ~140 s / 1.5 GB); checks + renderer extracted to `lexicon/quality.py` (notebook = thin caller, report auto-generated); all four invariants pass (`def==lemma` 7,220 -> 20); per-lexicon license snapshot found **omw-pt CC BY-SA / omw-fr CeCILL-C** (routed to phase 10). |
 | 6  | Frequency & complexity        | [`06_frequency_complexity.md`](06_frequency_complexity.md) | draft  | Per-sense token/sense frequency (`wordfreq`, sense-tag weights) and CEFR complexity (graded lists / estimated).        |
 | 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | draft  | Ingest hypernymy/hyponymy and antonymy as typed edges from OMW.                                                        |
 | 8  | Maintenance (LLM-based)       | [`08_maintenance.md`](08_maintenance.md)                 | draft  | LLM-assisted upkeep: new lemma->concept mapping, gloss enrichment, slug dedup, validation against OMW.                 |
@@ -808,3 +808,29 @@ Append-only. Newest at the bottom.
   LLM budget is sized from the clean corpus's real residue, ranked by the
   frequency / connectivity signals Step 4 fed in. Linked from 05.5 Step 6 and the
   tracking table. Markdown only - no code touched.
+- 2026-07-11 : executed phase 5.56 (status done) - the rebuild + gate + license snapshot,
+  closing 5.5 Steps 7 and 6. Housekeeping first: deleted the five obsolete raw kaikki
+  dumps (~5.6 GB reclaimed). Stage A: `download_omw` reused the cached wn data (CILI
+  included) and the full en/pt/es/fr/it rebuild ran in ~140 s at 1536 MB peak - the
+  per-language restructure (5.1 Bug D / 5.2 Obs 3) stays unnecessary. Result: 117,659
+  concepts / 321,126 lemmas / 491,876 senses (same OMW backbone shape) plus the new
+  Step-4 payload: 97,666 hypernym `ConceptRelation` edges, `lexfile` on 100% of concepts
+  (45 distinct), `examples` on 33,396 concepts (en 32,921 + it 1,435); provenance `{omw}`
+  only, CILI fallback fired 0 times (dormant as documented); sample slice re-carved.
+  Stage B: extracted the 05.4 checks + report renderer into
+  `src/lang_tools/lexicon/quality.py` - a named-check registry returning typed
+  `CheckResult`s, four `InvariantResult`s, and a markdown renderer; `report.md` is
+  generated wholesale, never authored; the 05.4 notebook shrank to a 3-cell thin caller;
+  8 unit tests on a tiny synthetic corpus (S608 waived per-file, same rationale as
+  corpus.py). All four invariants pass on the rebuilt corpus: kaikki rows 0, dangling
+  sense/relation endpoints 0, lemmas-without-sense 0, `definition == lemma` **7,220 ->
+  20 rows** - so the Step-5 LLM gloss-repair budget is tiny; slug collisions (~27%)
+  remain the phase-8 bulk. Non-en gloss coverage dropped to real OMW coverage as
+  accepted: en 100%, it 6.1%, pt/es/fr 0% (those wordnets ship no definitions).
+  Stage C: per-lexicon license snapshot via `wn` metadata (confirmed against the OMW 1.4
+  index): en = WordNet license, es/it = CC BY 3.0, but **omw-pt = CC BY-SA and omw-fr =
+  CeCILL-C** - the "no CC-BY-SA anywhere" prediction fails at the lexicon level; upstream
+  OpenWordnet-PT is now CC-BY 4.0, so a pt re-source is the clean fix; decision routed to
+  phase 10 (banner added there). Docs: quality-checks section in `lexicon.md`. Suite
+  green: 190 passed / 1 skipped, ruff clean, pyright 0 errors. Next: 5.5 Step 5 (LLM
+  cleanup) sized from the 20-row residue, then phases 6/7.
