@@ -68,6 +68,14 @@ The id is supplied (not computed): it is built at ingestion from the stable
 OMW/ILI source key via `concept_id`, and the model validates its
 `c__{slug}__{hash}` shape.
 
+Slugs are tiered for legibility (phase 05.55): the preferred-lemma slug when it
+is unique across the build, else the slugified `lexfile` is appended as a
+deterministic discriminant (`c__cut-noun-act__...` vs `c__cut-verb-contact__...`).
+Concepts that still share a slug within one lexfile are true polysemy; the hash
+keeps their ids unique, and a gloss-derived qualifier tier is deferred to
+phase 8. Slug changes rebuild ids everywhere (senses, relations, sample) - they
+are never patched into the Parquet post hoc.
+
 ## `Sense` model
 
 A `Sense` is the explicit `lemma_id <-> concept_id` edge and the canonical
@@ -207,8 +215,11 @@ report that leads with four regression invariants:
 - kaikki-tagged rows are 0 (the 5.5 cleanup holds on disk);
 - dangling sense / relation endpoints are 0;
 - lemmas without a sense are 0;
-- `definition == lemma` rows are sharply below the recorded kaikki-era baseline
-  (`DEFINITION_EQUALS_LEMMA_BASELINE`).
+- `definition == lemma` rows stay at or below the recorded baseline
+  (`DEFINITION_EQUALS_LEMMA_BASELINE`). Re-scoped in phase 05.55: only a gloss
+  equal to the concept's *sole* member form in that language counts (genuinely
+  thin); a gloss that coincides with a *different* member of a multi-member
+  synset is a valid short definition and is excluded.
 
 The notebook under `scratch_space/09_concept_model/05.4_data_quality/` is a thin
 caller that regenerates `report.md` wholesale on every run - the report is
@@ -218,13 +229,10 @@ pass; it is the lightweight regression harness. Needs the `store` extra
 
 ## Ingestion
 
-`lang_tools.lexicon.ingestion` exposes three loaders, all yielding thin `Lemma`
-instances tagged with the originating source:
+`lang_tools.lexicon.ingestion` exposes two per-file loaders, both yielding thin
+`Lemma` instances tagged with the originating source (the Wiktionary/kaikki
+JSONL loader was removed with the kaikki enrichment leg in phase 5.5):
 
-- `load_wiktionary_jsonl(path, language=...)` reads kaikki.org-style JSONL
-  Wiktionary dumps. Filters by part-of-speech and skips inflected-form
-  pointers by default. Senses are still parsed but their glosses become
-  `Concept.definitions` during the concept-mapping phase, not lemma fields.
 - `load_csv(path)` reads a flat CSV with required columns `text` and
   `language` plus optional `part_of_speech`, `topics` / `secondary_topics`, and
   `example_sentence` / `example_translation`. Other columns (e.g. legacy
@@ -244,7 +252,7 @@ that populates the whole corpus from external sources. It is linear by design -
 the Parquet tables are the source of truth, so there is no base/overlay split:
 
 ```
-sources (OMW via wn, kaikki JSONL)
+sources (OMW via wn, CILI gloss map)
   -> acquire   (download -> data/_raw/lexicon/ cache + _build.json manifest)
   -> transform (raw -> source-tagged concepts/lemmas/senses)
   -> write     (codec _dump_table -> data/lexicon/*.parquet, the source of truth)
@@ -253,7 +261,7 @@ sources (OMW via wn, kaikki JSONL)
 
 - **`acquire`** pulls the raw sources into the gitignored, regenerable cache and
   pins their exact versions in a `_build.json` manifest. `download_omw` wraps
-  `wn` (the `ingest` extra); `fetch_kaikki` is a plain HTTPS GET; the manifest is
+  `wn` (the `ingest` extra); the manifest is
   the only seam a future re-ingestion merge diffs against (the machine baseline
   is *reconstructible* from the pinned cache, so no base snapshot is committed).
 - **`sources.omw`** is the concept backbone: `wn_synset_entries` flattens OMW
@@ -266,19 +274,18 @@ sources (OMW via wn, kaikki JSONL)
   and a bare `lang` can match two installed wordnets (`it` matches both `omw-it`
   and `omw-iwn`) and silently merge them, breaking determinism. An unmapped
   language raises `UnknownOmwLanguageError`.
-- **`sources.kaikki`** is enrichment only: `load_kaikki_entries` keeps the
-  glosses and example sentences (unlike `load_wiktionary_jsonl`) so `transform`
-  can fill sparse `Concept.definitions` and attach `Lemma.examples`. It never
-  adds rows, and it stays a **lazy line-by-line stream** end to end
-  (`load_sources` chains the per-language dumps; `transform` filters them against
-  the bounded OMW lemma-key set), so the multi-hundred-MB dumps are never held
-  resident.
+  Member forms matching `is_malformed_form` (URL-encoded Wikipedia anchors from
+  the WOLF-derived `omw-fr` wordnet, phase 05.55) are dropped at ingestion with
+  their would-be senses, never minted as lemmas.
+- **`sources.cili`** loads the permissive CILI English-gloss map, used only as
+  an ILI-keyed fallback when OMW left a concept's English gloss blank (dormant
+  on English-inclusive builds; kept for English-excluded ones). The kaikki
+  enrichment leg was removed in phase 5.5 Step 1 (CC-BY-SA isolation); `kaikki`
+  survives only as a legacy provenance value that no writer emits.
 - **`transform`** returns `TaggedTables` - the five tables plus a parallel
-  per-row provenance tag (`omw` / `kaikki` / `llm` / `manual`). OMW rows are
-  tagged `omw`; any row that gains CC-BY-SA kaikki content is re-tagged `kaikki`
-  (the conservative, license-isolating choice). The kaikki iterator is consumed
-  exactly once and only matching entries are retained, so peak enrichment memory
-  is bounded by the OMW backbone, not the dump size.
+  per-row provenance tag (`omw` / `cili` / `llm` / `manual`). OMW rows are
+  tagged `omw`; a concept whose English gloss came from the CILI fallback is
+  tagged `cili`.
 - **`build_initial`** wires it together: transform, write each table through the
   codec with its tags, write the manifest, then carve and (optionally) write a
   sample slice. Thin notebooks under `notebooks/lexicon_ingest/` drive it.

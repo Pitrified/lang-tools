@@ -26,7 +26,8 @@ def _seed_corpus(data_fol: Path, *, lemma_sources: list[str] | None = None) -> N
     """Write a tiny referentially closed corpus.
 
     2 concepts, 2 lemmas, 2 senses, 1 hypernym edge. The `building` concept's
-    en definition equals its lemma (one `definition == lemma` hit).
+    en definition equals its sole en member form (one `definition == lemma`
+    hit under the 5.55 Q3 sole-member scope).
     """
     sources = lemma_sources if lemma_sources is not None else ["omw"]
     house = Lemma(text="house", language="en", part_of_speech="noun")
@@ -80,7 +81,7 @@ def test_run_quality_checks_clean_corpus_passes(tmp_path: Path) -> None:
     assert by_name["kaikki_tagged_rows"].value == 0
     assert by_name["dangling_edges"].value == 0
     assert by_name["lemmas_without_sense"].value == 0
-    # The `building` gloss is the bare lemma: counted, but far below baseline.
+    # The `building` gloss is its sole member form: counted, within baseline.
     assert by_name["definition_equals_lemma"].value == 1
     assert by_name["definition_equals_lemma"].passed
 
@@ -104,6 +105,38 @@ def test_kaikki_invariant_fails_on_tagged_lemma(tmp_path: Path) -> None:
     assert by_name["kaikki_tagged_rows"].value == 1
     assert not by_name["kaikki_tagged_rows"].passed
     assert not report.passed
+
+
+def test_definition_equals_lemma_excludes_other_member_coincidence(
+    tmp_path: Path,
+) -> None:
+    # 5.55 Q3 scope: a gloss equal to a *different* member of a multi-member
+    # synset ("pour out" glossing the decant synset) is a valid short gloss,
+    # not a hit.
+    decant = Lemma(text="decant", language="en", part_of_speech="verb")
+    pour_out = Lemma(text="pour out", language="en", part_of_speech="verb")
+    cid = "c__decant__0011aabbccff"
+    _dump_table("lemmas", [decant, pour_out], data_fol=tmp_path)
+    _dump_table(
+        "concepts",
+        [Concept(id=cid, definitions={"en": "pour out"})],
+        data_fol=tmp_path,
+    )
+    _dump_table(
+        "senses",
+        [
+            Sense(lemma_id=decant.id, concept_id=cid),
+            Sense(lemma_id=pour_out.id, concept_id=cid),
+        ],
+        data_fol=tmp_path,
+    )
+    _dump_table("false_friends", [], data_fol=tmp_path)
+    _dump_table("concept_relations", [], data_fol=tmp_path)
+    report = run_quality_checks(tmp_path)
+    by_name = {inv.name: inv for inv in report.invariants}
+    assert by_name["definition_equals_lemma"].value == 0
+    by_check = {res.name: res for res in report.results}
+    assert by_check["definition_equals_lemma"].rows == [[0, 0]]
 
 
 def test_definition_equals_lemma_baseline_is_configurable(tmp_path: Path) -> None:

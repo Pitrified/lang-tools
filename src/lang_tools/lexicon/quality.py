@@ -16,8 +16,12 @@ Invariants:
     - kaikki-tagged rows are zero (the 5.5 Step-1 cleanup holds on disk),
     - dangling edges (sense or relation endpoints) are zero,
     - lemmas without a sense are zero,
-    - ``definition == lemma`` rows are sharply below the recorded kaikki-era
-      baseline (`DEFINITION_EQUALS_LEMMA_BASELINE`).
+    - ``definition == lemma`` rows do not exceed the recorded baseline
+      (`DEFINITION_EQUALS_LEMMA_BASELINE`). Re-scoped in phase 5.55 (Q3): a
+      gloss that equals a *different* member of a multi-member synset is a
+      valid OMW gloss ("capital of Louisiana" for Baton Rouge), so the check
+      counts only glosses equal to the concept's *sole* member form in that
+      language (genuinely thin); the target after the 5.55 gloss repair is 0.
 """
 
 from __future__ import annotations
@@ -38,9 +42,12 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
 
-#: `definition == lemma` row count measured on the 2026-06-18 kaikki-era build
-#: (05.4 report). The invariant reads "sharply below" as at most half of this.
-DEFINITION_EQUALS_LEMMA_BASELINE = 7220
+#: `definition == lemma` row count under the 5.55 Q3 scope (gloss equals the
+#: sole member form), measured on the 2026-07-11 tier-1 rebuild. The invariant
+#: reads as "at most the baseline"; the 5.55 gloss repair drives it to 0.
+#: History: the pre-re-scope check (gloss equals *any* member) measured 7,220
+#: on the kaikki-era build and 20 on the 05.56 rebuild.
+DEFINITION_EQUALS_LEMMA_BASELINE = 1
 
 #: Tables queried by the checks; partitioned tables glob their per-language files.
 _TABLE_GLOBS = {
@@ -149,6 +156,34 @@ def _has_column(con: Any, source: str, column: str) -> bool:  # noqa: ANN401
 # --------------------------------------------------------------------------- #
 # Check registry: (name, title, description, sql builder over the source map).
 # --------------------------------------------------------------------------- #
+
+def _def_eq_sole_member_hits(t: dict[str, str]) -> str:
+    """Return the shared CTE prefix selecting `definition == lemma` hits.
+
+    Scope (phase 5.55 Q3): a hit is a per-language gloss that, normalized,
+    equals the concept's **sole** member form in that language - a genuinely
+    thin gloss. A gloss equal to a *different* member of a multi-member synset
+    is a valid short definition and is excluded. Used by the two rendered
+    checks and the invariant so the three can never drift.
+    """
+    return f"""
+WITH defs AS (
+  SELECT c.id AS concept_id, unnest(map_entries(c.definitions)) AS kv
+  FROM {t["concepts"]} c
+),
+members AS (
+  SELECT s.concept_id, l.language, l.normalized, l.text,
+         count(*) OVER (PARTITION BY s.concept_id, l.language) AS n_members
+  FROM {t["senses"]} s JOIN {t["lemmas"]} l ON l.id = s.lemma_id
+),
+hits AS (
+  SELECT d.concept_id, d.kv.key AS lang, d.kv.value AS definition, m.text AS lemma
+  FROM defs d
+  JOIN members m ON m.concept_id = d.concept_id AND m.language = d.kv.key
+  WHERE m.n_members = 1 AND lower(strip_accents(d.kv.value)) = m.normalized
+)
+"""
+
 
 _CHECKS: list[tuple[str, str, str, Callable[[dict[str, str]], str]]] = [
     (
@@ -365,21 +400,12 @@ FROM s
     (
         "definition_equals_lemma",
         "definition == lemma (the `house` smell)",
-        "Per-language definitions that, normalized, equal one of the concept's "
-        "lemma forms - a gloss that is just the word. The residual count sizes "
-        "the Step-5 LLM cleanup budget.",
-        lambda t: f"""
-WITH defs AS (
-  SELECT c.id AS concept_id, unnest(map_entries(c.definitions)) AS kv
-  FROM {t["concepts"]} c
-),
-hits AS (
-  SELECT d.concept_id
-  FROM defs d
-  JOIN {t["senses"]} s ON s.concept_id = d.concept_id
-  JOIN {t["lemmas"]} l ON l.id = s.lemma_id AND l.language = d.kv.key
-  WHERE lower(strip_accents(d.kv.value)) = l.normalized
-)
+        "Per-language definitions that, normalized, equal the concept's *sole* "
+        "member form in that language - a genuinely thin gloss (5.55 Q3 scope; "
+        "gloss-equals-other-member coincidences are valid and excluded). The "
+        "residual count is the 5.55 gloss-repair worklist.",
+        lambda t: _def_eq_sole_member_hits(t)
+        + """
 SELECT (SELECT count(*) FROM hits) AS definition_equals_lemma_rows,
        (SELECT count(DISTINCT concept_id) FROM hits) AS concepts_affected
 """,
@@ -387,18 +413,12 @@ SELECT (SELECT count(*) FROM hits) AS definition_equals_lemma_rows,
     (
         "definition_equals_lemma_samples",
         "definition == lemma samples",
-        "A sample of offending (concept, language, definition, lemma) rows.",
-        lambda t: f"""
-WITH defs AS (
-  SELECT c.id AS concept_id, unnest(map_entries(c.definitions)) AS kv
-  FROM {t["concepts"]} c
-)
-SELECT d.concept_id, d.kv.key AS lang, d.kv.value AS definition, l.text AS lemma
-FROM defs d
-JOIN {t["senses"]} s ON s.concept_id = d.concept_id
-JOIN {t["lemmas"]} l ON l.id = s.lemma_id AND l.language = d.kv.key
-WHERE lower(strip_accents(d.kv.value)) = l.normalized
-ORDER BY d.concept_id, lang LIMIT 25
+        "A sample of offending (concept, language, definition, lemma) rows "
+        "under the 5.55 Q3 sole-member scope.",
+        lambda t: _def_eq_sole_member_hits(t)
+        + """
+SELECT concept_id, lang, definition, lemma FROM hits
+ORDER BY concept_id, lang LIMIT 25
 """,
     ),
     (
@@ -493,19 +513,8 @@ LEFT JOIN {t["senses"]} s ON l.id = s.lemma_id WHERE s.lemma_id IS NULL
     )
     def_eq_lemma = _scalar(
         con,
-        f"""
-WITH defs AS (
-  SELECT c.id AS concept_id, unnest(map_entries(c.definitions)) AS kv
-  FROM {t["concepts"]} c
-)
-SELECT count(*)
-FROM defs d
-JOIN {t["senses"]} s ON s.concept_id = d.concept_id
-JOIN {t["lemmas"]} l ON l.id = s.lemma_id AND l.language = d.kv.key
-WHERE lower(strip_accents(d.kv.value)) = l.normalized
-""",
+        _def_eq_sole_member_hits(t) + "SELECT count(*) FROM hits",
     )
-    sharply_below = definition_equals_lemma_baseline // 2
     return [
         InvariantResult(
             name="kaikki_tagged_rows",
@@ -530,13 +539,13 @@ WHERE lower(strip_accents(d.kv.value)) = l.normalized
         ),
         InvariantResult(
             name="definition_equals_lemma",
-            title="definition == lemma rows",
+            title="definition == lemma rows (sole-member scope)",
             value=def_eq_lemma,
             requirement=(
-                f"sharply below the {definition_equals_lemma_baseline} baseline "
-                f"(at most {sharply_below})"
+                f"at most the {definition_equals_lemma_baseline} baseline "
+                f"(target 0 after the 5.55 gloss repair)"
             ),
-            passed=def_eq_lemma <= sharply_below,
+            passed=def_eq_lemma <= definition_equals_lemma_baseline,
         ),
     ]
 

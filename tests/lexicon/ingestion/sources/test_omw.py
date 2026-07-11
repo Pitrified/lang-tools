@@ -17,6 +17,7 @@ from lang_tools.lexicon.ingestion.sources.omw import UnknownOmwLanguageError
 from lang_tools.lexicon.ingestion.sources.omw import _ili_id
 from lang_tools.lexicon.ingestion.sources.omw import _omw_lexicon
 from lang_tools.lexicon.ingestion.sources.omw import group_to_records
+from lang_tools.lexicon.ingestion.sources.omw import is_malformed_form
 from lang_tools.lexicon.ingestion.sources.omw import slugify
 
 
@@ -123,6 +124,92 @@ def test_pos_is_mapped() -> None:
     _, lemmas, _, _, _ = group_to_records(entries)
     by_text = {lem.text: lem.part_of_speech for lem in lemmas}
     assert by_text == {"run": "verb", "fast": "adjective"}
+
+
+def test_unique_slug_stays_tier0() -> None:
+    # No collision -> the lexfile is not appended (tier 0 wins).
+    entries = [
+        SynsetEntry(
+            "en", "s1", "i1", "a dwelling", ("house",), "n", lexfile="noun.artifact",
+        ),
+    ]
+    concepts, _, _, _, _ = group_to_records(entries)
+    assert concepts[0].id.startswith("c__house__")
+
+
+def test_colliding_slugs_get_lexfile_discriminant() -> None:
+    # Two concepts sharing the tier-0 slug `cut` split on their lexfiles.
+    entries = [
+        SynsetEntry(
+            "en", "s1", "i1", "separate with an edge", ("cut",), "v",
+            lexfile="verb.contact",
+        ),
+        SynsetEntry(
+            "en", "s2", "i2", "the act of cutting", ("cut",), "n",
+            lexfile="noun.act",
+        ),
+    ]
+    concepts, _, _, _, _ = group_to_records(entries)
+    slugs = {c.id.split("__")[1] for c in concepts}
+    assert slugs == {"cut-verb-contact", "cut-noun-act"}
+
+
+def test_same_lexfile_collision_keeps_tier1_slug() -> None:
+    # True polysemy (same slug, same lexfile): both keep the tier-1 slug and the
+    # hash disambiguates; the qualifier tier is deferred to phase 8.
+    entries = [
+        SynsetEntry(
+            "en", "s1", "i1", "person one", ("aaron",), "n", lexfile="noun.person",
+        ),
+        SynsetEntry(
+            "en", "s2", "i2", "person two", ("aaron",), "n", lexfile="noun.person",
+        ),
+    ]
+    concepts, _, _, _, _ = group_to_records(entries)
+    assert [c.id.split("__")[1] for c in concepts] == [
+        "aaron-noun-person",
+        "aaron-noun-person",
+    ]
+    assert len({c.id for c in concepts}) == 2
+
+
+def test_generic_concept_fallback_gets_lexfile_even_when_unique() -> None:
+    # No lemma, no definition -> tier-0 slug is the generic `concept`; the
+    # lexfile is appended even without a collision so no bare `concept` survives.
+    entries = [SynsetEntry("en", "s1", "i1", None, (), "n", lexfile="noun.tops")]
+    concepts, _, _, _, _ = group_to_records(entries)
+    assert concepts[0].id.startswith("c__concept-noun-tops__")
+
+
+def test_colliding_slug_without_lexfile_keeps_tier0() -> None:
+    # A collision with no lexfile anywhere has no discriminant to append.
+    entries = [
+        SynsetEntry("en", "s1", "i1", "d1", ("cut",), "n"),
+        SynsetEntry("en", "s2", "i2", "d2", ("cut",), "v"),
+    ]
+    concepts, _, _, _, _ = group_to_records(entries)
+    assert all(c.id.split("__")[1] == "cut" for c in concepts)
+
+
+def test_is_malformed_form_flags_wiki_anchors() -> None:
+    assert is_malformed_form("Grotte#Culture")
+    assert is_malformed_form("jeûne#je.c3.bbne politique")  # lowercase .c3.
+    assert is_malformed_form("Radiateur#.C3.89changeur solide.2Fair")
+    assert not is_malformed_form("monoxyde de carbone")
+
+
+def test_malformed_forms_dropped_with_their_senses() -> None:
+    # The wiki-anchor member never becomes a lemma or a sense; the clean member
+    # still attaches, so the concept is not orphaned.
+    entries = [
+        SynsetEntry(
+            "fr", "fr-1", "i1", "une grotte", ("grotte", "Grotte#Culture"), "n",
+        ),
+    ]
+    concepts, lemmas, senses, _, _ = group_to_records(entries)
+    assert [lem.text for lem in lemmas] == ["grotte"]
+    assert len(senses) == 1
+    assert len(concepts) == 1
 
 
 @dataclass

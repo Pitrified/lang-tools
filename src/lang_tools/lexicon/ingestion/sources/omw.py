@@ -58,6 +58,13 @@ _POS_LABELS: dict[str, str] = {
 #: How many slug words to keep, so concept ids stay short but legible.
 _SLUG_WORDS = 4
 
+#: Substrings that mark a member form as a wiki-derivation artifact (phase 5.55
+#: Q4): URL-encoded Wikipedia section anchors ("Grotte#Culture",
+#: "Radiateur#.C3.89changeur ...") and HTML-entity fragments ("c&amp;#339;..."),
+#: all localized in the WOLF-derived omw-fr wordnet. Matched case-insensitively
+#: (the dumps carry both ".C3." and ".c3.").
+_MALFORMED_FORM_MARKERS = ("#", ".c3.")
+
 #: Default OMW release version (the ``:1.4`` suffix on lexicon specifiers).
 OMW_VERSION = "1.4"
 
@@ -142,6 +149,24 @@ def slugify(text: str) -> str:
     return "-".join(cleaned.split("-")[:_SLUG_WORDS])
 
 
+def is_malformed_form(form: str) -> bool:
+    """Report whether a member form is a wiki-derivation artifact to drop.
+
+    Phase 5.55 Q4 decision: forms containing a Wikipedia section anchor or a
+    URL-encoding fragment (`_MALFORMED_FORM_MARKERS`) are malformed tokens, not
+    words - `group_to_records` drops them (and their would-be senses) instead of
+    minting lemmas. The concept itself is kept; its other members still attach.
+
+    Args:
+        form: A member lemma form as read from the wordnet.
+
+    Returns:
+        True when the form matches a malformed-form marker.
+    """
+    lowered = form.lower()
+    return any(marker in lowered for marker in _MALFORMED_FORM_MARKERS)
+
+
 @dataclass(frozen=True)
 class SynsetEntry:
     """One OMW synset flattened for one language (the pure intermediate shape).
@@ -200,6 +225,40 @@ def _pick_slug_source(group: list[SynsetEntry]) -> str:
     return "concept"
 
 
+def _tiered_slugs(grouped: Mapping[str, list[SynsetEntry]]) -> dict[str, str]:
+    """Compute the final slug per grouping key with the 5.55 tier-0/1 scheme.
+
+    Tier 0: the `_pick_slug_source` slug; kept when unique across the build.
+    Tier 1: when the tier-0 slug collides (or is the generic ``"concept"``
+    fallback), append the concept's slugified lexfile as a deterministic
+    discriminant (``cut`` -> ``cut-noun-act`` vs ``cut-verb-contact``). Groups
+    that still collide after tier 1 (same slug *and* same lexfile - true
+    polysemy) keep the tier-1 slug; the id hash carries uniqueness regardless,
+    and the LLM qualifier tier is deferred to phase 8.
+
+    Args:
+        grouped: The grouping-key -> entries map built by `group_to_records`.
+
+    Returns:
+        ``{grouping_key: final_slug}`` for every group.
+    """
+    base_slugs = {
+        key: slugify(_pick_slug_source(group)) for key, group in grouped.items()
+    }
+    counts: dict[str, int] = {}
+    for slug in base_slugs.values():
+        counts[slug] = counts.get(slug, 0) + 1
+    slugs: dict[str, str] = {}
+    for key, base in base_slugs.items():
+        if counts[base] > 1 or base == "concept":
+            lexfile = _pick_lexfile(grouped[key])
+            if lexfile:
+                slugs[key] = f"{base}-{slugify(lexfile)}"
+                continue
+        slugs[key] = base
+    return slugs
+
+
 def _pick_lexfile(group: list[SynsetEntry]) -> str | None:
     """Return the concept's lexfile, preferring the English synset's.
 
@@ -214,6 +273,34 @@ def _pick_lexfile(group: list[SynsetEntry]) -> str | None:
         if entry.lexfile:
             return entry.lexfile
     return None
+
+
+def _group_definitions(
+    group: list[SynsetEntry],
+    glosses: Mapping[str, str],
+) -> tuple[dict[str, str], str]:
+    """Collect a concept's per-language definitions and its provenance tag.
+
+    One definition per language; the first non-empty gloss wins. When the group
+    has no English gloss, the CILI fallback (keyed by the group's ILI id) fills
+    the en slot and tags the concept `SOURCE_CILI`; see the English-gloss policy
+    in `group_to_records`.
+
+    Returns:
+        The definitions map and the concept's source tag (omw or cili).
+    """
+    definitions: dict[str, str] = {}
+    for entry in group:
+        if entry.definition and entry.language not in definitions:
+            definitions[entry.language] = entry.definition
+    source = SOURCE_OMW
+    if "en" not in definitions and glosses:
+        group_ili = next((e.ili for e in group if e.ili), None)
+        gloss = glosses.get(group_ili) if group_ili else None
+        if gloss:
+            definitions["en"] = gloss
+            source = SOURCE_CILI
+    return definitions, source
 
 
 def _group_examples(group: list[SynsetEntry]) -> dict[str, list[str]]:
@@ -278,7 +365,14 @@ def group_to_records(
     map holds the per-language glosses; every member lemma of every language in
     the group becomes a thin `Lemma` and an attaching `Sense` edge. Lemmas are
     de-duplicated by `Lemma.id` (a form shared by two synsets is one token);
-    senses are de-duplicated by ``(lemma_id, concept_id)``.
+    senses are de-duplicated by ``(lemma_id, concept_id)``. Member forms that
+    match `is_malformed_form` (wiki-anchor artifacts, phase 5.55 Q4) are dropped
+    with their would-be senses and counted in the log.
+
+    Slug policy (phase 5.55 work item A): slugs are tiered via `_tiered_slugs` -
+    the tier-0 `_pick_slug_source` slug when unique, else the slugified lexfile
+    appended as a deterministic tier-1 discriminant. Only the id's slug half
+    changes; the hash half stays keyed on the grouping key.
 
     English-gloss policy (phase 5.5 Step 2): when OMW left a concept's English
     gloss blank, fall back to the permissive CILI gloss for the concept's ILI id
@@ -313,28 +407,17 @@ def group_to_records(
     for entry in entries:
         grouped.setdefault(_grouping_key(entry), []).append(entry)
 
+    slugs = _tiered_slugs(grouped)
     concepts: list[Concept] = []
     concept_source_by_id: dict[str, str] = {}
     lemmas: dict[str, Lemma] = {}
     senses: dict[tuple[str, str], Sense] = {}
     key_to_cid: dict[tuple[str, str], str] = {}
+    malformed_dropped = 0
 
     for key, group in grouped.items():
-        slug = slugify(_pick_slug_source(group))
-        cid = concept_id(slug, key)
-        # One definition per language; the first non-empty gloss wins.
-        definitions: dict[str, str] = {}
-        for entry in group:
-            if entry.definition and entry.language not in definitions:
-                definitions[entry.language] = entry.definition
-        source = SOURCE_OMW
-        # CILI English fallback, keyed by the concept's ILI id (see docstring).
-        if "en" not in definitions and glosses:
-            group_ili = next((e.ili for e in group if e.ili), None)
-            gloss = glosses.get(group_ili) if group_ili else None
-            if gloss:
-                definitions["en"] = gloss
-                source = SOURCE_CILI
+        cid = concept_id(slugs[key], key)
+        definitions, source = _group_definitions(group, glosses)
         concepts.append(
             Concept(
                 id=cid,
@@ -349,6 +432,9 @@ def group_to_records(
             key_to_cid[(entry.language, entry.synset_id)] = cid
             pos = _POS_LABELS.get(entry.pos or "")
             for form in entry.lemmas:
+                if is_malformed_form(form):
+                    malformed_dropped += 1
+                    continue
                 lemma = Lemma(
                     text=form,
                     language=entry.language,
@@ -364,6 +450,8 @@ def group_to_records(
     relations, dangling = _hypernym_edges(grouped, key_to_cid)
     if dangling:
         lg.info("Dropped {} hypernym edge(s) with an unresolved target", dangling)
+    if malformed_dropped:
+        lg.info("Dropped {} malformed member form(s) (5.55 Q4)", malformed_dropped)
 
     concepts.sort(key=lambda c: c.id)
     sorted_lemmas = sorted(lemmas.values(), key=lambda lem: lem.id)
