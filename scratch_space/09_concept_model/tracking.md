@@ -907,3 +907,5 @@ Append-only. Newest at the bottom.
   The real one-row run is **blocked on credentials**: `~/cred/lang-tools/.env` has no
   LLM API key, so propose -> review -> apply waits for one. 206 tests / ruff / pyright
   green; docs updated (lexicon.md maintenance-loop section, llm.md chain row).
+  Handoff: the user runs the `gloss_repair.ipynb` notebook themselves; 5.55 closes
+  after their review + apply + gate re-run.
