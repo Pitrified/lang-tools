@@ -227,6 +227,31 @@ generated, never authored. Re-run it after every re-ingestion or maintenance
 pass; it is the lightweight regression harness. Needs the `store` extra
 (DuckDB); a missing corpus raises `CorpusNotFoundError`.
 
+### Maintenance loop (phase 05.55)
+
+`lang_tools.lexicon.maintenance` is the propose -> review -> apply loop over
+the corpus - the first concrete run of the phase-8 maintenance machinery,
+driven by the thin notebook `notebooks/lexicon_maintain/gloss_repair.ipynb`:
+
+- **Propose**: `thin_gloss_worklist(data_fol)` finds the `definition == lemma`
+  residue using the *same* sole-member CTE as the quality gate (shared query,
+  so worklist and invariant cannot drift), enriched with the repair context
+  (member forms, English gloss and members, lexfile, hypernym gloss). The
+  [`build_gloss_repair_chain`](llm.md) chain drafts one `GlossProposal` per
+  entry, grounded strictly in that context; `write_proposals` lands them in a
+  reviewable JSONL under the gitignored staging area.
+- **Review**: a human edits the JSONL - refines `proposed_definition` and flips
+  `status` to `accepted` / `rejected`. Nothing applies unreviewed.
+- **Apply**: `apply_gloss_proposals` rewrites only the accepted glosses.
+  Because the generic `export_table` / `import_table` round-trip does not carry
+  the on-disk `source` column, apply edits the concepts table at the raw-row
+  level: every untouched row keeps its provenance tag and each edited row
+  re-tags `llm`. Concept ids never change (glosses do not feed `concept_id`),
+  so senses and relations stay valid. An accepted proposal whose concept id is
+  missing raises `ProposalConceptNotFoundError`.
+- **Gate**: re-run `run_quality_checks`; the `definition == lemma` invariant
+  converges to 0.
+
 ## Ingestion
 
 `lang_tools.lexicon.ingestion` exposes two per-file loaders, both yielding thin

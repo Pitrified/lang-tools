@@ -22,6 +22,7 @@ ignore = [
 # into every query; no user input reaches the SQL (same rationale as the
 # inline waivers in corpus.py).
 "src/lang_tools/lexicon/quality.py" = ["S608"]
+"src/lang_tools/lexicon/maintenance.py" = ["S608"]
 "*.ipynb" = [
     "E501",   # Line too long
     "ERA001", # Found commented-out code

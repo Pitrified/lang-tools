@@ -13,12 +13,16 @@ Public API:
     GreetingInput, GreetingOutput, build_greeting_chain
     LemmaGeneratorInput, LemmaGeneratorOutput, GeneratedLemma,
         build_lemma_generator_chain
+    GlossRepairInput, GlossRepairOutput, build_gloss_repair_chain
 """
 
 from lang_tools.llm.conversation import ConversationInput
 from lang_tools.llm.conversation import ConversationOutput
 from lang_tools.llm.conversation import ConversationTurn
 from lang_tools.llm.conversation import build_conversation_chain
+from lang_tools.llm.gloss_repair import GlossRepairInput
+from lang_tools.llm.gloss_repair import GlossRepairOutput
+from lang_tools.llm.gloss_repair import build_gloss_repair_chain
 from lang_tools.llm.greeting import GreetingInput
 from lang_tools.llm.greeting import GreetingOutput
 from lang_tools.llm.greeting import build_greeting_chain
@@ -41,6 +45,8 @@ __all__ = [
     "ConversationOutput",
     "ConversationTurn",
     "GeneratedLemma",
+    "GlossRepairInput",
+    "GlossRepairOutput",
     "GreetingInput",
     "GreetingOutput",
     "LemmaGeneratorInput",
@@ -52,6 +58,7 @@ __all__ = [
     "TranslationInput",
     "TranslationOutput",
     "build_conversation_chain",
+    "build_gloss_repair_chain",
     "build_greeting_chain",
     "build_lemma_generator_chain",
     "build_paragraph_splitter_chain",

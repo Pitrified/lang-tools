@@ -34,6 +34,7 @@ print(result.translated_text)
 | [`build_paragraph_splitter_chain`](../reference/lang_tools/llm/splitter/) | `SplitterInput` | `SplitterOutput` | Split text into reconstruction-friendly portions |
 | [`build_greeting_chain`](../reference/lang_tools/llm/greeting/) | `GreetingInput` | `GreetingOutput` | Open a tutor conversation |
 | [`build_lemma_generator_chain`](../reference/lang_tools/llm/lemma_generator/) | `LemmaGeneratorInput` | `LemmaGeneratorOutput` | Generate themed vocabulary on demand |
+| [`build_gloss_repair_chain`](../reference/lang_tools/llm/gloss_repair/) | `GlossRepairInput` | `GlossRepairOutput` | Rewrite a thin `definition == lemma` gloss, grounded in synset context (feeds the [maintenance loop](lexicon.md#maintenance-loop-phase-0555)) |
 
 `StructuredLLMChain` validates that every Jinja variable in the prompt
 matches a field of the input model at construction time, so a prompt edit

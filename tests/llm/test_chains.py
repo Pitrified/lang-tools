@@ -9,6 +9,7 @@ from llm_core.chat.config.openai import ChatOpenAIConfig
 from pydantic import SecretStr
 
 from lang_tools.llm import build_conversation_chain
+from lang_tools.llm import build_gloss_repair_chain
 from lang_tools.llm import build_greeting_chain
 from lang_tools.llm import build_lemma_generator_chain
 from lang_tools.llm import build_paragraph_splitter_chain
@@ -42,3 +43,7 @@ def test_build_greeting_chain() -> None:
 
 def test_build_lemma_generator_chain() -> None:
     build_lemma_generator_chain(_cfg())
+
+
+def test_build_gloss_repair_chain() -> None:
+    build_gloss_repair_chain(_cfg())
