@@ -30,6 +30,8 @@ from lang_tools.lexicon.ingestion.sources.cili import load_cili_glosses
 from lang_tools.lexicon.ingestion.sources.omw import wn_synset_entries
 from lang_tools.lexicon.ingestion.transform import TaggedTables
 from lang_tools.lexicon.ingestion.transform import transform
+from lang_tools.lexicon.maintenance import apply_gloss_overrides
+from lang_tools.lexicon.maintenance import load_gloss_overrides
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -48,12 +50,18 @@ class BuildSummary:
         counts: Per-table row counts in the full output.
         sample_counts: Per-table row counts in the carved sample slice.
         manifest_path: Where the ``_build.json`` manifest was written.
+        gloss_overrides_applied: Curated gloss overrides applied to this build
+            (phase 05.58).
+        gloss_overrides_stale: Curated overrides naming a concept id this build
+            does not contain; logged and skipped, never fatal.
     """
 
     languages: list[str]
     counts: dict[str, int]
     sample_counts: dict[str, int]
     manifest_path: Path
+    gloss_overrides_applied: int = 0
+    gloss_overrides_stale: int = 0
 
 
 def _clean_corpus_tables(data_fol: Path) -> None:
@@ -197,7 +205,8 @@ def build_initial(
             fragments pinning source versions).
 
     Returns:
-        A `BuildSummary` with row counts and the manifest path.
+        A `BuildSummary` with row counts, the manifest path, and how many curated
+        gloss overrides were applied.
     """
     langs = list(langs)
     if omw_entries is None:
@@ -206,6 +215,13 @@ def build_initial(
             cili_glosses = loaded_cili
 
     tables = transform(omw_entries, cili_glosses)
+    # Curated gloss repairs are re-applied here so a rebuild reproduces them; a
+    # post-hoc Parquet edit would be silently reverted by this very build (05.58).
+    applied, stale = apply_gloss_overrides(
+        tables.concepts,
+        tables.concept_sources,
+        overrides=load_gloss_overrides(data_fol),
+    )
     counts = _write_tables(tables, data_fol)
 
     sample = carve_sample(tables, max_concepts=max_sample_concepts)
@@ -219,7 +235,12 @@ def build_initial(
     if sample_data_fol is not None:
         _write_tables(sample, sample_data_fol)
 
-    manifest = {"languages": langs, "counts": counts, **(extra_manifest or {})}
+    manifest = {
+        "languages": langs,
+        "counts": counts,
+        "gloss_overrides": {"applied": applied, "stale": stale},
+        **(extra_manifest or {}),
+    }
     path = write_manifest(data_fol, manifest)
     lg.info("Initial build complete: {} (sample {})", counts, sample_counts)
 
@@ -228,4 +249,6 @@ def build_initial(
         counts=counts,
         sample_counts=sample_counts,
         manifest_path=path,
+        gloss_overrides_applied=applied,
+        gloss_overrides_stale=stale,
     )

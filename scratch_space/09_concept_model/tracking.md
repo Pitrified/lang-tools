@@ -64,6 +64,7 @@ split as the design firms up.
 | 5.55 | LLM cleanup (slug legibility + gloss repair) | [`05.55_llm_cleanup/05.55_llm_cleanup.md`](05.55_llm_cleanup/05.55_llm_cleanup.md) | done | Sub-plan executing 5.5 Step 5, sized from the 05.56 gate: deterministic lexfile slug tier (~halves 47,015 colliding concepts; ids rebuilt, never patched; LLM tier-2 qualifiers deferred to phase 8 with the committed-table + Batch-API decisions made) + re-scope the `def==lemma` check to gloss-equals-sole-member and LLM-repair the genuinely-thin remainder; orphan/POS items measured clean and closed. First run of the phase-8 loop shape. **Done** (2026-09-01): deterministic slice (collisions 47,015 -> 23,476, generic slugs 0, wiki-anchors dropped), maintenance loop built and tested, and the one thin gloss repaired through the loop on the real corpus - def==lemma 7,220 -> 1 -> **0**, baseline lowered to 0, one row re-tagged `llm`. The gloss was human-authored (no API key in the cred file), so the `gloss_repair` chain is still unexercised against a live model -> phase 8. |
 | 5.56 | Rebuild + regression gate    | [`05.56_rebuild_gate/05.56_rebuild_gate.md`](05.56_rebuild_gate/05.56_rebuild_gate.md) | done | Executed 5.5 Steps 7+6: 5-language rebuild from the re-cut pipeline (117,659 concepts / 321,126 lemmas / 491,876 senses + 97,666 hypernym edges, ~140 s / 1.5 GB); checks + renderer extracted to `lexicon/quality.py` (notebook = thin caller, report auto-generated); all four invariants pass (`def==lemma` 7,220 -> 20); per-lexicon license snapshot found **omw-pt CC BY-SA / omw-fr CeCILL-C** (routed to phase 10). |
 | 5.57 | Junk member forms (placeholders + markup) | [`05.57_junk_forms/05.57_junk_forms.md`](05.57_junk_forms/05.57_junk_forms.md) | done | Deterministic follow-on to 5.55, found while reviewing its gloss repair: MultiWordNet's `GAP!` / `PSEUDOGAP!` "no lexicalization" markers were in the corpus as ordinary Italian noun lemmas over 1,008 concepts, plus 11 fr HTML-escaped markup forms and pt `<HTML>`. `unescape_form` (bounded fixed point - the data is doubly escaped) repairs the 2 recoverable forms and the `<` / exact-placeholder markers drop the rest. Rebuilt + re-gated: -15 lemmas, -1,020 senses, 0 concepts lost, 0 orphans, all predictions exact. Exposed that a rebuild silently reverts applied gloss repairs -> phase 8. |
+| 5.58 | Curated gloss overrides (rebuild durability) | [`05.58_curated_glosses/05.58_curated_glosses.md`](05.58_curated_glosses/05.58_curated_glosses.md) | done | Closes the gap 5.57 found: a rebuild regenerates every gloss from OMW, so an applied gloss repair was silently reverted. Accepted `GlossProposal` rows now live in the committed `data/curated/gloss_overrides.jsonl` and `build_initial` applies them right after `transform` (re-tagging those rows `llm`), so a rebuild reproduces curated state instead of erasing it; applied/stale counts reach `BuildSummary` and `_build.json`. Stale ids warn and are counted, never fatal, so a re-slug cannot block a rebuild. 5.55 Q2's committed-input decision, applied to glosses. |
 | 6  | Frequency & complexity        | [`06_frequency_complexity.md`](06_frequency_complexity.md) | draft  | Per-sense token/sense frequency (`wordfreq`, sense-tag weights) and CEFR complexity (graded lists / estimated).        |
 | 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | draft  | Ingest hypernymy/hyponymy and antonymy as typed edges from OMW.                                                        |
 | 8  | Maintenance (LLM-based)       | [`08_maintenance.md`](08_maintenance.md)                 | draft  | LLM-assisted upkeep: new lemma->concept mapping, gloss enrichment, slug dedup, validation against OMW.                 |
@@ -966,3 +967,22 @@ Append-only. Newest at the bottom.
   committed JSONL that the *build* applies, so rebuilds reproduce curated state instead of
   erasing it. Until then every rebuild drops accepted gloss repairs and only the gate
   notices. Routed to phase 8. 209 tests / ruff / pyright green.
+- 2026-09-01 : **phase 5.58** - made curated gloss repairs survive a rebuild, closing the
+  gap 5.57 exposed. Accepted `GlossProposal` rows now live in
+  `data/curated/gloss_overrides.jsonl`, committed to git (force-added, like the
+  `data/bootstrap/*.jsonl` seed, since `data/` is ignored wholesale), and `build_initial`
+  applies them between `transform` and the write via `load_gloss_overrides` /
+  `apply_gloss_overrides` - same model and same file format as the review artifact, so the
+  maintenance loop's output *is* the build's input rather than a second schema. Applied
+  rows are re-tagged `llm` exactly as the Parquet path does; the applied/stale counts reach
+  `BuildSummary` and `_build.json`, so a build's curated state is auditable from the
+  manifest. A stale override (an id the build no longer has, e.g. after a re-slug) warns
+  and is counted, never fatal: a hard failure would block every rebuild after a legitimate
+  re-slug, and the gate already catches the consequence.
+  Proof: rebuilt from scratch with **no post-hoc apply** - "Applied 1 curated gloss
+  override(s), 0 stale", the it gloss came back, the row is tagged `llm`,
+  `definition == lemma` 0, four invariants PASS. The rebuild that reverted the repair in
+  5.57 now reproduces it. `apply_gloss_proposals` stays: it is still how you fix the corpus
+  you have without a 15-second rebuild, and the reviewer's loop now ends in two places
+  (apply, and append to the curated file) - the gloss-repair notebook says so at the review
+  and gate steps. 213 tests / ruff / pyright green; docs updated.

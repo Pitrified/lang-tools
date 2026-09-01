@@ -262,13 +262,23 @@ The gloss was authored by the reviewer rather than drafted by the chain
 (no LLM API key in the cred file), so `build_gloss_repair_chain` is still unexercised
 against a live model - phase 8 is its first real run.
 
-**Applied gloss repairs do not survive a rebuild.**
+**Curated overrides - what makes a repair survive a rebuild (phase 05.58).**
 `apply_gloss_proposals` edits `concepts.parquet`, and a full rebuild regenerates that file
-from OMW, so an accepted and applied gloss repair is silently reverted by the next
+from OMW, so on its own an applied gloss repair is silently reverted by the next
 `build_initial` run - phase 05.57 hit exactly this, and the gate is what caught it.
-Re-apply the accepted proposals JSONL after any rebuild, until the curated-input path
-exists: accepted proposals becoming a committed JSONL that the build itself applies, the
-way phase 05.55 Q2 decided to handle the slug-qualifier table. Phase 8.
+Accepted proposals therefore also live in `data/curated/gloss_overrides.jsonl`, committed
+to git (force-added, since `data/` is gitignored wholesale - the same treatment the
+`data/bootstrap/*.jsonl` seed gets). `build_initial` calls `load_gloss_overrides` /
+`apply_gloss_overrides` right after `transform`, setting each override's gloss and
+re-tagging that row `llm` before anything is written, so a rebuild reproduces the curated
+state instead of erasing it. The applied and stale counts land in `BuildSummary` and in
+`_build.json`.
+An override naming a concept id the build no longer contains is **stale** - ids are
+rebuilt, so a re-slug can outdate one. Stale overrides are logged and counted, never
+fatal: failing the build would block every rebuild after a legitimate re-slug, and the
+gate already catches the consequence.
+So the reviewer's loop ends in two places: apply to the corpus you have, and append to the
+curated file so the next build keeps it.
 
 ## Ingestion
 

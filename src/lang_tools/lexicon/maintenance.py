@@ -19,6 +19,17 @@ Provenance seam:
     table directly at the raw-row level: it preserves every row's existing
     provenance tag and re-tags the rows it changes as ``llm``. Ids never change
     (glosses do not feed `concept_id`), so senses / relations stay valid.
+
+Durability seam (phase 05.58):
+    Editing the Parquet is not durable - a rebuild regenerates every column from
+    OMW and silently reverts the edit (05.57 hit this and the gate caught it).
+    Accepted proposals therefore also live in a **committed** JSONL,
+    `data/curated/gloss_overrides.jsonl`, which `ingestion.pipeline.build_initial`
+    applies to the freshly transformed tables via `apply_gloss_overrides`. Same
+    file format and same model as the review artifact, so the loop's output is
+    literally the build's input. `apply_gloss_proposals` remains the way to repair
+    the corpus in place without a rebuild; the curated file is what makes the
+    repair survive one.
 """
 
 from __future__ import annotations
@@ -50,6 +61,11 @@ if TYPE_CHECKING:
 
 #: Provenance tag applied to rows whose gloss an accepted proposal rewrote.
 SOURCE_LLM = "llm"
+
+#: Committed curated gloss overrides, relative to the project data folder. Under
+#: the wholesale-gitignored ``data/``, so the file is force-added exactly like the
+#: ``data/bootstrap/*.jsonl`` seed (phase 05.58).
+GLOSS_OVERRIDES_SUBPATH = "curated/gloss_overrides.jsonl"
 
 
 class ProposalConceptNotFoundError(KeyError):
@@ -287,3 +303,83 @@ def apply_gloss_proposals(
     )
     lg.info("Applied {} accepted gloss proposal(s)", len(applied))
     return len(applied)
+
+
+def gloss_overrides_path(data_fol: Path) -> Path:
+    """Return the path of the committed curated gloss overrides.
+
+    Args:
+        data_fol: Project data folder.
+
+    Returns:
+        ``<data_fol>/curated/gloss_overrides.jsonl``; it need not exist.
+    """
+    return data_fol / GLOSS_OVERRIDES_SUBPATH
+
+
+def load_gloss_overrides(data_fol: Path) -> list[GlossProposal]:
+    """Read the committed curated gloss overrides, if any.
+
+    Args:
+        data_fol: Project data folder.
+
+    Returns:
+        The accepted overrides, or an empty list when the file does not exist.
+        Non-accepted rows are filtered out here, so a build never applies a
+        proposal that is still under review.
+    """
+    path = gloss_overrides_path(data_fol)
+    if not path.exists():
+        return []
+    return [p for p in read_proposals(path) if p.status == "accepted"]
+
+
+def apply_gloss_overrides(
+    concepts: list[Concept],
+    sources: list[str],
+    *,
+    overrides: list[GlossProposal],
+) -> tuple[int, int]:
+    """Apply curated gloss overrides to freshly transformed concepts, in place.
+
+    Called by `ingestion.pipeline.build_initial` between `transform` and the
+    write, so a rebuild reproduces the curated state instead of erasing it. Each
+    applied row is re-tagged `SOURCE_LLM`, matching what `apply_gloss_proposals`
+    does on the Parquet.
+
+    An override whose concept id is not in the build is **stale** - ids are
+    rebuilt, so a slug change can outdate one. Stale overrides are logged and
+    counted rather than raised: failing here would block every rebuild after a
+    legitimate re-slug, and the quality gate already catches the consequence (the
+    `definition == lemma` count climbing back above its baseline).
+
+    Args:
+        concepts: The freshly built concepts, mutated in place.
+        sources: The parallel per-row provenance tags, mutated in place.
+        overrides: Accepted overrides, typically from `load_gloss_overrides`.
+
+    Returns:
+        ``(applied, stale)`` counts.
+    """
+    if not overrides:
+        return (0, 0)
+
+    by_id = {concept.id: index for index, concept in enumerate(concepts)}
+    applied = 0
+    stale = 0
+    for override in overrides:
+        index = by_id.get(override.concept_id)
+        if index is None:
+            lg.warning(
+                "Stale gloss override: no concept {} in this build (kept in the "
+                "curated file, not applied)",
+                override.concept_id,
+            )
+            stale += 1
+            continue
+        concepts[index].definitions[override.language] = override.proposed_definition
+        sources[index] = SOURCE_LLM
+        applied += 1
+
+    lg.info("Applied {} curated gloss override(s), {} stale", applied, stale)
+    return (applied, stale)
