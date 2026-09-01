@@ -219,7 +219,9 @@ report that leads with four regression invariants:
   (`DEFINITION_EQUALS_LEMMA_BASELINE`). Re-scoped in phase 05.55: only a gloss
   equal to the concept's *sole* member form in that language counts (genuinely
   thin); a gloss that coincides with a *different* member of a multi-member
-  synset is a valid short definition and is excluded.
+  synset is a valid short definition and is excluded. The 05.55 gloss repair
+  drove the count to 0 and the baseline is now **0**, so any newly introduced
+  thin gloss fails the gate.
 
 The notebook under `scratch_space/09_concept_model/05.4_data_quality/` is a thin
 caller that regenerates `report.md` wholesale on every run - the report is
@@ -251,6 +253,14 @@ driven by the thin notebook `notebooks/lexicon_maintain/gloss_repair.ipynb`:
   missing raises `ProposalConceptNotFoundError`.
 - **Gate**: re-run `run_quality_checks`; the `definition == lemma` invariant
   converges to 0.
+
+Run on the real corpus on 2026-09-01:
+one worklist entry (`c__mind-noun-cognition__93923c10626c`, the it gloss "attenzione"),
+one accepted proposal, one concepts row rewritten and re-tagged `llm`,
+invariant 1 -> 0, baseline lowered to 0.
+The gloss was authored by the reviewer rather than drafted by the chain
+(no LLM API key in the cred file), so `build_gloss_repair_chain` is still unexercised
+against a live model - phase 8 is its first real run.
 
 ## Ingestion
 

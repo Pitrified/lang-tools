@@ -75,13 +75,14 @@ def _seed_corpus(data_fol: Path, *, lemma_sources: list[str] | None = None) -> N
 
 def test_run_quality_checks_clean_corpus_passes(tmp_path: Path) -> None:
     _seed_corpus(tmp_path)
-    report = run_quality_checks(tmp_path)
+    # The seed's `building` gloss is its sole member form, so it is one thin
+    # gloss over the 0 default baseline; allow it explicitly here.
+    report = run_quality_checks(tmp_path, definition_equals_lemma_baseline=1)
     assert report.passed
     by_name = {inv.name: inv for inv in report.invariants}
     assert by_name["kaikki_tagged_rows"].value == 0
     assert by_name["dangling_edges"].value == 0
     assert by_name["lemmas_without_sense"].value == 0
-    # The `building` gloss is its sole member form: counted, within baseline.
     assert by_name["definition_equals_lemma"].value == 1
     assert by_name["definition_equals_lemma"].passed
 
@@ -141,9 +142,14 @@ def test_definition_equals_lemma_excludes_other_member_coincidence(
 
 def test_definition_equals_lemma_baseline_is_configurable(tmp_path: Path) -> None:
     _seed_corpus(tmp_path)
-    report = run_quality_checks(tmp_path, definition_equals_lemma_baseline=0)
+    # The seed's one thin gloss trips the 0 default baseline...
+    report = run_quality_checks(tmp_path)
     by_name = {inv.name: inv for inv in report.invariants}
     assert not by_name["definition_equals_lemma"].passed
+    # ...and is tolerated when the baseline is raised to it.
+    report = run_quality_checks(tmp_path, definition_equals_lemma_baseline=1)
+    by_name = {inv.name: inv for inv in report.invariants}
+    assert by_name["definition_equals_lemma"].passed
 
 
 def test_missing_corpus_raises(tmp_path: Path) -> None:
@@ -153,7 +159,8 @@ def test_missing_corpus_raises(tmp_path: Path) -> None:
 
 def test_render_report_leads_with_invariants(tmp_path: Path) -> None:
     _seed_corpus(tmp_path)
-    report = run_quality_checks(tmp_path)
+    # The seed's one thin gloss is allowed so the report renders as PASS.
+    report = run_quality_checks(tmp_path, definition_equals_lemma_baseline=1)
     text = render_report(report)
     assert "## Invariants - PASS" in text
     assert text.index("## Invariants") < text.index("## Row counts")

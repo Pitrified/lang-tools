@@ -21,7 +21,8 @@ Invariants:
       gloss that equals a *different* member of a multi-member synset is a
       valid OMW gloss ("capital of Louisiana" for Baton Rouge), so the check
       counts only glosses equal to the concept's *sole* member form in that
-      language (genuinely thin); the target after the 5.55 gloss repair is 0.
+      language (genuinely thin); the 5.55 gloss repair drove this to 0 and the
+      baseline is now 0, so any new thin gloss fails the gate.
 """
 
 from __future__ import annotations
@@ -43,11 +44,13 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 #: `definition == lemma` row count under the 5.55 Q3 scope (gloss equals the
-#: sole member form), measured on the 2026-07-11 tier-1 rebuild. The invariant
-#: reads as "at most the baseline"; the 5.55 gloss repair drives it to 0.
+#: sole member form). The invariant reads as "at most the baseline"; the 5.55
+#: gloss repair fixed the single remaining row, so the baseline is 0 and any
+#: newly introduced thin gloss fails the gate.
 #: History: the pre-re-scope check (gloss equals *any* member) measured 7,220
-#: on the kaikki-era build and 20 on the 05.56 rebuild.
-DEFINITION_EQUALS_LEMMA_BASELINE = 1
+#: on the kaikki-era build and 20 on the 05.56 rebuild; the re-scoped check
+#: measured 1 on the 2026-07-11 tier-1 rebuild, repaired 2026-09-01.
+DEFINITION_EQUALS_LEMMA_BASELINE = 0
 
 #: Tables queried by the checks; partitioned tables glob their per-language files.
 _TABLE_GLOBS = {
@@ -381,7 +384,7 @@ FROM {t["lemmas"]} GROUP BY language ORDER BY n_lemmas DESC
         lambda t: f"""
 WITH s AS (SELECT split_part(id, '__', 2) AS slug FROM {t["concepts"]})
 SELECT slug, count(*) AS n_concepts FROM s GROUP BY slug
-HAVING count(*) > 1 ORDER BY n_concepts DESC LIMIT 20
+HAVING count(*) > 1 ORDER BY n_concepts DESC, slug LIMIT 20
 """,
     ),
     (
@@ -541,10 +544,7 @@ LEFT JOIN {t["senses"]} s ON l.id = s.lemma_id WHERE s.lemma_id IS NULL
             name="definition_equals_lemma",
             title="definition == lemma rows (sole-member scope)",
             value=def_eq_lemma,
-            requirement=(
-                f"at most the {definition_equals_lemma_baseline} baseline "
-                f"(target 0 after the 5.55 gloss repair)"
-            ),
+            requirement=f"at most the {definition_equals_lemma_baseline} baseline",
             passed=def_eq_lemma <= definition_equals_lemma_baseline,
         ),
     ]
