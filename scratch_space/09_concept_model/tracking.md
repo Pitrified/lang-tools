@@ -925,10 +925,19 @@ Append-only. Newest at the bottom.
   The handoff's review question is answered: it "attenzione" is a legitimate member of
   Princeton's {mind}="attention" sense (OMW lists it on the three `attention` synsets too),
   so the gloss, not the member, was the defect.
-  Side finding routed to phase 8: fr `esprit` is attached to all 22 "mind"/"spirit"
-  concepts including verb synsets; noun-tagged lemmas on `verb.*` concepts run fr 7.84% /
-  en 5.63% against it 0.53% / pt 0.39% / es 0.33% - the en figure means this is partly the
-  one-POS-per-lemma model, so it needs its own diagnosis, not a blind cleanup.
+  Side findings, diagnosed the same day (details in the 5.55 plan). The POS smell is a
+  **false alarm**: `lemma_id` is keyed on `(text, language)` and `group_to_records` uses
+  `lemmas.setdefault`, so the first synset seen fixes a form's POS - in all five languages
+  100% of "mismatched" senses sit on forms that also have an agreeing sense, and no lemma
+  carries a tag none of its concepts support. `Lemma.part_of_speech` is under-determined
+  for homographs, not wrong; per-sense POS must come from the concept `lexfile`.
+  What is real: fr sense spread (mean 1.94 senses/lemma vs en 1.40 / it 1.51 / es 1.59 /
+  pt 1.46; 234 fr lemmas on >= 20 concepts vs it 8), the WOLF signal the POS metric was
+  groping at -> phase 8. And a new deterministic defect: MultiWordNet's gap markers `GAP!`
+  (969 senses) and `PSEUDOGAP!` (39) are in the corpus as ordinary Italian noun lemmas
+  over 1,008 concepts, plus 2 fr HTML-escaped Wiktionary-markup forms the 05.55 `#` /
+  `.C3.` filter missed. Fix shape = the 05.55 wiki-anchor drop (extend
+  `is_malformed_form`, rebuild, re-gate); left undone because it needs a rebuild.
   206 tests / ruff / pyright green; docs updated (lexicon.md baseline + maintenance-loop
   sections).
   **Phase 5.5 closed** in the same pass: every "Done when" bullet holds (no kaikki rows,
