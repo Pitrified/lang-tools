@@ -65,6 +65,7 @@ split as the design firms up.
 | 5.56 | Rebuild + regression gate    | [`05.56_rebuild_gate/05.56_rebuild_gate.md`](05.56_rebuild_gate/05.56_rebuild_gate.md) | done | Executed 5.5 Steps 7+6: 5-language rebuild from the re-cut pipeline (117,659 concepts / 321,126 lemmas / 491,876 senses + 97,666 hypernym edges, ~140 s / 1.5 GB); checks + renderer extracted to `lexicon/quality.py` (notebook = thin caller, report auto-generated); all four invariants pass (`def==lemma` 7,220 -> 20); per-lexicon license snapshot found **omw-pt CC BY-SA / omw-fr CeCILL-C** (routed to phase 10). |
 | 5.57 | Junk member forms (placeholders + markup) | [`05.57_junk_forms/05.57_junk_forms.md`](05.57_junk_forms/05.57_junk_forms.md) | done | Deterministic follow-on to 5.55, found while reviewing its gloss repair: MultiWordNet's `GAP!` / `PSEUDOGAP!` "no lexicalization" markers were in the corpus as ordinary Italian noun lemmas over 1,008 concepts, plus 11 fr HTML-escaped markup forms and pt `<HTML>`. `unescape_form` (bounded fixed point - the data is doubly escaped) repairs the 2 recoverable forms and the `<` / exact-placeholder markers drop the rest. Rebuilt + re-gated: -15 lemmas, -1,020 senses, 0 concepts lost, 0 orphans, all predictions exact. Exposed that a rebuild silently reverts applied gloss repairs -> phase 8. |
 | 5.58 | Curated gloss overrides (rebuild durability) | [`05.58_curated_glosses/05.58_curated_glosses.md`](05.58_curated_glosses/05.58_curated_glosses.md) | done | Closes the gap 5.57 found: a rebuild regenerates every gloss from OMW, so an applied gloss repair was silently reverted. Accepted `GlossProposal` rows now live in the committed `data/curated/gloss_overrides.jsonl` and `build_initial` applies them right after `transform` (re-tagging those rows `llm`), so a rebuild reproduces curated state instead of erasing it; applied/stale counts reach `BuildSummary` and `_build.json`. Stale ids warn and are counted, never fatal, so a re-slug cannot block a rebuild. 5.55 Q2's committed-input decision, applied to glosses. |
+| 5.59 | Sample seed regenerated from the build | [`05.59_sample_seed/05.59_sample_seed.md`](05.59_sample_seed/05.59_sample_seed.md) | done | Early slice of phase 9. The committed `data/bootstrap/` seed was hand-authored placeholder data whose 4 concept ids matched nothing in the corpus. The build now carves it (`sample_data_fol` into `data/bootstrap/lexicon/`, exported back to the committed JSONL), and `carve_sample` **ranks** rather than taking the first N by id - most languages, then an example, then id - because id order produced a seed of `15 May Organization` / `1530s`. 50 concepts / 587 lemmas balanced across all five languages (was 157 lemmas, 71 en / 11 it). |
 | 6  | Frequency & complexity        | [`06_frequency_complexity.md`](06_frequency_complexity.md) | draft  | Per-sense token/sense frequency (`wordfreq`, sense-tag weights) and CEFR complexity (graded lists / estimated).        |
 | 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | draft  | Ingest hypernymy/hyponymy and antonymy as typed edges from OMW.                                                        |
 | 8  | Maintenance (LLM-based)       | [`08_maintenance.md`](08_maintenance.md)                 | draft  | LLM-assisted upkeep: new lemma->concept mapping, gloss enrichment, slug dedup, validation against OMW.                 |
@@ -986,3 +987,23 @@ Append-only. Newest at the bottom.
   you have without a 15-second rebuild, and the reviewer's loop now ends in two places
   (apply, and append to the curated file) - the gloss-repair notebook says so at the review
   and gate steps. 213 tests / ruff / pyright green; docs updated.
+- 2026-09-01 : **phase 5.59** - regenerated the committed sample seed from the real build
+  (an early piece of phase 9, done now because the corpus moved three times under it).
+  The `data/bootstrap/` seed was hand-authored placeholder data - `house` / `water` /
+  `to eat` / `building` with glosses written by hand and ids that 5.55's re-slug had
+  invalidated; nothing in it existed in the corpus. `build_initial` already had
+  `sample_data_fol` and a `carve_sample` stage, so the transform notebook now passes it
+  (carving into `data/bootstrap/lexicon/`) and exports those tables back to the committed
+  JSONL - one path from pipeline to seed, no hand-authored fixture.
+  The first carve exposed a second problem: `carve_sample` kept "the first N concepts by
+  id", which is deterministic but arbitrary, and on the real corpus that is
+  `15 May Organization` / `1530s` / `1750s` - valid, and useless to `lang-tutor` and the
+  webapp fixture that read it. It now **ranks**: most languages first, then having an
+  example, then id. The id tiebreak keeps rebuilds stable and needs no fallback branch -
+  a build where nothing is rich sorts by id on its own, which the tests pin.
+  Seed went 4 concepts / 301 lemmas (pt+en, fictional) -> 50 concepts / 587 lemmas / 660
+  senses balanced across all five languages (123 en / 85 es / 143 fr / 111 it / 125 pt),
+  real glosses and examples, every id present in the corpus it came from. Nothing in
+  `lang-tutor` referenced the seed folder, and the webapp fixture compares API output
+  against the store rather than fixed content, so both stay green. 215 tests / ruff /
+  pyright green.

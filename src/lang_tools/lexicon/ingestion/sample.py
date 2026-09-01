@@ -1,10 +1,18 @@
 """Carve a small, committed sample slice out of the full lexical tables.
 
 The full corpus is large and gitignored; `lang-tutor` and the test suite want a
-tiny, deterministic slice they can load green. `carve_sample` keeps the first N
-concepts (sorted by id, so the slice is stable across rebuilds) together with the
-lemmas and senses connected to them, and drops any edge whose endpoints fall
-outside the slice. Provenance tags travel with each kept row.
+tiny, deterministic slice they can load green. `carve_sample` keeps N concepts
+together with the lemmas and senses connected to them, and drops any edge whose
+endpoints fall outside the slice. Provenance tags travel with each kept row.
+
+Which N (phase 05.59):
+    Ranked, not the first N by id. Sorting by id alone is stable but arbitrary -
+    it produced a seed of "15 May Organization", "1530s", "1750s", useless to the
+    consumers the slice exists for. Concepts are ranked by how much a consumer can
+    do with them: the most languages first, then having an example sentence, then
+    id. The id tiebreak keeps the slice deterministic and stable across rebuilds,
+    and the ranking degrades gracefully - a build where nothing is rich falls back
+    to id order on its own, with no special case.
 """
 
 from __future__ import annotations
@@ -14,6 +22,16 @@ from lang_tools.lexicon.ingestion.transform import TaggedTables
 #: Default number of concepts to keep in the committed sample slice.
 DEFAULT_SAMPLE_CONCEPTS = 50
 
+
+def _languages_per_concept(tables: TaggedTables) -> dict[str, set[str]]:
+    """Map each concept id to the languages its members are written in."""
+    lemma_language = {lemma.id: lemma.language for lemma in tables.lemmas}
+    per_concept: dict[str, set[str]] = {}
+    for sense in tables.senses:
+        language = lemma_language.get(sense.lemma_id)
+        if language is not None:
+            per_concept.setdefault(sense.concept_id, set()).add(language)
+    return per_concept
 
 def carve_sample(
     tables: TaggedTables,
@@ -27,14 +45,25 @@ def carve_sample(
     its senses does, and an edge (false-friend / concept-relation) survives only
     if both endpoints do. This keeps the slice loadable without dangling ids.
 
+    Concepts are ranked before the cap (see the module docstring): most languages
+    first, then having an example, then id ascending.
+
     Args:
         tables: The full source-tagged tables.
-        max_concepts: How many concepts (lowest ids first) to keep.
+        max_concepts: How many concepts to keep, best-ranked first.
 
     Returns:
         A new `TaggedTables` holding only the slice; the input is not mutated.
     """
-    order = sorted(range(len(tables.concepts)), key=lambda i: tables.concepts[i].id)
+    languages = _languages_per_concept(tables)
+    order = sorted(
+        range(len(tables.concepts)),
+        key=lambda i: (
+            -len(languages.get(tables.concepts[i].id, ())),
+            not tables.concepts[i].examples,
+            tables.concepts[i].id,
+        ),
+    )
     keep_idx = order[:max_concepts]
     kept_concepts = [tables.concepts[i] for i in keep_idx]
     kept_concept_tags = [tables.concept_sources[i] for i in keep_idx]

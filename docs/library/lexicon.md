@@ -186,6 +186,11 @@ small, diffable, text-only fixture) is parquetized into its **own** corpus at
 `data/bootstrap/lexicon/` by the `parquetize_seed.ipynb` notebook - kept separate
 from the real `data/lexicon/` build so the two never overwrite each other. The
 seed is an input, never a runtime source - the store always reads Parquet.
+Since phase 05.59 the seed is **carved by the build**, not hand-written:
+`02_transform.ipynb` passes `sample_data_fol=data/bootstrap` so `carve_sample`
+writes the slice corpus directly, then exports those tables back to the committed
+JSONL so source and Parquet agree. Regenerate it by re-running that notebook and
+`git add -f` the JSONL (it lives under the gitignored `data/`).
 
 ### Inspect and edit
 
@@ -348,9 +353,18 @@ sources (OMW via wn, CILI gloss map)
   per-row provenance tag (`omw` / `cili` / `llm` / `manual`). OMW rows are
   tagged `omw`; a concept whose English gloss came from the CILI fallback is
   tagged `cili`.
-- **`build_initial`** wires it together: transform, write each table through the
-  codec with its tags, write the manifest, then carve and (optionally) write a
-  sample slice. Thin notebooks under `notebooks/lexicon_ingest/` drive it.
+- **`build_initial`** wires it together: transform, apply the curated gloss
+  overrides, write each table through the codec with its tags, write the
+  manifest, then carve and (optionally) write a sample slice. Thin notebooks
+  under `notebooks/lexicon_ingest/` drive it.
+- **`carve_sample`** picks the slice. It **ranks** rather than taking the first N
+  by id (phase 05.59): most languages first, then having an example, then id
+  ascending. Id order was stable but arbitrary, and on the real corpus it yielded
+  a seed of `15 May Organization` / `1530s` - valid, and useless to the
+  consumers the slice exists for. The id tiebreak keeps the slice deterministic
+  across rebuilds, and a build where nothing is rich falls back to id order with
+  no special case. The slice stays closed: a sense survives only if its concept
+  and lemma do, an edge only if both endpoints do.
 
 The optional LLM granularity-collapse pass (over-fine WordNet senses ->
 learner granularity) is a deferred seam: the deterministic OMW-as-is output is

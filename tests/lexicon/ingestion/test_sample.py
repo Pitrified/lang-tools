@@ -48,3 +48,29 @@ def test_carve_keeps_fully_internal_edges() -> None:
     kept = carve_sample(sample_full, max_concepts=5)
     assert len(kept.false_friends) == 1
     assert kept.false_friend_sources == ["manual"]
+
+
+def test_carve_prefers_richer_concepts_over_alphabetical_order() -> None:
+    # "aaa" sorts first by id but is monolingual and exampleless; the ranked
+    # carve must prefer the multilingual concept with an example (05.59).
+    entries = [
+        SynsetEntry("en", "s1", "i001", "def aaa", ("aaa",), "n"),
+        SynsetEntry("en", "s2", "i002", "def zzz", ("zzz",), "n", examples=("a zzz",)),
+        SynsetEntry("pt", "s2p", "i002", "def zzz pt", ("zzzpt",), "n"),
+    ]
+    tables = transform(entries)
+    sample = carve_sample(tables, max_concepts=1)
+    assert len(sample.concepts) == 1
+    assert sample.concepts[0].definitions["en"] == "def zzz"
+    # The slice stays closed: both language members come along.
+    assert {lem.text for lem in sample.lemmas} == {"zzz", "zzzpt"}
+
+
+def test_carve_falls_back_to_id_order_when_nothing_is_richer() -> None:
+    # All equal on languages and examples, so the id tiebreak decides - no
+    # special case needed for a thin build.
+    tables = transform(_many())
+    sample = carve_sample(tables, max_concepts=2)
+    kept = [c.id for c in sample.concepts]
+    assert kept == sorted(kept)
+    assert kept == sorted(c.id for c in tables.concepts)[:2]
