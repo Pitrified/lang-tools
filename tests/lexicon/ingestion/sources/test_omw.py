@@ -19,6 +19,7 @@ from lang_tools.lexicon.ingestion.sources.omw import _omw_lexicon
 from lang_tools.lexicon.ingestion.sources.omw import group_to_records
 from lang_tools.lexicon.ingestion.sources.omw import is_malformed_form
 from lang_tools.lexicon.ingestion.sources.omw import slugify
+from lang_tools.lexicon.ingestion.sources.omw import unescape_form
 
 
 def test_slugify_accent_and_punctuation() -> None:
@@ -196,6 +197,57 @@ def test_is_malformed_form_flags_wiki_anchors() -> None:
     assert is_malformed_form("jeûne#je.c3.bbne politique")  # lowercase .c3.
     assert is_malformed_form("Radiateur#.C3.89changeur solide.2Fair")
     assert not is_malformed_form("monoxyde de carbone")
+
+
+def test_is_malformed_form_flags_markup_and_placeholders() -> None:
+    # 5.57: leftover markup, once unescaped, and MultiWordNet's gap markers.
+    assert is_malformed_form(unescape_form("Milan &lt;!--gender?--&gt;"))
+    assert is_malformed_form(unescape_form("vitamine B&lt;sub&gt;6&lt;/sub&gt;"))
+    assert is_malformed_form("<HTML>")
+    assert is_malformed_form("GAP!")
+    assert is_malformed_form("pseudogap!")
+    # Placeholders match exactly, so these real lemmas survive.
+    assert not is_malformed_form("gap")
+    assert not is_malformed_form("Gap")
+    assert not is_malformed_form("stopgap")
+
+
+def test_unescape_form_repairs_recoverable_forms() -> None:
+    # Entities that resolve to a real word are repaired, not dropped.
+    repaired = unescape_form("fr&amp;eacute;n&amp;eacute;sie")
+    assert repaired == "frénésie"
+    assert not is_malformed_form(repaired)
+    assert unescape_form("Parc national de Sequoia &amp; Kings Canyon") == (
+        "Parc national de Sequoia & Kings Canyon"
+    )
+    assert unescape_form("monoxyde de carbone") == "monoxyde de carbone"
+
+
+def test_placeholder_member_dropped_with_its_senses() -> None:
+    # A GAP! member never becomes a lemma or a sense; the en member still
+    # attaches, so the concept keeps a member.
+    entries = [
+        SynsetEntry(
+            language="en",
+            synset_id="s1",
+            ili="i1",
+            definition="a gloss",
+            lemmas=("mind",),
+            pos="n",
+        ),
+        SynsetEntry(
+            language="it",
+            synset_id="s1i",
+            ili="i1",
+            definition=None,
+            lemmas=("GAP!",),
+            pos="n",
+        ),
+    ]
+    concepts, lemmas, senses, _, _ = group_to_records(entries)
+    assert len(concepts) == 1
+    assert [lemma.text for lemma in lemmas] == ["mind"]
+    assert len(senses) == 1
 
 
 def test_malformed_forms_dropped_with_their_senses() -> None:

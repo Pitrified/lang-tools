@@ -262,6 +262,14 @@ The gloss was authored by the reviewer rather than drafted by the chain
 (no LLM API key in the cred file), so `build_gloss_repair_chain` is still unexercised
 against a live model - phase 8 is its first real run.
 
+**Applied gloss repairs do not survive a rebuild.**
+`apply_gloss_proposals` edits `concepts.parquet`, and a full rebuild regenerates that file
+from OMW, so an accepted and applied gloss repair is silently reverted by the next
+`build_initial` run - phase 05.57 hit exactly this, and the gate is what caught it.
+Re-apply the accepted proposals JSONL after any rebuild, until the curated-input path
+exists: accepted proposals becoming a committed JSONL that the build itself applies, the
+way phase 05.55 Q2 decided to handle the slug-qualifier table. Phase 8.
+
 ## Ingestion
 
 `lang_tools.lexicon.ingestion` exposes two per-file loaders, both yielding thin
@@ -309,9 +317,18 @@ sources (OMW via wn, CILI gloss map)
   and a bare `lang` can match two installed wordnets (`it` matches both `omw-it`
   and `omw-iwn`) and silently merge them, breaking determinism. An unmapped
   language raises `UnknownOmwLanguageError`.
-  Member forms matching `is_malformed_form` (URL-encoded Wikipedia anchors from
-  the WOLF-derived `omw-fr` wordnet, phase 05.55) are dropped at ingestion with
-  their would-be senses, never minted as lemmas.
+  Member forms are passed through `unescape_form` and then tested by
+  `is_malformed_form`; the ones that match are dropped at ingestion with their
+  would-be senses, never minted as lemmas. The rule covers URL-encoded Wikipedia
+  anchors from the WOLF-derived `omw-fr` wordnet (phase 05.55) and, from phase
+  05.57, leftover HTML markup plus MultiWordNet's `GAP!` / `PSEUDOGAP!`
+  placeholders - the markers it writes for a synset with no lexicalization in
+  that language, which had reached the corpus as ordinary Italian noun lemmas.
+  `unescape_form` runs first and to a bounded fixed point (some forms are
+  doubly escaped), so a form that unescapes to a real word - `frénésie` - is
+  repaired rather than dropped, and only genuine markup is left for the filter.
+  Placeholders match exactly and case-insensitively so that the real lemmas
+  en `gap` and pt `Gap` survive.
 - **`sources.cili`** loads the permissive CILI English-gloss map, used only as
   an ILI-keyed fallback when OMW left a concept's English gloss blank (dormant
   on English-inclusive builds; kept for English-excluded ones). The kaikki

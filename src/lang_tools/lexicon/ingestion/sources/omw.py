@@ -22,6 +22,7 @@ the mapping logic testable without any download. See
 from __future__ import annotations
 
 from dataclasses import dataclass
+import html
 import re
 from typing import TYPE_CHECKING
 
@@ -60,10 +61,23 @@ _SLUG_WORDS = 4
 
 #: Substrings that mark a member form as a wiki-derivation artifact (phase 5.55
 #: Q4): URL-encoded Wikipedia section anchors ("Grotte#Culture",
-#: "Radiateur#.C3.89changeur ...") and HTML-entity fragments ("c&amp;#339;..."),
-#: all localized in the WOLF-derived omw-fr wordnet. Matched case-insensitively
-#: (the dumps carry both ".C3." and ".c3.").
-_MALFORMED_FORM_MARKERS = ("#", ".c3.")
+#: "Radiateur#.C3.89changeur ...") and, after `unescape_form` has resolved the
+#: HTML entities, leftover markup ("Milan <!--gender?-->", "vitamine B<sub>6</sub>",
+#: pt "<HTML>"). Matched case-insensitively (the dumps carry both ".C3." and
+#: ".c3."). No legitimate member form in the five wordnets contains "<".
+_MALFORMED_FORM_MARKERS = ("#", ".c3.", "<")
+
+#: Member forms that are placeholders rather than words, matched exactly and
+#: case-insensitively (phase 5.57). MultiWordNet writes these into the Italian
+#: wordnet to mark a synset it has no Italian lexicalization for; they reached
+#: the corpus as ordinary it noun lemmas on 1,008 concepts. Exact match matters:
+#: en "gap" and pt "Gap" are legitimate lemmas.
+_PLACEHOLDER_FORMS = frozenset({"gap!", "pseudogap!"})
+
+#: Cap on `unescape_form`'s fixed-point loop. The corpus needs two passes (the
+#: doubly-escaped "fr&amp;eacute;n&amp;eacute;sie"); the cap only exists so a
+#: crafted input cannot spin.
+_UNESCAPE_MAX_PASSES = 3
 
 #: Default OMW release version (the ``:1.4`` suffix on lexicon specifiers).
 OMW_VERSION = "1.4"
@@ -149,21 +163,55 @@ def slugify(text: str) -> str:
     return "-".join(cleaned.split("-")[:_SLUG_WORDS])
 
 
-def is_malformed_form(form: str) -> bool:
-    """Report whether a member form is a wiki-derivation artifact to drop.
+def unescape_form(form: str) -> str:
+    """Resolve HTML entities in a member form (phase 5.57).
 
-    Phase 5.55 Q4 decision: forms containing a Wikipedia section anchor or a
-    URL-encoding fragment (`_MALFORMED_FORM_MARKERS`) are malformed tokens, not
-    words - `group_to_records` drops them (and their would-be senses) instead of
-    minting lemmas. The concept itself is kept; its other members still attach.
+    A handful of WOLF-derived French forms reach the dump HTML-escaped. Some are
+    recoverable words once unescaped ("fr&amp;eacute;n&amp;eacute;sie" ->
+    "frénésie", which merges into the lemma that already exists); the rest turn
+    into plain markup that `is_malformed_form` then drops. Running this first
+    means the two cases are handled by repair and by drop respectively, instead
+    of both being thrown away.
+
+    Some forms are escaped twice ("&amp;eacute;" needs two passes), so this
+    unescapes to a fixed point, bounded by `_UNESCAPE_MAX_PASSES` so a
+    pathological input cannot loop.
 
     Args:
         form: A member lemma form as read from the wordnet.
 
     Returns:
-        True when the form matches a malformed-form marker.
+        The form with HTML entities resolved; unchanged when it has none.
+    """
+    for _ in range(_UNESCAPE_MAX_PASSES):
+        unescaped = html.unescape(form)
+        if unescaped == form:
+            break
+        form = unescaped
+    return form
+
+
+def is_malformed_form(form: str) -> bool:
+    """Report whether a member form is a non-word token to drop.
+
+    Phase 5.55 Q4 decision: forms containing a Wikipedia section anchor or a
+    URL-encoding fragment (`_MALFORMED_FORM_MARKERS`) are malformed tokens, not
+    words - `group_to_records` drops them (and their would-be senses) instead of
+    minting lemmas. The concept itself is kept; its other members still attach.
+    Phase 5.57 extends this to leftover HTML markup (via the ``"<"`` marker, on
+    forms already passed through `unescape_form`) and to MultiWordNet's
+    placeholder forms (`_PLACEHOLDER_FORMS`), which mark a synset as having no
+    lexicalization in that language rather than naming a word.
+
+    Args:
+        form: A member lemma form, already unescaped.
+
+    Returns:
+        True when the form is a placeholder or matches a malformed-form marker.
     """
     lowered = form.lower()
+    if lowered.strip() in _PLACEHOLDER_FORMS:
+        return True
     return any(marker in lowered for marker in _MALFORMED_FORM_MARKERS)
 
 
@@ -365,9 +413,10 @@ def group_to_records(
     map holds the per-language glosses; every member lemma of every language in
     the group becomes a thin `Lemma` and an attaching `Sense` edge. Lemmas are
     de-duplicated by `Lemma.id` (a form shared by two synsets is one token);
-    senses are de-duplicated by ``(lemma_id, concept_id)``. Member forms that
-    match `is_malformed_form` (wiki-anchor artifacts, phase 5.55 Q4) are dropped
-    with their would-be senses and counted in the log.
+    senses are de-duplicated by ``(lemma_id, concept_id)``. Member forms pass
+    through `unescape_form` first; those that then match `is_malformed_form`
+    (wiki-anchor artifacts from phase 5.55 Q4, markup and placeholders from
+    phase 5.57) are dropped with their would-be senses and counted in the log.
 
     Slug policy (phase 5.55 work item A): slugs are tiered via `_tiered_slugs` -
     the tier-0 `_pick_slug_source` slug when unique, else the slugified lexfile
@@ -431,7 +480,8 @@ def group_to_records(
         for entry in group:
             key_to_cid[(entry.language, entry.synset_id)] = cid
             pos = _POS_LABELS.get(entry.pos or "")
-            for form in entry.lemmas:
+            for raw_form in entry.lemmas:
+                form = unescape_form(raw_form)
                 if is_malformed_form(form):
                     malformed_dropped += 1
                     continue
@@ -451,7 +501,10 @@ def group_to_records(
     if dangling:
         lg.info("Dropped {} hypernym edge(s) with an unresolved target", dangling)
     if malformed_dropped:
-        lg.info("Dropped {} malformed member form(s) (5.55 Q4)", malformed_dropped)
+        lg.info(
+            "Dropped {} malformed member form(s) (5.55 Q4 / 5.57)",
+            malformed_dropped,
+        )
 
     concepts.sort(key=lambda c: c.id)
     sorted_lemmas = sorted(lemmas.values(), key=lambda lem: lem.id)
