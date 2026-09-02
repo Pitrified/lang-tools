@@ -77,7 +77,7 @@ _COLUMNS: dict[str, list[str]] = {
         "examples",
         "sources",
     ],
-    "concepts": ["id", "definitions", "lexfile", "examples"],
+    "concepts": ["id", "definitions", "lexfile", "examples", "commonness"],
     "senses": [
         "id",
         "lemma_id",
@@ -218,6 +218,7 @@ def _schema(name: str) -> Any:  # noqa: ANN401 - pyarrow.Schema, kept lazy
                 ("definitions", str_map),
                 ("lexfile", pa.string()),
                 ("examples", pa.map_(pa.string(), pa.list_(pa.string()))),
+                ("commonness", pa.float64()),
             ],
         ),
         "senses": pa.schema(

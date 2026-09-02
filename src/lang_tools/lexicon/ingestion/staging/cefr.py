@@ -26,7 +26,7 @@ from urllib.request import urlopen
 
 from loguru import logger as lg
 
-from lang_tools.lexicon.ingestion.staging.base import EnrichDependencyMissingError
+from lang_tools.lexicon.ingestion.deps import OptionalDependencyMissingError
 from lang_tools.lexicon.ingestion.staging.base import StagedDataset
 from lang_tools.lexicon.ingestion.staging.base import dataset_dir
 from lang_tools.lexicon.ingestion.staging.base import write_rows_parquet
@@ -334,7 +334,7 @@ def read_xls_cefr_rows(
         Cleaned ``(word, level)`` rows (via `parse_cefr_rows`).
 
     Raises:
-        EnrichDependencyMissingError: When ``xlrd`` is not installed.
+        OptionalDependencyMissingError: When ``xlrd`` is not installed.
         MissingCefrColumnError: When the header lacks the configured columns.
     """
     xlrd = _require_xlrd()
@@ -353,8 +353,8 @@ def _require_xlrd():  # noqa: ANN202 - the xlrd module, kept lazy
     try:
         import xlrd  # noqa: PLC0415 - lazy so the extra stays optional  # pyright: ignore[reportMissingImports]
     except ImportError as exc:  # pragma: no cover - exercised only without the extra
-        package = "xlrd"
-        raise EnrichDependencyMissingError(package) from exc
+        package, extra = "xlrd", "enrich"
+        raise OptionalDependencyMissingError(package, extra) from exc
     return xlrd
 
 
@@ -376,7 +376,7 @@ def download_cefr_source(name: str, *, data_fol: Path) -> StagedDataset:
         UnknownCefrSourceError: When `name` is not registered.
         UndownloadableCefrSourceError: When the source has no parseable download
             (e.g. the PDF-only Oxford entry).
-        EnrichDependencyMissingError: When an ``xls`` source needs ``xlrd``.
+        OptionalDependencyMissingError: When an ``xls`` source needs ``xlrd``.
     """
     try:
         source = KNOWN_CEFR_SOURCES[name]

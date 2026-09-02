@@ -1,5 +1,5 @@
 ---
-status: planned
+status: done
 ---
 
 # Phase 6 - frequency & complexity
@@ -304,13 +304,107 @@ had a real argument behind it.
 - Exposing these signals in exercises - that lives in `lang-tutor` (phase 9).
 - Any pruning of the long tail. Frequency ranks, it does not delete.
 
+## Result (2026-09-02)
+
+Built and gated on the five-language corpus. Row counts are **unchanged**
+(321,082 lemmas / 117,659 concepts / 490,825 senses / 97,666 hypernym edges) -
+this phase adds columns, not rows - and all **eight** invariants pass, the four
+from 05.56 plus the four added here.
+
+| measure | value |
+| --- | --- |
+| senses with a token frequency | 425,077 of 490,825 (86.6%) |
+| per-language coverage | en 83.7%, es 86.2%, it 88.3%, pt 89.4%, fr 89.9% |
+| senses flagged `frequency_is_estimated` | 460,587 (93.8%) |
+| senses with a CEFR band | 490,825 (100%), all estimated |
+| concepts with `commonness` | 117,659 (90,404 counted zero, 27,255 positive) |
+| `wordfreq` pin in the manifest | 3.1.1 (was the literal string `unknown`) |
+
+### The cutoffs were guesses, and the data said so
+
+The first build used hand-picked cutoffs and the docstring claimed they were
+"calibrated on English against Kelly". They were not, and validating them showed
+it: 20.8% exact agreement, 49.4% within one band, systematically **easier** than
+Kelly on the words Kelly covers. Fitting them properly - matching Kelly's own band
+proportions on the English subset - roughly doubled both figures.
+
+Final measurement against Kelly, on the shipped corpus:
+
+| | en | it |
+| --- | --- | --- |
+| forms matched | 6,561 | 4,534 |
+| exact band agreement | 41.2% | 19.5% |
+| within one band | 74.4% | 59.4% |
+| mean offset (bands) | +0.17 | +1.23 |
+| rank correlation (Spearman) | 0.632 | 0.661 |
+
+**82% of the corpus lands in C2, and that is not a miscalibration.** Kelly grades
+the 7,549 most frequent English words, so its own "C2" means "least frequent of
+the common head", not "hardest word in the language", while WordNet is
+overwhelmingly specialist vocabulary sitting past the end of any graded list. Our
+C2 is therefore a catch-all "past the syllabus" bucket, and the bands that matter
+to a learner (A1-B1, ~7.7% of senses, ~38k) are the ones Kelly can speak to. The
+alternative - keeping a pretty histogram with bands that do not correspond to
+CEFR - is worse for the one query the tutor actually makes.
+
+**What Kelly can and cannot settle.** It validates the *ordering*: rank
+correlation 0.632 (en) and 0.661 (it), and the Italian figure is the meaningful
+one, because the cutoffs were fitted on English alone and Italian still orders
+correctly. It cannot fix the absolute scale per language: Italian sits +1.23 bands
+harder than Kelly-it. That is recorded as a measured limitation rather than
+corrected, because a per-language offset needs a graded list per language and
+three of the five have none. Both figures carry 5.54's circularity caveat - Kelly
+was itself built largely from corpus frequency, the heaviest term in our score.
+
+### Findings worth keeping
+
+- **Kelly lists a word once per part of speech** (7,549 rows, 6,756 forms;
+  `round` appears at three levels). The first join double-counted duplicates. A
+  repeated form now keeps its **easiest** band, mirroring the easiest-sense rule
+  on our side; this alone moved English agreement 38.3% -> 41.2% and the rank
+  correlation 0.555 -> 0.632.
+- **`_wordfreq_version` was silently broken**, as predicted while planning: it
+  read a `__version__` attribute `wordfreq` does not define, so every staging
+  manifest entry since 5.54 recorded `"unknown"`. Now read from
+  `importlib.metadata`, and the build manifest pins 3.1.1.
+- **`Concept.commonness` is never `None` in this build.** Every concept has an
+  English member (the build includes `en`, and every synset is ILI-linked), so the
+  "no English member" case the field distinguishes does not arise here. The
+  distinction is kept anyway, on the same reasoning as the CILI gloss fallback:
+  dormant for English-inclusive builds, correct for English-excluded ones.
+- **A misaligned `member_counts` raises** rather than zip-truncating. Truncation
+  would silently attribute one word's SemCor count to another.
+- **Spot-check on `bank`**: all senses share the token frequency 5.16, and the
+  split orders them river-bank 4.74 > financial 4.64 > the rare verb senses 3.80,
+  all flagged measured. SemCor really does rank the river sense first, so the
+  weights are doing visible work rather than smoothing everything flat.
+- **The A1 band reads like learner vocabulary** (`soon`, `hand`, `enter`,
+  `receive`, `eat`, `ask`), but 7.8% of its English senses are forms of two
+  characters or fewer, including roman numerals like `II`. Not a phase-6 defect -
+  they are legitimate high-frequency OMW member forms - but the same member-form
+  quality question 5.57 opened. **Routed to phase 8**, not fixed here.
+
+### Deviations from the plan
+
+- **No `require_module` shim.** The plan called for one alongside
+  `OptionalDependencyMissingError`; building it would have erased the type
+  checker's view of `wn` (an `importlib` shim returns a bare `ModuleType`). Each
+  site keeps its literal `import` and the consolidated error, which was the part
+  that actually mattered.
+- **`RELATION_HYPERNYM` added** to `relations.py`. The hypernym edge type was a
+  string literal in `sources.omw`; the depth BFS needed to filter on it, and two
+  call sites for one literal is where a constant earns itself.
+- **Kelly validation lives in a package module**, `ingestion.cefr_validation`, not
+  in notebook cells - the repo rule is thin notebooks, and the re-fit has to be
+  re-runnable when the score changes.
+
 ## Done when
 
-- [ ] Senses carry token frequency, sense frequency and a CEFR band for all five languages,
+- [x] Senses carry token frequency, sense frequency and a CEFR band for all five languages,
       each with its `*_is_estimated` flag set truthfully.
-- [ ] `Concept.commonness` is populated and round-trips through the codec.
-- [ ] A full rebuild reproduces every signal from pinned inputs, with no post-hoc step.
-- [ ] The gate carries the new invariants and the report shows per-language coverage,
+- [x] `Concept.commonness` is populated and round-trips through the codec.
+- [x] A full rebuild reproduces every signal from pinned inputs, with no post-hoc step.
+- [x] The gate carries the new invariants and the report shows per-language coverage,
       estimated share and band distribution.
-- [ ] en/it validation against Kelly is recorded with its agreement numbers.
-- [ ] `uv run pytest && uv run ruff check . && uv run pyright` green; docs + tracking updated.
+- [x] en/it validation against Kelly is recorded with its agreement numbers.
+- [x] `uv run pytest && uv run ruff check . && uv run pyright` green (258 passed); docs + tracking updated.

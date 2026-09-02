@@ -34,6 +34,12 @@ machinery rather than introducing a parallel path.
 > It is concept-level (117,659 concepts), not per-sense. Read phase 6's fitted band
 > distributions first; they say whether the deterministic estimate needs help at all.
 
+> **From phase 6 (2026-09-02).** Member-form quality, continued from 5.57: 7.8% of the
+> English senses banded A1 are forms of two characters or fewer, including roman numerals
+> (`II`). They are legitimate high-frequency OMW members, so this is a review question
+> rather than a token rule, and it joins 5.57's deferred items (French sense spread, the
+> ~150 sentence-like non-en forms).
+
 > **From the 5.5 cleanup (2026-06-20).** Steps 5-6 of
 > [`05.5_cleanup.md`](05.5_cleanup.md) are this phase's concrete first run over the
 > kaikki-free rebuild: slug dedup, `definition == lemma` repair, orphan / empty-concept

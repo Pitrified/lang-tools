@@ -16,6 +16,7 @@ in-memory inputs.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from dataclasses import field as dc_field
 import shutil
 from typing import TYPE_CHECKING
 
@@ -24,9 +25,12 @@ from loguru import logger as lg
 from lang_tools.lexicon.codec import LEXICON_SUBDIR
 from lang_tools.lexicon.codec import _dump_table
 from lang_tools.lexicon.ingestion.acquire import write_manifest
+from lang_tools.lexicon.ingestion.enrich import enrich
 from lang_tools.lexicon.ingestion.sample import DEFAULT_SAMPLE_CONCEPTS
 from lang_tools.lexicon.ingestion.sample import carve_sample
 from lang_tools.lexicon.ingestion.sources.cili import load_cili_glosses
+from lang_tools.lexicon.ingestion.sources.frequency import lemma_zipf
+from lang_tools.lexicon.ingestion.sources.frequency import wordfreq_version
 from lang_tools.lexicon.ingestion.sources.omw import wn_synset_entries
 from lang_tools.lexicon.ingestion.transform import TaggedTables
 from lang_tools.lexicon.ingestion.transform import transform
@@ -54,6 +58,8 @@ class BuildSummary:
             (phase 05.58).
         gloss_overrides_stale: Curated overrides naming a concept id this build
             does not contain; logged and skipped, never fatal.
+        enrichment: Phase-6 coverage counts (senses with a token frequency, senses
+            flagged estimated, and the per-band CEFR totals).
     """
 
     languages: list[str]
@@ -62,6 +68,7 @@ class BuildSummary:
     manifest_path: Path
     gloss_overrides_applied: int = 0
     gloss_overrides_stale: int = 0
+    enrichment: dict[str, int] = dc_field(default_factory=dict)
 
 
 def _clean_corpus_tables(data_fol: Path) -> None:
@@ -183,6 +190,7 @@ def build_initial(
     cili_glosses: Mapping[str, str] | None = None,
     sample_data_fol: Path | None = None,
     max_sample_concepts: int = DEFAULT_SAMPLE_CONCEPTS,
+    zipf_by_form: Mapping[tuple[str, str], float] | None = None,
     extra_manifest: dict | None = None,
 ) -> BuildSummary:
     """Run the initial build: transform sources -> Parquet + manifest + sample.
@@ -201,6 +209,9 @@ def build_initial(
         sample_data_fol: When given, the carved sample slice is written there as
             its own Parquet corpus (e.g. a tmp dir the test/seed consumes).
         max_sample_concepts: Concept cap for the carved sample.
+        zipf_by_form: ``{(text, language): zipf}`` token frequencies; when ``None``
+            they are read from ``wordfreq`` (requires the ``ingest`` extra). Pass
+            them explicitly to build without the optional dependency.
         extra_manifest: Extra fields merged into the manifest (e.g. the acquire
             fragments pinning source versions).
 
@@ -222,6 +233,12 @@ def build_initial(
         tables.concept_sources,
         overrides=load_gloss_overrides(data_fol),
     )
+    # Frequency and CEFR are filled here for the same reason, plus one of their
+    # own: the SemCor counts are keyed on the ILI grouping, which the corpus does
+    # not persist, so this is the last point they can be attributed at all.
+    if zipf_by_form is None:
+        zipf_by_form = lemma_zipf(tables.lemmas)
+    enrichment = enrich(tables, zipf_by_form=zipf_by_form)
     counts = _write_tables(tables, data_fol)
 
     sample = carve_sample(tables, max_concepts=max_sample_concepts)
@@ -239,6 +256,7 @@ def build_initial(
         "languages": langs,
         "counts": counts,
         "gloss_overrides": {"applied": applied, "stale": stale},
+        "enrichment": {"wordfreq": wordfreq_version(), **enrichment},
         **(extra_manifest or {}),
     }
     path = write_manifest(data_fol, manifest)
@@ -251,4 +269,5 @@ def build_initial(
         manifest_path=path,
         gloss_overrides_applied=applied,
         gloss_overrides_stale=stale,
+        enrichment=enrichment,
     )

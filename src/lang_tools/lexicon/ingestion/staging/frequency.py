@@ -7,8 +7,12 @@ the concept-level commonness SemCor carries. Staging it here lets the SemCor
 exploration correlate concept commonness against an independent per-language list.
 
 The frequency rows are a flat ``(word, rank, zipf)`` table per language. ``wordfreq``
-is an optional dependency (the ``enrich`` extra) and is imported lazily, so the
-base package and the runtime never pull it.
+is an optional dependency and is imported lazily, so the base package and the
+runtime never pull it. It ships with the **``ingest``** extra rather than
+``enrich``: since phase 6 it is a build input (`ingestion.sources.frequency` joins
+it per lemma), and extras group by the code path that needs them. This staging
+adapter answers a different question - a top-N list for exploration, not a
+per-lemma lookup - so both callers stay.
 """
 
 from __future__ import annotations
@@ -17,8 +21,9 @@ from typing import TYPE_CHECKING
 
 from loguru import logger as lg
 
+from lang_tools.lexicon.ingestion.deps import OptionalDependencyMissingError
+from lang_tools.lexicon.ingestion.sources.frequency import wordfreq_version
 from lang_tools.lexicon.ingestion.staging.base import KNOWN_LICENSES
-from lang_tools.lexicon.ingestion.staging.base import EnrichDependencyMissingError
 from lang_tools.lexicon.ingestion.staging.base import StagedDataset
 from lang_tools.lexicon.ingestion.staging.base import dataset_dir
 from lang_tools.lexicon.ingestion.staging.base import write_rows_parquet
@@ -27,7 +32,12 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 #: Re-exported so existing callers keep importing it from this module.
-__all__ = ["EnrichDependencyMissingError", "frequency_rows", "stage_frequency_list"]
+__all__ = [
+    "OptionalDependencyMissingError",
+    "frequency_rows",
+    "stage_frequency_list",
+    "wordfreq_version",
+]
 
 #: Default number of top word forms to stage per language.
 DEFAULT_TOP_N = 50_000
@@ -41,8 +51,8 @@ def _require_wordfreq():  # noqa: ANN202 - the wordfreq module, kept lazy
     try:
         import wordfreq  # noqa: PLC0415 - lazy so the extra stays optional  # pyright: ignore[reportMissingImports]
     except ImportError as exc:  # pragma: no cover - exercised only without the extra
-        package = "wordfreq"
-        raise EnrichDependencyMissingError(package) from exc
+        package, extra = "wordfreq", "ingest"
+        raise OptionalDependencyMissingError(package, extra) from exc
     return wordfreq
 
 
@@ -60,7 +70,7 @@ def frequency_rows(lang: str, *, top_n: int = DEFAULT_TOP_N) -> list[dict[str, o
         One row per word form, ordered by ascending rank.
 
     Raises:
-        EnrichDependencyMissingError: When the ``enrich`` extra is not installed.
+        OptionalDependencyMissingError: When the ``ingest`` extra is not installed.
     """
     wordfreq = _require_wordfreq()
     words = wordfreq.top_n_list(lang, top_n)
@@ -87,7 +97,7 @@ def stage_frequency_list(
         The `StagedDataset` provenance record for the written table.
 
     Raises:
-        EnrichDependencyMissingError: When the ``enrich`` extra is not installed.
+        OptionalDependencyMissingError: When the ``ingest`` extra is not installed.
     """
     rows = frequency_rows(lang, top_n=top_n)
     out = dataset_dir(data_fol, "frequency") / f"{lang}.parquet"
@@ -97,16 +107,10 @@ def stage_frequency_list(
     return StagedDataset(
         name=f"frequency:{lang}",
         source="wordfreq",
-        version=_wordfreq_version(),
+        version=wordfreq_version(),
         license=licence,
         license_url=url,
         path=str(out.relative_to(data_fol)),
         row_count=count,
         notes="language-level token frequency; mixed corpus, data license varies",
     )
-
-
-def _wordfreq_version() -> str:
-    """Return the installed ``wordfreq`` version (or ``"unknown"``)."""
-    wordfreq = _require_wordfreq()
-    return getattr(wordfreq, "__version__", "unknown")

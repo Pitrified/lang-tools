@@ -11,20 +11,35 @@ import pyarrow.parquet as pq
 
 from lang_tools.lexicon.codec import PROVENANCE_COL
 from lang_tools.lexicon.ingestion.acquire import read_manifest
+from lang_tools.lexicon.ingestion.enrich import CEFR_BANDS
 from lang_tools.lexicon.ingestion.pipeline import build_initial
 from lang_tools.lexicon.ingestion.sources.omw import SynsetEntry
+from lang_tools.lexicon.lemma_id import lemma_id
 from lang_tools.lexicon.lemma_store import LexiconStore
 from lang_tools.lexicon.maintenance import GlossProposal
 from lang_tools.lexicon.maintenance import gloss_overrides_path
 from lang_tools.lexicon.maintenance import write_proposals
 
 
+def _omw_with_counts() -> list[SynsetEntry]:
+    """Return the `_omw` shape, with SemCor counts on the English members."""
+    return [
+        SynsetEntry(
+            "en", "en-1", "i001", "a building for living", ("house",),
+            member_counts=(21,), pos="n",
+        ),
+        SynsetEntry("pt", "pt-1", "i001", "uma moradia", ("casa",), pos="n"),
+        SynsetEntry("en", "en-2", "i002", "a flow of water", ("river",), pos="n"),
+        SynsetEntry("pt", "pt-2", "i002", "um curso de agua", ("rio",), pos="n"),
+    ]
+
+
 def _omw() -> list[SynsetEntry]:
     return [
-        SynsetEntry("en", "en-1", "i001", "a building for living", ("house",), "n"),
-        SynsetEntry("pt", "pt-1", "i001", "uma moradia", ("casa",), "n"),
-        SynsetEntry("en", "en-2", "i002", "a flow of water", ("river",), "n"),
-        SynsetEntry("pt", "pt-2", "i002", "um curso de agua", ("rio",), "n"),
+        SynsetEntry("en", "en-1", "i001", "a building for living", ("house",), pos="n"),
+        SynsetEntry("pt", "pt-1", "i001", "uma moradia", ("casa",), pos="n"),
+        SynsetEntry("en", "en-2", "i002", "a flow of water", ("river",), pos="n"),
+        SynsetEntry("pt", "pt-2", "i002", "um curso de agua", ("rio",), pos="n"),
     ]
 
 
@@ -180,3 +195,67 @@ def test_stale_override_is_counted_not_fatal(tmp_path: Path) -> None:
     summary = build_initial(["en", "pt"], data_fol=tmp_path, omw_entries=_omw())
     assert summary.gloss_overrides_applied == 0
     assert summary.gloss_overrides_stale == 1
+
+
+def test_build_fills_frequency_and_cefr_without_a_post_hoc_pass(
+    tmp_path: Path,
+) -> None:
+    # The whole point of doing this in the build (05.58's rule): the signals are
+    # on disk straight out of `build_initial`, so the next rebuild reproduces
+    # them instead of reverting them.
+    zipf = {("house", "en"): 4.4, ("casa", "pt"): 5.1, ("river", "en"): 4.0}
+    summary = build_initial(
+        ["en", "pt"],
+        data_fol=tmp_path,
+        omw_entries=_omw_with_counts(),
+        zipf_by_form=zipf,
+    )
+
+    store = LexiconStore.from_data_fol(tmp_path)
+    senses = [
+        sense
+        for lemma in store.get_all_lemmas()
+        for sense in store.senses_for_lemma(lemma.id)
+    ]
+    [house] = store.senses_for_lemma(lemma_id("house", "en"))
+    assert house.token_frequency == 4.4
+    assert house.sense_frequency is not None
+    assert house.cefr_level in CEFR_BANDS
+    # Every band is an estimate: no graded list is ever merged into the corpus.
+    assert all(s.cefr_is_estimated for s in senses)
+    # A form we have no frequency for keeps None, not 0.0.
+    [rio] = store.senses_for_lemma(lemma_id("rio", "pt"))
+    assert rio.token_frequency is None
+
+    assert summary.enrichment["with_frequency"] == 3
+    assert summary.enrichment["with_band"] == 4
+
+
+def test_manifest_pins_the_frequency_source_version(tmp_path: Path) -> None:
+    build_initial(
+        ["en", "pt"],
+        data_fol=tmp_path,
+        omw_entries=_omw_with_counts(),
+        zipf_by_form={},
+    )
+    manifest = read_manifest(tmp_path)
+    assert manifest is not None
+    # A real pin, read from package metadata. `wordfreq` exposes no
+    # `__version__`, so the attribute lookup this replaced always recorded the
+    # literal string "unknown" and pinned nothing.
+    assert manifest["enrichment"]["wordfreq"] != "unknown"
+
+
+def test_commonness_reaches_the_concepts_on_disk(tmp_path: Path) -> None:
+    build_initial(
+        ["en", "pt"],
+        data_fol=tmp_path,
+        omw_entries=_omw_with_counts(),
+        zipf_by_form={},
+    )
+    store = LexiconStore.from_data_fol(tmp_path)
+    values = [c.commonness for c in store.get_all_concepts()]
+    # Both concepts have an English member, so both are counted; the tagged one
+    # scores above the untagged one.
+    assert None not in values
+    assert max(v for v in values if v is not None) > 0.0

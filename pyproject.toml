@@ -25,18 +25,19 @@ webapp = [
 store = [
     "duckdb>=1.1.0",
 ]
-# `wn` (Open Multilingual Wordnet access) backs the phase-5 initial-build only
-# (`ingestion.acquire.download_omw` / `sources.omw`); the runtime never imports
-# it, so it stays optional and lazily imported.
+# The build path. `wn` (Open Multilingual Wordnet access) backs the initial build
+# (`ingestion.acquire.download_omw` / `sources.omw`); `wordfreq` supplies the
+# phase-6 token frequency (`sources.frequency`). Both are lazily imported and the
+# runtime never touches them.
 ingest = [
     "wn>=0.9.5",
-]
-# Phase-5.54 Stage-0 staging + exploration extras, all optional. The staging
-# adapters lazy-import `wordfreq` (frequency lists) and `xlrd` (the legacy `.xls`
-# Kelly CEFR lists); `pandas` and `matplotlib` are used only by the phase-5.54
-# exploration notebooks (`notebooks/lexicon_enrich/`), never by the package.
-enrich = [
     "wordfreq>=3.0.0",
+]
+# Exploration only: `xlrd` reads the legacy `.xls` Kelly CEFR lists (staged for
+# validation, never shipped), and `pandas` / `matplotlib` are used by the
+# notebooks under `notebooks/lexicon_enrich/`, never by the package. `wordfreq`
+# moved to `ingest` in phase 6 when it became a build input.
+enrich = [
     "xlrd>=2.0.1",
     "pandas>=2.2.0",
     "matplotlib>=3.9.0",

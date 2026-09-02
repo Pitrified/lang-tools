@@ -38,7 +38,7 @@ def load_cili_glosses(*, data_dir: str | None = None) -> dict[str, str]:
         without one are omitted).
 
     Raises:
-        IngestDependencyMissingError: When the ``ingest`` extra (``wn``) is absent.
+        OptionalDependencyMissingError: When the ``ingest`` extra (``wn``) is absent.
     """
     # Lazy, and reuse the OMW adapter's dependency guard so a missing ``wn`` gives
     # the same clear error. `sources.omw` does not import this module, so there is

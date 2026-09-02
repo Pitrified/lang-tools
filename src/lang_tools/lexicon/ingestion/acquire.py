@@ -75,7 +75,7 @@ def download_omw(
         languages, the exact lexicons requested, and the ILI resource.
 
     Raises:
-        IngestDependencyMissingError: When the ``ingest`` extra (``wn``) is absent.
+        OptionalDependencyMissingError: When the ``ingest`` extra (``wn``) is absent.
         UnknownOmwLanguageError: When a language has no mapped OMW lexicon.
     """
     from lang_tools.lexicon.ingestion.sources.omw import _omw_lexicon  # noqa: PLC0415

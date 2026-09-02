@@ -21,6 +21,11 @@ from pydantic import BaseModel
 from pydantic import Field
 from pydantic import model_validator
 
+#: The one `ConceptRelation.relation_type` the initial build emits (5.5 Step 4):
+#: directional, from the specific concept (``a``) to the broader one (``b``).
+#: Hyponymy is the same edge read backwards, so it is never stored separately.
+RELATION_HYPERNYM = "hypernym"
+
 #: `ConceptRelation.relation_type` values whose endpoints are interchangeable.
 #: These get canonical ``a < b`` ordering; every other type is directional and
 #: keeps its source/target order.

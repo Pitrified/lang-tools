@@ -67,6 +67,14 @@ class TaggedTables:
         false_friends: False-friend edges; empty in the initial build (phase 7).
         concept_relations: Concept edges; the OMW hypernym edges are populated in
             the initial build (5.5 Step 4); richer types arrive in phase 7.
+        sense_counts: SemCor sense-tag counts keyed by ``(lemma_id, concept_id)``
+            (phase 6). Carried beside the tables rather than on them because the
+            counts are an enrichment *input*, not a persisted column: `enrich`
+            turns them into `Sense` frequencies and `Concept.commonness`, and
+            nothing writes them to disk.
+        concept_counts: Per-concept SemCor totals, ``{concept_id: total}``. A
+            concept with an English member SemCor never tagged is present with
+            ``0``; one with no English member at all is absent.
     """
 
     lemmas: list[Lemma] = field(default_factory=list)
@@ -79,6 +87,8 @@ class TaggedTables:
     false_friend_sources: list[str] = field(default_factory=list)
     concept_relations: list[ConceptRelation] = field(default_factory=list)
     concept_relation_sources: list[str] = field(default_factory=list)
+    sense_counts: dict[tuple[str, str], int] = field(default_factory=dict)
+    concept_counts: dict[str, int] = field(default_factory=dict)
 
 
 def transform(
@@ -99,20 +109,19 @@ def transform(
         The populated `TaggedTables`. Lemmas/senses are tagged ``omw``; concepts
         are ``omw`` or ``cili`` per `group_to_records`. Concept-relation rows hold
         the OMW hypernym edges (tagged ``omw``); the false-friend table stays empty
-        (those arrive in phase 7).
+        (those arrive in phase 7). The SemCor count maps ride along for `enrich`.
     """
-    concepts, lemmas, senses, concept_sources, concept_relations = group_to_records(
-        omw_entries,
-        cili_glosses,
-    )
+    grouped = group_to_records(omw_entries, cili_glosses)
 
     return TaggedTables(
-        lemmas=lemmas,
-        lemma_sources=[SOURCE_OMW] * len(lemmas),
-        concepts=concepts,
-        concept_sources=concept_sources,
-        senses=senses,
-        sense_sources=[SOURCE_OMW] * len(senses),
-        concept_relations=concept_relations,
-        concept_relation_sources=[SOURCE_OMW] * len(concept_relations),
+        lemmas=grouped.lemmas,
+        lemma_sources=[SOURCE_OMW] * len(grouped.lemmas),
+        concepts=grouped.concepts,
+        concept_sources=grouped.concept_sources,
+        senses=grouped.senses,
+        sense_sources=[SOURCE_OMW] * len(grouped.senses),
+        concept_relations=grouped.relations,
+        concept_relation_sources=[SOURCE_OMW] * len(grouped.relations),
+        sense_counts=grouped.sense_counts,
+        concept_counts=grouped.concept_counts,
     )

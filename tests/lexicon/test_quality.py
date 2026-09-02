@@ -22,12 +22,21 @@ C_HOUSE = "c__house__0011aabbccdd"
 C_BUILDING = "c__building__0011aabbccee"
 
 
-def _seed_corpus(data_fol: Path, *, lemma_sources: list[str] | None = None) -> None:
+def _seed_corpus(
+    data_fol: Path,
+    *,
+    lemma_sources: list[str] | None = None,
+    sense_frequency: bool = True,
+) -> None:
     """Write a tiny referentially closed corpus.
 
     2 concepts, 2 lemmas, 2 senses, 1 hypernym edge. The `building` concept's
     en definition equals its sole en member form (one `definition == lemma`
     hit under the 5.55 Q3 sole-member scope).
+
+    The senses carry the phase-6 signals a real build writes, so the frequency
+    and CEFR invariants are exercised against a corpus shaped like the one they
+    guard rather than against empty columns.
     """
     sources = lemma_sources if lemma_sources is not None else ["omw"]
     house = Lemma(text="house", language="en", part_of_speech="noun")
@@ -54,8 +63,22 @@ def _seed_corpus(data_fol: Path, *, lemma_sources: list[str] | None = None) -> N
     _dump_table(
         "senses",
         [
-            Sense(lemma_id=house.id, concept_id=C_HOUSE),
-            Sense(lemma_id=building.id, concept_id=C_BUILDING),
+            Sense(
+                lemma_id=house.id,
+                concept_id=C_HOUSE,
+                token_frequency=4.4 if sense_frequency else None,
+                sense_frequency=4.4 if sense_frequency else None,
+                cefr_level="A2",
+                cefr_is_estimated=True,
+            ),
+            Sense(
+                lemma_id=building.id,
+                concept_id=C_BUILDING,
+                token_frequency=4.1 if sense_frequency else None,
+                sense_frequency=4.1 if sense_frequency else None,
+                cefr_level="B1",
+                cefr_is_estimated=True,
+            ),
         ],
         data_fol=data_fol,
     )
@@ -193,3 +216,91 @@ def test_write_report_writes_the_file(tmp_path: Path) -> None:
     out = tmp_path / "sub" / "report.md"
     assert write_report(report, out) == out
     assert out.read_text(encoding="utf-8").startswith("# 05.4 data quality - report")
+
+
+def _invariant(report: QualityReport, name: str) -> bool:
+    return next(inv.passed for inv in report.invariants if inv.name == name)
+
+
+def test_frequency_coverage_floor_fails_when_the_join_breaks(tmp_path: Path) -> None:
+    _seed_corpus(tmp_path, sense_frequency=False)
+    report = run_quality_checks(tmp_path, definition_equals_lemma_baseline=1)
+    # No sense carries a token frequency: the frequency join produced nothing,
+    # which is the regression this invariant exists to catch.
+    assert not _invariant(report, "token_frequency_coverage")
+    assert not report.passed
+
+
+def test_frequency_coverage_floor_is_configurable(tmp_path: Path) -> None:
+    _seed_corpus(tmp_path, sense_frequency=False)
+    report = run_quality_checks(
+        tmp_path,
+        definition_equals_lemma_baseline=1,
+        token_frequency_coverage_floor=0,
+    )
+    assert _invariant(report, "token_frequency_coverage")
+    assert report.passed
+
+
+def test_sense_frequency_without_a_token_frequency_fails(tmp_path: Path) -> None:
+    _seed_corpus(tmp_path)
+    _dump_table(
+        "senses",
+        [
+            Sense(
+                lemma_id=Lemma(text="house", language="en").id,
+                concept_id=C_HOUSE,
+                sense_frequency=3.0,  # a share of nothing
+                cefr_level="A2",
+                cefr_is_estimated=True,
+            ),
+        ],
+        data_fol=tmp_path,
+    )
+    report = run_quality_checks(tmp_path, definition_equals_lemma_baseline=1)
+    assert not _invariant(report, "sense_frequency_without_token")
+
+
+def test_unflagged_non_english_sense_fails(tmp_path: Path) -> None:
+    casa = Lemma(text="casa", language="pt", part_of_speech="noun")
+    _seed_corpus(tmp_path)
+    _dump_table("lemmas", [casa], data_fol=tmp_path)
+    _dump_table(
+        "senses",
+        [
+            Sense(
+                lemma_id=casa.id,
+                concept_id=C_HOUSE,
+                token_frequency=5.1,
+                sense_frequency=5.1,
+                frequency_is_estimated=False,  # pt has no sense-tagged corpus
+                cefr_level="A1",
+                cefr_is_estimated=True,
+            ),
+        ],
+        data_fol=tmp_path,
+        lang="pt",
+    )
+    report = run_quality_checks(tmp_path, definition_equals_lemma_baseline=1)
+    assert not _invariant(report, "unflagged_estimated_frequency")
+
+
+def test_band_claimed_as_measured_fails(tmp_path: Path) -> None:
+    house = Lemma(text="house", language="en")
+    _seed_corpus(tmp_path)
+    _dump_table(
+        "senses",
+        [
+            Sense(
+                lemma_id=house.id,
+                concept_id=C_HOUSE,
+                token_frequency=4.4,
+                sense_frequency=4.4,
+                cefr_level="A2",
+                cefr_is_estimated=False,  # no graded list is ever shipped
+            ),
+        ],
+        data_fol=tmp_path,
+    )
+    report = run_quality_checks(tmp_path, definition_equals_lemma_baseline=1)
+    assert not _invariant(report, "invalid_cefr_band")

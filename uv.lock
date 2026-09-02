@@ -1168,11 +1168,11 @@ dependencies = [
 enrich = [
     { name = "matplotlib" },
     { name = "pandas" },
-    { name = "wordfreq" },
     { name = "xlrd" },
 ]
 ingest = [
     { name = "wn" },
+    { name = "wordfreq" },
 ]
 store = [
     { name = "duckdb" },
@@ -1239,7 +1239,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.0" },
     { name = "tiktoken", specifier = ">=0.9.0" },
     { name = "wn", marker = "extra == 'ingest'", specifier = ">=0.9.5" },
-    { name = "wordfreq", marker = "extra == 'enrich'", specifier = ">=3.0.0" },
+    { name = "wordfreq", marker = "extra == 'ingest'", specifier = ">=3.0.0" },
     { name = "xlrd", marker = "extra == 'enrich'", specifier = ">=2.0.1" },
 ]
 provides-extras = ["webapp", "store", "ingest", "enrich"]

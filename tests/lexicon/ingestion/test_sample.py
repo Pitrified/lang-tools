@@ -8,7 +8,7 @@ from lang_tools.lexicon.relations import FalseFriendRelation
 
 def _many() -> list[SynsetEntry]:
     return [
-        SynsetEntry("en", f"s{i}", f"i{i:03d}", f"def {i}", (f"word{i}",), "n")
+        SynsetEntry("en", f"s{i}", f"i{i:03d}", f"def {i}", (f"word{i}",), pos="n")
         for i in range(5)
     ]
 
@@ -54,9 +54,12 @@ def test_carve_prefers_richer_concepts_over_alphabetical_order() -> None:
     # "aaa" sorts first by id but is monolingual and exampleless; the ranked
     # carve must prefer the multilingual concept with an example (05.59).
     entries = [
-        SynsetEntry("en", "s1", "i001", "def aaa", ("aaa",), "n"),
-        SynsetEntry("en", "s2", "i002", "def zzz", ("zzz",), "n", examples=("a zzz",)),
-        SynsetEntry("pt", "s2p", "i002", "def zzz pt", ("zzzpt",), "n"),
+        SynsetEntry("en", "s1", "i001", "def aaa", ("aaa",), pos="n"),
+        SynsetEntry(
+            "en", "s2", "i002", "def zzz", ("zzz",), pos="n",
+            examples=("a zzz",),
+        ),
+        SynsetEntry("pt", "s2p", "i002", "def zzz pt", ("zzzpt",), pos="n"),
     ]
     tables = transform(entries)
     sample = carve_sample(tables, max_concepts=1)

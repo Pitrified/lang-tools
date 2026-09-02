@@ -74,7 +74,9 @@ if TYPE_CHECKING:
 #: Bump to invalidate every persisted SQLite cache after a schema/codec change.
 #: v2: concepts gained ``lexfile`` + ``examples`` and hypernym `ConceptRelation`
 #: edges are now populated (phase 5.54 / 5.5 Step 4).
-CACHE_VERSION = 2
+#: v3: concepts gained ``commonness`` and senses carry the phase-6 frequency /
+#: CEFR values, so a v2 cache is missing columns the queries now select.
+CACHE_VERSION = 3
 
 #: Filename of the persisted SQLite cache built inside a corpus directory. It is
 #: rebuilt from the Parquet whenever the corpus signature changes; never committed

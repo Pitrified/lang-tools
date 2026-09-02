@@ -25,13 +25,16 @@ from dataclasses import dataclass
 import html
 import re
 from typing import TYPE_CHECKING
+from typing import Any
 
 from loguru import logger as lg
 
 from lang_tools.language.normalization import normalize
 from lang_tools.lexicon.concept import Concept
 from lang_tools.lexicon.concept_id import concept_id
+from lang_tools.lexicon.ingestion.deps import OptionalDependencyMissingError
 from lang_tools.lexicon.lemma import Lemma
+from lang_tools.lexicon.relations import RELATION_HYPERNYM
 from lang_tools.lexicon.relations import ConceptRelation
 from lang_tools.lexicon.sense import Sense
 
@@ -227,6 +230,12 @@ class SynsetEntry:
             stays monolingual).
         definition: The synset gloss in `language`, if any.
         lemmas: The synset's member lemma forms in `language`.
+        member_counts: SemCor sense-tag counts parallel to `lemmas` (same length
+            and order), or an empty tuple when the source carries none. Only the
+            English wordnet has them - a 5,000-sense sample of ``omw-it:1.4``
+            carries zero, matching phase 5.54 Topic 3's finding - so this is the
+            English-only per-sense signal phase 6 sums to concept commonness and
+            uses to split token frequency across senses.
         pos: WordNet part-of-speech code (``"n"``, ``"v"``, ...), if any.
         lexfile: WordNet lexicographer class (e.g. ``"noun.motion"``), if any.
             Concept-level: present on the English synset, shared via the ILI.
@@ -242,10 +251,93 @@ class SynsetEntry:
     ili: str | None
     definition: str | None
     lemmas: tuple[str, ...]
+    member_counts: tuple[int, ...] = ()
     pos: str | None = None
     lexfile: str | None = None
     examples: tuple[str, ...] = ()
     hypernyms: tuple[str, ...] = ()
+
+
+#: Language whose wordnet carries SemCor sense-tag counts. Only the English
+#: lexicon has them (phase 5.54 Topic 3), and phase 6 propagates the resulting
+#: concept-level signal to the other languages through the shared ILI.
+COUNT_LANGUAGE = "en"
+
+
+def _forms_with_counts(entry: SynsetEntry) -> Iterator[tuple[str, int]]:
+    """Pair each member form with its SemCor count (0 when the source has none).
+
+    `SynsetEntry.member_counts` is either empty or exactly parallel to `lemmas`;
+    a short tuple would silently mis-attribute counts to the wrong forms, so it
+    is rejected rather than zip-truncated.
+
+    Args:
+        entry: The synset entry whose members to pair.
+
+    Yields:
+        ``(form, count)`` in member order.
+
+    Raises:
+        MemberCountMismatchError: When `member_counts` is neither empty nor the
+            same length as `lemmas`.
+    """
+    if not entry.member_counts:
+        for form in entry.lemmas:
+            yield form, 0
+        return
+    if len(entry.member_counts) != len(entry.lemmas):
+        raise MemberCountMismatchError(entry)
+    yield from zip(entry.lemmas, entry.member_counts, strict=True)
+
+
+class MemberCountMismatchError(ValueError):
+    """Raised when a `SynsetEntry`'s SemCor counts do not match its member forms."""
+
+    def __init__(self, entry: SynsetEntry) -> None:
+        """Initialize with the offending entry's shape.
+
+        Args:
+            entry: The entry whose `member_counts` is misaligned.
+        """
+        super().__init__(
+            f"{entry.language}/{entry.synset_id}: got {len(entry.member_counts)} "
+            f"member counts for {len(entry.lemmas)} member forms (they must be "
+            "parallel, or the counts empty).",
+        )
+        self.entry = entry
+
+
+@dataclass(frozen=True)
+class GroupedRecords:
+    """Everything `group_to_records` produces from one pass over the entries.
+
+    Phase 6 replaced a five-element tuple with this: the SemCor counts made it a
+    seventh positional element, and three call sites already unpacked it by
+    position, where a mis-ordered unpack would be silent.
+
+    Attributes:
+        concepts: The grouped concepts, sorted by id.
+        lemmas: The de-duplicated member lemmas, sorted by id.
+        senses: The lemma <-> concept edges, sorted by id.
+        concept_sources: Provenance tags parallel to `concepts`.
+        relations: Sorted unique hypernym `ConceptRelation` edges.
+        sense_counts: ``{(lemma_id, concept_id): semcor_count}`` for the senses
+            that carry one. Sparse by nature (English only, and 17% of English
+            senses), so absence means "no count", never "counted zero".
+        concept_counts: ``{concept_id: semcor_total}`` summed over the concept's
+            English senses. Present with value ``0`` for a concept that has an
+            English member SemCor never tagged; **absent** for a concept with no
+            English member at all. Phase 6's `Concept.commonness` keeps those two
+            apart (``0.0`` vs ``None``), so the distinction has to survive here.
+    """
+
+    concepts: list[Concept]
+    lemmas: list[Lemma]
+    senses: list[Sense]
+    concept_sources: list[str]
+    relations: list[ConceptRelation]
+    sense_counts: dict[tuple[str, str], int]
+    concept_counts: dict[str, int]
 
 
 def _grouping_key(entry: SynsetEntry) -> str:
@@ -397,7 +489,11 @@ def _hypernym_edges(
                 elif parent != child:  # OMW never self-links; guard anyway
                     edges.add((child, parent))
     relations = [
-        ConceptRelation(concept_id_a=a, concept_id_b=b, relation_type="hypernym")
+        ConceptRelation(
+            concept_id_a=a,
+            concept_id_b=b,
+            relation_type=RELATION_HYPERNYM,
+        )
         for a, b in sorted(edges)
     ]
     return relations, dangling
@@ -406,7 +502,7 @@ def _hypernym_edges(
 def group_to_records(
     entries: Iterable[SynsetEntry],
     cili_glosses: Mapping[str, str] | None = None,
-) -> tuple[list[Concept], list[Lemma], list[Sense], list[str], list[ConceptRelation]]:
+) -> GroupedRecords:
     """Group flattened synset entries by ILI into concept/lemma/sense models.
 
     All entries that share an ILI become **one** `Concept` whose `definitions`
@@ -446,10 +542,17 @@ def group_to_records(
     `ConceptRelation` edges (see `_hypernym_edges`). A hypernym target that does
     not resolve to a concept is dropped and logged, never emitted half-formed.
 
+    SemCor counts (phase 6): `SynsetEntry.member_counts` rides along with the
+    member forms, so the counts are attributed while the ILI group is still open -
+    the only place they *can* be, since the corpus does not persist the ILI. Counts
+    accumulate per sense and per concept; a form dropped as malformed drops its
+    count with it, and a form that merges into an existing lemma adds to it.
+
     Returns:
-        The concepts, lemmas, senses (each sorted by id for determinism), the
-        per-concept provenance tag list parallel to the sorted concepts, and the
-        sorted unique hypernym `ConceptRelation` edges.
+        A `GroupedRecords` with the concepts, lemmas and senses (each sorted by id
+        for determinism), the per-concept provenance tags parallel to the sorted
+        concepts, the sorted unique hypernym `ConceptRelation` edges, and the
+        SemCor sense/concept count maps.
     """
     glosses = cili_glosses or {}
     grouped: dict[str, list[SynsetEntry]] = {}
@@ -462,6 +565,8 @@ def group_to_records(
     lemmas: dict[str, Lemma] = {}
     senses: dict[tuple[str, str], Sense] = {}
     key_to_cid: dict[tuple[str, str], str] = {}
+    sense_counts: dict[tuple[str, str], int] = {}
+    concept_counts: dict[str, int] = {}
     malformed_dropped = 0
 
     for key, group in grouped.items():
@@ -480,7 +585,13 @@ def group_to_records(
         for entry in group:
             key_to_cid[(entry.language, entry.synset_id)] = cid
             pos = _POS_LABELS.get(entry.pos or "")
-            for raw_form in entry.lemmas:
+            # Registering the concept on *any* English entry (not just a tagged
+            # one) is what lets phase 6 tell "English member, never tagged" (0)
+            # from "no English member at all" (absent).
+            is_count_language = entry.language == COUNT_LANGUAGE
+            if is_count_language:
+                concept_counts.setdefault(cid, 0)
+            for raw_form, count in _forms_with_counts(entry):
                 form = unescape_form(raw_form)
                 if is_malformed_form(form):
                     malformed_dropped += 1
@@ -496,6 +607,11 @@ def group_to_records(
                     (lemma.id, cid),
                     Sense(lemma_id=lemma.id, concept_id=cid),
                 )
+                if is_count_language and count:
+                    sense_counts[lemma.id, cid] = (
+                        sense_counts.get((lemma.id, cid), 0) + count
+                    )
+                    concept_counts[cid] = concept_counts.get(cid, 0) + count
 
     relations, dangling = _hypernym_edges(grouped, key_to_cid)
     if dangling:
@@ -510,7 +626,15 @@ def group_to_records(
     sorted_lemmas = sorted(lemmas.values(), key=lambda lem: lem.id)
     sorted_senses = sorted(senses.values(), key=lambda s: s.id)
     concept_sources = [concept_source_by_id[c.id] for c in concepts]
-    return concepts, sorted_lemmas, sorted_senses, concept_sources, relations
+    return GroupedRecords(
+        concepts=concepts,
+        lemmas=sorted_lemmas,
+        senses=sorted_senses,
+        concept_sources=concept_sources,
+        relations=relations,
+        sense_counts=sense_counts,
+        concept_counts=concept_counts,
+    )
 
 
 def wn_synset_entries(
@@ -541,7 +665,7 @@ def wn_synset_entries(
         One `SynsetEntry` per (synset, language).
 
     Raises:
-        IngestDependencyMissingError: When the ``ingest`` extra (``wn``) is not
+        OptionalDependencyMissingError: When the ``ingest`` extra (``wn``) is not
             installed.
         UnknownOmwLanguageError: When a language has no mapped OMW lexicon.
     """
@@ -551,6 +675,7 @@ def wn_synset_entries(
     for language in langs:
         spec = _omw_lexicon(language, omw_version)
         wordnet = wn.Wordnet(lexicon=spec)
+        read_counts = language == COUNT_LANGUAGE
         for synset in wordnet.synsets():
             yield SynsetEntry(
                 language=language,
@@ -558,6 +683,7 @@ def wn_synset_entries(
                 ili=_ili_id(synset),
                 definition=synset.definition(),
                 lemmas=tuple(synset.lemmas()),
+                member_counts=_member_counts(synset) if read_counts else (),
                 pos=synset.pos,
                 lexfile=synset.lexfile(),
                 examples=tuple(synset.examples()),
@@ -565,15 +691,31 @@ def wn_synset_entries(
             )
 
 
-class IngestDependencyMissingError(ImportError):
-    """Raised when the OMW download/read path is used without the ``ingest`` extra."""
+def _member_counts(synset: Any) -> tuple[int, ...]:  # noqa: ANN401 - wn.Synset
+    """Return SemCor counts aligned to ``synset.lemmas()``, or ``()`` if none.
 
-    def __init__(self) -> None:
-        """Initialize with install guidance."""
-        super().__init__(
-            "OMW ingestion needs the 'ingest' extra (wn). Install it with "
-            "`uv sync --extra ingest`.",
-        )
+    ``wn`` exposes counts per *sense*, and ``Sense.counts()`` returns plain ints
+    (verified against ``wn`` 0.9.5 - not count objects with a ``.value``). Senses
+    come back in member order, but the alignment is rebuilt by lemma rather than
+    assumed, so a source that ever reorders them cannot silently shift counts onto
+    the wrong words.
+
+    Args:
+        synset: A ``wn`` synset.
+
+    Returns:
+        One total per member form, or an empty tuple when nothing is tagged (the
+        common case: only English is tagged, and only 17% of its senses).
+    """
+    totals: dict[str, int] = {}
+    for sense in synset.senses():
+        counts = sense.counts()
+        if counts:
+            lemma = sense.word().lemma()
+            totals[lemma] = totals.get(lemma, 0) + sum(counts)
+    if not totals:
+        return ()
+    return tuple(totals.get(form, 0) for form in synset.lemmas())
 
 
 def _require_wn():  # noqa: ANN202 - the wn module, kept lazy
@@ -581,5 +723,6 @@ def _require_wn():  # noqa: ANN202 - the wn module, kept lazy
     try:
         import wn  # noqa: PLC0415 - lazy so the extra stays optional  # pyright: ignore[reportMissingImports]
     except ImportError as exc:  # pragma: no cover - exercised only without the extra
-        raise IngestDependencyMissingError from exc
+        package, extra = "wn", "ingest"
+        raise OptionalDependencyMissingError(package, extra) from exc
     return wn

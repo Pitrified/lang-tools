@@ -9,9 +9,9 @@ from lang_tools.lexicon.ingestion.transform import transform
 
 def _omw() -> list[SynsetEntry]:
     return [
-        SynsetEntry("en", "en-1", "i1", "a building for living", ("house",), "n"),
+        SynsetEntry("en", "en-1", "i1", "a building for living", ("house",), pos="n"),
         # pt synset shares the ILI but has no gloss; without kaikki it stays empty.
-        SynsetEntry("pt", "pt-1", "i1", None, ("casa",), "n"),
+        SynsetEntry("pt", "pt-1", "i1", None, ("casa",), pos="n"),
     ]
 
 
@@ -42,7 +42,7 @@ def test_cili_fallback_tags_concept_cili() -> None:
     # An ILI-backed concept with no English OMW gloss gets its English gloss from
     # the CILI gloss map, and that concept row is tagged cili; lemmas/senses stay
     # omw (CILI only touches the concept gloss).
-    entries = [SynsetEntry("pt", "pt-1", "i9", "uma moradia", ("casa",), "n")]
+    entries = [SynsetEntry("pt", "pt-1", "i9", "uma moradia", ("casa",), pos="n")]
     tables = transform(entries, {"i9": "a building for living"})
     assert tables.concepts[0].definitions["en"] == "a building for living"
     assert tables.concept_sources == [SOURCE_CILI]

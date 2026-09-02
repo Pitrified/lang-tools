@@ -63,6 +63,14 @@ class Concept(BaseModel):
             639-1 code. OMW examples live on the synset (concept), not a member
             lemma, so they belong here; lemma-level sources keep using
             `Lemma.examples` instead (phase 5.54 Topic 1).
+        commonness: How common this *meaning* is, as ``log10(1 + semcor_total)``
+            over the concept's English SemCor sense counts (phase 6). It is a
+            concept-level signal: SemCor is English-only, but senses share the
+            ILI, so the value propagates to every language for free (phase 5.54
+            Topic 3 measured it predicting es 0.34 / it 0.49 lemma frequency).
+            ``None`` means the concept has no English member to count at all;
+            ``0.0`` means it has one that SemCor never tagged. Those are
+            different facts and this field keeps them apart.
         senses: Resolved `Sense` edges into this concept. Store-hydrated, never
             persisted (``exclude=True``); ``None`` until hydration. Read via
             `resolve_senses` to fail loud when unhydrated.
@@ -76,6 +84,7 @@ class Concept(BaseModel):
     definitions: dict[str, str] = Field(default_factory=dict)
     lexfile: str | None = None
     examples: dict[str, list[str]] = Field(default_factory=dict)
+    commonness: float | None = None
 
     # Representation-layer back-references; see `Sense.lemma` for the contract.
     senses: list[Sense] | None = Field(default=None, exclude=True, repr=False)

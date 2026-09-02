@@ -23,6 +23,18 @@ Invariants:
       counts only glosses equal to the concept's *sole* member form in that
       language (genuinely thin); the 5.55 gloss repair drove this to 0 and the
       baseline is now 0, so any new thin gloss fails the gate.
+
+    Phase 6 added four more, guarding the frequency / CEFR signals the build
+    now writes:
+
+    - per-language token-frequency coverage stays above
+      `TOKEN_FREQUENCY_COVERAGE_FLOOR`,
+    - no sense carries a sense frequency without a token frequency to split,
+    - every non-English or multiword sense is flagged ``frequency_is_estimated``
+      (the first borrows the English SemCor split, the second gets a ``wordfreq``
+      value composed from components rather than measured),
+    - every band is one of `VALID_CEFR_BANDS` and is flagged estimated, because
+      no graded list is ever merged into the shipped corpus.
 """
 
 from __future__ import annotations
@@ -51,6 +63,17 @@ if TYPE_CHECKING:
 #: on the kaikki-era build and 20 on the 05.56 rebuild; the re-scoped check
 #: measured 1 on the 2026-07-11 tier-1 rebuild, repaired 2026-09-01.
 DEFINITION_EQUALS_LEMMA_BASELINE = 0
+
+#: Lowest per-language share of senses (percent) that must carry a token
+#: frequency. Measured on the 2026-09-02 build at 78.5% (en) to 85.2% (pt); the
+#: floor sits below the worst language with slack, because the gap is real data
+#: (forms `wordfreq` does not know, mostly rare multiword ones) and not a defect
+#: to drive to zero. A drop through the floor means the frequency join broke.
+TOKEN_FREQUENCY_COVERAGE_FLOOR = 70
+
+#: The CEFR bands a sense may carry. Mirrors `enrich.CEFR_BANDS`; kept as a
+#: literal so the gate reads the corpus rather than the code that wrote it.
+VALID_CEFR_BANDS = ("A1", "A2", "B1", "B2", "C1", "C2")
 
 #: Tables queried by the checks; partitioned tables glob their per-language files.
 _TABLE_GLOBS = {
@@ -425,6 +448,57 @@ ORDER BY concept_id, lang LIMIT 25
 """,
     ),
     (
+        "frequency_coverage",
+        "Frequency coverage per language",
+        "Senses carrying a token frequency, per language. The gap is forms "
+        "`wordfreq` does not know: they store NULL, never 0.0, because its 0.0 "
+        "cannot be told apart from a form measured as never occurring.",
+        lambda t: f"""
+SELECT l.language,
+       count(*) AS n_senses,
+       count(s.token_frequency) AS with_frequency,
+       round(100.0 * count(s.token_frequency) / count(*), 1) AS pct,
+       count(*) FILTER (WHERE s.frequency_is_estimated) AS estimated,
+       round(avg(s.token_frequency), 2) AS mean_zipf
+FROM {t["senses"]} s JOIN {t["lemmas"]} l ON l.id = s.lemma_id
+GROUP BY l.language ORDER BY l.language
+""",
+    ),
+    (
+        "cefr_distribution",
+        "CEFR band distribution per language",
+        "Estimated difficulty bands. Every band is estimated - Kelly is "
+        "CC-BY-NC-SA and validation-only, so no graded list is ever merged - "
+        "which is why there is no measured column to compare against here.",
+        lambda t: f"""
+SELECT l.language,
+       count(*) FILTER (WHERE s.cefr_level = 'A1') AS a1,
+       count(*) FILTER (WHERE s.cefr_level = 'A2') AS a2,
+       count(*) FILTER (WHERE s.cefr_level = 'B1') AS b1,
+       count(*) FILTER (WHERE s.cefr_level = 'B2') AS b2,
+       count(*) FILTER (WHERE s.cefr_level = 'C1') AS c1,
+       count(*) FILTER (WHERE s.cefr_level = 'C2') AS c2,
+       count(*) FILTER (WHERE s.cefr_level IS NULL) AS unbanded
+FROM {t["senses"]} s JOIN {t["lemmas"]} l ON l.id = s.lemma_id
+GROUP BY l.language ORDER BY l.language
+""",
+    ),
+    (
+        "commonness_coverage",
+        "Concept commonness coverage",
+        "SemCor-derived concept commonness. NULL means the concept has no "
+        "English member to count; 0 means it has one SemCor never tagged. The "
+        "two are deliberately distinct.",
+        lambda t: f"""
+SELECT count(*) AS n_concepts,
+       count(commonness) AS with_commonness,
+       count(*) FILTER (WHERE commonness = 0) AS counted_zero,
+       count(*) FILTER (WHERE commonness > 0) AS counted_positive,
+       round(max(commonness), 2) AS max_commonness
+FROM {t["concepts"]}
+""",
+    ),
+    (
         "suspicious_lemmas",
         "Suspicious lemmas",
         "Multi-word, digit-bearing, or very long member forms a cleanup pass "
@@ -479,8 +553,13 @@ def _evaluate_invariants(
     t: dict[str, str],
     *,
     definition_equals_lemma_baseline: int,
+    token_frequency_coverage_floor: int,
 ) -> list[InvariantResult]:
-    """Measure and evaluate the four 05.56 regression invariants."""
+    """Measure and evaluate the regression invariants.
+
+    The first four are 05.56's; the last four are phase 6's, guarding the
+    frequency/CEFR signals the build now writes.
+    """
     kaikki_lemmas = _scalar(
         con,
         f"SELECT count(*) FROM {t['lemmas']} "
@@ -518,6 +597,42 @@ LEFT JOIN {t["senses"]} s ON l.id = s.lemma_id WHERE s.lemma_id IS NULL
         con,
         _def_eq_sole_member_hits(t) + "SELECT count(*) FROM hits",
     )
+    coverage = _scalar(
+        con,
+        f"""
+SELECT coalesce(min(pct), 0) FROM (
+  SELECT floor(100.0 * count(s.token_frequency) / count(*)) AS pct
+  FROM {t["senses"]} s JOIN {t["lemmas"]} l ON l.id = s.lemma_id
+  GROUP BY l.language
+)
+""",
+    )
+    orphan_sense_frequency = _scalar(
+        con,
+        f"""
+SELECT count(*) FROM {t["senses"]}
+WHERE sense_frequency IS NOT NULL AND token_frequency IS NULL
+""",
+    )
+    unflagged = _scalar(
+        con,
+        f"""
+SELECT count(*) FROM {t["senses"]} s JOIN {t["lemmas"]} l ON l.id = s.lemma_id
+WHERE NOT s.frequency_is_estimated
+  AND (l.language <> 'en'
+       OR contains(l.text, ' ')
+       OR contains(l.text, '_')
+       OR contains(l.text, '-'))
+""",
+    )
+    bad_bands = _scalar(
+        con,
+        f"""
+SELECT count(*) FROM {t["senses"]}
+WHERE (cefr_level IS NOT NULL AND cefr_level NOT IN {VALID_CEFR_BANDS!r})
+   OR (cefr_level IS NOT NULL AND NOT cefr_is_estimated)
+""",
+    )
     return [
         InvariantResult(
             name="kaikki_tagged_rows",
@@ -547,6 +662,34 @@ LEFT JOIN {t["senses"]} s ON l.id = s.lemma_id WHERE s.lemma_id IS NULL
             requirement=f"at most the {definition_equals_lemma_baseline} baseline",
             passed=def_eq_lemma <= definition_equals_lemma_baseline,
         ),
+        InvariantResult(
+            name="token_frequency_coverage",
+            title="lowest per-language token-frequency coverage (%)",
+            value=coverage,
+            requirement=f"at least {token_frequency_coverage_floor}%",
+            passed=coverage >= token_frequency_coverage_floor,
+        ),
+        InvariantResult(
+            name="sense_frequency_without_token",
+            title="senses with a sense frequency but no token frequency",
+            value=orphan_sense_frequency,
+            requirement="0",
+            passed=orphan_sense_frequency == 0,
+        ),
+        InvariantResult(
+            name="unflagged_estimated_frequency",
+            title="non-English or multiword senses not flagged estimated",
+            value=unflagged,
+            requirement="0",
+            passed=unflagged == 0,
+        ),
+        InvariantResult(
+            name="invalid_cefr_band",
+            title="senses with an unknown band or a band claimed as measured",
+            value=bad_bands,
+            requirement="0",
+            passed=bad_bands == 0,
+        ),
     ]
 
 
@@ -554,6 +697,7 @@ def run_quality_checks(
     data_fol: Path,
     *,
     definition_equals_lemma_baseline: int = DEFINITION_EQUALS_LEMMA_BASELINE,
+    token_frequency_coverage_floor: int = TOKEN_FREQUENCY_COVERAGE_FLOOR,
 ) -> QualityReport:
     """Run every quality check and invariant over the corpus at ``data_fol``.
 
@@ -562,6 +706,8 @@ def run_quality_checks(
             ``<data_fol>/lexicon/``.
         definition_equals_lemma_baseline: Baseline row count the
             ``definition == lemma`` invariant compares against.
+        token_frequency_coverage_floor: Lowest per-language token-frequency
+            coverage (percent) the corpus may have.
 
     Returns:
         The full `QualityReport` (invariants + every check result).
@@ -595,6 +741,7 @@ def run_quality_checks(
             con,
             t,
             definition_equals_lemma_baseline=definition_equals_lemma_baseline,
+            token_frequency_coverage_floor=token_frequency_coverage_floor,
         )
     finally:
         con.close()

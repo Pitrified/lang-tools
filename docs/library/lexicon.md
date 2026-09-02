@@ -39,12 +39,20 @@ lemma.length        # 4
 ## `Concept` model
 
 A `Concept` is a language-independent unit of meaning (a synset). It stores its
-`id`, per-language canonical `definitions`, and the two concept-level enrichment
-fields from phase 5.5 Step 4 - `lexfile` (the coarse WordNet lexicographer class,
-e.g. `noun.motion`) and per-language `examples`. Both are ILI-keyed, so they are
-the same in every language: OMW carries them on the English/Princeton synset and
-they propagate to the concept (phase 5.54 Topics 1-2). Membership (which lemmas
-belong to it) is not stored here - it is derivable from the `Sense` edges.
+`id`, per-language canonical `definitions`, and the concept-level enrichment
+fields: `lexfile` (the coarse WordNet lexicographer class, e.g. `noun.motion`)
+and per-language `examples` from phase 5.5 Step 4, plus `commonness` from phase
+6. All are ILI-keyed, so they are the same in every language: OMW carries them on
+the English/Princeton synset and they propagate to the concept (phase 5.54
+Topics 1-2). Membership (which lemmas belong to it) is not stored here - it is
+derivable from the `Sense` edges.
+
+`commonness` is how common the *meaning* is, `log10(1 + semcor_total)` over the
+concept's English SemCor counts. It is the signal that travels: SemCor is English
+only, but phase 5.54 Topic 3 measured the concept-level value predicting the
+*other* language's lemma frequency (es 0.34, it 0.49). `None` and `0.0` mean
+different things and are kept apart - `None` is "no English member to count at
+all", `0.0` is "an English member SemCor never tagged".
 
 Granularity note: example sentences live at the granularity their source
 provides. OMW examples are concept-level, so they go on `Concept.examples`;
@@ -92,7 +100,8 @@ sense = Sense(lemma_id=lemma.id, concept_id=concept.id, cefr_level="B1")
 sense.id            # 16-char sha1 prefix over (lemma_id, concept_id)
 ```
 
-The per-sense values are defined now and populated later in the pipeline.
+The per-sense values are filled by the build's enrichment stage; see
+[Frequency and complexity](#frequency-and-complexity-phase-6) below.
 
 ## Relation edge tables
 
@@ -215,7 +224,7 @@ one source of truth. `run_quality_checks(data_fol)` executes a registry of named
 DuckDB checks (row counts, edge reconciliation, gloss/example/lexfile coverage,
 slug collisions, `definition == lemma`, provenance snapshot, ...) and returns a
 typed `QualityReport`; `render_report` / `write_report` turn it into a markdown
-report that leads with four regression invariants:
+report that leads with eight regression invariants. Four are 05.56's:
 
 - kaikki-tagged rows are 0 (the 5.5 cleanup holds on disk);
 - dangling sense / relation endpoints are 0;
@@ -227,6 +236,17 @@ report that leads with four regression invariants:
   synset is a valid short definition and is excluded. The 05.55 gloss repair
   drove the count to 0 and the baseline is now **0**, so any newly introduced
   thin gloss fails the gate.
+
+Four more arrived with phase 6, guarding the frequency / CEFR signals:
+
+- the lowest per-language token-frequency coverage stays at or above
+  `TOKEN_FREQUENCY_COVERAGE_FLOOR` (measured 78.5-85.2%, floor 70; the gap is
+  real data, not a defect to drive to zero, so the floor sits below the worst
+  language with slack and catches a broken join rather than a missing word);
+- no sense carries a `sense_frequency` without a `token_frequency` to split;
+- every non-English or multiword sense is flagged `frequency_is_estimated`;
+- every `cefr_level` is a valid band and is flagged `cefr_is_estimated`, since
+  no graded list is ever merged.
 
 The notebook under `scratch_space/09_concept_model/05.4_data_quality/` is a thin
 caller that regenerates `report.md` wholesale on every run - the report is
@@ -310,9 +330,10 @@ that populates the whole corpus from external sources. It is linear by design -
 the Parquet tables are the source of truth, so there is no base/overlay split:
 
 ```
-sources (OMW via wn, CILI gloss map)
+sources (OMW via wn, CILI gloss map, wordfreq)
   -> acquire   (download -> data/_raw/lexicon/ cache + _build.json manifest)
   -> transform (raw -> source-tagged concepts/lemmas/senses)
+  -> enrich    (frequency + CEFR onto the senses, commonness onto the concepts)
   -> write     (codec _dump_table -> data/lexicon/*.parquet, the source of truth)
   -> sample    (carve a small slice for lang-tutor + tests)
 ```
@@ -353,8 +374,16 @@ sources (OMW via wn, CILI gloss map)
   per-row provenance tag (`omw` / `cili` / `llm` / `manual`). OMW rows are
   tagged `omw`; a concept whose English gloss came from the CILI fallback is
   tagged `cili`.
+- **`sources.frequency`** answers "how common is *this* form" via `wordfreq`
+  (the `ingest` extra since phase 6, when it became a build input). Unknown forms
+  are omitted rather than stored as `0.0`: `wordfreq` returns 0.0 for both
+  "unknown" and "vanishingly rare", so a missing key means no frequency, never
+  frequency zero. Distinct from `staging.frequency`, which stages a top-N list
+  for exploration.
+- **`enrich`** is the pure phase-6 core; see
+  [Frequency and complexity](#frequency-and-complexity-phase-6).
 - **`build_initial`** wires it together: transform, apply the curated gloss
-  overrides, write each table through the codec with its tags, write the
+  overrides, enrich, write each table through the codec with its tags, write the
   manifest, then carve and (optionally) write a sample slice. Thin notebooks
   under `notebooks/lexicon_ingest/` drive it.
 - **`carve_sample`** picks the slice. It **ranks** rather than taking the first N
@@ -369,6 +398,56 @@ sources (OMW via wn, CILI gloss map)
 The optional LLM granularity-collapse pass (over-fine WordNet senses ->
 learner granularity) is a deferred seam: the deterministic OMW-as-is output is
 the default and the only thing the build produces today.
+
+#### Frequency and complexity (phase 6)
+
+`ingestion.enrich` fills the per-sense signals phase 2 defined and left empty,
+plus `Concept.commonness`. It runs **inside the build**, for two independent
+reasons: a rebuild regenerates every column, so anything computed post hoc into
+the Parquet is silently reverted by the next `build_initial` (the lesson of phase
+05.58), and the SemCor counts are keyed on the ILI grouping, which the corpus does
+not persist - upstream of the write is the only place the join can happen at all.
+The module itself is pure: both inputs are passed in, so the math is testable
+without `wordfreq` or `wn`.
+
+- **Token frequency** is language-level - how common a *form* is - so it is the
+  lemma's Zipf value, copied onto each of its senses.
+- **Sense frequency** splits that across the lemma's senses, in **linear
+  frequency space**, never on the log-scaled Zipf: `zipf_to_linear`, apportion,
+  `linear_to_zipf` back. Weights are the concepts' SemCor totals, Laplace
+  smoothed so a sense SemCor never tagged keeps a floor instead of collapsing to
+  zero.
+- **`frequency_is_estimated`** is set unless the sense is English, single-word,
+  and carries a real SemCor count. Every non-English split borrows the English
+  distribution (there is no sense-tagged corpus for the others), and every
+  multiword value is composed by `wordfreq` from components rather than measured -
+  20-44% of our lemmas per language, so this is not a rare footnote.
+- **CEFR** blends a concept-level score (commonness, hypernym depth) with a thin
+  per-language overlay (token frequency, form length) and bands it by fixed
+  cutoffs. Depth is recomputed by BFS on every build rather than persisted: it is
+  derived from the shipped hypernym edges, and only the score consumes it.
+- **`cefr_is_estimated` is `True` for every sense in every language**, English
+  included. Kelly (en/it) is CC-BY-NC-SA and stays validation-only, so no graded
+  list is ever merged into the corpus and no band is ever a measurement.
+
+The gate (`lexicon.quality`) guards all of it: per-language coverage stays above
+`TOKEN_FREQUENCY_COVERAGE_FLOOR`, no sense carries a sense frequency without a
+token frequency to split, every non-English or multiword sense is flagged
+estimated, and every band is valid and flagged.
+
+`ingestion.cefr_validation` measures the bands against a graded list and re-fits
+`CEFR_CUTOFFS` when the score changes, driven by the thin
+`notebooks/lexicon_enrich/06_validate_cefr.ipynb`. It is careful about what Kelly
+can settle. It **can** validate the ordering: rank correlation is 0.632 (en) and
+0.661 (it), and the Italian figure is the meaningful one, since the cutoffs were
+fitted on English alone. It **cannot** set the absolute scale, because Kelly
+grades the ~7.5k most frequent words, so its own "C2" means "least frequent of
+the common head" rather than "hardest word in the language" - which is why 82% of
+this corpus lands in C2 and why that is a property of the two vocabularies, not a
+calibration error. Band agreement is 41.2% exact / 74.4% within one band in
+English; Italian sits at a mean offset of +1.23 bands, a measured limitation of
+reusing English cutoffs rather than one we correct for. A form Kelly grades more
+than once keeps its easiest band, mirroring the easiest-sense rule on our side.
 
 #### Provenance column
 

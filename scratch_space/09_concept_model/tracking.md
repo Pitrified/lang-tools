@@ -66,7 +66,7 @@ split as the design firms up.
 | 5.57 | Junk member forms (placeholders + markup) | [`05.57_junk_forms/05.57_junk_forms.md`](05.57_junk_forms/05.57_junk_forms.md) | done | Deterministic follow-on to 5.55, found while reviewing its gloss repair: MultiWordNet's `GAP!` / `PSEUDOGAP!` "no lexicalization" markers were in the corpus as ordinary Italian noun lemmas over 1,008 concepts, plus 11 fr HTML-escaped markup forms and pt `<HTML>`. `unescape_form` (bounded fixed point - the data is doubly escaped) repairs the 2 recoverable forms and the `<` / exact-placeholder markers drop the rest. Rebuilt + re-gated: -15 lemmas, -1,020 senses, 0 concepts lost, 0 orphans, all predictions exact. Exposed that a rebuild silently reverts applied gloss repairs -> phase 8. |
 | 5.58 | Curated gloss overrides (rebuild durability) | [`05.58_curated_glosses/05.58_curated_glosses.md`](05.58_curated_glosses/05.58_curated_glosses.md) | done | Closes the gap 5.57 found: a rebuild regenerates every gloss from OMW, so an applied gloss repair was silently reverted. Accepted `GlossProposal` rows now live in the committed `data/curated/gloss_overrides.jsonl` and `build_initial` applies them right after `transform` (re-tagging those rows `llm`), so a rebuild reproduces curated state instead of erasing it; applied/stale counts reach `BuildSummary` and `_build.json`. Stale ids warn and are counted, never fatal, so a re-slug cannot block a rebuild. 5.55 Q2's committed-input decision, applied to glosses. |
 | 5.59 | Sample seed regenerated from the build | [`05.59_sample_seed/05.59_sample_seed.md`](05.59_sample_seed/05.59_sample_seed.md) | done | Early slice of phase 9. The committed `data/bootstrap/` seed was hand-authored placeholder data whose 4 concept ids matched nothing in the corpus. The build now carves it (`sample_data_fol` into `data/bootstrap/lexicon/`, exported back to the committed JSONL), and `carve_sample` **ranks** rather than taking the first N by id - most languages, then an example, then id - because id order produced a seed of `15 May Organization` / `1530s`. 50 concepts / 587 lemmas balanced across all five languages (was 157 lemmas, 71 en / 11 it). |
-| 6  | Frequency & complexity        | [`06_frequency_complexity.md`](06_frequency_complexity.md) | planned | Plan of record (2026-09-02). Per-sense token frequency (`wordfreq`, all five langs measured at 78-85% lemma coverage), sense frequency split in linear space by SemCor concept weights (Laplace-smoothed, English-only prior), and an estimated CEFR band from a concept-level score (commonness + hypernym depth) plus a per-language overlay, fit on Kelly en and applied unchanged everywhere. Runs as a **build stage** (5.58's rule: post-hoc columns are reverted by the next rebuild), which is also forced by the corpus not persisting the ILI. New `Concept.commonness`; four gate invariants added. |
+| 6  | Frequency & complexity        | [`06_frequency_complexity.md`](06_frequency_complexity.md) | done | Plan of record (2026-09-02). Per-sense token frequency (`wordfreq`, all five langs measured at 78-85% lemma coverage), sense frequency split in linear space by SemCor concept weights (Laplace-smoothed, English-only prior), and an estimated CEFR band from a concept-level score (commonness + hypernym depth) plus a per-language overlay, fit on Kelly en and applied unchanged everywhere. Runs as a **build stage** (5.58's rule: post-hoc columns are reverted by the next rebuild), which is also forced by the corpus not persisting the ILI. New `Concept.commonness`; four gate invariants added. **Done** (2026-09-02): built and gated on all five languages with row counts unchanged (this adds columns, not rows) - 86.6% of senses carry a token frequency, 100% carry an estimated band, all eight invariants pass. The hand-picked cutoffs turned out to be guesses (20.8% exact vs Kelly); fitting them on Kelly's English proportions doubled agreement to 41.2% exact / 74.4% within-one-band, and the ordering transfers to Italian (Spearman 0.661) though the absolute scale does not (+1.23 bands). |
 | 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | draft  | Ingest hypernymy/hyponymy and antonymy as typed edges from OMW.                                                        |
 | 8  | Maintenance (LLM-based)       | [`08_maintenance.md`](08_maintenance.md)                 | draft  | LLM-assisted upkeep: new lemma->concept mapping, gloss enrichment, slug dedup, validation against OMW.                 |
 | 9  | Sample data + consumer uplift | [`09_sample_and_consumer.md`](09_sample_and_consumer.md) | draft  | Regenerate fresh sample data from the pipeline; point `lemma_store` and `lang-tutor` at it.                            |
@@ -1073,3 +1073,39 @@ Append-only. Newest at the bottom.
   it in; 5.54 Topic 4's connectivity ask is *degree*, which is bounded), so no column - but
   if that changes the fix is to persist it from the build, never to traverse at query time,
   which would be the same class of performance bug 5.3 spent a phase removing.
+- 2026-09-02 : executed phase 6 (status planned -> done). Shipped `ingestion/enrich.py`
+  (pure: token frequency copied per sense, sense frequency split in **linear** space via
+  `10 ** (zipf - 9)` with Laplace-smoothed SemCor weights, `Concept.commonness` as
+  `log10(1 + total)`, CEFR from a concept score + per-language overlay) and
+  `ingestion/sources/frequency.py` (the impure `wordfreq` loader). `SynsetEntry` gained
+  `member_counts`; `group_to_records` returns a `GroupedRecords` dataclass instead of a
+  five-tuple and accumulates the SemCor counts while the ILI group is open - the only
+  point the join can happen, since the corpus does not persist the ILI. `build_initial`
+  runs the stage after the curated gloss overrides, so 05.58's rule holds: the signals are
+  rebuild-durable, not post-hoc. Extras cleanup landed as decided (`wordfreq` ->
+  `ingest`, one `OptionalDependencyMissingError(package, extra)` in a new
+  `ingestion/deps.py`, `_wordfreq_version` fixed to read `importlib.metadata` - it had
+  been recording the literal string `"unknown"` since 5.54, exactly as predicted).
+  **The cutoffs I picked by hand were guesses and validating them said so**: 20.8% exact
+  agreement with Kelly, systematically easier than Kelly on the words it covers. Fitting
+  them to Kelly's own band proportions on the English subset roughly doubled agreement
+  (41.2% exact / 74.4% within one band) - and a second finding fell out of that: Kelly
+  lists a word once per part of speech (7,549 rows, 6,756 forms; `round` at three
+  levels), so a repeated form now keeps its **easiest** band, mirroring our easiest-sense
+  rule and moving agreement 38.3% -> 41.2% on its own. The fitted scale puts 82% of the
+  corpus in C2, which is honest rather than broken: Kelly's "C2" means "least frequent of
+  the top 7.5k", while WordNet is mostly specialist vocabulary past the end of any graded
+  list, so our C2 is a "past the syllabus" bucket and the learner-relevant A1-B1 (~38k
+  senses) is what Kelly can actually speak to. Ordering validated and it **transfers**:
+  Spearman 0.632 (en) and 0.661 (it), Italian being the meaningful one since the cutoffs
+  were fitted on English alone; the absolute scale does not transfer (it sits +1.23 bands
+  hard) and that is recorded as a measured limitation, not corrected, because a
+  per-language offset needs a graded list per language and three of five have none. Gate
+  grew from four invariants to eight (coverage floor, no sense frequency without a token
+  frequency, non-en/multiword must be flagged estimated, bands valid and flagged) plus
+  three report sections; `report.md` regenerated. Rebuild counts unchanged (321,082 /
+  117,659 / 490,825 / 97,666) - columns, not rows - and the seed re-carved with the new
+  fields. One deliberate deviation from the plan: no `require_module` shim, because an
+  `importlib` indirection returns a bare `ModuleType` and would erase the type checker's
+  view of `wn`; the consolidated error was the part that mattered. 258 passed, ruff and
+  pyright clean.

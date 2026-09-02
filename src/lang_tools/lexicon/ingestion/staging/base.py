@@ -51,22 +51,6 @@ KNOWN_LICENSES: dict[str, tuple[str, str]] = {
 }
 
 
-class EnrichDependencyMissingError(ImportError):
-    """Raised when a staging path needs the ``enrich`` extra (e.g. ``wordfreq``)."""
-
-    def __init__(self, package: str = "wordfreq") -> None:
-        """Initialize with install guidance.
-
-        Args:
-            package: The missing optional package in the ``enrich`` extra.
-        """
-        super().__init__(
-            f"This staging path needs the 'enrich' extra ({package}). Install it "
-            f"with `uv sync --extra enrich`.",
-        )
-        self.package = package
-
-
 def staging_dir(data_fol: Path) -> Path:
     """Return the staging cache directory under a data folder."""
     return data_fol / STAGING_SUBDIR

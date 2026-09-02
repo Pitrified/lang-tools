@@ -37,6 +37,7 @@ def _sample_concept() -> Concept:
         definitions={"pt": "instituicao financeira", "en": "a financial institution"},
         lexfile="noun.possession",
         examples={"en": ["she went to the bank", "open a bank account"]},
+        commonness=1.5,
     )
 
 
@@ -70,6 +71,19 @@ def test_concept_map_column_round_trips(tmp_path: Path) -> None:
     # The phase-5.5 Step-4 concept-level fields survive too.
     assert loaded.lexfile == "noun.possession"
     assert loaded.examples == {"en": ["she went to the bank", "open a bank account"]}
+    # ... and the phase-6 commonness signal.
+    assert loaded.commonness == 1.5
+
+
+def test_concept_commonness_keeps_zero_apart_from_absent(tmp_path: Path) -> None:
+    # 0.0 means "English member SemCor never tagged"; None means "no English
+    # member to count". Parquet must not collapse the two into one null.
+    counted = Concept(id="c__counted__000000000001", commonness=0.0)
+    uncounted = Concept(id="c__uncounted__000000000002")
+    _dump_table("concepts", [counted, uncounted], data_fol=tmp_path)
+    loaded = {c.id: c for c in _load_table("concepts", data_fol=tmp_path)}
+    assert loaded["c__counted__000000000001"].commonness == 0.0
+    assert loaded["c__uncounted__000000000002"].commonness is None
 
 
 def test_false_friend_map_and_canonical_order_round_trip(tmp_path: Path) -> None:
