@@ -67,7 +67,7 @@ split as the design firms up.
 | 5.58 | Curated gloss overrides (rebuild durability) | [`05.58_curated_glosses/05.58_curated_glosses.md`](05.58_curated_glosses/05.58_curated_glosses.md) | done | Closes the gap 5.57 found: a rebuild regenerates every gloss from OMW, so an applied gloss repair was silently reverted. Accepted `GlossProposal` rows now live in the committed `data/curated/gloss_overrides.jsonl` and `build_initial` applies them right after `transform` (re-tagging those rows `llm`), so a rebuild reproduces curated state instead of erasing it; applied/stale counts reach `BuildSummary` and `_build.json`. Stale ids warn and are counted, never fatal, so a re-slug cannot block a rebuild. 5.55 Q2's committed-input decision, applied to glosses. |
 | 5.59 | Sample seed regenerated from the build | [`05.59_sample_seed/05.59_sample_seed.md`](05.59_sample_seed/05.59_sample_seed.md) | done | Early slice of phase 9. The committed `data/bootstrap/` seed was hand-authored placeholder data whose 4 concept ids matched nothing in the corpus. The build now carves it (`sample_data_fol` into `data/bootstrap/lexicon/`, exported back to the committed JSONL), and `carve_sample` **ranks** rather than taking the first N by id - most languages, then an example, then id - because id order produced a seed of `15 May Organization` / `1530s`. 50 concepts / 587 lemmas balanced across all five languages (was 157 lemmas, 71 en / 11 it). |
 | 6  | Frequency & complexity        | [`06_frequency_complexity.md`](06_frequency_complexity.md) | done | Plan of record (2026-09-02). Per-sense token frequency (`wordfreq`, all five langs measured at 78-85% lemma coverage), sense frequency split in linear space by SemCor concept weights (Laplace-smoothed, English-only prior), and an estimated CEFR band from a concept-level score (commonness + hypernym depth) plus a per-language overlay, fit on Kelly en and applied unchanged everywhere. Runs as a **build stage** (5.58's rule: post-hoc columns are reverted by the next rebuild), which is also forced by the corpus not persisting the ILI. New `Concept.commonness`; four gate invariants added. **Done** (2026-09-02): built and gated on all five languages with row counts unchanged (this adds columns, not rows) - 86.6% of senses carry a token frequency, 100% carry an estimated band, all eight invariants pass. The hand-picked cutoffs turned out to be guesses (20.8% exact vs Kelly); fitting them on Kelly's English proportions doubled agreement to 41.2% exact / 74.4% within-one-band, and the ordering transfers to Italian (Spearman 0.661) though the absolute scale does not (+1.23 bands). |
-| 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | draft  | Ingest hypernymy/hyponymy and antonymy as typed edges from OMW.                                                        |
+| 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | planned | Plan of record (2026-09-02). Finishes the relation graph the 5.5 Step-4 build started. Surveyed all five lexicons (5.54 measured English only) and found the build **drops ~a quarter of the non-English taxonomy**: it reads `hypernym` links only, and pt/it mirror their links incompletely (10,127 / 10,286 edges exist solely as `hyponym`). Generalizes `SynsetEntry.hypernyms` to a `relations` map with inverse-type normalization, adds a `sense_relations` table for antonymy (sense-level, correcting phase 2's lemma-level note) and derives concept-level antonym edges so the four languages with no sense relations get opposites at all. Knock-on stated up front: denser taxonomy moves hypernym depth, so phase 6's CEFR bands need re-validating. |
 | 8  | Maintenance (LLM-based)       | [`08_maintenance.md`](08_maintenance.md)                 | draft  | LLM-assisted upkeep: new lemma->concept mapping, gloss enrichment, slug dedup, validation against OMW.                 |
 | 9  | Sample data + consumer uplift | [`09_sample_and_consumer.md`](09_sample_and_consumer.md) | draft  | Regenerate fresh sample data from the pipeline; point `lemma_store` and `lang-tutor` at it.                            |
 | 10 | Licensing & packaging         | [`10_licensing_docs.md`](10_licensing_docs.md)           | draft  | Finalize open license, source attribution / dataset card, and docs.                                                    |
@@ -1109,3 +1109,27 @@ Append-only. Newest at the bottom.
   `importlib` indirection returns a bare `ModuleType` and would erase the type checker's
   view of `wn`; the consolidated error was the part that mattered. 258 passed, ruff and
   pyright clean.
+- 2026-09-02 : planned phase 7 (status draft -> planned), grounded in a survey of every
+  relation type `wn` exposes across **all five** lexicons - 5.54 had measured English only,
+  and that turned out to hide the finding. Two results reshaped the plan. (1) **The build
+  drops roughly a quarter of the non-English taxonomy.** `RELATION_HYPERNYM`'s docstring
+  records that "hyponymy is the same edge read backwards, so it is never stored
+  separately" - true as a *storage* rule, and it was silently applied as a *reading* rule.
+  English mirrors its links perfectly (reading both directions adds exactly 1 edge of
+  89,089), but pt and it do not: 10,127 and 10,286 edges respectively exist only as
+  `hyponym`, so reading both grows those graphs 31% and 35%. (2) **Sense-level relations
+  exist only in English** (derivation 74,708, antonym 7,979; the other four lexicons have
+  none), which is the same asymmetry phase 6 hit with SemCor and invites the same
+  propagation answer. Shape: `SynsetEntry.hypernyms` becomes a `relations` map with an
+  inverse-type normalization table, a new `sense_relations` table holds antonymy at
+  **sense** level (correcting phase 2's "lemma-level" note - collapsing to lemmas would
+  assert `light` is the opposite of `heavy` in its illumination sense), and English sense
+  antonymy is derived up to concept-level `antonym` edges so pt/es/fr/it get opposites at
+  all. Five decisions put to the user, including the one with teeth: reading `hyponym`
+  densifies the taxonomy, which moves hypernym depth, which moves phase 6's CEFR bands - so
+  phase 6's Kelly validation has to be re-run and the cutoffs likely re-fitted. Stated up
+  front rather than discovered later, and it argues for doing the fix now, before more
+  phases lean on the bands. Depth deliberately keeps reading `hypernym` only (excluding
+  `instance_hypernym`) to bound that blast radius to genuine taxonomy. Deferred:
+  `derivation` / `pertainym` (74k edges, English-only, morphological, no consumer) and the
+  `domain_*` topic links.
