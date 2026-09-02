@@ -1037,7 +1037,7 @@ Append-only. Newest at the bottom.
   fields are comparable), the shape (`sources/frequency.py` impure loader + a pure
   `ingestion/enrich.py` + one build stage), and the honest consequence that since Kelly is
   never shipped, `cefr_is_estimated` is true for **every** sense including English. Four
-  recommendations put to the user: no lemma-level convenience cache (phase 2 dropped
+  decisions put to the user, all since settled (2026-09-02, below): no lemma-level convenience cache (phase 2 dropped
   `Lemma.frequency` deliberately; `lang-tutor`'s break on it is phase 9's to fix properly),
   no LLM CEFR judgment here (route to phase 8, where the loop and its still-unexercised
   chain live), `wordfreq` moves `enrich` -> `ingest` as it is now a build input, and
@@ -1045,3 +1045,31 @@ Append-only. Newest at the bottom.
   commonness). `group_to_records`'s 5-tuple becomes a `GroupedRecords` dataclass rather than
   growing a sixth positional field. Note for execution: `data/_raw/lexicon/staging/` no
   longer holds the 5.54 datasets (regenerable by design), so step 1 is a re-stage.
+- 2026-09-02 : settled phase 6's four open decisions, one at a time, and folded each into
+  the plan with its losing argument kept (three of the four had a real case on the other
+  side). (1) **No lemma-level cache** on `Lemma`: every aggregation is a claim, and `max`
+  reports `bank`'s money sense to a learner who just met the river one. The ergonomic need
+  behind the draft's proposal is real though, so a `LexiconStore` method ranking lemmas by
+  their best sense is recorded as a candidate - with the rule that frequency aggregates to
+  the *most frequent* sense and CEFR to the *easiest*, opposite ends that would be a silent
+  bug if mixed. `lang-tutor` stays red on `selection.py:128` until phase 9, deliberately;
+  noted in phase 9 too, since that is where someone will look. (2) **LLM CEFR deferred to
+  phase 8**: with no graded list in pt/es/fr, no measurement separates a better estimate
+  from a merely different one, so an unvalidatable refinement on a validatable baseline
+  costs the ability to say where the numbers came from. 05.58 already fixed the shape (a
+  committed `cefr_overrides.jsonl` the build applies); phase 8 gained a "From phase 6" block
+  so the routing is visible from the receiving end. (3) **`wordfreq` moves `enrich` ->
+  `ingest`**, extras grouping by code path rather than by the phase that introduced them,
+  plus two tidy-ups it forces: consolidate `Ingest`/`EnrichDependencyMissingError` into one
+  `OptionalDependencyMissingError(package, extra)` + `require_module` shim in a new
+  `ingestion/deps.py` (neither is exported, so no API break), and **fix `_wordfreq_version`,
+  which is silently broken** - it reads a `__version__` attribute `wordfreq` does not have,
+  so it has recorded `"unknown"` in every staging manifest entry since 5.54. That one is
+  load-bearing: "reproducible from pinned inputs" is false while the pin is the string
+  `unknown`. (4) **Depth computed, not persisted**, with the ceiling named rather than left
+  implicit: "derivable from the shipped edges" is true on paper and misleading in practice,
+  because phases 3/4 shaped the store for point lookups and bounded adjacency, not the
+  unbounded traversal depth-to-root needs. Nothing consumes depth today (the CEFR band folds
+  it in; 5.54 Topic 4's connectivity ask is *degree*, which is bounded), so no column - but
+  if that changes the fix is to persist it from the build, never to traverse at query time,
+  which would be the same class of performance bug 5.3 spent a phase removing.

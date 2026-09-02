@@ -33,6 +33,15 @@ slice.
   let it consume the new signals (synonym drills from `Concept.lemmas`,
   false-friend traps, frequency/CEFR ordering) if cheap, else defer to its own
   backlog.
+
+  **Known break, deliberately unpatched (2026-09-02):** `selection.py:128` reads
+  `lemma.frequency`, removed from the thin `Lemma` back in phase 2 and confirmed *not*
+  coming back as a cache in phase 6 (see that plan's Decision 1 for the reasoning).
+  So `lang-tutor` is red against current `lang-tools` until this phase, on purpose - the
+  one-line fix would be to revert a model decision. Phase 6 records one candidate landing
+  place: a `LexiconStore` method ranking lemmas by their best sense (most frequent for
+  frequency, easiest for CEFR), which gives the consumer its lemma-level ordering without a
+  persisted aggregate. Deciding that is this phase's job, not phase 6's.
 - **End-to-end check** - producer webapp serves the new `/api/v1/lemmas` +
   concept endpoints; `lang-tutor` runs a full exercise round against them.
 

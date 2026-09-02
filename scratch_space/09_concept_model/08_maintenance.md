@@ -24,6 +24,16 @@ machinery rather than introducing a parallel path.
 > $1.50 (Haiku) to $7.50 (Opus) - cost does not constrain the model choice. Spec in
 > [`05.55_llm_cleanup/05.55_llm_cleanup.md`](05.55_llm_cleanup/05.55_llm_cleanup.md).
 
+> **From phase 6 (2026-09-02).** The **LLM CEFR judgment for pt/es/fr** is routed here.
+> Those three languages have no graded list, so phase 6 ships them the same deterministic
+> band as everyone else and stops there: with no ground truth, no measurement separates a
+> better estimate from a different one, which is precisely why the refinement needs this
+> phase's human-in-the-loop review rather than an unreviewed pass. The shape is already
+> fixed by 05.58 - accepted judgments become a committed `cefr_overrides.jsonl` the build
+> applies, the same contract as `gloss_overrides.jsonl` - and by 5.55's Batch API decision.
+> It is concept-level (117,659 concepts), not per-sense. Read phase 6's fitted band
+> distributions first; they say whether the deterministic estimate needs help at all.
+
 > **From the 5.5 cleanup (2026-06-20).** Steps 5-6 of
 > [`05.5_cleanup.md`](05.5_cleanup.md) are this phase's concrete first run over the
 > kaikki-free rebuild: slug dedup, `definition == lemma` repair, orphan / empty-concept

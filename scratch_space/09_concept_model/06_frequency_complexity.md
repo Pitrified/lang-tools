@@ -165,7 +165,9 @@ every sense in every language**, English included. The flag is honest, not decor
    and the per-concept totals. Unit tests over fakes, including the English-only asymmetry.
 3. **`Concept.commonness`** field + codec schema + a round-trip test.
 4. **`ingestion/sources/frequency.py`** and **`ingestion/enrich.py`** per the math above,
-   with the depth BFS.
+   with the depth BFS. Same step: move `wordfreq` to the `ingest` extra, consolidate the
+   optional-dependency errors into `ingestion/deps.py`, and fix `_wordfreq_version` to read
+   `importlib.metadata` (Decision 3).
 5. **Wire the build stage**; record `wordfreq` version and coverage counts in `_build.json`.
 6. **Extend the gate** (`lexicon/quality.py`): coverage and estimated-share checks plus new
    invariants (see below), report sections per language.
@@ -187,25 +189,113 @@ the same way `DEFINITION_EQUALS_LEMMA_BASELINE` was:
 - `cefr_level` is always in `{A1, A2, B1, B2, C1, C2}` or null, and `cefr_is_estimated` is
   true wherever `cefr_level` is set.
 
-## Decisions to confirm
+## Decisions (settled 2026-09-02)
 
-Recommendations given; each changes what gets built.
+All four were put to the user as recommendations and answered one at a time; each changed
+what gets built, and the reasoning is kept because in three of the four the losing option
+had a real argument behind it.
 
-1. **No lemma-level convenience cache.** The draft proposed caching a coarse frequency and
-   CEFR on `Lemma`. Recommend **not** doing it: phase 2 deliberately removed
-   `Lemma.frequency`, and a cached aggregate is exactly the drift-prone denormalization the
-   persisted models were shaped to avoid. Consumers get it from the store.
-   This is also the field `lang-tutor` still reads (`selection.py:128`), which is phase 9's
-   break to fix properly, not a reason to resurrect the column.
-2. **Deterministic only; no LLM CEFR judgment in this phase.** The draft floated an LLM
-   estimate for pt/es/fr. Recommend routing it to phase 8, where the maintenance loop and
-   its review step live, and where the LLM chain still needs its first live exercise (5.55
-   closed with that chain unrun). Phase 6 stays reproducible from pinned inputs.
-3. **`wordfreq` moves from the `enrich` extra to `ingest`.** It stops being an exploration
-   dependency and becomes a build input; `xlrd` / `pandas` / `matplotlib` stay in `enrich`.
-4. **Depth is computed, not persisted.** It is derivable from the shipped
-   `concept_relations` table, so storing it would duplicate the edges. Commonness is
-   persisted because it is *not* derivable without re-reading OMW.
+1. **No lemma-level convenience cache** - confirmed, do not cache.
+   The draft proposed caching a coarse frequency and CEFR on `Lemma`.
+   Phase 2 deliberately removed `Lemma.frequency`, and a cached aggregate is exactly the
+   drift-prone denormalization the persisted models were shaped to avoid: every aggregation
+   choice is a claim, and `max` says "how common is this word at its most common sense",
+   which for `bank` reports the money sense to a learner who just met the river one.
+   Consumers reach the signals through the sense edge.
+
+   The ergonomic need behind the draft's proposal is real, though: `lang-tutor` selects
+   *lemmas* ("common words at this level"), so answering that through senses is a join plus
+   an aggregation at every query.
+   **Recorded as one possible solution, not yet a decision:** a `LexiconStore` query method
+   that ranks lemmas by their best sense - the same convenience without a persisted column
+   that can go stale, and with the aggregation rule visible at the call site where it can be
+   changed. If it ever measures too slow, the fix is an index or a load-time derived view,
+   never a written field. Should it be built, frequency must aggregate to the *most frequent*
+   sense and CEFR to the *easiest*: opposite ends of the sense list, and mixing them silently
+   would be a bug.
+
+   `lang-tutor` reads the removed field today (`selection.py:128`) and stays broken until
+   phase 9 fixes it against whatever query surface exists then. That is deliberate: patching
+   the consumer by reverting a model decision would be the wrong fix, and there is no rush.
+2. **Deterministic only; no LLM CEFR judgment in this phase** - deferred to phase 8.
+   The draft floated an LLM estimate for pt/es/fr, the three languages with no graded list.
+   Two reasons it does not belong here.
+
+   Practical: `build_initial` is reproducible from pinned inputs, and 5.58 already settled
+   what to do with LLM output that must survive a rebuild - it becomes a committed file the
+   build applies, not a call inside the build. An LLM leg here would either break that
+   reproducibility or reinvent `gloss_overrides.jsonl` under a new name. The seam therefore
+   already exists in the right place: a `cefr_overrides.jsonl` applied by the build, which
+   is phase 8's machinery.
+
+   Decisive: with no graded list in pt/es/fr, **no measurement distinguishes a better
+   estimate from a merely different one**. Shipping an unvalidatable refinement on top of a
+   validatable baseline costs the ability to say where the numbers came from. Phase 8 can
+   run it as a reviewed pass, which is the only quality signal those languages have.
+
+   Phase 6 therefore ships all five languages from the same deterministic score. Nothing is
+   missing for pt/es/fr; their estimate is uniform with the rest rather than LLM-adjusted.
+   Whether it *needs* LLM help is a judgement to make once the fitted band distributions
+   exist, not now - that check belongs in step 8's validation notebook.
+3. **`wordfreq` moves from the `enrich` extra to `ingest`** - approved, with the two
+   consequences below handled properly rather than papered over.
+   Extras group by which code path needs them, not by which phase introduced them. Once
+   frequency is a build input, `wordfreq` belongs with `wn` on the build path;
+   `xlrd` / `pandas` / `matplotlib` stay in `enrich`, which then matches its own docstring
+   (Kelly's `.xls` plus the notebooks). The alternative - requiring
+   `--extra ingest --extra enrich` for a build - drags pandas and matplotlib into a build
+   environment with no use for them.
+
+   **Consolidate the optional-dependency errors.** Three ad-hoc classes exist
+   (`IngestDependencyMissingError` takes no arguments and hardcodes "the 'ingest' extra
+   (wn)"; `EnrichDependencyMissingError` takes a package; `StoreDependencyMissingError` is a
+   different layer). After the move, the enrich-flavoured error would be telling people to
+   install the wrong extra for `wordfreq`.
+   Replace the first two with a single `OptionalDependencyMissingError(package, extra)` plus
+   a `require_module(package, extra)` shim in a new `ingestion/deps.py`, and route every
+   lazy import through it. None of these are exported from any `__init__`, so this is an
+   internal consolidation, not an API break; it touches ~8 call sites, their `Raises:`
+   docstrings, one test, and one line of `docs/library/lexicon.md`.
+   `StoreDependencyMissingError` (pyarrow/duckdb, runtime layer) stays where it is - it is
+   not on this path.
+   Deliberate behaviour change: `staging.frequency` now reports the **ingest** extra,
+   because that is where `wordfreq` lives; its test updates to match.
+
+   **Fix the version pin, which is currently broken.** `_wordfreq_version()` does
+   `getattr(wordfreq, "__version__", "unknown")`, and `wordfreq` exposes no `__version__`
+   (verified 2026-09-02), so it has silently returned `"unknown"` since 5.54 and every
+   staging manifest entry it wrote records that. Use
+   `importlib.metadata.version("wordfreq")`. This is load-bearing for the phase: "the build
+   is reproducible from pinned inputs" is false while the frequency source's pin is the
+   literal string `unknown`.
+
+   Two `wordfreq` call sites remain and that is correct, not duplication: `staging.frequency`
+   writes a top-N `(word, rank, zipf)` list for exploration, while `sources.frequency`
+   answers per-lemma zipf for arbitrary forms including multiword. Different questions, same
+   library; only the lazy-import shim is shared.
+4. **Depth is computed, not persisted** - confirmed, with the ceiling named below.
+   Hypernym `min_depth` feeds the CEFR score and is recomputed by BFS on every build (97,666
+   edges over 117,659 concepts, well under a second). No column.
+
+   The reason it is *not* obvious, recorded for whoever wonders later: "derivable from the
+   shipped edges" is true on paper and misleading in practice. Phases 3 and 4 shaped the
+   store around **point lookups and bounded adjacency joins, not aggregations**, and
+   depth-to-root is an unbounded traversal. So a consumer cannot cheaply derive it through
+   the query surface that actually exists - the same argument that justifies persisting
+   `commonness`, arriving one step later.
+
+   What breaks the tie is that no consumer needs depth today: what ships to a learner is the
+   CEFR band, and depth is already folded into it. A column on the chance someone later
+   wants the raw specificity signal is speculative generality. (5.54 Topic 4 asked phase 6
+   to expose a *connectivity* metric - that is degree, a bounded neighbour count the store
+   answers fine, not depth.)
+
+   **The ceiling, stated so the next person does not walk into it:** if a consumer ever does
+   need depth, or any other whole-graph derived quantity, the fix is to **persist it from the
+   build**, never to traverse at query time. A runtime BFS over 117k concepts through the
+   SQLite surface is a performance bug of precisely the kind phase 5.3 spent a phase
+   removing (the >5 min load). Adding the column later is cheap; discovering the traversal in
+   production is not.
 
 ## Out of scope
 
