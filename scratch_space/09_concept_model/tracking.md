@@ -66,7 +66,7 @@ split as the design firms up.
 | 5.57 | Junk member forms (placeholders + markup) | [`05.57_junk_forms/05.57_junk_forms.md`](05.57_junk_forms/05.57_junk_forms.md) | done | Deterministic follow-on to 5.55, found while reviewing its gloss repair: MultiWordNet's `GAP!` / `PSEUDOGAP!` "no lexicalization" markers were in the corpus as ordinary Italian noun lemmas over 1,008 concepts, plus 11 fr HTML-escaped markup forms and pt `<HTML>`. `unescape_form` (bounded fixed point - the data is doubly escaped) repairs the 2 recoverable forms and the `<` / exact-placeholder markers drop the rest. Rebuilt + re-gated: -15 lemmas, -1,020 senses, 0 concepts lost, 0 orphans, all predictions exact. Exposed that a rebuild silently reverts applied gloss repairs -> phase 8. |
 | 5.58 | Curated gloss overrides (rebuild durability) | [`05.58_curated_glosses/05.58_curated_glosses.md`](05.58_curated_glosses/05.58_curated_glosses.md) | done | Closes the gap 5.57 found: a rebuild regenerates every gloss from OMW, so an applied gloss repair was silently reverted. Accepted `GlossProposal` rows now live in the committed `data/curated/gloss_overrides.jsonl` and `build_initial` applies them right after `transform` (re-tagging those rows `llm`), so a rebuild reproduces curated state instead of erasing it; applied/stale counts reach `BuildSummary` and `_build.json`. Stale ids warn and are counted, never fatal, so a re-slug cannot block a rebuild. 5.55 Q2's committed-input decision, applied to glosses. |
 | 5.59 | Sample seed regenerated from the build | [`05.59_sample_seed/05.59_sample_seed.md`](05.59_sample_seed/05.59_sample_seed.md) | done | Early slice of phase 9. The committed `data/bootstrap/` seed was hand-authored placeholder data whose 4 concept ids matched nothing in the corpus. The build now carves it (`sample_data_fol` into `data/bootstrap/lexicon/`, exported back to the committed JSONL), and `carve_sample` **ranks** rather than taking the first N by id - most languages, then an example, then id - because id order produced a seed of `15 May Organization` / `1530s`. 50 concepts / 587 lemmas balanced across all five languages (was 157 lemmas, 71 en / 11 it). |
-| 6  | Frequency & complexity        | [`06_frequency_complexity.md`](06_frequency_complexity.md) | draft  | Per-sense token/sense frequency (`wordfreq`, sense-tag weights) and CEFR complexity (graded lists / estimated).        |
+| 6  | Frequency & complexity        | [`06_frequency_complexity.md`](06_frequency_complexity.md) | planned | Plan of record (2026-09-02). Per-sense token frequency (`wordfreq`, all five langs measured at 78-85% lemma coverage), sense frequency split in linear space by SemCor concept weights (Laplace-smoothed, English-only prior), and an estimated CEFR band from a concept-level score (commonness + hypernym depth) plus a per-language overlay, fit on Kelly en and applied unchanged everywhere. Runs as a **build stage** (5.58's rule: post-hoc columns are reverted by the next rebuild), which is also forced by the corpus not persisting the ILI. New `Concept.commonness`; four gate invariants added. |
 | 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | draft  | Ingest hypernymy/hyponymy and antonymy as typed edges from OMW.                                                        |
 | 8  | Maintenance (LLM-based)       | [`08_maintenance.md`](08_maintenance.md)                 | draft  | LLM-assisted upkeep: new lemma->concept mapping, gloss enrichment, slug dedup, validation against OMW.                 |
 | 9  | Sample data + consumer uplift | [`09_sample_and_consumer.md`](09_sample_and_consumer.md) | draft  | Regenerate fresh sample data from the pipeline; point `lemma_store` and `lang-tutor` at it.                            |
@@ -1020,3 +1020,28 @@ Append-only. Newest at the bottom.
   resolved (def==lemma, slugs, orphans, POS) or open by design (frequency/CEFR -> 6,
   relations -> 7, licensing -> 10). Both plan files carry a status block naming the outcome
   per item rather than a bare flag flip.
+- 2026-09-02 : planned phase 6 (status draft -> planned), grounded in measurements taken
+  while planning rather than in the draft's intent. `wordfreq` covers all five languages
+  and `zipf_frequency` accepts arbitrary forms, so the frequency join is per-lemma with no
+  staged top-N list: measured 78.5-85.2% of lemmas get a non-zero zipf. Two facts that
+  shaped the design fell out of that: 20-44% of our lemmas are **multiword**, which
+  `wordfreq` answers by composing component frequencies (a synthetic number, so it must be
+  flagged), and an unknown form returns `0.0`, indistinguishable from "never occurs" (so we
+  store `None`). Confirmed `wn`'s `Sense.counts()` reads on `omw-en:1.4` and returns plain
+  ints, with a 5,000-sense `omw-it:1.4` sample carrying none, which pins the English-only
+  asymmetry the sense split rests on. Third finding, architectural: the corpus **does not
+  persist the ILI**, so SemCor counts cannot be joined from the Parquet alone - the join has
+  to happen where the grouping key is still open, which independently forces the same
+  conclusion 5.58 reached from durability. Specified the math explicitly (split in linear
+  space via `10 ** (zipf - 9)`, Laplace-smoothed SemCor weights, back to zipf so both
+  fields are comparable), the shape (`sources/frequency.py` impure loader + a pure
+  `ingestion/enrich.py` + one build stage), and the honest consequence that since Kelly is
+  never shipped, `cefr_is_estimated` is true for **every** sense including English. Four
+  recommendations put to the user: no lemma-level convenience cache (phase 2 dropped
+  `Lemma.frequency` deliberately; `lang-tutor`'s break on it is phase 9's to fix properly),
+  no LLM CEFR judgment here (route to phase 8, where the loop and its still-unexercised
+  chain live), `wordfreq` moves `enrich` -> `ingest` as it is now a build input, and
+  hypernym depth is computed not persisted (derivable from the shipped edges, unlike
+  commonness). `group_to_records`'s 5-tuple becomes a `GroupedRecords` dataclass rather than
+  growing a sixth positional field. Note for execution: `data/_raw/lexicon/staging/` no
+  longer holds the 5.54 datasets (regenerable by design), so step 1 is a re-stage.
