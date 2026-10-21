@@ -174,7 +174,7 @@ All five were put to the user as recommendations and confirmed as recommended.
 | 3. Topics | done | `data/curated/topics.json` (26 topics, 31 of 45 lexfiles, 13 domains); 82,405 concepts tagged, 76-86% of lemmas per language |
 | 4. Slug tier 2 | done | `data/curated/slug_qualifiers.jsonl`: 23,012 of 23,476 accepted; distinct slugs 103,965 -> 117,588 of 117,659 |
 | 5. Member forms | machinery done, **review pending** | lemmas settle on majority text + POS (4,198 POS and 884 display-text fixes); pipe- and semicolon-joined variants repaired; 161 drops proposed in `data/curated/member_form_drops.jsonl`, none accepted |
-| 6. Gloss backfill | machinery done, **model choice pending** | prompt `gloss_translate/v2`; nothing generated beyond samples |
+| 6. Gloss backfill | generated, **review pending** | `gpt-6-luna` + `gloss_translate/v3` batch (2026-10-21): 173,840 proposed, 408 rejected, 71 missing; $1.87 measured; `data/curated/gloss_backfill.jsonl`, nothing accepted |
 | 7. Rebuild + docs | partly | rebuilt and gated after steps 3-5 (11 invariants pass); docs cover topics only |
 
 Found along the way; **decided by the user (2026-10-21): both are wrong and will be fixed**,
@@ -205,10 +205,18 @@ was chosen that way - see
 
 Waiting on the user:
 
-1. **Pick the backfill model and path.** After a second pass with prompt v3 (no added facts),
-   the recommendation is `gpt-6-luna` + v3: as faithful as `gpt-5.6-luna` on the sample, more
-   concise, ~$1.80 by batch or ~$3.60 live; its batch queue stalled once, so the path (batch
-   vs live) is the open question. Reasoning off either way.
+1. **Review the gloss backfill sample**
+   [`08_maintenance/gloss_backfill_review_sample.md`](08_maintenance/gloss_backfill_review_sample.md)
+   (50 per language), then `accept_run` the languages that pass. The run (`gpt-6-luna` +
+   v3, one batch, reasoning none) completed 6,975 / 6,975 requests with none failed, in about 2
+   h: 9.57M input / 5.58M output tokens, **$1.87** measured (estimate was $1.82).
+   - Of 174,319 glosses, 173,840 were `proposed` and 408 were `rejected` by the screen:
+     355 restate a member word, 39 were left untranslated, 14 ran to a runaway length. By
+     language: es 173, it 93, fr 84, pt 58.
+   - 71 have no result: 69 came back under a mistyped key (one or two hex digits off, e.g.
+     `es:03154a0f278d` -> `...278a`) and 2 were dropped. They stay missing. A live re-run
+     of those 71 would cost well under a cent, but only with the user's go-ahead.
+   - If the key typos matter at scale later, send short per-chunk indices instead of hashes.
 2. **Review the 161 proposed member-form drops** in `data/curated/member_form_drops.jsonl`:
    flip the agreed rows to `accepted`. Known wrong verdicts to leave unaccepted: pt "Doença da
    urina em xarope de ácer" (a real disease name); "déficit budgétaire et déficit public" and
@@ -219,7 +227,7 @@ Waiting on the user:
 
 Then, once 1-3 are answered:
 
-5. Run the backfill - **prepared, not submitted**. Driver:
+5. Run the backfill - **done (2026-10-21)**, see 1. Driver:
    [`08_maintenance/gloss_backfill_job.py`](08_maintenance/gloss_backfill_job.py)
    (`gpt-6-luna`, prompt v3, reasoning none; one batch of 6,975 requests, ~$1.82 estimated
    from the measured sample):

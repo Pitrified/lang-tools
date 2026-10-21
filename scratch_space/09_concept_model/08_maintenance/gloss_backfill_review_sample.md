@@ -1,0 +1,204 @@
+# Gloss backfill - review sample (50 per language)
+
+Read these, then accept the run (or the languages that pass) with `gloss_backfill.accept_run` on `data/curated/gloss_backfill.jsonl`.
+
+- [es] **come down with a cold** -> Resfriarse.
+- [es] **United States rock singer (1943-1971)** -> Cantante estadounidense de rock (1943-1971).
+- [es] **exhaled breath** -> Aire que se expulsa al respirar.
+- [es] **the legendary sword of King Arthur** -> Espada legendaria del rey Arturo.
+- [es] **pocket-sized paperback book** -> Libro de bolsillo en edición rústica.
+- [es] **a follower of the economic theories of John Maynard Keynes** -> partidario de las teorías económicas de John Maynard Keynes
+- [es] **a craftsman who upholsters furniture** -> Artesano que tapiza muebles.
+- [es] **a football player who tackles the ball carrier** -> Jugador de fútbol que derriba al jugador que lleva el balón.
+- [es] **British marshal of the RAF who commanded the British air defense forces that defeated the Luftwaffe during the Battle of Britain (1882-1970)** -> Mariscal británico de la Real Fuerza Aérea que dirigió las fuerzas de defensa aérea británicas que derrotaron a la Luftwaffe durante la batalla de Inglaterra (1882-1970).
+- [es] **cooking utensil of enameled iron** -> Utensilio de cocina de hierro esmaltado.
+- [es] **a period of time (4 or 2 hours) during which some of a ship's crew are on duty** -> Periodo de cuatro o dos horas durante el cual parte de la tripulación de un barco está de servicio.
+- [es] **lower the pitch of (musical notes)** -> Bajar la altura tonal de notas musicales.
+- [es] **providing knowledge** -> Que proporciona conocimientos.
+- [es] **of or relating to locomotion** -> Relativo a la locomoción.
+- [es] **goatsuckers** -> Familia de aves conocida como Caprimulgidae.
+- [es] **a quality characterized by indirect reference** -> Cualidad de aludir de manera indirecta.
+- [es] **butter blended with mashed anchovies** -> Mantequilla mezclada con anchoas trituradas.
+- [es] **complete and wholehearted fidelity** -> Fidelidad plena y absoluta.
+- [es] **an antibiotic used as an anticancer drug** -> Antibiótico utilizado como fármaco contra el cáncer.
+- [es] **pocket mice** -> Género de roedores conocidos como ratones de bolsillo.
+- [es] **providing abundant nourishment** -> Que proporciona abundante alimento.
+- [es] **serve as the inciting cause of** -> Servir de causa desencadenante de algo.
+- [es] **fall apart** -> Deshacerse o venirse abajo.
+- [es] **stale and unclean smelling** -> Que huele a rancio y a falta de limpieza.
+- [es] **of things that make you feel sad** -> Que provoca tristeza.
+- [es] **the officer who presides at the meetings of an organization** -> Persona que preside las reuniones de una organización.
+- [es] **utilization or exercise** -> Utilización o ejercicio.
+- [es] **a distinctive or characteristic sound** -> sonido distintivo o característico
+- [es] **a person of German nationality** -> persona de nacionalidad alemana
+- [es] **any hostile group of people** -> Grupo de personas hostiles.
+- [es] **a statement or assertion of verified information about something that is the case or has happened** -> Afirmación de información comprobada sobre algo que ocurre o ha ocurrido.
+- [es] **custard sauce flavored with vanilla or a liqueur** -> Salsa de crema pastelera aromatizada con vainilla o un licor.
+- [es] **United States photographer (born in Germany) whose unposed documentary photographs created photojournalism (born in 1898)** -> Fotógrafo estadounidense nacido en Alemania, cuyas fotografías documentales espontáneas dieron origen al fotoperiodismo.
+- [es] **seize suddenly** -> Apoderarse de algo de manera repentina.
+- [es] **United States photographer(1886-1958)** -> Fotógrafo estadounidense (1886-1958).
+- [es] **a sensational newspaper headline** -> Titular de periódico sensacionalista.
+- [es] **(of tempo) slow** -> dicho del tempo, lento
+- [es] **the act of tolerating something** -> Acto de tolerar algo.
+- [es] **a six-sided polygon** -> Polígono de seis lados.
+- [es] **put into words or an expression** -> Expresar con palabras o mediante una expresión.
+- [es] **of stocks of companies with a market capitalization of less than one billion dollars** -> De acciones de empresas cuya capitalización bursátil es inferior a mil millones de dólares.
+- [es] **a triglyceride of stearic acid** -> Triglicérido del ácido esteárico.
+- [es] **unicellular algae** -> algas unicelulares
+- [es] **accept as true; take to be true** -> Aceptar algo como verdadero o tenerlo por verdadero.
+- [es] **any of several public officials of ancient Rome (usually in charge of finance and administration)** -> Cualquiera de varios funcionarios públicos de la antigua Roma, por lo general encargados de las finanzas y la administración.
+- [es] **an instance that does not conform to a rule or generalization** -> Caso que no se ajusta a una regla o generalización.
+- [es] **of or relating to a musical scale** -> Perteneciente o relativo a una escala musical.
+- [es] **an intelligence service in the United States** -> Servicio de inteligencia de Estados Unidos.
+- [es] **a dealer in poultry and poultry products** -> Persona que comercia con aves de corral y sus productos.
+- [es] **sparrow-like North American finches** -> Pinzones de América del Norte parecidos a los gorriones.
+- [fr] **the distance from the center of a car's front wheel to the rear axle** -> Distance entre le centre de la roue avant d’une voiture et l’essieu arrière.
+- [fr] **convert grain into flour** -> Transformer le grain en farine.
+- [fr] **the oldest and simplest of the Greek orders and the only one that normally has no base** -> Le plus ancien et le plus simple des ordres grecs, et le seul qui soit normalement dépourvu de base.
+- [fr] **a town in southeastern Connecticut near Long Island Sound; an important whaling center in the 19th century** -> Ville du sud-est du Connecticut, près du détroit de Long Island, important centre baleinier au XIXe siècle.
+- [fr] **alternate dramatically between high and low values** -> Passer alternativement et fortement de valeurs élevées à des valeurs basses.
+- [fr] **carnations and pinks** -> Œillets et œillets mignardises.
+- [fr] **a person who sings** -> Personne qui chante.
+- [fr] **someone who leads you to believe something that is not true** -> Personne qui vous amène à croire quelque chose de faux.
+- [fr] **assign to a station** -> Affecter à un poste.
+- [fr] **dominant course (suggestive of running water) of successive events or ideas** -> Cours dominant d’une succession d’événements ou d’idées, évoquant celui d’un cours d’eau.
+- [fr] **a soft quilt usually filled with the down of the eider** -> Couverture matelassée, généralement garnie de duvet d’eider.
+- [fr] **type genus of the Saturniidae: emperor moth** -> Genre type de la famille des Saturniidae, celle des papillons empereurs.
+- [fr] **herbs and subshrubs of warm North America** -> plantes herbacées et sous-arbrisseaux d’Amérique du Nord chaude
+- [fr] **in an irrevocable manner** -> De manière irrévocable.
+- [fr] **a person who is tricked or swindled** -> personne qui se fait tromper ou escroquer
+- [fr] **a group's refusal to have commercial dealings with some organization in protest against its policies** -> Refus collectif d’entretenir des relations commerciales avec une organisation pour protester contre sa politique.
+- [fr] **a native or inhabitant of Spain** -> Originaire d’Espagne ou habitant de ce pays.
+- [fr] **instrument of execution consisting of a sealed chamber into which poison gas is introduced; used to kill people or animals** -> Dispositif d’exécution constitué d’une chambre hermétique dans laquelle on introduit un gaz toxique pour tuer des personnes ou des animaux.
+- [fr] **sea gooseberries** -> Groseilles de mer.
+- [fr] **of or pertaining to or characteristic of the Episcopal church** -> Qui relève de l’Église épiscopalienne ou la caractérise.
+- [fr] **further or added** -> Qui s’ajoute ou vient en plus.
+- [fr] **(nautical) a plate on a ship's stern on which the name is inscribed** -> Plaque fixée à la poupe d’un navire, sur laquelle est inscrit son nom.
+- [fr] **relating to or affecting or functioning as a gland** -> Qui se rapporte à une glande, l’affecte ou en remplit la fonction.
+- [fr] **(biology) a taxonomic group that is a division of a species; usually arises as a consequence of geographical isolation within a species** -> (Biologie) Groupe taxonomique constituant une division d’une espèce, qui apparaît généralement à la suite d’un isolement géographique au sein de celle-ci.
+- [fr] **correction of an unstable part of the spine by joining two or more vertebrae; usually done surgically but sometimes done by traction or immobilization** -> Correction d’une partie instable de la colonne vertébrale par la fusion de deux vertèbres ou plus, généralement pratiquée chirurgicalement, mais parfois obtenue par traction ou immobilisation.
+- [fr] **type genus of the Toxotidae** -> Genre type de la famille des Toxotidae.
+- [fr] **cook with dry heat, usually in an oven** -> Cuire à chaleur sèche, généralement au four.
+- [fr] **one of the four pointed conical teeth (two in each jaw) located between the incisors and the premolars** -> Chacune des quatre dents pointues et coniques, deux par mâchoire, situées entre les incisives et les prémolaires.
+- [fr] **choose by means of a dial** -> Choisir au moyen d’un cadran.
+- [fr] **a female sorcerer or magician** -> femme qui pratique la sorcellerie ou la magie
+- [fr] **a violently fast stream of water (or other liquid)** -> Courant d’eau ou d’un autre liquide d’une violence extrême.
+- [fr] **widely distributed lichens usually having a greyish or yellow pendulous freely branched thallus** -> Lichens largement répandus, dont le thalle grisâtre ou jaunâtre est pendant et librement ramifié.
+- [fr] **wild ox of the Malay Archipelago** -> Bœuf sauvage de l’archipel malais.
+- [fr] **American Revolutionary leader who was one of the signers of the Declaration of Independence (1742-1798)** -> Dirigeant de la Révolution américaine, signataire de la Déclaration d’indépendance (1742-1798).
+- [fr] **the quality of being believable or trustworthy** -> caractère de ce qui est crédible ou digne de confiance
+- [fr] **smoke and exhale strongly** -> Fumer et expirer avec force.
+- [fr] **involving carbon compounds** -> Qui implique des composés carbonés.
+- [fr] **an inn in some eastern countries with a large courtyard that provides accommodation for caravans** -> Auberge de certains pays orientaux, dotée d’une grande cour et destinée à héberger les caravanes.
+- [fr] **herb native to southern Europe; cultivated for its edible stalks and foliage and seeds** -> Plante herbacée originaire du sud de l’Europe, cultivée pour ses tiges, son feuillage et ses graines comestibles
+- [fr] **corals and sea anemones having eight branches** -> Coraux et anémones de mer à huit branches.
+- [fr] **a whistling sound when breathing (usually heard on inspiration); indicates obstruction of the trachea or larynx** -> Bruit sifflant produit par la respiration, généralement à l’inspiration, qui indique une obstruction de la trachée ou du larynx.
+- [fr] **the quality of being specific to a particular organism** -> Caractère de ce qui est propre à un organisme particulier.
+- [fr] **a regulator (as a sliding plate) for regulating the flow of air into a furnace or other heating device** -> Dispositif, tel qu’une plaque coulissante, qui règle le débit d’air dans un fourneau ou un autre appareil de chauffage.
+- [fr] **without elegance** -> Sans élégance.
+- [fr] **one of the minor orders in the unreformed Western Church but now suppressed in the Roman Catholic Church** -> Un des ordres mineurs de l’Église occidentale avant sa réforme, aujourd’hui supprimé dans l’Église catholique romaine.
+- [fr] **the scads (particularly horse mackerels)** -> Genre de poissons comprenant notamment les chinchards.
+- [fr] **storks** -> Famille d’oiseaux comprenant les cigognes.
+- [fr] **an antiviral drug (trade name Retrovir) used in the treatment of AIDS; adverse side effects include liver damage and suppression of the bone marrow** -> Médicament antiviral utilisé dans le traitement du sida, dont les effets indésirables comprennent des lésions du foie et une inhibition de la moelle osseuse.
+- [fr] **a blend of cocoa butter and milk solids and sugar and vanilla; used in candy bars and baking and coatings; not technically chocolate because it contains no chocolate liquor** -> Mélange de beurre de cacao, de matières sèches du lait, de sucre et de vanille, utilisé en confiserie et en pâtisserie, qui n’est pas techniquement du chocolat car il ne contient pas de pâte de cacao.
+- [fr] **of or relating to the period before the biblical flood** -> Qui concerne la période antérieure au Déluge biblique.
+- [it] **snack bar that sells milk drinks and light refreshments (such as ice cream)** -> Locale che vende bevande a base di latte e spuntini leggeri, come il gelato.
+- [it] **means of maintenance of a family or group** -> Mezzi necessari al sostentamento di una famiglia o di un gruppo.
+- [it] **an assertion that someone is guilty of a fault or offence** -> Affermazione secondo cui qualcuno è colpevole di una mancanza o di un reato.
+- [it] **psychological suffering** -> Sofferenza psicologica.
+- [it] **the rising of a body of water and its overflowing onto normally dry land** -> Innalzamento di una massa d’acqua e sua fuoriuscita su terreni normalmente asciutti.
+- [it] **undo the buttons of** -> Aprire i bottoni di.
+- [it] **conformity to fact or truth** -> Conformità ai fatti o alla verità.
+- [it] **in an erratic unpredictable manner** -> In modo irregolare e imprevedibile.
+- [it] **create a piece of cloth by interlacing strands of fabric, such as wool or cotton** -> Realizzare un tessuto intrecciando fili, per esempio di lana o di cotone.
+- [it] **a transportation system in which cars (telphers) are suspended from cables and operated on electricity** -> Sistema di trasporto in cui cabine sospese a cavi sono azionate elettricamente.
+- [it] **plant producing peas usually eaten fresh rather than dried** -> Pianta che produce piselli, generalmente consumati freschi anziché secchi.
+- [it] **the basic unit of money in North Korea** -> Unità monetaria fondamentale della Corea del Nord.
+- [it] **a backward somersault** -> Capriola all’indietro.
+- [it] **the 1000th anniversary (or the celebration of it)** -> Millesimo anniversario o celebrazione di esso.
+- [it] **an island in the north Atlantic** -> Isola dell’Atlantico settentrionale.
+- [it] **a customer of a hotel or restaurant etc.** -> Persona che soggiorna in un albergo o frequenta un ristorante e simili.
+- [it] **a plug for a bunghole in a cask** -> Tappo per il foro di una botte.
+- [it] **be employed** -> Essere occupato in un’attività lavorativa.
+- [it] **evidence providing only a basis for inference about the fact in dispute** -> Prova che costituisce soltanto una base per dedurre il fatto oggetto di controversia.
+- [it] **an aggressive and violent young criminal** -> Giovane criminale aggressivo e violento.
+- [it] **deprived of sexual capacity or sexual attributes** -> Privato della capacità o degli attributi sessuali.
+- [it] **a cutting implement for cutting sheets of paper to the desired size** -> Strumento da taglio per ridurre i fogli di carta alla misura desiderata.
+- [it] **piety by virtue of being devout** -> sentimento di pietà religiosa derivante dalla devozione
+- [it] **a cup of tea** -> Una tazza di tè.
+- [it] **oil from the germs of corn grains** -> Olio ricavato dai germi dei chicchi di mais.
+- [it] **prelates collectively** -> Insieme dei prelati.
+- [it] **not in accord with or not following current fashion** -> Non conforme alla moda attuale o non in linea con essa.
+- [it] **share living quarters; usually said of people who are not married and live together as a couple** -> Condividere l'abitazione, di solito riferito a persone non sposate che vivono insieme come coppia.
+- [it] **lacking orderly continuity** -> Privo di una continuità ordinata.
+- [it] **subject to a process or treatment, with the aim of readying for some purpose, improving, or remedying a condition** -> Sottoporre a un procedimento o a un trattamento per preparare a un determinato scopo, migliorare o correggere una condizione.
+- [it] **a faint zodiacal constellation in the southern hemisphere; between Sagittarius and Aquarius** -> Debole costellazione zodiacale dell’emisfero australe, situata tra il Sagittario e l’Acquario.
+- [it] **an awareness of your orientation in space** -> Consapevolezza del proprio orientamento nello spazio.
+- [it] **engine does not run** -> Mancato funzionamento del motore.
+- [it] **express opposition through action or words** -> Manifestare la propria opposizione con azioni o parole.
+- [it] **the act of digging something out of the ground (especially a corpse) where it has been buried** -> atto di riportare alla luce qualcosa sepolto nel terreno, specialmente un cadavere
+- [it] **the act of moving a newly built vessel into the water for the first time** -> Atto di mettere in acqua per la prima volta un’imbarcazione appena costruita.
+- [it] **the ability to create** -> Capacità di creare.
+- [it] **of or relating to Hegel or his dialectic philosophy** -> Relativo a Hegel o alla sua filosofia dialettica.
+- [it] **increase in extent or intensity** -> Aumentare per estensione o intensità.
+- [it] **the members of a business venture created by contract** -> i membri di un’impresa commerciale costituita per contratto
+- [it] **the number of lines in a piece of printed material** -> Numero di righe di un testo stampato.
+- [it] **the leader of an Arab village or family** -> Capo di un villaggio o di una famiglia araba.
+- [it] **a disease that is constantly present to a greater or lesser degree in people of a certain class or in people living in a particular location** -> Malattia costantemente presente, in misura maggiore o minore, tra le persone di una determinata classe o che vivono in un luogo particolare.
+- [it] **a small shelter with an open front to protect a sentry from the weather** -> Piccolo riparo con il lato anteriore aperto, che protegge una sentinella dalle intemperie.
+- [it] **a fixed charge by a restaurant or nightclub over and above the charge for food and drink** -> Importo fisso richiesto da un ristorante o da un locale notturno in aggiunta al costo di cibi e bevande.
+- [it] **an individual quantity of food or drink taken as part of a meal** -> Quantità individuale di cibo o bevanda consumata durante un pasto.
+- [it] **a female comedian** -> Donna che recita in commedie o interpreta ruoli comici.
+- [it] **someone who admires too much to recognize faults** -> Persona che ammira qualcuno a tal punto da non riconoscerne i difetti.
+- [it] **round yellow to orange fruit of any of several citrus trees** -> frutto rotondo, giallo o arancione, prodotto da diverse specie di alberi di agrumi
+- [it] **a signal (usually a siren) that danger is over** -> Segnale, di solito una sirena, che indica che il pericolo è cessato.
+- [pt] **relatively small long-winged tube-nosed bird that flies far from land** -> Ave relativamente pequena, de asas longas e narinas tubulares, que voa para longe da terra.
+- [pt] **the branch of medicine that deals with the diagnosis and (nonsurgical) treatment of diseases of the internal organs (especially in adults)** -> Ramo da medicina que se ocupa do diagnóstico e do tratamento não cirúrgico de doenças dos órgãos internos, especialmente em adultos.
+- [pt] **the wife of a duke or a woman holding ducal title in her own right** -> Esposa de um duque ou mulher que possui título ducal por direito próprio.
+- [pt] **eager to acquire and possess things especially material possessions or ideas** -> Ávido por adquirir e possuir coisas, especialmente bens materiais ou ideias.
+- [pt] **a strongroom or compartment (often made of steel) for safekeeping of valuables** -> Compartimento ou sala-forte, muitas vezes de aço, destinado à guarda segura de objetos de valor.
+- [pt] **battle in World War I (1914); heavy but indecisive fighting as the Allies and the Germans both tried to break through the lines of the others** -> Batalha da Primeira Guerra Mundial, em 1914, marcada por combates intensos, mas sem resultado decisivo, enquanto os Aliados e os alemães tentavam romper as linhas uns dos outros.
+- [pt] **illness caused by poisonous or contaminated food** -> Doença causada por alimentos venenosos ou contaminados.
+- [pt] **the source or origin from which something derives (i.e. comes or issues)** -> fonte ou origem de algo, da qual esse algo deriva
+- [pt] **a specialized bit of heart tissue that controls the heartbeat** -> estrutura especializada do tecido cardíaco que controla os batimentos do coração
+- [pt] **a canopy made of canvas to shelter people or things from rain or sun** -> Cobertura de lona que abriga pessoas ou coisas da chuva ou do sol.
+- [pt] **liverworts with prostrate and usually dichotomously branched thalli** -> hepáticas com talos prostrados e geralmente ramificados de forma dicotômica
+- [pt] **the branch of engineering that deals with the construction of buildings (as distinguished from architecture as a design art)** -> Ramo da engenharia que trata da construção de edifícios, em distinção à arquitetura como arte de projetar.
+- [pt] **bring about abruptly** -> fazer acontecer de forma abrupta
+- [pt] **glass that has been colored in some way; used for church windows** -> Vidro colorido de alguma forma, usado em janelas de igrejas.
+- [pt] **aquatic fungi growing chiefly on plant debris and animal remains** -> Fungos aquáticos que crescem sobretudo em detritos vegetais e restos de animais.
+- [pt] **a commissioned military officer** -> Oficial militar comissionado.
+- [pt] **debarkation from a boat or ship** -> Desembarque de um barco ou navio.
+- [pt] **Scottish architect who designed many public buildings in England and Scotland (1728-1792)** -> Arquiteto escocês que projetou muitos edifícios públicos na Inglaterra e na Escócia (1728–1792).
+- [pt] **defensive structure consisting of walls or mounds built around a stronghold to strengthen it** -> Estrutura defensiva formada por muros ou aterros construídos ao redor de uma fortaleza para reforçá-la.
+- [pt] **of or relating to the science of genetics** -> Relativo à ciência da genética.
+- [pt] **a simplified cursive form of the ancient hieratic script** -> Forma cursiva simplificada da antiga escrita hierática.
+- [pt] **a combination of blues and jazz that was developed in the United States by Black musicians; an important precursor of rock 'n' roll** -> Combinação de blues e jazz desenvolvida nos Estados Unidos por músicos negros; importante precursor do rock and roll.
+- [pt] **German politician in Nazi Germany who founded the Gestapo and mobilized Germany for war (1893-1946)** -> Político alemão da Alemanha nazista que fundou a Gestapo e mobilizou o país para a guerra (1893–1946).
+- [pt] **a hereditary disorder of lipid metabolism occurring most frequently in individuals of Jewish descent in eastern Europe; accumulation of lipids in nervous tissue results in death in early childhood** -> Doença hereditária do metabolismo dos lipídios, mais frequente em pessoas de ascendência judaica do Leste Europeu; o acúmulo de lipídios no tecido nervoso leva à morte na primeira infância.
+- [pt] **relating to or having or lying within a scrotum** -> Relativo ao escroto, que o contém ou que se encontra dentro dele.
+- [pt] **the boundary of a specific area** -> Limite de uma área específica.
+- [pt] **beat severely with a whip or rod** -> bater com violência usando um chicote ou uma vara
+- [pt] **Canadian writer (born in Sri Lanka in 1943)** -> Escritor canadense nascido no Sri Lanka, em 1943.
+- [pt] **move in a wavy pattern or with a rising and falling motion** -> Mover-se em ondas ou com um movimento de subida e descida.
+- [pt] **formerly the largest Soviet Socialist Republic in the USSR occupying eastern Europe and northern Asia** -> antiga maior república socialista soviética da URSS, que ocupava o leste da Europa e o norte da Ásia
+- [pt] **a matrix formed by interchanging the rows and columns of a given matrix** -> Matriz obtida pela troca das linhas pelas colunas de uma matriz dada.
+- [pt] **scallops** -> Moluscos bivalves da família Pectinidae.
+- [pt] **a game played with playing cards** -> Jogo praticado com cartas de baralho.
+- [pt] **place into or assign to a category** -> inserir ou classificar em uma categoria
+- [pt] **the enclosed compartment of an aircraft or spacecraft where passengers are carried** -> Compartimento fechado de uma aeronave ou nave espacial onde os passageiros são transportados.
+- [pt] **a means or way of escaping** -> Meio ou maneira de escapar.
+- [pt] **a wind that blows from the north** -> Vento que sopra do norte.
+- [pt] **make a replica of** -> Fazer uma réplica de algo.
+- [pt] **the procedure of making some object free of live bacteria or other microorganisms (usually by heat or chemical means)** -> Procedimento que elimina bactérias vivas ou outros microrganismos de um objeto, geralmente por meio de calor ou substâncias químicas.
+- [pt] **abounding in rocks or stones** -> Abundante em rochas ou pedras.
+- [pt] **any one of the countries occupying the South American continent** -> Qualquer um dos países que ocupam o continente sul-americano.
+- [pt] **the longest vein in the body; runs from foot to the groin where it joins the femoral vein** -> veia mais longa do corpo, que vai do pé à virilha, onde se une à veia femoral
+- [pt] **Egyptian statesman who nationalized the Suez Canal (1918-1970)** -> Estadista egípcio que nacionalizou o Canal de Suez (1918–1970).
+- [pt] **Freemasons collectively** -> conjunto dos franco-maçons
+- [pt] **have certain characteristics of qualities for something; be open or vulnerable to** -> Ter certas características ou qualidades para algo; estar sujeito ou vulnerável a algo.
+- [pt] **the continuum of experience in which events pass from the future through the present to the past** -> Continuidade da experiência em que os acontecimentos passam do futuro pelo presente até o passado.
+- [pt] **a German nobleman ranking above a count (corresponding in rank to a British marquess)** -> Nobre alemão cujo título está acima do de conde e corresponde, em hierarquia, ao de marquês britânico.
+- [pt] **the period from 1920 to 1933 when the sale of alcoholic beverages was prohibited in the United States by a constitutional amendment** -> Período de 1920 a 1933 em que uma emenda constitucional proibiu a venda de bebidas alcoólicas nos Estados Unidos.
+- [pt] **having the wind against the forward side of the sails** -> Com o vento incidindo na face dianteira das velas.
+- [pt] **the act of making something clean** -> Ato de deixar algo limpo.

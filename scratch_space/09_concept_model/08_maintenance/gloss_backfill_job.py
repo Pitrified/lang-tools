@@ -154,15 +154,17 @@ elif step == "collect":
         sys.exit(f"batch is {status}; nothing collected yet")
     outputs = load_checkpoint(checkpoint, chain.output_model)
     by_key = {item.key: item for item in items}
-    proposals, gone = [], 0
+    proposals, unmatched = [], 0
     for output in outputs.values():
         found = [by_key[g.key] for g in output.glosses if g.key in by_key]
-        gone += len(output.glosses) - len(found)
+        # A gloss whose key the model mistyped matches no item: dropped, left missing.
+        unmatched += len(output.glosses) - len(found)
         proposals += check_glosses(found, output)
     write_jsonl(proposals, curated_path(data_fol, GLOSS_BACKFILL_FILE))
     totals = summarize_usage(read_records(checkpoint))
     print(f"chunks {len(outputs)}/{len(chunks)}, glosses {len(proposals)} "
-          f"({gone} no longer missing), "
+          f"({unmatched} returned under a mistyped key; "
+          f"{len(items) - len(proposals)} still missing), "
           f"{collections.Counter(p.status for p in proposals)}")
     print(f"usage: {totals.input_tokens} in, {totals.output_tokens} out, "
           f"{totals.reasoning_tokens} reasoning; cost ${totals.cost(**PRICES):.2f}")
