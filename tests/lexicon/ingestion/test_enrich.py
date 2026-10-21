@@ -188,13 +188,31 @@ def test_hypernym_depth_counts_from_the_root() -> None:
     assert depths[_RIVER] == 0  # isolated concepts are roots too
 
 
+def test_hypernym_depth_follows_instance_links() -> None:
+    # An instance is one level below its class, not a depth-0 root.
+    concepts = [Concept(id=_HOUSE), Concept(id=_BUILDING), Concept(id=_RIVER)]
+    relations = [
+        ConceptRelation(
+            concept_id_a=_HOUSE,
+            concept_id_b=_BUILDING,
+            relation_type=RELATION_HYPERNYM,
+        ),
+        ConceptRelation(
+            concept_id_a=_RIVER,
+            concept_id_b=_HOUSE,
+            relation_type="instance_hypernym",
+        ),
+    ]
+    assert hypernym_depths(concepts, relations)[_RIVER] == 2
+
+
 def test_hypernym_depth_ignores_other_relation_types() -> None:
     concepts = [Concept(id=_HOUSE), Concept(id=_BUILDING)]
     relations = [
         ConceptRelation(
             concept_id_a=_HOUSE,
             concept_id_b=_BUILDING,
-            relation_type="related",
+            relation_type="similar",
         ),
     ]
     assert hypernym_depths(concepts, relations) == {_HOUSE: 0, _BUILDING: 0}

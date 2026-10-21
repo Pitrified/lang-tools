@@ -46,7 +46,7 @@ from typing import TYPE_CHECKING
 from loguru import logger as lg
 
 from lang_tools.lexicon.ingestion.sources.frequency import is_composed
-from lang_tools.lexicon.relations import RELATION_HYPERNYM
+from lang_tools.lexicon.relations import TAXONOMY_RELATIONS
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -167,7 +167,10 @@ def hypernym_depths(
 ) -> dict[str, int]:
     """Return each concept's shortest distance to a hypernym root.
 
-    A root is a concept with no hypernym of its own. Depth is computed here on
+    A root is a concept with no hypernym of its own. Instance links count as a
+    level (`TAXONOMY_RELATIONS`): an instance is as deep as its class plus one,
+    which is what phase 6's depth measured before phase 7 stored the two types
+    apart. Depth is computed here on
     every build rather than persisted: it is derived from the shipped edges, and
     nothing consumes it but the CEFR score. If a consumer ever needs it, persist
     it from the build - the store is shaped for point lookups and bounded
@@ -176,8 +179,9 @@ def hypernym_depths(
 
     Args:
         concepts: All concepts (so isolated ones are still roots at depth 0).
-        relations: Concept relation edges; only hypernym edges are read, directed
-            from the specific concept (``a``) to its broader one (``b``).
+        relations: Concept relation edges; only the `TAXONOMY_RELATIONS` types are
+            read, directed from the specific concept (``a``) to its broader one
+            (``b``).
 
     Returns:
         ``{concept_id: depth}``, 0 for a root. Concepts in a hypernym cycle are
@@ -186,7 +190,7 @@ def hypernym_depths(
     parents: dict[str, list[str]] = {}
     children: dict[str, list[str]] = {}
     for rel in relations:
-        if rel.relation_type != RELATION_HYPERNYM:
+        if rel.relation_type not in TAXONOMY_RELATIONS:
             continue
         parents.setdefault(rel.concept_id_a, []).append(rel.concept_id_b)
         children.setdefault(rel.concept_id_b, []).append(rel.concept_id_a)

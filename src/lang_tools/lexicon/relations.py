@@ -26,6 +26,14 @@ from pydantic import model_validator
 #: Hyponymy is the same edge read backwards, so it is never stored separately.
 RELATION_HYPERNYM = "hypernym"
 
+#: The directional types hypernym depth walks (phase 7 Decision 4, revisited).
+#: ``wn``'s ``Synset.hypernyms()`` returns instance links too, so until phase 7
+#: they were stored as ``hypernym`` and phase 6's depth - and the CEFR cutoffs
+#: fitted on it - counted them. Walking both keeps that: Rome sits one level below
+#: "national capital" instead of becoming a depth-0 root the score reads as
+#: maximally general.
+TAXONOMY_RELATIONS: frozenset[str] = frozenset({RELATION_HYPERNYM, "instance_hypernym"})
+
 #: `ConceptRelation.relation_type` values whose endpoints are interchangeable.
 #: These get canonical ``a < b`` ordering; every other type is directional and
 #: keeps its source/target order.
