@@ -21,6 +21,7 @@ from lang_tools.lexicon.ingestion.sources.omw import _ili_id
 from lang_tools.lexicon.ingestion.sources.omw import _omw_lexicon
 from lang_tools.lexicon.ingestion.sources.omw import group_to_records
 from lang_tools.lexicon.ingestion.sources.omw import is_malformed_form
+from lang_tools.lexicon.ingestion.sources.omw import member_forms
 from lang_tools.lexicon.ingestion.sources.omw import slugify
 from lang_tools.lexicon.ingestion.sources.omw import unescape_form
 
@@ -589,6 +590,40 @@ def test_domain_topics_gather_per_concept() -> None:
     ]
     grouped = group_to_records(entries)
     assert grouped.concept_domains == {_cid(grouped, "a football move"): {"football"}}
+
+
+def test_a_merged_lemma_takes_its_majority_text_and_pos() -> None:
+    # "Be" (beryllium, a noun) is met first; "be" is a verb in two synsets. One
+    # lemma id, so it must read as the verb "be", not the first-seen noun "Be".
+    entries = [
+        SynsetEntry("en", "n1", "i1", "a metallic element", ("Be",), pos="n"),
+        SynsetEntry("en", "v1", "i2", "have the quality of being", ("be",), pos="v"),
+        SynsetEntry("en", "v2", "i3", "occupy a certain position", ("be",), pos="v"),
+    ]
+    (lemma,) = group_to_records(entries).lemmas
+    assert lemma.text == "be"
+    assert lemma.part_of_speech == "verb"
+
+
+def test_a_tie_goes_to_the_lowercase_variant_and_the_first_pos() -> None:
+    entries = [
+        SynsetEntry("en", "n1", "i1", "information technology", ("IT",), pos="n"),
+        SynsetEntry("en", "v1", "i2", "a made-up verb sense", ("it",), pos="v"),
+    ]
+    (lemma,) = group_to_records(entries).lemmas
+    assert (lemma.text, lemma.part_of_speech) == ("it", "noun")
+
+
+def test_joined_variants_split_into_separate_forms() -> None:
+    assert member_forms("maire ; bourgmestre") == (["maire", "bourgmestre"], 0)
+    assert member_forms("GAP!") == ([], 1)
+    entries = [
+        SynsetEntry("fr", "f1", "i1", None, ("maire ; bourgmestre",), pos="n"),
+    ]
+    assert {lem.text for lem in group_to_records(entries).lemmas} == {
+        "maire",
+        "bourgmestre",
+    }
 
 
 def test_member_counts_attach_to_the_right_sense() -> None:

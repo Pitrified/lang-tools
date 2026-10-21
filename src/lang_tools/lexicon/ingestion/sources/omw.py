@@ -234,6 +234,86 @@ def unescape_form(form: str) -> str:
     return form
 
 
+#: Separator WOLF uses to join two variant forms into one member ("maire ;
+#: bourgmestre"); 18 French forms in OMW 1.4. Each side is a form of its own.
+_VARIANT_SEPARATOR = ";"
+
+
+def member_forms(raw_form: str) -> tuple[list[str], int]:
+    """Clean one raw member form into the forms to keep (phase 8).
+
+    Unescapes HTML entities (`unescape_form`), splits ``;``-joined variants into
+    separate forms, and drops what `is_malformed_form` rejects.
+
+    Args:
+        raw_form: A member form exactly as the wordnet stores it.
+
+    Returns:
+        The forms to keep, and how many were dropped as malformed.
+    """
+    kept: list[str] = []
+    dropped = 0
+    for part in unescape_form(raw_form).split(_VARIANT_SEPARATOR):
+        form = part.strip()
+        if not form:
+            continue
+        if is_malformed_form(form):
+            dropped += 1
+            continue
+        kept.append(form)
+    return kept, dropped
+
+
+#: Order that breaks a part-of-speech tie between a lemma's synsets.
+_POS_ORDER = ("noun", "verb", "adjective", "adverb")
+
+
+class _LemmaTally:
+    """Collect every surface variant and part of speech a lemma id is seen with.
+
+    Lemma identity is case- and accent-insensitive (`lemma_id`), so one lemma
+    can be met as ``be`` in thirteen synsets and as ``Be`` (beryllium) in one, and
+    as a noun before it is met as a verb. Taking whichever came first made the
+    verb *be* display as ``Be`` and *go* a noun (phase 8: 4,198 lemmas had a POS
+    that was not their majority). `settle` picks the majority instead.
+    """
+
+    def __init__(self) -> None:
+        self.forms: dict[str, Counter[str]] = {}
+        self.pos: dict[str, Counter[str]] = {}
+
+    def add(self, lemma_id_: str, form: str, pos: str | None) -> None:
+        """Record one sighting of a lemma."""
+        self.forms.setdefault(lemma_id_, Counter())[form] += 1
+        if pos:
+            self.pos.setdefault(lemma_id_, Counter())[pos] += 1
+
+    def settle(self, lemma: Lemma) -> Lemma:
+        """Return `lemma` with its majority text and part of speech.
+
+        Text: the variant seen in the most synsets; a tie goes to the lowercase
+        variant, then alphabetical order. POS: the most frequent; a tie follows
+        `_POS_ORDER`. Every variant normalizes to the same id, so the id holds.
+        """
+        forms = self.forms[lemma.id]
+        text = min(forms, key=lambda f: (-forms[f], f != f.lower(), f))
+        pos_counts = self.pos.get(lemma.id)
+        pos = (
+            min(
+                pos_counts,
+                key=lambda p: (
+                    -pos_counts[p],
+                    _POS_ORDER.index(p) if p in _POS_ORDER else len(_POS_ORDER),
+                ),
+            )
+            if pos_counts
+            else lemma.part_of_speech
+        )
+        if text == lemma.text and pos == lemma.part_of_speech:
+            return lemma
+        return lemma.model_copy(update={"text": text, "part_of_speech": pos})
+
+
 def is_malformed_form(form: str) -> bool:
     """Report whether a member form is a non-word token to drop.
 
@@ -828,6 +908,7 @@ def group_to_records(
     sense_counts: dict[tuple[str, str], int] = {}
     concept_counts: dict[str, int] = {}
     concept_domains: dict[str, set[str]] = {}
+    tally = _LemmaTally()
     malformed_dropped = 0
 
     for key, group in grouped.items():
@@ -855,26 +936,26 @@ def group_to_records(
             if is_count_language:
                 concept_counts.setdefault(cid, 0)
             for raw_form, count in _forms_with_counts(entry):
-                form = unescape_form(raw_form)
-                if is_malformed_form(form):
-                    malformed_dropped += 1
-                    continue
-                lemma = Lemma(
-                    text=form,
-                    language=entry.language,
-                    part_of_speech=pos,
-                    sources=["omw"],
-                )
-                lemmas.setdefault(lemma.id, lemma)
-                senses.setdefault(
-                    (lemma.id, cid),
-                    Sense(lemma_id=lemma.id, concept_id=cid),
-                )
-                if is_count_language and count:
-                    sense_counts[lemma.id, cid] = (
-                        sense_counts.get((lemma.id, cid), 0) + count
+                forms, dropped = member_forms(raw_form)
+                malformed_dropped += dropped
+                for form in forms:
+                    lemma = Lemma(
+                        text=form,
+                        language=entry.language,
+                        part_of_speech=pos,
+                        sources=["omw"],
                     )
-                    concept_counts[cid] = concept_counts.get(cid, 0) + count
+                    lemmas.setdefault(lemma.id, lemma)
+                    tally.add(lemma.id, form, pos)
+                    senses.setdefault(
+                        (lemma.id, cid),
+                        Sense(lemma_id=lemma.id, concept_id=cid),
+                    )
+                    if is_count_language and count:
+                        sense_counts[lemma.id, cid] = (
+                            sense_counts.get((lemma.id, cid), 0) + count
+                        )
+                        concept_counts[cid] = concept_counts.get(cid, 0) + count
 
     relations, relation_sources, sense_relations = _assemble_relations(
         grouped,
@@ -888,7 +969,8 @@ def group_to_records(
         )
 
     concepts.sort(key=lambda c: c.id)
-    sorted_lemmas = sorted(lemmas.values(), key=lambda lem: lem.id)
+    settled = (tally.settle(lem) for lem in lemmas.values())
+    sorted_lemmas = sorted(settled, key=lambda lem: lem.id)
     sorted_senses = sorted(senses.values(), key=lambda s: s.id)
     concept_sources = [concept_source_by_id[c.id] for c in concepts]
     return GroupedRecords(
