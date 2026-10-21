@@ -1,0 +1,22 @@
+{
+ "batch_id": "batch_6ad90f642e988190a16a3e74b9538123",
+ "model": "gpt-6-luna",
+ "prompt": "gloss_translate/v3",
+ "prompt_sha": "17aacfda26ec",
+ "reasoning_effort": "none",
+ "requests": 6975,
+ "glosses": 174319,
+ "glosses_per_language": {
+  "es": 38512,
+  "fr": 59079,
+  "it": 32833,
+  "pt": 43895
+ },
+ "git_commit": "eea56b3",
+ "submitted_at": "2026-10-21T19:15:48+00:00",
+ "metadata": {
+  "job": "lang-tools-gloss-backfill",
+  "prompt": "gloss_translate/v3"
+ },
+ "note": "Collect within 30 days of completion (OpenAI deletes the output file)."
+}
