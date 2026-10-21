@@ -617,6 +617,14 @@ def test_a_tie_goes_to_the_lowercase_variant_and_the_first_pos() -> None:
 def test_joined_variants_split_into_separate_forms() -> None:
     assert member_forms("maire ; bourgmestre") == (["maire", "bourgmestre"], 0)
     assert member_forms("GAP!") == ([], 1)
+    assert member_forms("bail|bau|baux", "fr") == (["bail", "bau", "baux"], 0)
+    assert member_forms("déchoir|déchoir", "fr") == (["déchoir"], 0)
+    # Tagged segments are translations: keep only the wordnet's own language.
+    assert member_forms("bégonia|it=begonia|nl=begonia", "fr") == (["bégonia"], 0)
+    assert member_forms("carnivora|fr:carnivore", "fr") == (
+        ["carnivora", "carnivore"],
+        0,
+    )
     entries = [
         SynsetEntry("fr", "f1", "i1", None, ("maire ; bourgmestre",), pos="n"),
     ]

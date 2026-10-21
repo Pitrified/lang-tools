@@ -234,28 +234,42 @@ def unescape_form(form: str) -> str:
     return form
 
 
-#: Separator WOLF uses to join two variant forms into one member ("maire ;
-#: bourgmestre"); 18 French forms in OMW 1.4. Each side is a form of its own.
-_VARIANT_SEPARATOR = ";"
+#: Separators WOLF uses to join variant forms into one member: ``;`` ("maire ;
+#: bourgmestre", 18 French forms) and ``|`` ("bail|bau|baux", 56 forms). Each
+#: segment is a form of its own.
+_VARIANT_SEPARATORS = re.compile(r"[;|]")
+
+#: A ``|`` segment carrying a language tag ("lt=vaistutis", "fr: carnivore"):
+#: an inline translation pasted in from Wiktionary, not a variant.
+_TAGGED_SEGMENT = re.compile(r"^([a-z]{2,3})\s*[=:]\s*(.+)$")
 
 
-def member_forms(raw_form: str) -> tuple[list[str], int]:
+def member_forms(raw_form: str, language: str = "") -> tuple[list[str], int]:
     """Clean one raw member form into the forms to keep (phase 8).
 
-    Unescapes HTML entities (`unescape_form`), splits ``;``-joined variants into
-    separate forms, and drops what `is_malformed_form` rejects.
+    Unescapes HTML entities (`unescape_form`), splits ``;`` / ``|``-joined
+    variants into separate forms, keeps a language-tagged segment
+    (``fr:carnivore``) only when its tag is `language` - the others are
+    translations into other languages - de-duplicates, and drops what
+    `is_malformed_form` rejects.
 
     Args:
         raw_form: A member form exactly as the wordnet stores it.
+        language: ISO 639-1 code of the wordnet the form came from.
 
     Returns:
         The forms to keep, and how many were dropped as malformed.
     """
     kept: list[str] = []
     dropped = 0
-    for part in unescape_form(raw_form).split(_VARIANT_SEPARATOR):
+    for part in _VARIANT_SEPARATORS.split(unescape_form(raw_form)):
         form = part.strip()
-        if not form:
+        tagged = _TAGGED_SEGMENT.match(form)
+        if tagged:
+            if tagged.group(1) != language:
+                continue
+            form = tagged.group(2).strip()
+        if not form or form in kept:
             continue
         if is_malformed_form(form):
             dropped += 1
@@ -936,7 +950,7 @@ def group_to_records(
             if is_count_language:
                 concept_counts.setdefault(cid, 0)
             for raw_form, count in _forms_with_counts(entry):
-                forms, dropped = member_forms(raw_form)
+                forms, dropped = member_forms(raw_form, entry.language)
                 malformed_dropped += dropped
                 for form in forms:
                     lemma = Lemma(
