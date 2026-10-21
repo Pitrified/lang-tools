@@ -306,6 +306,13 @@ had a real argument behind it.
 
 ## Result (2026-09-02)
 
+> **Re-validated by phase 7 (2026-10-21):** identical numbers on the phase-7 corpus. Phase 7
+> stores `instance_hypernym` apart from `hypernym`, and found that the "97,666 hypernym
+> edges" below were 89,089 hypernym + 8,577 instance links (`wn`'s `hypernyms()` returns
+> both), so the depth this phase fitted on counted instance links. Depth now walks both
+> types explicitly, which keeps every band where it was. See
+> [`07_relations.md`](07_relations.md), Result.
+
 Built and gated on the five-language corpus. Row counts are **unchanged**
 (321,082 lemmas / 117,659 concepts / 490,825 senses / 97,666 hypernym edges) -
 this phase adds columns, not rows - and all **eight** invariants pass, the four

@@ -1,5 +1,5 @@
 ---
-status: in progress
+status: done
 ---
 
 # Phase 7 - semantic relations
@@ -26,6 +26,11 @@ beyond false friends"; the edge models are the phase-2 stubs.
 > - Only ~6-7% of synsets are isolated, so a degree metric is meaningful.
 
 ## Measurements taken while planning (2026-09-02)
+
+> **Superseded by the [Result](#result-2026-10-21).** Finding 1 below was an artifact of
+> `wn`'s lexicon *expansion*: the non-English wordnets carry no relations of their own, and
+> what was counted here was English's graph projected onto them. No taxonomy was being
+> dropped. Kept as the record of what the plan was built on.
 
 Surveyed every relation type `wn` exposes across all five installed lexicons, not just
 English (5.54's numbers were English-only). Two results change the design.
@@ -115,6 +120,10 @@ All five were put to the user as recommendations; each was confirmed as recommen
 
 ## Execution-time survey (2026-10-21)
 
+> **Also superseded by the [Result](#result-2026-10-21)** for the same reason: the
+> non-English rows of the first table are projections of English through the ILI, not
+> links those wordnets state. The direction semantics and the Step-6 baseline below stand.
+
 Re-run on the fresh rebuild before writing code, across all five lexicons and every pair
 the shipped list touches (raw `wn` link counts, de-duplicated as `(source, target)` pairs).
 
@@ -185,13 +194,81 @@ on the final phase-7 corpus either way.
   them, so they stay an LLM/curation job for phase 8.
 - Exposing relations in exercises (`lang-tutor`, phase 9).
 
+## Result (2026-10-21)
+
+Built and gated on the five-language corpus; all **ten** invariants pass (the eight carried
+over plus the two added here). Concepts, lemmas, senses and every CEFR band count are
+unchanged; the relation graph is what moved.
+
+| table | type | edges |
+| --- | --- | --- |
+| `concept_relations` | `hypernym` | 89,089 |
+| | `mero_member` / `mero_part` / `mero_substance` | 12,293 / 9,097 / 797 |
+| | `similar` / `also` / `attribute` | 11,567 / 1,447 / 639 |
+| | `instance_hypernym` | 8,577 |
+| | `antonym` (provenance `derived`) | 3,802 |
+| | `entails` / `causes` | 408 / 220 |
+| | **total** | **137,936** (was 97,666) |
+| `sense_relations` | `antonym` | 3,992 |
+
+Lemmas that can now reach an opposite through a concept `antonym` edge: en 9,612, it
+6,225, pt 4,244, fr 4,066, es 3,255 - against none outside English before. pt `quente` ->
+`frio`, es `feliz` -> `triste`, it `alto` -> `basso`.
+
+### What the plan had wrong, found by the build
+
+1. **The non-English wordnets have no relations.** Opened with `expand=""`, omw-pt and
+   omw-it report zero links of any type. By default `wn` lets a lexicon borrow another
+   installed lexicon's relations through the ILI, so every "pt relation" the planning
+   survey counted was English's graph seen through pt's partial coverage - which is why
+   hypernym and hyponym looked unmirrored, and why the first real build logged ~250k
+   targets that did not resolve. At the ILI level every projected edge was already in
+   English's graph. So Decision 1's headline ("the build drops a quarter of the
+   non-English taxonomy") was false, and so was the blast radius it warned about: there is
+   no denser taxonomy for the bands to move on. Reading both names of every pair is still
+   right and still shipped - it is the correct rule, and it costs nothing - but it recovers
+   no edges on OMW 1.4. The reader now opens each wordnet with `expand=""`: the stored edges
+   came out byte-identical to the expanded read, the dangling counts are real (0), and the
+   build is ~40 s faster.
+2. **The old `hypernym` edges included instance links.** `wn`'s `Synset.hypernyms()`
+   returns instance hypernyms too: the 97,666 edges were 89,089 hypernym + 8,577
+   instance_hypernym exactly. Decision 4 ("depth reads `hypernym` only") rested on the
+   premise that the two had never been mixed; in fact phase 6's depth, and its fitted
+   cutoffs, counted instance links all along. Excluding them would have made every
+   instance concept a depth-0 root, which the score reads as maximally general (~1,640
+   proper-noun senses leaving C2). **Decision 4 was revisited with the user** and reversed:
+   depth walks both (`relations.TAXONOMY_RELATIONS`), the types stay separate in storage.
+3. **Reading both directions surfaced one contradiction**, the WordNet 3.0 `restrain` /
+   `inhibit` cycle: `restrain` lists `inhibit` as both its hypernym and its hyponym. The
+   new orientation invariant caught it on the first gated build. A directional edge stated
+   both ways now keeps the better-supported orientation (here `restrain -> inhibit`, stated
+   twice against once) and a tie drops both; exactly one pair is resolved.
+
+### Step 6 - phase 6 re-validated
+
+Kelly validation on the final corpus is **identical** to the pre-phase-7 baseline (en
+41.2% exact / 74.4% within one band / Spearman 0.632; it Spearman 0.661, offset +1.23), as
+it must be with depth unchanged. No re-fit: the plan's re-fit condition ("if the depth
+change moved them") did not occur. Still open, and deliberately not acted on here: the
+shipped `CEFR_CUTOFFS` are not what `fit_cutoffs` returns on today's corpus (first cutoff
+0.2774 shipped vs 0.2956 fitted; the shipped set leaves an en mean offset of +0.17 where a
+true fit has 0). A re-fit would move bands, so it is a phase-6 decision to take on its own
+rather than a side effect of this phase.
+
+### Step 7 - webapp
+
+No change: `/concepts/{id}/relations` already filters by `relation_type`, so the new types
+are served as they are. No consumer asks for sense relations over HTTP yet, so
+`sense_relations_for` stays a library read.
+
 ## Done when
 
-- [ ] The wanted synset relation types are stored as normalized `ConceptRelation` edges,
+- [x] The wanted synset relation types are stored as normalized `ConceptRelation` edges,
       with both link directions read.
-- [ ] Antonymy is stored sense-level and derived to concept-level, and a Portuguese lemma
+- [x] Antonymy is stored sense-level and derived to concept-level, and a Portuguese lemma
       can reach an opposite.
-- [ ] The gate carries the new invariants and reports per-type edge counts.
-- [ ] Phase 6's bands are re-validated after the depth change, with the numbers recorded.
-- [ ] `uv run pytest && uv run ruff check . && uv run pyright` green; docs + tracking
+- [x] The gate carries the new invariants and reports per-type edge counts.
+- [x] Phase 6's bands are re-validated after the depth change, with the numbers recorded
+      (identical: depth did not change, see Result).
+- [x] `uv run pytest && uv run ruff check . && uv run pyright` green; docs + tracking
       updated.
