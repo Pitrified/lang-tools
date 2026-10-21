@@ -46,6 +46,10 @@ Invariants:
       both ``(a, b)`` and ``(b, a)``, and a symmetric type is always ``a < b``.
       The inverse-pair normalization is what guarantees this, so a violation
       means it broke.
+
+    Phase 8 added one for topics: every concept topic is in the reviewed
+    vocabulary of ``data/curated/topics.json`` (a topic with no reviewed table at
+    all counts as unreviewed). Topic coverage per language is reported beside it.
 """
 
 from __future__ import annotations
@@ -599,12 +603,100 @@ def _provenance_check(con: Any, t: dict[str, str]) -> CheckResult:  # noqa: ANN4
     )
 
 
+def _topic_checks(con: Any, t: dict[str, str]) -> list[CheckResult]:  # noqa: ANN401
+    """Report topic coverage per language and the concepts per topic.
+
+    A lemma counts as covered when it carries a topic of its own or realises a
+    concept that does - the same rule the store uses to derive lemma topics.
+    Guarded on the ``topics`` column, which a pre-phase-8 corpus does not have.
+    """
+    coverage_description = (
+        "Lemmas with at least one learner topic, their own or from a concept they "
+        "realise (phase 8; topics come from the reviewed `data/curated/topics.json`)."
+    )
+    distribution_description = "Concepts carrying each learner topic."
+    if not _has_column(con, t["concepts"], "topics"):
+        note = [["no `topics` column in this corpus (pre-phase-8 build)"]]
+        return [
+            CheckResult(
+                name="topic_coverage",
+                title="Topic coverage per language",
+                description=coverage_description,
+                columns=["note"],
+                rows=note,
+            ),
+        ]
+    columns, rows = _fetch(
+        con,
+        f"""
+WITH covered AS (
+  SELECT DISTINCT s.lemma_id FROM {t["senses"]} s
+    JOIN {t["concepts"]} c ON c.id = s.concept_id WHERE len(c.topics) > 0
+  UNION SELECT id FROM {t["lemmas"]} WHERE len(topics) > 0
+)
+SELECT l.language, count(*) AS lemmas, count(cv.lemma_id) AS with_topic,
+       round(100.0 * count(cv.lemma_id) / count(*), 1) AS pct
+FROM {t["lemmas"]} l LEFT JOIN covered cv ON cv.lemma_id = l.id
+GROUP BY l.language ORDER BY l.language
+""",
+    )
+    dist_columns, dist_rows = _fetch(
+        con,
+        f"""
+SELECT topic, count(*) AS concepts
+FROM (SELECT unnest(topics) AS topic FROM {t["concepts"]})
+GROUP BY topic ORDER BY concepts DESC, topic
+""",
+    )
+    return [
+        CheckResult(
+            name="topic_coverage",
+            title="Topic coverage per language",
+            description=coverage_description,
+            columns=columns,
+            rows=rows,
+        ),
+        CheckResult(
+            name="topic_distribution",
+            title="Concepts per topic",
+            description=distribution_description,
+            columns=dist_columns,
+            rows=dist_rows,
+        ),
+    ]
+
+
+def _unreviewed_topics(con: Any, t: dict[str, str], data_fol: Path) -> int:  # noqa: ANN401
+    """Count concepts carrying a topic outside the reviewed vocabulary."""
+    # Lazy: the ingestion package imports `maintenance`, which imports this module.
+    from lang_tools.lexicon.ingestion.topics import load_topic_table  # noqa: PLC0415
+
+    if not _has_column(con, t["concepts"], "topics"):
+        return 0
+    table = load_topic_table(data_fol)
+    vocabulary = sorted(table.vocabulary) if table is not None else []
+    in_vocabulary = (
+        "list_contains([" + ", ".join(f"'{v}'" for v in vocabulary) + "], topic)"
+        if vocabulary
+        else "false"
+    )
+    return _scalar(
+        con,
+        f"""
+SELECT count(DISTINCT id) FROM (
+  SELECT id, unnest(topics) AS topic FROM {t["concepts"]}
+) WHERE NOT {in_vocabulary}
+""",
+    )
+
+
 def _evaluate_invariants(
     con: Any,  # noqa: ANN401
     t: dict[str, str],
     *,
     definition_equals_lemma_baseline: int,
     token_frequency_coverage_floor: int,
+    unreviewed_topics: int = 0,
 ) -> list[InvariantResult]:
     """Measure and evaluate the regression invariants.
 
@@ -786,6 +878,13 @@ SELECT (SELECT count(*) FROM {t["concept_relations"]} r
             requirement="0",
             passed=misoriented == 0,
         ),
+        InvariantResult(
+            name="unreviewed_topic",
+            title="concepts with a topic outside the reviewed vocabulary",
+            value=unreviewed_topics,
+            requirement="0",
+            passed=unreviewed_topics == 0,
+        ),
     ]
 
 
@@ -832,12 +931,14 @@ def run_quality_checks(
                     rows=rows,
                 )
             )
+        results.extend(_topic_checks(con, t))
         results.append(_provenance_check(con, t))
         invariants = _evaluate_invariants(
             con,
             t,
             definition_equals_lemma_baseline=definition_equals_lemma_baseline,
             token_frequency_coverage_floor=token_frequency_coverage_floor,
+            unreviewed_topics=_unreviewed_topics(con, t, data_fol),
         )
     finally:
         con.close()

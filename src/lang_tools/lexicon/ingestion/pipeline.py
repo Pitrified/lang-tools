@@ -32,6 +32,8 @@ from lang_tools.lexicon.ingestion.sources.cili import load_cili_glosses
 from lang_tools.lexicon.ingestion.sources.frequency import lemma_zipf
 from lang_tools.lexicon.ingestion.sources.frequency import wordfreq_version
 from lang_tools.lexicon.ingestion.sources.omw import wn_synset_entries
+from lang_tools.lexicon.ingestion.topics import assign_topics
+from lang_tools.lexicon.ingestion.topics import load_topic_table
 from lang_tools.lexicon.ingestion.transform import TaggedTables
 from lang_tools.lexicon.ingestion.transform import transform
 from lang_tools.lexicon.maintenance import apply_gloss_overrides
@@ -60,6 +62,8 @@ class BuildSummary:
             does not contain; logged and skipped, never fatal.
         enrichment: Phase-6 coverage counts (senses with a token frequency, senses
             flagged estimated, and the per-band CEFR totals).
+        topics_tagged: Concepts that received at least one learner topic from the
+            curated topic table (phase 8).
     """
 
     languages: list[str]
@@ -69,6 +73,7 @@ class BuildSummary:
     gloss_overrides_applied: int = 0
     gloss_overrides_stale: int = 0
     enrichment: dict[str, int] = dc_field(default_factory=dict)
+    topics_tagged: int = 0
 
 
 def _clean_corpus_tables(data_fol: Path) -> None:
@@ -246,6 +251,13 @@ def build_initial(
     if zipf_by_form is None:
         zipf_by_form = lemma_zipf(tables.lemmas)
     enrichment = enrich(tables, zipf_by_form=zipf_by_form)
+    # Topics are a build stage for the same reason as glosses and bands: the curated
+    # table is the input, so a rebuild reproduces them instead of reverting them.
+    topics_tagged = assign_topics(
+        tables.concepts,
+        load_topic_table(data_fol),
+        tables.concept_domains,
+    )
     counts = _write_tables(tables, data_fol)
 
     sample = carve_sample(tables, max_concepts=max_sample_concepts)
@@ -265,6 +277,7 @@ def build_initial(
         "counts": counts,
         "gloss_overrides": {"applied": applied, "stale": stale},
         "enrichment": {"wordfreq": wordfreq_version(), **enrichment},
+        "topics": {"concepts_tagged": topics_tagged},
         **(extra_manifest or {}),
     }
     path = write_manifest(data_fol, manifest)
@@ -278,4 +291,5 @@ def build_initial(
         gloss_overrides_applied=applied,
         gloss_overrides_stale=stale,
         enrichment=enrichment,
+        topics_tagged=topics_tagged,
     )

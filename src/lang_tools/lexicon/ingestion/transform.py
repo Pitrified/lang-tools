@@ -80,6 +80,8 @@ class TaggedTables:
         concept_counts: Per-concept SemCor totals, ``{concept_id: total}``. A
             concept with an English member SemCor never tagged is present with
             ``0``; one with no English member at all is absent.
+        concept_domains: ``{concept_id: {domain name, ...}}`` from the OMW
+            ``domain_topic`` links; a topic-stage input, never persisted.
     """
 
     lemmas: list[Lemma] = field(default_factory=list)
@@ -96,6 +98,7 @@ class TaggedTables:
     sense_relation_sources: list[str] = field(default_factory=list)
     sense_counts: dict[tuple[str, str], int] = field(default_factory=dict)
     concept_counts: dict[str, int] = field(default_factory=dict)
+    concept_domains: dict[str, set[str]] = field(default_factory=dict)
 
 
 def transform(
@@ -135,4 +138,5 @@ def transform(
         sense_relation_sources=[SOURCE_OMW] * len(grouped.sense_relations),
         sense_counts=grouped.sense_counts,
         concept_counts=grouped.concept_counts,
+        concept_domains=grouped.concept_domains,
     )

@@ -78,7 +78,8 @@ if TYPE_CHECKING:
 #: v3: concepts gained ``commonness`` and senses carry the phase-6 frequency /
 #: CEFR values, so a v2 cache is missing columns the queries now select.
 #: v4: the ``sense_relations`` table (phase 7), so a v3 cache lacks a table.
-CACHE_VERSION = 4
+#: v5: concepts gained ``topics`` and the derived ``lemma_topics`` table (phase 8).
+CACHE_VERSION = 5
 
 #: Filename of the persisted SQLite cache built inside a corpus directory. It is
 #: rebuilt from the Parquet whenever the corpus signature changes; never committed
@@ -107,7 +108,7 @@ TABLES: tuple[str, ...] = (
 #: other column binds to a native SQLite value.
 _JSON_COLUMNS: dict[str, frozenset[str]] = {
     "lemmas": frozenset({"topics", "examples", "sources"}),
-    "concepts": frozenset({"definitions", "examples"}),
+    "concepts": frozenset({"definitions", "examples", "topics"}),
     "senses": frozenset(),
     "false_friends": frozenset({"explanation_notes"}),
     "concept_relations": frozenset(),
@@ -226,6 +227,37 @@ def _populate_raw(conn: sqlite3.Connection, data_fol: Path) -> list[str]:
     return concept_ids
 
 
+def _derive_lemma_topics(conn: sqlite3.Connection) -> None:
+    """Build ``lemma_topics`` and fill each lemma's `topics` from its senses.
+
+    A topic is stored on the concept (a meaning); a lemma's topics are the union
+    of its own curated tags and the topics of every concept it has a sense in.
+    Deriving them here, once per cache build, keeps them off the persisted lemma
+    rows (no second copy to drift) while every read - `get_lemma_by_id`, the
+    filters, `lang-tutor`'s selection - sees the full set. The ``lemma_topics``
+    table is indexed so a topic filter is a lookup rather than a scan of every
+    lemma.
+    """
+    conn.executescript(
+        """
+CREATE TABLE lemma_topics AS
+  SELECT l.id AS lemma_id, j.value AS topic
+    FROM lemmas l, json_each(l.topics) j
+  UNION
+  SELECT s.lemma_id, j.value
+    FROM senses s JOIN concepts c ON c.id = s.concept_id, json_each(c.topics) j;
+CREATE INDEX idx_lemma_topics_topic ON lemma_topics (topic);
+CREATE INDEX idx_lemma_topics_lemma ON lemma_topics (lemma_id);
+UPDATE lemmas SET topics = (
+  SELECT json_group_array(topic) FROM (
+    SELECT topic FROM lemma_topics t WHERE t.lemma_id = lemmas.id ORDER BY topic
+  )
+) WHERE id IN (SELECT lemma_id FROM lemma_topics);
+""",
+    )
+    conn.commit()
+
+
 def _new_conn(target: str) -> sqlite3.Connection:
     """Open a SQLite connection with the row factory the store relies on."""
     conn = sqlite3.connect(target, check_same_thread=False)
@@ -323,6 +355,7 @@ class LexiconStore:
                 "sense_relations": sense_relations,
             },
         )
+        _derive_lemma_topics(conn)
         cls._warn_on_slug_collisions(c.id for c in concepts)
         return cls(conn)
 
@@ -401,6 +434,7 @@ class LexiconStore:
             conn = _new_conn(str(cache_db) if cache_db is not None else ":memory:")
             _build_schema(conn)
             concept_ids = _populate_raw(conn, data_fol)
+            _derive_lemma_topics(conn)
             cls._warn_on_slug_collisions(concept_ids)
             store = cls(conn)
 
@@ -464,23 +498,28 @@ class LexiconStore:
         )
 
     def get_lemmas_by_topic(self, topic: str) -> list[Lemma]:
-        """Filter lemmas carrying a given topic tag."""
-        return [lem for lem in self.get_all_lemmas() if topic in lem.topics]
+        """Filter lemmas carrying a given topic (their own or a sense's concept's)."""
+        return self.get_lemmas_filtered(topic=topic)
 
     def get_lemmas_filtered(
         self,
         language: str | None = None,
         topic: str | None = None,
     ) -> list[Lemma]:
-        """Filter lemmas by language and/or topic."""
-        results = (
-            self.get_lemmas_by_language(language)
-            if language
-            else self.get_all_lemmas()
-        )
+        """Filter lemmas by language and/or topic.
+
+        A topic matches through the derived ``lemma_topics`` index, so it covers
+        both a lemma's own tags and the topics of the concepts it realises.
+        """
+        sql = f"SELECT {_select_cols('lemmas')} FROM lemmas WHERE 1 = 1"  # noqa: S608
+        params: list[object] = []
+        if language:
+            sql += " AND language = ?"
+            params.append(language)
         if topic:
-            results = [lem for lem in results if topic in lem.topics]
-        return results
+            sql += " AND id IN (SELECT lemma_id FROM lemma_topics WHERE topic = ?)"
+            params.append(topic)
+        return self._query("lemmas", sql, tuple(params))
 
     # --- Concept reads ---------------------------------------------------
 

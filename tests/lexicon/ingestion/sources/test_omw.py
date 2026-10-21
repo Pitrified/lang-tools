@@ -578,6 +578,19 @@ def test_sense_link_with_an_unresolved_end_is_dropped() -> None:
     assert grouped.relations == []
 
 
+def test_domain_topics_gather_per_concept() -> None:
+    entries = [
+        SynsetEntry(
+            "en", "en-1", "i1", "a football move", ("tackle",), pos="n",
+            domain_topics=("football",),
+        ),
+        SynsetEntry("pt", "pt-1", "i1", None, ("placagem",), pos="n"),
+        SynsetEntry("en", "en-2", "i2", "a tree", ("oak",), pos="n"),
+    ]
+    grouped = group_to_records(entries)
+    assert grouped.concept_domains == {_cid(grouped, "a football move"): {"football"}}
+
+
 def test_member_counts_attach_to_the_right_sense() -> None:
     # SemCor counts ride along with the member forms, so they are attributed
     # while the ILI group is open - the corpus never persists the ILI, so this

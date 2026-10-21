@@ -71,6 +71,11 @@ class Concept(BaseModel):
             ``None`` means the concept has no English member to count at all;
             ``0.0`` means it has one that SemCor never tagged. Those are
             different facts and this field keeps them apart.
+        topics: Learner topics of this *meaning* (``"food"``, ``"animals"``,
+            ...), from the reviewed ``data/curated/topics.json`` (phase 8). A
+            lemma's topics are derived from its senses' concepts by the store,
+            so polysemous words carry each meaning's topics rather than one
+            merged set being stored on the token.
         senses: Resolved `Sense` edges into this concept. Store-hydrated, never
             persisted (``exclude=True``); ``None`` until hydration. Read via
             `resolve_senses` to fail loud when unhydrated.
@@ -85,6 +90,7 @@ class Concept(BaseModel):
     lexfile: str | None = None
     examples: dict[str, list[str]] = Field(default_factory=dict)
     commonness: float | None = None
+    topics: list[str] = Field(default_factory=list)
 
     # Representation-layer back-references; see `Sense.lemma` for the contract.
     senses: list[Sense] | None = Field(default=None, exclude=True, repr=False)

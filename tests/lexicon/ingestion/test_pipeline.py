@@ -134,6 +134,34 @@ def test_relations_reach_disk_with_their_provenance(tmp_path: Path) -> None:
     ]
 
 
+def test_topics_reach_disk_and_lemmas_through_the_store(tmp_path: Path) -> None:
+    curated = tmp_path / "curated"
+    curated.mkdir()
+    (curated / "topics.json").write_text(
+        '{"vocabulary": ["places"], "lexfile": {"noun.artifact": ["places"]}}',
+        encoding="utf-8",
+    )
+    entries = [
+        SynsetEntry(
+            "en", "en-1", "i001", "a building for living", ("house",), pos="n",
+            lexfile="noun.artifact",
+        ),
+        SynsetEntry("pt", "pt-1", "i001", None, ("casa",), pos="n"),
+        SynsetEntry("en", "en-2", "i002", "a flow of water", ("river",), pos="n"),
+    ]
+    summary = build_initial(["en", "pt"], data_fol=tmp_path, omw_entries=entries)
+    assert summary.topics_tagged == 1
+    manifest = read_manifest(tmp_path)
+    assert manifest is not None
+    assert manifest["topics"] == {"concepts_tagged": 1}
+
+    store = LexiconStore.from_data_fol(tmp_path)
+    assert {lem.text for lem in store.get_lemmas_by_topic("places")} == {
+        "house",
+        "casa",
+    }
+
+
 def test_sample_carved_to_separate_corpus(tmp_path: Path) -> None:
     sample_fol = tmp_path / "sample"
     summary = build_initial(

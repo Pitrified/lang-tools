@@ -301,6 +301,9 @@ class SynsetEntry:
             Resolved to normalized `ConceptRelation` edges in `group_to_records`.
         sense_links: Sense-level relations of this synset's members (antonymy),
             resolved to `SenseRelation` edges in `group_to_records`.
+        domain_topics: English names of the synset's OMW ``domain_topic``
+            targets (``"music"``, ``"law"``, ...). Not a stored relation: the
+            topic stage maps the few a learner would browse by onto topics.
     """
 
     language: str
@@ -314,6 +317,7 @@ class SynsetEntry:
     examples: tuple[str, ...] = ()
     relations: dict[str, tuple[str, ...]] = field(default_factory=dict)
     sense_links: tuple[SenseLink, ...] = ()
+    domain_topics: tuple[str, ...] = ()
 
 
 #: Language whose wordnet carries SemCor sense-tag counts. Only the English
@@ -383,6 +387,9 @@ class GroupedRecords:
         relation_sources: Provenance tags parallel to `relations` (`SOURCE_OMW`
             for read edges, `SOURCE_DERIVED` for the derived antonyms).
         sense_relations: Sorted unique `SenseRelation` edges (antonymy).
+        concept_domains: ``{concept_id: {domain name, ...}}`` gathered from the
+            group's `SynsetEntry.domain_topics`, for the topic stage. Only
+            concepts with a domain are present.
         sense_counts: ``{(lemma_id, concept_id): semcor_count}`` for the senses
             that carry one. Sparse by nature (English only, and 17% of English
             senses), so absence means "no count", never "counted zero".
@@ -400,6 +407,7 @@ class GroupedRecords:
     relations: list[ConceptRelation]
     relation_sources: list[str]
     sense_relations: list[SenseRelation]
+    concept_domains: dict[str, set[str]]
     sense_counts: dict[tuple[str, str], int]
     concept_counts: dict[str, int]
 
@@ -764,6 +772,7 @@ def group_to_records(
     key_to_cid: dict[tuple[str, str], str] = {}
     sense_counts: dict[tuple[str, str], int] = {}
     concept_counts: dict[str, int] = {}
+    concept_domains: dict[str, set[str]] = {}
     malformed_dropped = 0
 
     for key, group in grouped.items():
@@ -781,6 +790,8 @@ def group_to_records(
 
         for entry in group:
             key_to_cid[(entry.language, entry.synset_id)] = cid
+            if entry.domain_topics:
+                concept_domains.setdefault(cid, set()).update(entry.domain_topics)
             pos = _POS_LABELS.get(entry.pos or "")
             # Registering the concept on *any* English entry (not just a tagged
             # one) is what lets phase 6 tell "English member, never tagged" (0)
@@ -833,6 +844,7 @@ def group_to_records(
         relations=relations,
         relation_sources=relation_sources,
         sense_relations=sense_relations,
+        concept_domains=concept_domains,
         sense_counts=sense_counts,
         concept_counts=concept_counts,
     )
@@ -900,7 +912,14 @@ def wn_synset_entries(
                 examples=tuple(synset.examples()),
                 relations=_synset_relations(synset),
                 sense_links=_sense_links(synset),
+                domain_topics=_domain_topics(synset),
             )
+
+
+def _domain_topics(synset: Any) -> tuple[str, ...]:  # noqa: ANN401 - wn.Synset
+    """Return the first member form of each ``domain_topic`` target, sorted."""
+    targets = synset.relations().get("domain_topic", [])
+    return tuple(sorted({t.lemmas()[0] for t in targets if t.lemmas()}))
 
 
 def _synset_relations(synset: Any) -> dict[str, tuple[str, ...]]:  # noqa: ANN401 - wn.Synset

@@ -149,6 +149,44 @@ def test_concept_relations_directional_and_symmetric() -> None:
     assert len(store.concept_relations_for(C_TRAIN, relation_type="hypernym")) == 1
 
 
+def test_lemma_topics_come_from_every_sense_concept() -> None:
+    # 'banco' realises both the money and the bench concept, so it carries both
+    # concepts' topics plus its own curated tag; 'bench' only the seat's.
+    lemmas = [
+        Lemma(text="banco", language="pt", topics=["curated"]),
+        Lemma(text="bench", language="en"),
+    ]
+    concepts = [
+        Concept(id=C_BANK, topics=["money"]),
+        Concept(id=C_BENCH, topics=["objects"]),
+    ]
+    senses = [
+        Sense(lemma_id=lemmas[0].id, concept_id=C_BANK),
+        Sense(lemma_id=lemmas[0].id, concept_id=C_BENCH),
+        Sense(lemma_id=lemmas[1].id, concept_id=C_BENCH),
+    ]
+    store = LexiconStore.from_models(
+        lemmas=lemmas,
+        concepts=concepts,
+        senses=senses,
+        false_friends=[],
+        concept_relations=[],
+        sense_relations=[],
+    )
+    banco = store.get_lemma_by_id(lemmas[0].id)
+    assert banco is not None
+    assert banco.topics == ["curated", "money", "objects"]
+    assert [lem.text for lem in store.get_lemmas_by_topic("money")] == ["banco"]
+    assert {lem.text for lem in store.get_lemmas_by_topic("objects")} == {
+        "banco",
+        "bench",
+    }
+    assert [
+        lem.text for lem in store.get_lemmas_filtered(language="en", topic="objects")
+    ] == ["bench"]
+    assert store.get_lemmas_by_topic("missing") == []
+
+
 def test_sense_relations_reachable_from_either_endpoint() -> None:
     store = _build_store()
     bank = Lemma(text="bank", language="en")

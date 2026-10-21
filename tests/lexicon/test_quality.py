@@ -398,3 +398,48 @@ def test_dangling_sense_relation_fails(tmp_path: Path) -> None:
     )
     report = run_quality_checks(tmp_path, definition_equals_lemma_baseline=1)
     assert not _invariant(report, "dangling_edges")
+
+
+def _tag_concepts(data_fol: Path, topics: list[str]) -> None:
+    """Rewrite the seed's concepts with `topics` on the house concept."""
+    _dump_table(
+        "concepts",
+        [
+            Concept(id=C_HOUSE, definitions={"en": "a dwelling"}, topics=topics),
+            Concept(id=C_BUILDING, definitions={"en": "building"}),
+        ],
+        data_fol=data_fol,
+    )
+
+
+def _write_vocabulary(data_fol: Path, vocabulary: list[str]) -> None:
+    curated = data_fol / "curated"
+    curated.mkdir()
+    payload = '{"vocabulary": [' + ", ".join(f'"{v}"' for v in vocabulary) + "]}"
+    (curated / "topics.json").write_text(payload, encoding="utf-8")
+
+
+def test_topic_coverage_is_reported_per_language(tmp_path: Path) -> None:
+    _seed_corpus(tmp_path)
+    _tag_concepts(tmp_path, ["objects"])
+    _write_vocabulary(tmp_path, ["objects"])
+    report = run_quality_checks(tmp_path, definition_equals_lemma_baseline=1)
+    assert report.passed
+    by_name = {res.name: res for res in report.results}
+    assert by_name["topic_coverage"].rows == [["en", 2, 1, 50.0]]
+    assert by_name["topic_distribution"].rows == [["objects", 1]]
+
+
+def test_topic_outside_the_vocabulary_fails(tmp_path: Path) -> None:
+    _seed_corpus(tmp_path)
+    _tag_concepts(tmp_path, ["objects", "kitchen"])
+    _write_vocabulary(tmp_path, ["objects"])
+    report = run_quality_checks(tmp_path, definition_equals_lemma_baseline=1)
+    assert not _invariant(report, "unreviewed_topic")
+
+
+def test_topics_without_a_reviewed_table_fail(tmp_path: Path) -> None:
+    _seed_corpus(tmp_path)
+    _tag_concepts(tmp_path, ["objects"])
+    report = run_quality_checks(tmp_path, definition_equals_lemma_baseline=1)
+    assert not _invariant(report, "unreviewed_topic")
