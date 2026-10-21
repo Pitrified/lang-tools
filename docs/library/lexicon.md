@@ -509,4 +509,4 @@ synset but every synset is 100% ILI-linked, so they propagate to the concept for
 free; SemCor concept commonness correlates with per-language frequency (en 0.47,
 predicts es 0.34 / it 0.49); and lemma frequency is the strongest difficulty
 signal against Kelly CEFR (-0.66), with the concept-level call holding in 87% of
-en->it cases. See [`05.54_data_enrich.md`](../../scratch_space/09_concept_model/05.54_data_enrich/05.54_data_enrich.md).
+en->it cases. See [`05.54_data_enrich.md`](https://github.com/Pitrified/lang-tools/blob/main/scratch_space/09_concept_model/05.54_data_enrich/05.54_data_enrich.md).
