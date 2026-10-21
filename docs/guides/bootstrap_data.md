@@ -5,7 +5,7 @@ graph: a handful of cross-lingual concepts with their lemmas, sense edges, and a
 couple of relation edges. It is a **developer input, not a runtime source** - the
 store reads Parquet only (see [the lexicon library docs](../library/lexicon.md)).
 The seed is the editable, diffable text that the *sample* Parquet corpus is built
-from; the full corpus comes from the ingestion phase.
+from; the full corpus comes from the ingestion phase - see [Rebuilding the corpus](rebuild_corpus.md).
 
 ## Files
 

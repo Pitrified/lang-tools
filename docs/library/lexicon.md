@@ -327,7 +327,9 @@ share an id, merging their topics, examples, and sources.
 
 On top of the per-file loaders, `ingestion` ships the one-time **initial build**
 that populates the whole corpus from external sources. It is linear by design -
-the Parquet tables are the source of truth, so there is no base/overlay split:
+the Parquet tables are the source of truth, so there is no base/overlay split
+(the step-by-step procedure is in
+[Rebuilding the corpus](../guides/rebuild_corpus.md)):
 
 ```
 sources (OMW via wn, CILI gloss map, wordfreq)
