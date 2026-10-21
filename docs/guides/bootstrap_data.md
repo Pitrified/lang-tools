@@ -16,6 +16,7 @@ from; the full corpus comes from the ingestion phase - see [Rebuilding the corpu
 | `senses.jsonl` | the lemma <-> concept edges |
 | `false_friends.jsonl` | false-friend token pairs |
 | `concept_relations.jsonl` | typed concept-to-concept edges |
+| `sense_relations.jsonl` | typed sense-to-sense edges (antonymy; empty when no antonym pair falls inside the slice) |
 
 Each line is one row in the **lean codec shape** - exactly the columns the Parquet
 codec persists (`lang_tools.lexicon.codec`), which is the model minus the

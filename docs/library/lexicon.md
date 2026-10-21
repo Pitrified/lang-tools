@@ -111,17 +111,60 @@ connect:
 - `FalseFriendRelation` is a symmetric lemma-to-lemma edge (a misleading
   cognate pair). Endpoints are held in canonical order
   (`lemma_id_a < lemma_id_b`) so each pair is stored once and dedups naturally.
-- `ConceptRelation` is a typed concept-to-concept edge (`"hypernym"`,
-  `"meronym"`, `"related"`, ...). Directional types keep their source/target
-  order; symmetric types (see `SYMMETRIC_CONCEPT_RELATIONS`) reuse the
-  canonical-ordering trick. The initial build now populates the OMW `hypernym`
-  edges (`concept_id_a` is the more specific child, `concept_id_b` its parent);
-  **hyponymy is the same edge read in reverse**, so it is not stored separately,
-  and a hypernym target that does not resolve to a concept is dropped and logged,
-  never emitted half-formed. Antonymy is deferred (it is sense-level and needs its
-  own future edge table, a sibling of `FalseFriendRelation`).
+- `ConceptRelation` is a typed concept-to-concept edge. Directional types keep
+  their source/target order; symmetric types reuse the canonical-ordering trick.
+- `SenseRelation` is a typed sense-to-sense edge, keyed on `Sense.id`. It holds
+  antonymy, which WordNet states between word *senses*: collapsing it to lemmas
+  would claim `light` is the opposite of `heavy` in its illumination sense.
 
-Both reject self-edges with a `SelfRelationError`.
+All three reject self-edges with a `SelfRelationError`.
+
+### The relation graph (phase 7)
+
+The build stores these types, each the one direction of a WordNet inverse pair
+or a type with no inverse (`relations.DIRECTIONAL_CONCEPT_RELATIONS` documents
+what each orientation means):
+
+| type | kind | `a -> b` means | edges |
+| ---- | ---- | -------------- | ----- |
+| `hypernym` | directional | a is a kind of b (dog -> animal) | 89,089 |
+| `instance_hypernym` | directional | a is an instance of b (Rome -> national capital) | 8,577 |
+| `mero_member` / `mero_part` / `mero_substance` | directional | b is a member / part / substance of a (car -> accelerator) | 22,187 |
+| `entails` | directional | doing a entails doing b (buy -> pay) | 408 |
+| `causes` | directional | a causes b (kill -> die) | 220 |
+| `similar`, `also`, `attribute` | symmetric | similar adjective, "see also", noun <-> the adjectives that value it | 13,653 |
+| `antonym` | symmetric | opposed concepts, **derived** from English sense antonymy | 3,802 |
+
+plus 3,992 sense-level `antonym` edges in `sense_relations`.
+
+How the OMW reader gets there (`ingestion.sources.omw`):
+
+- **Both names of every inverse pair are read** and normalized to one stored
+  direction (`SYNSET_RELATIONS`): `x hyponym y` and `y hypernym x` become the
+  same edge, as do `holo_*` / `mero_*` and `instance_hyponym` /
+  `instance_hypernym`. Symmetric types are put in canonical order, so a link
+  stated from one side only still dedupes.
+- **Only a lexicon's own relations are read** (`wn.Wordnet(..., expand="")`).
+  In OMW 1.4 only English carries relations; by default `wn` projects English's
+  graph onto the other wordnets through the ILI, and reading that projection
+  produced ~250k phantom dangling targets and looked like missing taxonomy. Since
+  concepts are grouped by ILI, English's edges already connect every language.
+- **Contradictions are resolved by support.** A directional edge stated in both
+  orientations keeps the better-supported one; a tie drops both. OMW 1.4 has one
+  such pair, the WordNet 3.0 `restrain` / `inhibit` cycle.
+- **Antonymy is stored sense-level and derived to concept level.** Each English
+  sense antonym also becomes a concept `antonym` edge with provenance `derived`,
+  which is how the four languages whose wordnets carry no sense relations get
+  opposites at all: pt `quente` reaches `frio`, es `feliz` reaches `triste`.
+- A link whose target does not resolve is counted and dropped, never emitted
+  half-formed. Deferred: `domain_*` / `exemplifies` (topic metadata, phase 8)
+  and `derivation` / `pertainym` (English-only morphology).
+
+Hypernym depth (phase 6's CEFR input) walks `hypernym` **and**
+`instance_hypernym` (`relations.TAXONOMY_RELATIONS`). `wn`'s `hypernyms()`
+returned instance links too, so before phase 7 they were stored as `hypernym`
+and phase 6 fitted its cutoffs on depth that counted them; walking both keeps
+every band exactly where phase 6 left it.
 
 ## Store and queries
 
@@ -138,7 +181,8 @@ webapp consume:
 - Adjacency: `concepts_for_lemma`, `lemmas_for_concept` (optional `language`),
   `senses_for_lemma`, `senses_for_concept`.
 - Edges: `get_false_friends_for_lemma` (returns `(other_lemma, edge)` pairs,
-  resolving symmetry), `concept_relations_for` (optional `relation_type`).
+  resolving symmetry), `concept_relations_for` and `sense_relations_for` (both
+  with an optional `relation_type`; a symmetric edge is found from either end).
 
 These are point lookups and bounded adjacency joins, not aggregations.
 
@@ -224,7 +268,7 @@ one source of truth. `run_quality_checks(data_fol)` executes a registry of named
 DuckDB checks (row counts, edge reconciliation, gloss/example/lexfile coverage,
 slug collisions, `definition == lemma`, provenance snapshot, ...) and returns a
 typed `QualityReport`; `render_report` / `write_report` turn it into a markdown
-report that leads with eight regression invariants. Four are 05.56's:
+report that leads with ten regression invariants. Four are 05.56's:
 
 - kaikki-tagged rows are 0 (the 5.5 cleanup holds on disk);
 - dangling sense / relation endpoints are 0;
@@ -247,6 +291,19 @@ Four more arrived with phase 6, guarding the frequency / CEFR signals:
 - every non-English or multiword sense is flagged `frequency_is_estimated`;
 - every `cefr_level` is a valid band and is flagged `cefr_is_estimated`, since
   no graded list is ever merged.
+
+Two more arrived with phase 7, guarding the relation graph, and the dangling
+invariant now covers `sense_relations` endpoints too:
+
+- every stored relation type is in the reviewed vocabulary
+  (`CONCEPT_RELATION_TYPES` / `SENSE_RELATION_TYPES`), so a new OMW type cannot
+  reach the corpus unreviewed;
+- no directional type holds both `(a, b)` and `(b, a)`, and symmetric types are
+  always `a < b` - the property the inverse-pair normalization exists to give.
+
+The report also lists edges per table and type, and the provenance snapshot
+splits `concept_relations` into `omw` and `derived`, so a lost type shows up in
+the report diff.
 
 The notebook under `scratch_space/09_concept_model/05.4_data_quality/` is a thin
 caller that regenerates `report.md` wholesale on every run - the report is
@@ -427,7 +484,8 @@ without `wordfreq` or `wn`.
 - **CEFR** blends a concept-level score (commonness, hypernym depth) with a thin
   per-language overlay (token frequency, form length) and bands it by fixed
   cutoffs. Depth is recomputed by BFS on every build rather than persisted: it is
-  derived from the shipped hypernym edges, and only the score consumes it.
+  derived from the shipped `hypernym` and `instance_hypernym` edges, and only the
+  score consumes it.
 - **`cefr_is_estimated` is `True` for every sense in every language**, English
   included. Kelly (en/it) is CC-BY-NC-SA and stays validation-only, so no graded
   list is ever merged into the corpus and no band is ever a measurement.
