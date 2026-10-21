@@ -1,5 +1,5 @@
 ---
-status: planned
+status: in progress
 ---
 
 # Phase 8 - maintenance (LLM-based)
@@ -107,36 +107,30 @@ the phase-10 dataset card.
   sampled review plus a provenance tag (`llm`) and the gate, and kept out of anything
   labelled measured.
 
-## Decisions to confirm
+## Decisions (settled 2026-10-21)
 
-Recommendations given; each changes what gets built.
+All five were put to the user as recommendations and confirmed as recommended.
 
-1. **Scope of this phase.** Recommend: the loop generalization + runner, **topics**, slug
-   tier 2, the member-form review, and the gloss backfill. Defer new-lemma mapping and false
-   friends to a follow-up (no source feeds new lemmas yet; false friends need candidate
-   generation designed first). Drop the LLM CEFR pass (finding 4).
-2. **Topics: where they live and where they come from.** Recommend a **concept-level**
-   `Concept.topics` filled deterministically from a reviewed `lexfile -> topic` table (45
-   rows, committed) plus OMW `domain_topic` where present, with `Lemma.topics` derived from
-   its senses' concepts at store-build time rather than persisted twice. A topic is a
-   property of a meaning ("bank" is `money` in one sense and `nature` in another), the
-   same argument that put frequency on the sense. The vocabulary is the tutor's, not
-   WordNet's: ~15-25 learner topics (`food`, `animals`, `body`, `travel`, ...), with the
-   lexfile mapping reviewed once.
-3. **LLM provider and model.** Recommend OpenAI via `llm-core`, a small current model for
-   the bulk jobs and a larger one only where a sample review shows the small one failing;
-   Batch API for anything over a few thousand items. Supersedes 5.55's Anthropic sizing.
-4. **Acceptance for bulk glosses.** Recommend sampled review (e.g. 50 per language) as the
-   gate for accepting a backfill run, the `llm` provenance tag on every generated gloss, and
-   a quality-report section counting generated vs source glosses. The alternative - no
-   backfill until a consumer asks - is defensible (it is what 5.55 decided); the case for
-   doing it now is that phase 9 (consumer uplift) will want definitions in the learner's
-   language, and the run is cheap.
-5. **Where maintenance runs.** Recommend thin notebooks under `notebooks/lexicon_maintain/`
-   (the existing pattern) over a CLI or scheduled job; a cadence only makes sense once
-   something feeds new lemmas in.
+1. **Scope**: the loop generalization + runner, **topics**, slug tier 2, the member-form
+   review, and the non-en gloss backfill. **Deferred** to a follow-up: new-lemma mapping
+   (nothing feeds new lemmas yet) and false friends (candidate generation needs designing
+   first). **Dropped**: the LLM CEFR pass for pt/es/fr (finding 4 - unvalidatable).
+2. **Topics are concept-level**, filled deterministically from a reviewed, committed
+   `lexfile -> topic` table plus OMW `domain_topic` where present; `Lemma.topics` is derived
+   from the lemma's senses at store-build time, not persisted twice. The vocabulary is a
+   learner's (~15-25 topics), not WordNet's. Losing options: lemma-level tags (merges every
+   sense of a word into one set - the "bank" problem), and LLM-assigned topics (117k items
+   needing a review rule, for signal the lexfile already carries).
+3. **Provider: OpenAI via `llm-core`**, a small current model for bulk jobs and a larger one
+   only where sampled review shows the small one failing; the Batch API for anything over a
+   few thousand items. Supersedes 5.55's Anthropic sizing.
+4. **Bulk glosses are accepted by sampled review** (on the order of 50 per language per run),
+   every generated gloss tagged provenance `llm`, and the report counts generated vs source
+   glosses per language.
+5. **Runs live in thin notebooks** under `notebooks/lexicon_maintain/` (taken as recommended);
+   no CLI or schedule until something feeds new lemmas in.
 
-## Steps (assuming the recommendations)
+## Steps
 
 1. Generalize `maintenance.py` into worklist / proposal / curated-override pieces; port the
    gloss loop onto it with no behaviour change (same file, same tests passing).
