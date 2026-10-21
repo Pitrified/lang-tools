@@ -219,9 +219,21 @@ Waiting on the user:
 
 Then, once 1-3 are answered:
 
-5. Run the backfill with the chosen model: a sample first with measured usage reported,
-   then the full run; write `data/curated/gloss_backfill.jsonl` as `proposed`, draw 50 per
-   language for the user's review, `accept_run` on approval.
+5. Run the backfill - **prepared, not submitted**. Driver:
+   [`08_maintenance/gloss_backfill_job.py`](08_maintenance/gloss_backfill_job.py)
+   (`gpt-6-luna`, prompt v3, reasoning none; one batch of 6,975 requests, ~$1.82 estimated
+   from the measured sample):
+   - `plan` - dry run, prints counts and the estimate, submits nothing;
+   - `submit --yes` - uploads the batch, tags it with job metadata, writes
+     `08_maintenance/gloss_backfill_batch.json` (**commit it immediately**: it is the durable
+     pointer to the batch); re-running never pays twice while the batch is alive;
+   - `status` - from the manifest, or by metadata tag if the manifest is lost;
+   - `collect` - from any fresh checkout: writes `data/curated/gloss_backfill.jsonl`
+     (`proposed` / `rejected`) and `08_maintenance/gloss_backfill_review_sample.md` (50 per
+     language), and prints measured usage and cost; commit both.
+   Deadlines: the batch must finish within 24 h (completed requests are kept if it does not);
+   OpenAI deletes the output file 30 days after completion, so `collect` must run within that
+   window. Then the user reviews the sample and `accept_run` flips the accepted rows.
 6. Rebuild + re-gate with the accepted drops and glosses; regenerate `report.md` and the seed.
 7. Thin notebooks under `notebooks/lexicon_maintain/` for the slug, form-review and backfill
    jobs (Decision 5; the runs so far used scratch drivers, now kept under

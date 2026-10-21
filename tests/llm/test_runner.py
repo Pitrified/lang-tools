@@ -7,6 +7,7 @@ from langchain_core.messages import AIMessage
 from llm_core.chains.structured_chain import StructuredLLMChain
 from llm_core.data_models.basemodel_kwargs import BaseModelKwargs
 from llm_core.testing.fake_chat_model import FakeChatModelConfig
+import openai
 from pydantic import BaseModel
 
 from lang_tools.llm.runner import BATCH_ENDPOINT
@@ -17,6 +18,7 @@ from lang_tools.llm.runner import parse_batch_output
 from lang_tools.llm.runner import read_records
 from lang_tools.llm.runner import run_chain
 from lang_tools.llm.runner import strict_json_schema
+from lang_tools.llm.runner import submit_batch
 from lang_tools.llm.runner import summarize_usage
 
 
@@ -179,3 +181,55 @@ def test_usage_totals_price_cached_input_separately() -> None:
     # 1M uncached at $1 + 1M cached at $0.10 + 1M output at $4
     assert totals.cost(input_per_m=1, output_per_m=4, cached_per_m=0.1) == 5.1
     assert totals.cost(input_per_m=1, output_per_m=4) == 6.0
+
+
+class _FakeBatches:
+    def __init__(self, status: str) -> None:
+        self.status = status
+        self.created = 0
+
+    def retrieve(self, batch_id: str) -> object:
+        return type("B", (), {"id": batch_id, "status": self.status})()
+
+    def create(self, **_kwargs: object) -> object:
+        self.created += 1
+        return type("B", (), {"id": "batch_new"})()
+
+
+class _FakeFiles:
+    def create(self, **_kwargs: object) -> object:
+        return type("F", (), {"id": "file_1"})()
+
+
+def _fake_client(monkeypatch, status: str) -> _FakeBatches:  # noqa: ANN001
+    batches = _FakeBatches(status)
+    client = type("C", (), {"batches": batches, "files": _FakeFiles()})()
+    monkeypatch.setattr(openai, "OpenAI", lambda: client)
+    return batches
+
+
+def test_submit_never_pays_twice_for_a_live_batch(
+    tmp_path: Path,
+    monkeypatch,  # noqa: ANN001
+) -> None:
+    (tmp_path / "batch_id.txt").write_text("batch_old", encoding="utf-8")
+    batches = _fake_client(monkeypatch, "in_progress")
+    chain = _chain('{"gloss": "g"}')
+    cp = tmp_path / "cp.jsonl"
+    got = submit_batch(chain, _items("a"), checkpoint=cp, workdir=tmp_path)
+    assert got == "batch_old"
+    assert batches.created == 0
+
+
+def test_submit_replaces_a_dead_batch(
+    tmp_path: Path,
+    monkeypatch,  # noqa: ANN001
+) -> None:
+    (tmp_path / "batch_id.txt").write_text("batch_old", encoding="utf-8")
+    batches = _fake_client(monkeypatch, "expired")
+    chain = _chain('{"gloss": "g"}')
+    cp = tmp_path / "cp.jsonl"
+    got = submit_batch(chain, _items("a"), checkpoint=cp, workdir=tmp_path)
+    assert got == "batch_new"
+    assert batches.created == 1
+    assert (tmp_path / "batch_id.txt").read_text(encoding="utf-8") == "batch_new"

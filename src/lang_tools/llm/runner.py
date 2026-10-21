@@ -51,6 +51,9 @@ if TYPE_CHECKING:
 #: Endpoint the batch requests target (structured outputs via chat completions).
 BATCH_ENDPOINT = "/v1/chat/completions"
 
+#: Batch statuses after which a batch will never produce (more) results.
+DEAD_BATCH_STATUSES = frozenset({"failed", "expired", "cancelled", "cancelling"})
+
 
 class Usage(BaseModel):
     """Measured token usage of one model call.
@@ -435,8 +438,13 @@ def submit_batch[InputT: BaseModelKwargs, OutputT: BaseModel](
     checkpoint: Path,
     workdir: Path,
     extra_body: dict[str, Any] | None = None,
+    metadata: dict[str, str] | None = None,
 ) -> str | None:
     """Upload the items the checkpoint does not hold yet as one OpenAI batch.
+
+    Refuses to pay twice: when `workdir` already names a batch that is still
+    alive or completed, that batch's id is returned and nothing is uploaded.
+    Only a dead batch (failed / expired / cancelled) is replaced.
 
     Args:
         chain: The structured chain to run.
@@ -444,12 +452,25 @@ def submit_batch[InputT: BaseModelKwargs, OutputT: BaseModel](
         checkpoint: The job's checkpoint (finished keys are skipped).
         workdir: Where the request JSONL and the batch id are kept.
         extra_body: Extra request-body fields (see `batch_requests`).
+        metadata: Tags stored on the batch by OpenAI (at most 16 string pairs),
+            so it can be found with `find_batches` if the local id is lost.
 
     Returns:
         The batch id, or ``None`` when nothing is left to run.
     """
     from openai import OpenAI  # noqa: PLC0415 - only the batch path needs the SDK
 
+    client = OpenAI()
+    id_file = workdir / "batch_id.txt"
+    if id_file.exists():
+        existing = client.batches.retrieve(id_file.read_text(encoding="utf-8").strip())
+        if existing.status not in DEAD_BATCH_STATUSES:
+            lg.warning(
+                "Batch {} is already {}; not submitting another",
+                existing.id,
+                existing.status,
+            )
+            return existing.id
     done = load_checkpoint(checkpoint, chain.output_model)
     todo = [(key, item) for key, item in items if key not in done]
     if not todo:
@@ -460,17 +481,41 @@ def submit_batch[InputT: BaseModelKwargs, OutputT: BaseModel](
     with request_path.open("w", encoding="utf-8") as fh:
         for request in batch_requests(chain, todo, extra_body=extra_body):
             fh.write(json.dumps(request, ensure_ascii=False) + "\n")
-    client = OpenAI()
     with request_path.open("rb") as fh:
         uploaded = client.files.create(file=fh, purpose="batch")
     batch = client.batches.create(
         input_file_id=uploaded.id,
         endpoint=BATCH_ENDPOINT,
         completion_window="24h",
+        metadata=metadata,
     )
-    (workdir / "batch_id.txt").write_text(batch.id, encoding="utf-8")
+    id_file.write_text(batch.id, encoding="utf-8")
     lg.info("Submitted batch {} with {} request(s)", batch.id, len(todo))
     return batch.id
+
+
+def find_batches(metadata: dict[str, str], *, limit: int = 100) -> list[Any]:
+    """Return the account's recent batches whose metadata contains `metadata`.
+
+    The recovery path when the local batch id is gone (a closed session, a
+    reclaimed container): every batch `submit_batch` makes can be tagged, and
+    OpenAI keeps the batch object, so listing by tag finds it again.
+
+    Args:
+        metadata: Key/value pairs that must all match.
+        limit: How many of the most recent batches to scan.
+
+    Returns:
+        The matching batch objects, newest first.
+    """
+    from openai import OpenAI  # noqa: PLC0415 - only the batch path needs the SDK
+
+    found = []
+    for batch in OpenAI().batches.list(limit=limit):
+        tags = batch.metadata or {}
+        if all(tags.get(key) == value for key, value in metadata.items()):
+            found.append(batch)
+    return found
 
 
 def collect_batch[InputT: BaseModelKwargs, OutputT: BaseModel](
