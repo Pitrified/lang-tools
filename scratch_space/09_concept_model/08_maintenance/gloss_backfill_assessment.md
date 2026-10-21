@@ -45,7 +45,7 @@ The corpus convention is the second: 93% of English OMW glosses and 99% of the O
 ones start lowercase and have no final period. pt also writes year ranges with an en dash
 (`1801–1835`) where the English has `1801-1835`; fr and it mix `’` and `'`.
 
-Proposed normalization (free, deterministic, applied in `apply_gloss_backfill` at build time
+Normalization (free, deterministic, applied in `apply_gloss_backfill` at build time
 so the committed proposals stay as generated): lowercase the first letter unless the English
 gloss starts with a capital (proper nouns: "Isola ...", "Hegel ..."), strip one final period,
-en/em dash between digits -> `-`, `’` -> `'`. Not yet implemented.
+en/em dash -> `-`, `’` -> `'`. Implemented as `maintenance.normalize_gloss`; all four languages accepted.

@@ -174,7 +174,7 @@ All five were put to the user as recommendations and confirmed as recommended.
 | 3. Topics | done | `data/curated/topics.json` (26 topics, 31 of 45 lexfiles, 13 domains); 82,405 concepts tagged, 76-86% of lemmas per language |
 | 4. Slug tier 2 | done | `data/curated/slug_qualifiers.jsonl`: 23,012 of 23,476 accepted; distinct slugs 103,965 -> 117,588 of 117,659 |
 | 5. Member forms | machinery done, **review pending** | lemmas settle on majority text + POS (4,198 POS and 884 display-text fixes); pipe- and semicolon-joined variants repaired; 161 drops proposed in `data/curated/member_form_drops.jsonl`, none accepted |
-| 6. Gloss backfill | generated, **review pending** | `gpt-6-luna` + `gloss_translate/v3` batch (2026-10-21), $1.87 measured; 475 rejected or missing fixed by key recovery or by hand, 4 left rejected; `data/curated/gloss_backfill.jsonl`, nothing accepted |
+| 6. Gloss backfill | **done** (accepted, rebuilt, gate PASS; every concept now glossed in all five languages; see `08_maintenance/gloss_backfill_assessment.md`) | `gpt-6-luna` + `gloss_translate/v3` batch (2026-10-21), $1.87 measured; 475 rejected or missing fixed by key recovery or by hand, 4 left rejected; `data/curated/gloss_backfill.jsonl`, nothing accepted |
 | 7. Rebuild + docs | partly | rebuilt and gated after steps 3-5 (11 invariants pass); docs cover topics only |
 
 Found along the way; **decided by the user (2026-10-21): both are wrong and will be fixed**,
@@ -205,7 +205,11 @@ was chosen that way - see
 
 Waiting on the user:
 
-1. **Review the gloss backfill sample**
+1. ~~Review the gloss backfill sample~~ - done 2026-10-21: reviewed (assessment in
+   [`08_maintenance/gloss_backfill_assessment.md`](08_maintenance/gloss_backfill_assessment.md)),
+   all four languages accepted, style normalized at build time (`normalize_gloss`), screen
+   tightened to fold like the gate (18 more rows hand-written), rebuilt and gated. Original
+   note:
    [`08_maintenance/gloss_backfill_review_sample.md`](08_maintenance/gloss_backfill_review_sample.md)
    (50 per language), then `accept_run` the languages that pass. The run (`gpt-6-luna` +
    v3, one batch, reasoning none) completed 6,975 / 6,975 requests with none failed, in about 2
