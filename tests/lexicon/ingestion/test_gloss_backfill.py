@@ -58,6 +58,7 @@ def test_chunks_are_per_language_and_deterministic() -> None:
     chunks = chunk_items(items, size=1)
     assert [key for key, _ in chunks] == ["fr:0011aabbccdd", "pt:0011aabbccdd"]
     assert chunks[1][1].language_name == "Portuguese"
+    assert "Brazilian" in chunks[1][1].variety
     assert chunk_items(list(reversed(items)), size=1) == chunks
 
 
@@ -74,6 +75,8 @@ def test_screen_accepts_a_gloss_and_rejects_the_bad_kinds() -> None:
         "untranslated",
     )
     assert _verdict("x" * 500) == ("rejected", "runaway length")
+    (row,) = check_glosses([_item()], _out("o Sol encontra\u2011se"))
+    assert row.proposed_definition == "o Sol encontra-se"
 
 
 def test_sample_and_accept_follow_the_review() -> None:

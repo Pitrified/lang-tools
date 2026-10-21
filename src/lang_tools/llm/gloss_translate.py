@@ -49,10 +49,13 @@ class GlossTranslateInput(BaseModelKwargs):
 
     Attributes:
         language_name: The target language's English name (``"Portuguese"``).
+        variety: Which variety and register to write in (prompt v2), e.g.
+            Brazilian Portuguese, so one language's glosses do not mix norms.
         concepts: The concepts to gloss.
     """
 
     language_name: str
+    variety: str = ""
     concepts: list[GlossSource] = Field(default_factory=list)
 
 

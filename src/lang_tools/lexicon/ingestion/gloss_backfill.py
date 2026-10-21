@@ -51,6 +51,16 @@ LANGUAGE_NAMES: dict[str, str] = {
     "it": "Italian",
 }
 
+#: The variety each language's glosses are written in (prompt v2). Portuguese is
+#: Brazilian because OpenWordnet-PT, the source of every pt lemma, is; Spanish is a
+#: neutral register because the glosses are general, not regional (phase 8).
+LANGUAGE_VARIETIES: dict[str, str] = {
+    "fr": "standard French (France), neutral dictionary register",
+    "pt": "Brazilian Portuguese (pt-BR spelling and vocabulary)",
+    "es": "neutral, pan-Hispanic Spanish; avoid regionalisms",
+    "it": "standard Italian, neutral dictionary register",
+}
+
 #: Concepts per request.
 CHUNK_SIZE = 25
 
@@ -163,6 +173,7 @@ def chunk_items(
                     batch[0].key,
                     GlossTranslateInput(
                         language_name=LANGUAGE_NAMES.get(language, language),
+                        variety=LANGUAGE_VARIETIES.get(language, ""),
                         concepts=[
                             GlossSource(
                                 key=item.key,
@@ -192,7 +203,7 @@ def check_glosses(
         One proposal per item: ``proposed`` when it passes the screen, else
         ``rejected`` with the reason in `GlossProposal.rationale`.
     """
-    generated = {gloss.key: gloss.definition.strip() for gloss in output.glosses}
+    generated = {gloss.key: _tidy(gloss.definition) for gloss in output.glosses}
     proposals = []
     for item in items:
         text = generated.get(item.key, "")
@@ -208,6 +219,11 @@ def check_glosses(
             ),
         )
     return proposals
+
+
+def _tidy(text: str) -> str:
+    """Normalize typographic hyphens the model emits (U+2010/U+2011) to ``-``."""
+    return text.replace("\u2011", "-").replace("\u2010", "-").strip()
 
 
 def _screen(item: BackfillItem, text: str) -> str:
