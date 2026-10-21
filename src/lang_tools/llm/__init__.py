@@ -15,6 +15,8 @@ Public API:
         build_lemma_generator_chain
     GlossRepairInput, GlossRepairOutput, build_gloss_repair_chain
     FormReviewInput, FormReviewOutput, build_form_review_chain
+    GlossTranslateInput, GlossTranslateOutput, GlossSource, KeyedGloss,
+        build_gloss_translate_chain
     SlugQualifierInput, SlugQualifierOutput, QualifierCandidate, KeyedQualifier,
         build_slug_qualifier_chain
 """
@@ -29,6 +31,11 @@ from lang_tools.llm.form_review import build_form_review_chain
 from lang_tools.llm.gloss_repair import GlossRepairInput
 from lang_tools.llm.gloss_repair import GlossRepairOutput
 from lang_tools.llm.gloss_repair import build_gloss_repair_chain
+from lang_tools.llm.gloss_translate import GlossSource
+from lang_tools.llm.gloss_translate import GlossTranslateInput
+from lang_tools.llm.gloss_translate import GlossTranslateOutput
+from lang_tools.llm.gloss_translate import KeyedGloss
+from lang_tools.llm.gloss_translate import build_gloss_translate_chain
 from lang_tools.llm.greeting import GreetingInput
 from lang_tools.llm.greeting import GreetingOutput
 from lang_tools.llm.greeting import build_greeting_chain
@@ -60,8 +67,12 @@ __all__ = [
     "GeneratedLemma",
     "GlossRepairInput",
     "GlossRepairOutput",
+    "GlossSource",
+    "GlossTranslateInput",
+    "GlossTranslateOutput",
     "GreetingInput",
     "GreetingOutput",
+    "KeyedGloss",
     "KeyedQualifier",
     "LemmaGeneratorInput",
     "LemmaGeneratorOutput",
@@ -77,6 +88,7 @@ __all__ = [
     "build_conversation_chain",
     "build_form_review_chain",
     "build_gloss_repair_chain",
+    "build_gloss_translate_chain",
     "build_greeting_chain",
     "build_lemma_generator_chain",
     "build_paragraph_splitter_chain",

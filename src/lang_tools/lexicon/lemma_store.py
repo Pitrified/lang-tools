@@ -79,7 +79,8 @@ if TYPE_CHECKING:
 #: CEFR values, so a v2 cache is missing columns the queries now select.
 #: v4: the ``sense_relations`` table (phase 7), so a v3 cache lacks a table.
 #: v5: concepts gained ``topics`` and the derived ``lemma_topics`` table (phase 8).
-CACHE_VERSION = 5
+#: v6: concepts gained ``definition_sources`` (per-gloss provenance, phase 8).
+CACHE_VERSION = 6
 
 #: Filename of the persisted SQLite cache built inside a corpus directory. It is
 #: rebuilt from the Parquet whenever the corpus signature changes; never committed
@@ -108,7 +109,7 @@ TABLES: tuple[str, ...] = (
 #: other column binds to a native SQLite value.
 _JSON_COLUMNS: dict[str, frozenset[str]] = {
     "lemmas": frozenset({"topics", "examples", "sources"}),
-    "concepts": frozenset({"definitions", "examples", "topics"}),
+    "concepts": frozenset({"definitions", "examples", "topics", "definition_sources"}),
     "senses": frozenset(),
     "false_friends": frozenset({"explanation_notes"}),
     "concept_relations": frozenset(),

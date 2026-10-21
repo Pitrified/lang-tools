@@ -71,6 +71,12 @@ class Concept(BaseModel):
             ``None`` means the concept has no English member to count at all;
             ``0.0`` means it has one that SemCor never tagged. Those are
             different facts and this field keeps them apart.
+        definition_sources: Where a gloss did *not* come from the concept's own
+            source, keyed by language (``{"pt": "llm"}``); a language absent
+            here carries the row's source gloss (phase 8). Provenance is per
+            gloss because the non-English backfill generates one language at a
+            time: tagging the whole row ``llm`` would hide that its English
+            gloss is OMW's.
         topics: Learner topics of this *meaning* (``"food"``, ``"animals"``,
             ...), from the reviewed ``data/curated/topics.json`` (phase 8). A
             lemma's topics are derived from its senses' concepts by the store,
@@ -91,6 +97,7 @@ class Concept(BaseModel):
     examples: dict[str, list[str]] = Field(default_factory=dict)
     commonness: float | None = None
     topics: list[str] = Field(default_factory=list)
+    definition_sources: dict[str, str] = Field(default_factory=dict)
 
     # Representation-layer back-references; see `Sense.lemma` for the contract.
     senses: list[Sense] | None = Field(default=None, exclude=True, repr=False)

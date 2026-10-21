@@ -39,7 +39,9 @@ from lang_tools.lexicon.ingestion.topics import assign_topics
 from lang_tools.lexicon.ingestion.topics import load_topic_table
 from lang_tools.lexicon.ingestion.transform import TaggedTables
 from lang_tools.lexicon.ingestion.transform import transform
+from lang_tools.lexicon.maintenance import apply_gloss_backfill
 from lang_tools.lexicon.maintenance import apply_gloss_overrides
+from lang_tools.lexicon.maintenance import load_gloss_backfill
 from lang_tools.lexicon.maintenance import load_gloss_overrides
 
 if TYPE_CHECKING:
@@ -71,6 +73,8 @@ class BuildSummary:
             qualifier (phase 8).
         member_forms_dropped: Senses removed by the curated member-form drop
             list (phase 8).
+        glosses_backfilled: Missing non-en glosses filled from the curated
+            backfill (phase 8).
     """
 
     languages: list[str]
@@ -83,6 +87,7 @@ class BuildSummary:
     topics_tagged: int = 0
     slug_qualifiers_applied: int = 0
     member_forms_dropped: int = 0
+    glosses_backfilled: int = 0
 
 
 def _clean_corpus_tables(data_fol: Path) -> None:
@@ -258,6 +263,12 @@ def build_initial(
         tables.concept_sources,
         overrides=load_gloss_overrides(data_fol),
     )
+    # Generated non-en glosses fill gaps only, after the overrides, so a source
+    # or curated gloss always wins over a generated one.
+    backfilled, _skipped, _stale = apply_gloss_backfill(
+        tables.concepts,
+        backfill=load_gloss_backfill(data_fol),
+    )
     # Frequency and CEFR are filled here for the same reason, plus one of their
     # own: the SemCor counts are keyed on the ILI grouping, which the corpus does
     # not persist, so this is the last point they can be attributed at all.
@@ -293,6 +304,7 @@ def build_initial(
         "topics": {"concepts_tagged": topics_tagged},
         "slug_qualifiers": {"applied": tables.qualifiers_applied},
         "member_form_drops": {"senses_dropped": forms_dropped},
+        "gloss_backfill": {"filled": backfilled},
         **(extra_manifest or {}),
     }
     path = write_manifest(data_fol, manifest)
@@ -309,4 +321,5 @@ def build_initial(
         topics_tagged=topics_tagged,
         slug_qualifiers_applied=tables.qualifiers_applied,
         member_forms_dropped=forms_dropped,
+        glosses_backfilled=backfilled,
     )

@@ -666,6 +666,47 @@ GROUP BY topic ORDER BY concepts DESC, topic
     ]
 
 
+def _generated_gloss_check(con: Any, t: dict[str, str]) -> CheckResult:  # noqa: ANN401
+    """Count glosses per language by provenance: source vs generated (phase 8).
+
+    Guarded on ``definition_sources``, which a pre-phase-8 corpus lacks.
+    """
+    description = (
+        "Glosses per language by where they came from: the source (OMW / CILI) or "
+        "generated (`llm`: the curated non-en backfill or a gloss repair), from "
+        "`Concept.definition_sources`. Generated glosses are accepted by sampled "
+        "review, never presented as source data."
+    )
+    if not _has_column(con, t["concepts"], "definition_sources"):
+        return CheckResult(
+            name="gloss_provenance",
+            title="Gloss provenance per language",
+            description=description,
+            columns=["note"],
+            rows=[["no `definition_sources` column in this corpus (pre-phase-8)"]],
+        )
+    columns, rows = _fetch(
+        con,
+        f"""
+SELECT lang AS language, count(*) AS glosses,
+       count(*) FILTER (WHERE src = 'llm') AS generated,
+       count(*) FILTER (WHERE src IS NULL) AS source
+FROM (
+  SELECT unnest(map_keys(definitions)) AS lang, definition_sources AS ds
+  FROM {t["concepts"]}
+) d, LATERAL (SELECT element_at(d.ds, d.lang)[1] AS src)
+GROUP BY lang ORDER BY lang
+""",
+    )
+    return CheckResult(
+        name="gloss_provenance",
+        title="Gloss provenance per language",
+        description=description,
+        columns=columns,
+        rows=rows,
+    )
+
+
 def _unreviewed_topics(con: Any, t: dict[str, str], data_fol: Path) -> int:  # noqa: ANN401
     """Count concepts carrying a topic outside the reviewed vocabulary."""
     # Lazy: the ingestion package imports `maintenance`, which imports this module.
@@ -932,6 +973,7 @@ def run_quality_checks(
                 )
             )
         results.extend(_topic_checks(con, t))
+        results.append(_generated_gloss_check(con, t))
         results.append(_provenance_check(con, t))
         invariants = _evaluate_invariants(
             con,

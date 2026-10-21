@@ -80,7 +80,15 @@ _COLUMNS: dict[str, list[str]] = {
         "examples",
         "sources",
     ],
-    "concepts": ["id", "definitions", "lexfile", "examples", "commonness", "topics"],
+    "concepts": [
+        "id",
+        "definitions",
+        "lexfile",
+        "examples",
+        "commonness",
+        "topics",
+        "definition_sources",
+    ],
     "senses": [
         "id",
         "lemma_id",
@@ -106,7 +114,7 @@ _COLUMNS: dict[str, list[str]] = {
 #: come back from pyarrow as a list of ``(key, value)`` tuples and normalize to a
 #: dict the same way.
 _MAP_COLUMNS: dict[str, frozenset[str]] = {
-    "concepts": frozenset({"definitions", "examples"}),
+    "concepts": frozenset({"definitions", "examples", "definition_sources"}),
     "false_friends": frozenset({"explanation_notes"}),
 }
 
@@ -225,6 +233,7 @@ def _schema(name: str) -> Any:  # noqa: ANN401 - pyarrow.Schema, kept lazy
                 ("examples", pa.map_(pa.string(), pa.list_(pa.string()))),
                 ("commonness", pa.float64()),
                 ("topics", pa.list_(pa.string())),
+                ("definition_sources", str_map),
             ],
         ),
         "senses": pa.schema(

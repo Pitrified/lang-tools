@@ -82,6 +82,9 @@ SOURCE_LLM = "llm"
 #: ``data/bootstrap/*.jsonl`` seed (phase 05.58).
 GLOSS_OVERRIDES_SUBPATH = "curated/gloss_overrides.jsonl"
 
+#: Committed generated non-English glosses (phase 8), under ``data/curated/``.
+GLOSS_BACKFILL_FILE = "gloss_backfill.jsonl"
+
 
 class ProposalConceptNotFoundError(KeyError):
     """Raised when an accepted proposal targets a concept id not in the corpus."""
@@ -427,8 +430,58 @@ def apply_gloss_overrides(
             stale += 1
             continue
         concepts[index].definitions[override.language] = override.proposed_definition
+        concepts[index].definition_sources[override.language] = SOURCE_LLM
         sources[index] = SOURCE_LLM
         applied += 1
 
     lg.info("Applied {} curated gloss override(s), {} stale", applied, stale)
     return (applied, stale)
+
+
+def load_gloss_backfill(data_fol: Path) -> list[GlossProposal]:
+    """Read the accepted generated glosses of the committed backfill, if any."""
+    return load_curated(GlossProposal, data_fol, GLOSS_BACKFILL_FILE)
+
+
+def apply_gloss_backfill(
+    concepts: list[Concept],
+    *,
+    backfill: list[GlossProposal],
+) -> tuple[int, int, int]:
+    """Fill missing glosses from the accepted backfill, in place (phase 8).
+
+    Unlike an override, a backfill row only fills a gap: when the concept already
+    has a gloss in that language (OMW added one, or a curated override did), the
+    source gloss wins and the row is skipped. Each filled gloss is tagged in
+    `Concept.definition_sources`; the concept row's own provenance tag is left
+    alone, because its other glosses are still the source's.
+
+    Args:
+        concepts: The freshly built concepts, mutated in place.
+        backfill: Accepted rows, typically from `load_gloss_backfill`.
+
+    Returns:
+        ``(filled, skipped because a gloss exists, stale)`` counts.
+    """
+    by_key = {concept_key(concept.id): concept for concept in concepts}
+    filled = skipped = stale = 0
+    for row in backfill:
+        concept = by_key.get(concept_key(row.concept_id))
+        if concept is None:
+            stale += 1
+            continue
+        if concept.definitions.get(row.language):
+            skipped += 1
+            continue
+        concept.definitions[row.language] = row.proposed_definition
+        concept.definition_sources[row.language] = SOURCE_LLM
+        filled += 1
+    if backfill:
+        lg.info(
+            "Gloss backfill: {} filled, {} skipped (a gloss exists), {} stale",
+            filled,
+            skipped,
+            stale,
+        )
+    return filled, skipped, stale
+
