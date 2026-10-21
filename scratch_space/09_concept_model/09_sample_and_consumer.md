@@ -19,6 +19,12 @@ slice.
 > rebuild (Step 6 of [`05.5_cleanup.md`](05.5_cleanup.md)); the carve must stay
 > referentially closed (no dangling edges, no lemma without a sense).
 
+> **From phase 8 (2026-10-21).** Lemma identity is changing to keep accents and (mostly)
+> case, so `avó` / `avô` and `Be` / `be` become separate lemmas. Lemma ids of every form with
+> a capital or a diacritic change once, before this phase; `lang-tutor`'s per-user progress
+> is keyed on lemma ids, so reconnecting it here should start from the new ids. See
+> [`08_maintenance/lemma_identity_and_sense_frequency.md`](08_maintenance/lemma_identity_and_sense_frequency.md).
+
 ## What this phase will cover
 
 - **Sample selection** - a small, curated slice from the phase-5 pipeline: a

@@ -1201,4 +1201,15 @@ Append-only. Newest at the bottom.
   `gpt-5.6-luna` most faithful (~$4 by batch), `gpt-6-luna` close and cheaper (~$1.80 by batch,
   queue stalled), `gpt-5-nano` / `gpt-5-mini` worse. Waiting on the user: backfill model and
   path, the member-form drop review, the topic-table review.
+- 2026-10-21 : user decision on two phase-8 findings - **lemma identity must not fold accents**
+  (avó is not avô) and **beryllium is not *be*** - recorded, not implemented
+  (`08_maintenance/lemma_identity_and_sense_frequency.md`). Measured on OMW 1.4: accent folding
+  merges 139 / 142 / 51 / 14 genuinely different pt / fr / es / it word pairs (es also loses the
+  `ñ`: ordenar / ordeñar); case folding merges 1,371 different English pairs (State / state)
+  but is mostly capitalization noise in pt / fr, so the fix is a case- and accent-aware id plus
+  a rule collapsing case variants that share a synset. Separately, `wordfreq` lowercases, so the
+  CEFR overlay must stop lending a lowercase token's frequency to a case-distinct lemma; that
+  moves bands and re-opens phase 6's validation and cutoff re-fit. Scheduled as phase-8 step 9,
+  before phase 9, so the lemma-id migration (every form with a capital or diacritic) happens
+  once; banners added to phases 6 and 9.
 

@@ -306,6 +306,13 @@ had a real argument behind it.
 
 ## Result (2026-09-02)
 
+> **Reopened by phase 8 (2026-10-21), not yet done:** the overlay lends a token's frequency to
+> every sense, so a rare sense of a frequent token bands easy (beryllium `Be` is A1 through
+> *be*, and `wordfreq` lowercases, so a separate `Be` lemma would inherit it too). Decided: fix
+> it alongside the lemma-identity change, then re-run this phase's Kelly validation and re-fit
+> `CEFR_CUTOFFS` (already open from phase 7). See
+> [`08_maintenance/lemma_identity_and_sense_frequency.md`](08_maintenance/lemma_identity_and_sense_frequency.md).
+
 > **Re-validated by phase 7 (2026-10-21):** identical numbers on the phase-7 corpus. Phase 7
 > stores `instance_hypernym` apart from `hypernym`, and found that the "97,666 hypernym
 > edges" below were 89,089 hypernym + 8,577 instance links (`wn`'s `hypernyms()` returns

@@ -177,14 +177,19 @@ All five were put to the user as recommendations and confirmed as recommended.
 | 6. Gloss backfill | machinery done, **model choice pending** | prompt `gloss_translate/v2`; nothing generated beyond samples |
 | 7. Rebuild + docs | partly | rebuilt and gated after steps 3-5 (11 invariants pass); docs cover topics only |
 
-Found along the way and routed here as findings, not acted on:
+Found along the way; **decided by the user (2026-10-21): both are wrong and will be fixed**,
+not yet implemented. Measurements, fix shape and complexity in
+[`08_maintenance/lemma_identity_and_sense_frequency.md`](08_maintenance/lemma_identity_and_sense_frequency.md):
 
-- Lemma identity folds case **and accents**, so distinct words share one lemma (fr `à` / `a`,
-  es `ágape` / `agape`, pt `avó` / `avô`). That is the phase-1 `lemma_id` rule, which
-  `lang-tutor`'s progress keys depend on - a decision, not a fix.
-- The CEFR overlay uses the token's frequency for every sense, so a rare sense of a very
-  frequent token gets an easy band (beryllium `Be` is A1 through the verb *be*). Phase 6's
-  design; joins the open `CEFR_CUTOFFS` re-fit question.
+- **Lemma identity must not fold accents.** `lemma_id` hashes the accent- and case-folded
+  form, so distinct words share one lemma: pt `avó` / `avô`, fr `mais` / `maïs`, it `papa` /
+  `papà`, es `ordenar` / `ordeñar` (the tilde of `ñ` is stripped too).
+- **Beryllium is not *be*.** Identity also folds case (`Be` / `be`, `State` / `state`; 1,371
+  of 1,406 English case pairs are different words), and the CEFR overlay lends a token's
+  frequency to every sense, so even a separate `Be` would inherit `be`'s A1. Two fixes: a
+  case-aware identity (case variants sharing a synset collapse as noise, disjoint ones stay
+  apart) and a frequency lookup that does not lend a lowercase token's frequency to a
+  case-distinct lemma - which moves bands and so re-runs phase 6's validation and re-fit.
 
 ### Spend and the process correction
 
@@ -209,8 +214,7 @@ Waiting on the user:
    "sarcelle à ailes bleues ou sarcelle soucrourou" (want splitting, not dropping).
 3. **Review the topic table** `data/curated/topics.json` once, as Decision 2 requires (31
    lexfile rows, 13 domain rows; known noise: `verb.weather` carries "give off" verbs).
-4. Decide whether to act on the two findings above (lemma identity; CEFR overlay), or leave
-   them for phase 6 / 9.
+4. ~~Decide on the two findings~~ - decided: fix both (see above). Scheduled as step 9 below.
 
 Then, once 1-3 are answered:
 
@@ -223,6 +227,12 @@ Then, once 1-3 are answered:
    `08_maintenance/` for the comparison).
 8. Docs: `lexicon.md` for the runner and usage tracking, slug tier 2, lemma settling, the
    member-form review, the backfill and `definition_sources`; tracking; close the phase.
+9. **Lemma identity + per-sense frequency** (decided, its own step; after the worklists settle,
+   before phase 9 reconnects `lang-tutor`, so the lemma-id migration happens once): case- and
+   accent-aware `lemma_id`, the case-noise collapse rule, re-key `member_form_drops.jsonl`,
+   frequency no longer lent across case, then phase 6's Kelly re-validation and the
+   `CEFR_CUTOFFS` re-fit. Sized in the note above: small code, an id migration, mostly
+   measurement and review.
 
 ## Done when
 
