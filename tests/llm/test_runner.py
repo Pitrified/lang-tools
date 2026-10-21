@@ -10,12 +10,14 @@ from llm_core.testing.fake_chat_model import FakeChatModelConfig
 from pydantic import BaseModel
 
 from lang_tools.llm.runner import BATCH_ENDPOINT
+from lang_tools.llm.runner import UsageTotals
 from lang_tools.llm.runner import batch_requests
 from lang_tools.llm.runner import load_checkpoint
 from lang_tools.llm.runner import parse_batch_output
 from lang_tools.llm.runner import read_records
 from lang_tools.llm.runner import run_chain
 from lang_tools.llm.runner import strict_json_schema
+from lang_tools.llm.runner import summarize_usage
 
 
 class _In(BaseModelKwargs):
@@ -99,7 +101,15 @@ def test_batch_requests_render_the_chains_own_prompt() -> None:
 
 def test_batch_output_parses_and_flags_failures(tmp_path: Path) -> None:
     def _line(key: str, status: int, content: str) -> str:
-        body = {"choices": [{"message": {"content": content}}]}
+        body = {
+            "choices": [{"message": {"content": content}}],
+            "usage": {
+                "prompt_tokens": 100,
+                "prompt_tokens_details": {"cached_tokens": 40},
+                "completion_tokens": 30,
+                "completion_tokens_details": {"reasoning_tokens": 20},
+            },
+        }
         return json.dumps(
             {"custom_id": key, "response": {"status_code": status, "body": body}},
         )
@@ -125,3 +135,47 @@ def test_batch_output_parses_and_flags_failures(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     assert set(load_checkpoint(checkpoint, _Out)) == {"a"}
+    totals = summarize_usage(records)
+    assert (totals.records, totals.with_usage) == (3, 3)
+    assert (totals.input_tokens, totals.cached_tokens) == (300, 120)
+    assert (totals.output_tokens, totals.reasoning_tokens) == (90, 60)
+
+
+def test_live_run_records_the_reported_usage(tmp_path: Path) -> None:
+    reply = AIMessage(
+        content='{"gloss": "g"}',
+        usage_metadata={
+            "input_tokens": 50,
+            "output_tokens": 12,
+            "total_tokens": 62,
+            "input_token_details": {"cache_read": 10},
+            "output_token_details": {"reasoning": 4},
+        },
+    )
+    chain = StructuredLLMChain(
+        chat_config=FakeChatModelConfig(responses=[reply]),
+        prompt_str="Define {{ word }}.",
+        input_model=_In,
+        output_model=_Out,
+    )
+    checkpoint = tmp_path / "run.jsonl"
+    run_chain(chain, _items("a"), checkpoint=checkpoint, concurrency=1)
+    (record,) = read_records(checkpoint)
+    assert record.usage is not None
+    assert record.usage.model_dump() == {
+        "input_tokens": 50,
+        "cached_tokens": 10,
+        "output_tokens": 12,
+        "reasoning_tokens": 4,
+    }
+
+
+def test_usage_totals_price_cached_input_separately() -> None:
+    totals = UsageTotals(
+        input_tokens=2_000_000,
+        cached_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+    # 1M uncached at $1 + 1M cached at $0.10 + 1M output at $4
+    assert totals.cost(input_per_m=1, output_per_m=4, cached_per_m=0.1) == 5.1
+    assert totals.cost(input_per_m=1, output_per_m=4) == 6.0

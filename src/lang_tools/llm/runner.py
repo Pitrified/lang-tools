@@ -10,7 +10,11 @@ completes. The checkpoint is the run's only state, so
   timestamp, which is what makes an accepted row auditable later (phase 10's
   dataset card);
 - the live and batch paths are interchangeable: a job can start live on a sample,
-  then finish the rest through a batch, and `load_checkpoint` reads both.
+  then finish the rest through a batch, and `load_checkpoint` reads both;
+- every record carries its measured token `Usage` (input, cached input, output,
+  and the reasoning share of the output), so `summarize_usage` turns any
+  checkpoint into measured totals and `UsageTotals.cost` prices them. A sample
+  run is how a large job gets a real estimate before it is submitted.
 
 Live path: `run_chain` calls `StructuredLLMChain.invoke` with bounded
 concurrency. Batch path: `batch_requests` renders the chain's own prompt and the
@@ -32,6 +36,7 @@ import json
 from typing import TYPE_CHECKING
 from typing import Any
 
+from langchain_core.callbacks import BaseCallbackHandler
 from loguru import logger as lg
 from pydantic import BaseModel
 
@@ -47,6 +52,71 @@ if TYPE_CHECKING:
 BATCH_ENDPOINT = "/v1/chat/completions"
 
 
+class Usage(BaseModel):
+    """Measured token usage of one model call.
+
+    Attributes:
+        input_tokens: Prompt tokens billed (including the cached ones).
+        cached_tokens: The part of `input_tokens` served from the prompt cache.
+        output_tokens: Completion tokens billed (including reasoning).
+        reasoning_tokens: The hidden-reasoning part of `output_tokens`.
+    """
+
+    input_tokens: int = 0
+    cached_tokens: int = 0
+    output_tokens: int = 0
+    reasoning_tokens: int = 0
+
+
+class UsageTotals(BaseModel):
+    """Summed `Usage` over a checkpoint.
+
+    Attributes:
+        records: Records counted (failed ones included: they are billed too).
+        with_usage: Records that carried a measured `Usage`.
+        input_tokens: Summed input tokens.
+        cached_tokens: Summed cached input tokens.
+        output_tokens: Summed output tokens.
+        reasoning_tokens: Summed reasoning tokens.
+    """
+
+    records: int = 0
+    with_usage: int = 0
+    input_tokens: int = 0
+    cached_tokens: int = 0
+    output_tokens: int = 0
+    reasoning_tokens: int = 0
+
+    def cost(
+        self,
+        *,
+        input_per_m: float,
+        output_per_m: float,
+        cached_per_m: float | None = None,
+    ) -> float:
+        """Price the totals in dollars, given per-1M-token prices.
+
+        Prices are arguments, not a table in code: they change, and a stale
+        price baked in here would make every estimate quietly wrong.
+
+        Args:
+            input_per_m: Price of 1M uncached input tokens.
+            output_per_m: Price of 1M output tokens (reasoning is billed as output).
+            cached_per_m: Price of 1M cached input tokens; ``None`` bills them as
+                uncached input.
+
+        Returns:
+            The cost in dollars.
+        """
+        cached_price = input_per_m if cached_per_m is None else cached_per_m
+        uncached = self.input_tokens - self.cached_tokens
+        return (
+            uncached * input_per_m
+            + self.cached_tokens * cached_price
+            + self.output_tokens * output_per_m
+        ) / 1e6
+
+
 class RunRecord(BaseModel):
     """One finished item in a checkpoint (a JSONL line).
 
@@ -59,6 +129,8 @@ class RunRecord(BaseModel):
             result names the exact prompt that produced it.
         path: ``live`` or ``batch``.
         at: UTC timestamp the record was written.
+        usage: Measured token usage of the call, when the provider reported it
+            (``None`` on records written before usage was tracked).
     """
 
     key: str
@@ -68,6 +140,60 @@ class RunRecord(BaseModel):
     prompt_sha: str
     path: str
     at: datetime
+    usage: Usage | None = None
+
+
+def usage_from_openai(raw: dict[str, Any] | None) -> Usage | None:
+    """Read a `Usage` from an OpenAI ``usage`` object (chat completions shape)."""
+    if not raw:
+        return None
+    prompt_details = raw.get("prompt_tokens_details") or {}
+    completion_details = raw.get("completion_tokens_details") or {}
+    return Usage(
+        input_tokens=int(raw.get("prompt_tokens") or 0),
+        cached_tokens=int(prompt_details.get("cached_tokens") or 0),
+        output_tokens=int(raw.get("completion_tokens") or 0),
+        reasoning_tokens=int(completion_details.get("reasoning_tokens") or 0),
+    )
+
+
+class _UsageCallback(BaseCallbackHandler):
+    """Collect the usage LangChain attaches to a chat model's response."""
+
+    def __init__(self) -> None:
+        self.usage = Usage()
+        self.seen = False
+
+    def on_llm_end(self, response: Any, **kwargs: Any) -> None:  # noqa: ANN401, ARG002
+        """Add the usage of each generation's message (LangChain usage_metadata)."""
+        for generations in getattr(response, "generations", []):
+            for generation in generations:
+                message = getattr(generation, "message", None)
+                meta = getattr(message, "usage_metadata", None)
+                if not meta:
+                    continue
+                self.seen = True
+                self.usage.input_tokens += int(meta.get("input_tokens", 0) or 0)
+                self.usage.output_tokens += int(meta.get("output_tokens", 0) or 0)
+                in_details = meta.get("input_token_details") or {}
+                out_details = meta.get("output_token_details") or {}
+                self.usage.cached_tokens += int(in_details.get("cache_read", 0) or 0)
+                self.usage.reasoning_tokens += int(out_details.get("reasoning", 0) or 0)
+
+
+def summarize_usage(records: Iterable[RunRecord]) -> UsageTotals:
+    """Sum the measured usage of every record (failed calls are billed too)."""
+    totals = UsageTotals()
+    for record in records:
+        totals.records += 1
+        if record.usage is None:
+            continue
+        totals.with_usage += 1
+        totals.input_tokens += record.usage.input_tokens
+        totals.cached_tokens += record.usage.cached_tokens
+        totals.output_tokens += record.usage.output_tokens
+        totals.reasoning_tokens += record.usage.reasoning_tokens
+    return totals
 
 
 def prompt_sha(chain: StructuredLLMChain[Any, Any]) -> str:
@@ -135,8 +261,14 @@ def run_chain[InputT: BaseModelKwargs, OutputT: BaseModel](
     sha = prompt_sha(chain)
 
     def _one(key: str, item: InputT) -> RunRecord:
+        # The callback is the one place LangChain still exposes token usage once
+        # with_structured_output has parsed the reply.
+        callback = _UsageCallback()
         try:
-            output = chain.invoke(item)
+            output = chain.chain.invoke(item.to_kw(), config={"callbacks": [callback]})
+            if not isinstance(output, chain.output_model):
+                msg = f"Unexpected output type: {type(output)}"
+                raise TypeError(msg)  # noqa: TRY301 - recorded below like any failure
         except Exception as exc:  # noqa: BLE001 - recorded, retried on the next run
             return RunRecord(
                 key=key,
@@ -145,6 +277,7 @@ def run_chain[InputT: BaseModelKwargs, OutputT: BaseModel](
                 prompt_sha=sha,
                 path="live",
                 at=datetime.now(tz=UTC),
+                usage=callback.usage if callback.seen else None,
             )
         return RunRecord(
             key=key,
@@ -153,6 +286,7 @@ def run_chain[InputT: BaseModelKwargs, OutputT: BaseModel](
             prompt_sha=sha,
             path="live",
             at=datetime.now(tz=UTC),
+            usage=callback.usage if callback.seen else None,
         )
 
     failed = 0
@@ -262,6 +396,7 @@ def parse_batch_output[OutputT: BaseModel](
         row = json.loads(line)
         key = row["custom_id"]
         response = row.get("response") or {}
+        usage = usage_from_openai((response.get("body") or {}).get("usage"))
         try:
             if response.get("status_code") != 200:  # noqa: PLR2004 - HTTP OK
                 raise ValueError(str(row.get("error") or response))  # noqa: TRY301
@@ -275,6 +410,7 @@ def parse_batch_output[OutputT: BaseModel](
                     prompt_sha=sha,
                     path="batch",
                     at=datetime.now(tz=UTC),
+                    usage=usage,
                 ),
             )
         except (KeyError, IndexError, ValueError) as exc:
@@ -286,6 +422,7 @@ def parse_batch_output[OutputT: BaseModel](
                     prompt_sha=sha,
                     path="batch",
                     at=datetime.now(tz=UTC),
+                    usage=usage,
                 ),
             )
     return records
