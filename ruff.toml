@@ -24,6 +24,7 @@ ignore = [
 "src/lang_tools/lexicon/quality.py" = ["S608"]
 "src/lang_tools/lexicon/maintenance.py" = ["S608"]
 "src/lang_tools/lexicon/ingestion/slug_qualifiers.py" = ["S608"]
+"src/lang_tools/lexicon/ingestion/form_review.py" = ["S608"]
 "*.ipynb" = [
     "E501",   # Line too long
     "ERA001", # Found commented-out code

@@ -1,0 +1,20 @@
+Review one member form of a multilingual wordnet used to teach vocabulary.
+
+Wordnets list, for each concept, the words ("member forms") that express it in a
+language. Some entries are not words at all: a definition pasted in as if it were a
+word, text in the wrong language, or a garbled or duplicated string. Long multiword
+names and terms are normal and must be kept ("Academie militaire de West Point",
+"transistor a effet de champ", a person's full name, a species name).
+
+Language: {{ language }}
+Member form: {{ form }}
+English gloss of the concept: {{ english_definition }}
+English member forms of the concept: {{ english_members }}
+Other {{ language }} member forms of the concept: {{ other_forms }}
+
+Decide:
+- `kind`: one of "term" (a word, compound or multiword term), "name" (a proper
+  name), "definition" (it explains the meaning instead of naming it), "wrong
+  language" (not {{ language }}), or "garbled" (broken, duplicated, or markup).
+- `drop`: true only for "definition", "wrong language" or "garbled".
+- `reason`: one short English sentence.

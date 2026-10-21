@@ -14,6 +14,7 @@ Public API:
     LemmaGeneratorInput, LemmaGeneratorOutput, GeneratedLemma,
         build_lemma_generator_chain
     GlossRepairInput, GlossRepairOutput, build_gloss_repair_chain
+    FormReviewInput, FormReviewOutput, build_form_review_chain
     SlugQualifierInput, SlugQualifierOutput, QualifierCandidate, KeyedQualifier,
         build_slug_qualifier_chain
 """
@@ -22,6 +23,9 @@ from lang_tools.llm.conversation import ConversationInput
 from lang_tools.llm.conversation import ConversationOutput
 from lang_tools.llm.conversation import ConversationTurn
 from lang_tools.llm.conversation import build_conversation_chain
+from lang_tools.llm.form_review import FormReviewInput
+from lang_tools.llm.form_review import FormReviewOutput
+from lang_tools.llm.form_review import build_form_review_chain
 from lang_tools.llm.gloss_repair import GlossRepairInput
 from lang_tools.llm.gloss_repair import GlossRepairOutput
 from lang_tools.llm.gloss_repair import build_gloss_repair_chain
@@ -51,6 +55,8 @@ __all__ = [
     "ConversationInput",
     "ConversationOutput",
     "ConversationTurn",
+    "FormReviewInput",
+    "FormReviewOutput",
     "GeneratedLemma",
     "GlossRepairInput",
     "GlossRepairOutput",
@@ -69,6 +75,7 @@ __all__ = [
     "TranslationInput",
     "TranslationOutput",
     "build_conversation_chain",
+    "build_form_review_chain",
     "build_gloss_repair_chain",
     "build_greeting_chain",
     "build_lemma_generator_chain",

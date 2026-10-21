@@ -26,6 +26,8 @@ from lang_tools.lexicon.codec import LEXICON_SUBDIR
 from lang_tools.lexicon.codec import _dump_table
 from lang_tools.lexicon.ingestion.acquire import write_manifest
 from lang_tools.lexicon.ingestion.enrich import enrich
+from lang_tools.lexicon.ingestion.form_review import apply_form_drops
+from lang_tools.lexicon.ingestion.form_review import load_form_drops
 from lang_tools.lexicon.ingestion.sample import DEFAULT_SAMPLE_CONCEPTS
 from lang_tools.lexicon.ingestion.sample import carve_sample
 from lang_tools.lexicon.ingestion.slug_qualifiers import load_slug_qualifiers
@@ -67,6 +69,8 @@ class BuildSummary:
             curated topic table (phase 8).
         slug_qualifiers_applied: Concepts whose slug took a curated tier-2
             qualifier (phase 8).
+        member_forms_dropped: Senses removed by the curated member-form drop
+            list (phase 8).
     """
 
     languages: list[str]
@@ -78,6 +82,7 @@ class BuildSummary:
     enrichment: dict[str, int] = dc_field(default_factory=dict)
     topics_tagged: int = 0
     slug_qualifiers_applied: int = 0
+    member_forms_dropped: int = 0
 
 
 def _clean_corpus_tables(data_fol: Path) -> None:
@@ -244,6 +249,8 @@ def build_initial(
     # Tier-2 slug qualifiers are a curated input like the gloss overrides: they
     # shape the ids, so they go in before anything is keyed on a concept id.
     tables = transform(omw_entries, cili_glosses, load_slug_qualifiers(data_fol))
+    # Reviewed member-form drops go first, so nothing downstream sees them.
+    forms_dropped, _lemmas_removed = apply_form_drops(tables, load_form_drops(data_fol))
     # Curated gloss repairs are re-applied here so a rebuild reproduces them; a
     # post-hoc Parquet edit would be silently reverted by this very build (05.58).
     applied, stale = apply_gloss_overrides(
@@ -285,6 +292,7 @@ def build_initial(
         "enrichment": {"wordfreq": wordfreq_version(), **enrichment},
         "topics": {"concepts_tagged": topics_tagged},
         "slug_qualifiers": {"applied": tables.qualifiers_applied},
+        "member_form_drops": {"senses_dropped": forms_dropped},
         **(extra_manifest or {}),
     }
     path = write_manifest(data_fol, manifest)
@@ -300,4 +308,5 @@ def build_initial(
         enrichment=enrichment,
         topics_tagged=topics_tagged,
         slug_qualifiers_applied=tables.qualifiers_applied,
+        member_forms_dropped=forms_dropped,
     )
