@@ -11,8 +11,10 @@ import pytest
 from lang_tools.lexicon.concept_id import CONCEPT_ID_RE
 from lang_tools.lexicon.ingestion.sources.omw import OMW_VERSION
 from lang_tools.lexicon.ingestion.sources.omw import SOURCE_CILI
+from lang_tools.lexicon.ingestion.sources.omw import SOURCE_DERIVED
 from lang_tools.lexicon.ingestion.sources.omw import SOURCE_OMW
 from lang_tools.lexicon.ingestion.sources.omw import MemberCountMismatchError
+from lang_tools.lexicon.ingestion.sources.omw import SenseLink
 from lang_tools.lexicon.ingestion.sources.omw import SynsetEntry
 from lang_tools.lexicon.ingestion.sources.omw import UnknownOmwLanguageError
 from lang_tools.lexicon.ingestion.sources.omw import _ili_id
@@ -379,7 +381,8 @@ def test_hypernym_links_become_directional_concept_relations() -> None:
     # dog (en-1) -> animal (en-2). The child is concept_id_a, the parent _b.
     entries = [
         SynsetEntry(
-            "en", "en-1", "i1", "a dog", ("dog",), pos="n", hypernyms=("en-2",),
+            "en", "en-1", "i1", "a dog", ("dog",), pos="n",
+            relations={"hypernym": ("en-2",)},
         ),
         SynsetEntry("en", "en-2", "i2", "an animal", ("animal",), pos="n"),
     ]
@@ -400,16 +403,179 @@ def test_hypernym_edges_dedupe_and_drop_dangling() -> None:
     entries = [
         SynsetEntry(
             "en", "en-1", "iA", "a dog", ("dog",), pos="n",
-            hypernyms=("en-2", "en-missing"),
+            relations={"hypernym": ("en-2", "en-missing")},
         ),
         SynsetEntry(
-            "en", "en-1b", "iA", "a dog too", ("hound",), pos="n", hypernyms=("en-2",),
+            "en", "en-1b", "iA", "a dog too", ("hound",), pos="n",
+            relations={"hypernym": ("en-2",)},
         ),
         SynsetEntry("en", "en-2", "iB", "an animal", ("animal",), pos="n"),
     ]
     grouped = group_to_records(entries)
     relations = grouped.relations
     assert len(relations) == 1  # deduped; the dangling en-missing edge is dropped
+
+
+def _cid(grouped, gloss: str) -> str:  # noqa: ANN001 - GroupedRecords
+    return next(c.id for c in grouped.concepts if gloss in c.definitions.values())
+
+
+def _edges(grouped) -> set[tuple[str, str, str]]:  # noqa: ANN001 - GroupedRecords
+    return {
+        (rel.concept_id_a, rel.concept_id_b, rel.relation_type)
+        for rel in grouped.relations
+    }
+
+
+def test_hyponym_only_link_is_stored_as_a_reversed_hypernym() -> None:
+    # pt states animal -> dog only as hyponym; reading it recovers the dog -> animal
+    # edge the hypernym-only build dropped (phase 7 Decision 1).
+    entries = [
+        SynsetEntry("pt", "pt-1", "i1", "um cao", ("cão",), pos="n"),
+        SynsetEntry(
+            "pt", "pt-2", "i2", "um animal", ("animal",), pos="n",
+            relations={"hyponym": ("pt-1",)},
+        ),
+    ]
+    grouped = group_to_records(entries)
+    dog, animal = _cid(grouped, "um cao"), _cid(grouped, "um animal")
+    assert _edges(grouped) == {(dog, animal, "hypernym")}
+
+
+def test_both_halves_of_an_inverse_pair_dedupe_to_one_edge() -> None:
+    entries = [
+        SynsetEntry(
+            "en", "en-1", "i1", "a car", ("car",), pos="n",
+            relations={"mero_part": ("en-2",)},
+        ),
+        SynsetEntry(
+            "en", "en-2", "i2", "a pedal", ("accelerator",), pos="n",
+            relations={"holo_part": ("en-1",)},
+        ),
+    ]
+    grouped = group_to_records(entries)
+    car, pedal = _cid(grouped, "a car"), _cid(grouped, "a pedal")
+    # a is the whole, b the part, whichever half stated it.
+    assert _edges(grouped) == {(car, pedal, "mero_part")}
+
+
+def test_edge_stated_both_ways_keeps_the_better_supported_direction() -> None:
+    # The WordNet 3.0 restrain/inhibit cycle: restrain lists inhibit as both its
+    # hypernym and its hyponym, inhibit lists restrain as a hyponym. restrain ->
+    # inhibit is stated twice, the reverse once.
+    entries = [
+        SynsetEntry(
+            "en", "en-1", "i1", "keep in check", ("restrain",), pos="v",
+            relations={"hypernym": ("en-2",), "hyponym": ("en-2",)},
+        ),
+        SynsetEntry(
+            "en", "en-2", "i2", "control and refrain", ("inhibit",), pos="v",
+            relations={"hyponym": ("en-1",)},
+        ),
+    ]
+    grouped = group_to_records(entries)
+    restrain = _cid(grouped, "keep in check")
+    inhibit = _cid(grouped, "control and refrain")
+    assert _edges(grouped) == {(restrain, inhibit, "hypernym")}
+
+
+def test_edge_stated_both_ways_equally_is_dropped() -> None:
+    entries = [
+        SynsetEntry(
+            "en", "en-1", "i1", "first", ("one",), pos="n",
+            relations={"hypernym": ("en-2",)},
+        ),
+        SynsetEntry(
+            "en", "en-2", "i2", "second", ("two",), pos="n",
+            relations={"hypernym": ("en-1",)},
+        ),
+    ]
+    assert group_to_records(entries).relations == []
+
+
+def test_unmirrored_symmetric_links_get_canonical_order() -> None:
+    entries = [
+        SynsetEntry(
+            "it", "it-1", "i1", "caldo", ("caldo",), pos="a",
+            relations={"similar": ("it-2",)},
+        ),
+        SynsetEntry(
+            "it", "it-2", "i2", "bollente", ("bollente",), pos="a",
+            relations={"similar": ("it-1",)},
+        ),
+        SynsetEntry(
+            "it", "it-3", "i3", "tiepido", ("tiepido",), pos="a",
+            relations={"similar": ("it-1",)},  # unmirrored: it-1 never names it-3
+        ),
+    ]
+    grouped = group_to_records(entries)
+    hot, boiling, warm = (_cid(grouped, g) for g in ("caldo", "bollente", "tiepido"))
+    expected = {
+        (*sorted((hot, boiling)), "similar"),
+        (*sorted((hot, warm)), "similar"),
+    }
+    assert _edges(grouped) == expected
+
+
+def test_unlisted_relation_names_are_not_stored() -> None:
+    entries = [
+        SynsetEntry(
+            "en", "en-1", "i1", "a tackle", ("tackle",), pos="n",
+            relations={"domain_topic": ("en-2",), "entails": ("en-2",)},
+        ),
+        SynsetEntry("en", "en-2", "i2", "football", ("football",), pos="n"),
+    ]
+    grouped = group_to_records(entries)
+    assert {rel for _, _, rel in _edges(grouped)} == {"entails"}
+    assert grouped.relation_sources == [SOURCE_OMW]
+
+
+def test_sense_antonym_is_stored_and_derived_to_concept_level() -> None:
+    # English says hot (in i1) is the antonym of cold (in i2); Portuguese shares
+    # the two concepts but has no sense relations. The derived concept edge is what
+    # lets "quente" reach "frio".
+    entries = [
+        SynsetEntry(
+            "en", "en-1", "i1", "of high temperature", ("hot",), pos="a",
+            sense_links=(SenseLink("hot", "antonym", "en-2", "cold"),),
+        ),
+        SynsetEntry(
+            "en", "en-2", "i2", "of low temperature", ("cold",), pos="a",
+            sense_links=(SenseLink("cold", "antonym", "en-1", "hot"),),
+        ),
+        SynsetEntry("pt", "pt-1", "i1", None, ("quente",), pos="a"),
+        SynsetEntry("pt", "pt-2", "i2", None, ("frio",), pos="a"),
+    ]
+    grouped = group_to_records(entries)
+    hot = _cid(grouped, "of high temperature")
+    cold = _cid(grouped, "of low temperature")
+    assert _edges(grouped) == {(*sorted((hot, cold)), "antonym")}
+    assert grouped.relation_sources == [SOURCE_DERIVED]
+    # One sense edge (the mirrored link dedupes), between the two English senses.
+    assert len(grouped.sense_relations) == 1
+    edge = grouped.sense_relations[0]
+    by_text = {lem.text: lem.id for lem in grouped.lemmas}
+    members = {by_text["hot"], by_text["cold"]}
+    sense_ids = {s.id for s in grouped.senses if s.lemma_id in members}
+    assert {edge.sense_id_a, edge.sense_id_b} == sense_ids
+    assert edge.relation_type == "antonym"
+    assert edge.sense_id_a < edge.sense_id_b
+
+
+def test_sense_link_with_an_unresolved_end_is_dropped() -> None:
+    entries = [
+        SynsetEntry(
+            "en", "en-1", "i1", "of high temperature", ("hot",), pos="a",
+            sense_links=(
+                SenseLink("hot", "antonym", "en-missing", "cold"),  # no such synset
+                SenseLink("hot", "antonym", "en-2", "chilly"),  # not a member there
+            ),
+        ),
+        SynsetEntry("en", "en-2", "i2", "of low temperature", ("cold",), pos="a"),
+    ]
+    grouped = group_to_records(entries)
+    assert grouped.sense_relations == []
+    assert grouped.relations == []
 
 
 def test_member_counts_attach_to_the_right_sense() -> None:

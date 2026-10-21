@@ -34,7 +34,7 @@ def test_concept_relation_symmetric_canonical_order() -> None:
     rel = ConceptRelation(
         concept_id_a="c__zzz__000000000000",
         concept_id_b="c__aaa__000000000000",
-        relation_type="related",
+        relation_type="similar",
     )
     assert rel.concept_id_a == "c__aaa__000000000000"
     assert rel.concept_id_b == "c__zzz__000000000000"
@@ -45,5 +45,5 @@ def test_concept_relation_rejects_self_edge() -> None:
         ConceptRelation(
             concept_id_a="c__aaa__000000000000",
             concept_id_b="c__aaa__000000000000",
-            relation_type="related",
+            relation_type="similar",
         )

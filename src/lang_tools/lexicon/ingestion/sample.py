@@ -17,7 +17,14 @@ Which N (phase 05.59):
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+from typing import Any
+
 from lang_tools.lexicon.ingestion.transform import TaggedTables
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from collections.abc import Sequence
 
 #: Default number of concepts to keep in the committed sample slice.
 DEFAULT_SAMPLE_CONCEPTS = 50
@@ -33,6 +40,23 @@ def _languages_per_concept(tables: TaggedTables) -> dict[str, set[str]]:
             per_concept.setdefault(sense.concept_id, set()).add(language)
     return per_concept
 
+def _edges_within(
+    edges: Sequence[Any],
+    sources: Sequence[str],
+    kept: set[str],
+    endpoints: Callable[[Any], tuple[str, str]],
+) -> tuple[list[Any], list[str]]:
+    """Keep the edges (and their parallel tags) whose two endpoints are in `kept`."""
+    out: list[Any] = []
+    tags: list[str] = []
+    for edge, tag in zip(edges, sources, strict=True):
+        a, b = endpoints(edge)
+        if a in kept and b in kept:
+            out.append(edge)
+            tags.append(tag)
+    return out, tags
+
+
 def carve_sample(
     tables: TaggedTables,
     *,
@@ -42,8 +66,9 @@ def carve_sample(
 
     The slice is closed under the kept concepts: a sense survives only if both
     its concept and its lemma survive, a lemma survives only if at least one of
-    its senses does, and an edge (false-friend / concept-relation) survives only
-    if both endpoints do. This keeps the slice loadable without dangling ids.
+    its senses does, and an edge (false-friend / concept-relation /
+    sense-relation) survives only if both endpoints do. This keeps the slice
+    loadable without dangling ids.
 
     Concepts are ranked before the cap (see the module docstring): most languages
     first, then having an example, then id ascending.
@@ -77,6 +102,7 @@ def carve_sample(
             senses.append(sense)
             sense_tags.append(tag)
             used_lemma_ids.add(sense.lemma_id)
+    kept_sense_ids = {sense.id for sense in senses}
 
     lemmas: list = []
     lemma_tags: list[str] = []
@@ -85,31 +111,24 @@ def carve_sample(
             lemmas.append(lemma)
             lemma_tags.append(tag)
 
-    ff: list = []
-    ff_tags: list[str] = []
-    for edge, tag in zip(
+    ff, ff_tags = _edges_within(
         tables.false_friends,
         tables.false_friend_sources,
-        strict=True,
-    ):
-        if edge.lemma_id_a in used_lemma_ids and edge.lemma_id_b in used_lemma_ids:
-            ff.append(edge)
-            ff_tags.append(tag)
-
-    rels: list = []
-    rel_tags: list[str] = []
-    for edge, tag in zip(
+        used_lemma_ids,
+        lambda edge: (edge.lemma_id_a, edge.lemma_id_b),
+    )
+    rels, rel_tags = _edges_within(
         tables.concept_relations,
         tables.concept_relation_sources,
-        strict=True,
-    ):
-        both_in = (
-            edge.concept_id_a in kept_concept_ids
-            and edge.concept_id_b in kept_concept_ids
-        )
-        if both_in:
-            rels.append(edge)
-            rel_tags.append(tag)
+        kept_concept_ids,
+        lambda edge: (edge.concept_id_a, edge.concept_id_b),
+    )
+    sense_rels, sense_rel_tags = _edges_within(
+        tables.sense_relations,
+        tables.sense_relation_sources,
+        kept_sense_ids,
+        lambda edge: (edge.sense_id_a, edge.sense_id_b),
+    )
 
     return TaggedTables(
         lemmas=lemmas,
@@ -122,4 +141,6 @@ def carve_sample(
         false_friend_sources=ff_tags,
         concept_relations=rels,
         concept_relation_sources=rel_tags,
+        sense_relations=sense_rels,
+        sense_relation_sources=sense_rel_tags,
     )

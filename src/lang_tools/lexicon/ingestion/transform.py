@@ -1,7 +1,7 @@
 """Transform stage: OMW backbone -> source-tagged tables.
 
 This is the pure, deterministic core of the initial build. It takes the OMW
-synset entries (the concept backbone) and produces the five lexical tables, each
+synset entries (the concept backbone) and produces the six lexical tables, each
 row carrying a single lightweight provenance tag so a future re-ingestion merge
 can refresh machine rows while leaving hand-curated (`manual`) rows alone.
 
@@ -12,6 +12,9 @@ Provenance policy (one tag per row, the seam the deferred merge needs):
   5.5 Step 2), in which case it is ``cili`` - both permissive. The per-concept
   tags are decided in `group_to_records` (which owns the fallback) and threaded
   through here.
+- Concept relations are ``omw`` when the wordnet states them and ``derived`` for
+  the concept antonyms lifted from English sense antonymy (phase 7); sense
+  relations are ``omw``.
 - ``SOURCE_KAIKKI`` remains defined as a **legacy** provenance value: the kaikki
   enrichment leg was removed in phase 5.5 (the sense-blind join produced the
   `house` defect and was the only CC-BY-SA source), so no row this stage writes
@@ -41,6 +44,7 @@ if TYPE_CHECKING:
     from lang_tools.lexicon.lemma import Lemma
     from lang_tools.lexicon.relations import ConceptRelation
     from lang_tools.lexicon.relations import FalseFriendRelation
+    from lang_tools.lexicon.relations import SenseRelation
     from lang_tools.lexicon.sense import Sense
 
 #: Provenance tag values (the on-disk `codec.PROVENANCE_COL` column). ``SOURCE_OMW``
@@ -55,7 +59,7 @@ SOURCE_MANUAL = "manual"
 
 @dataclass
 class TaggedTables:
-    """The five lexical tables, each as parallel ``(models, source-tags)`` lists.
+    """The six lexical tables, each as parallel ``(models, source-tags)`` lists.
 
     Keeping the tags parallel to the models (rather than on the models) mirrors
     the codec: provenance is an on-disk-only column the thin models never carry.
@@ -65,8 +69,9 @@ class TaggedTables:
         concepts: Synsets and their tags.
         senses: Lemma <-> concept edges and their tags (always ``omw`` here).
         false_friends: False-friend edges; empty in the initial build (phase 7).
-        concept_relations: Concept edges; the OMW hypernym edges are populated in
-            the initial build (5.5 Step 4); richer types arrive in phase 7.
+        concept_relations: Concept edges: the normalized OMW synset relations
+            and the derived concept antonyms (phase 7).
+        sense_relations: Sense edges (English antonymy, phase 7).
         sense_counts: SemCor sense-tag counts keyed by ``(lemma_id, concept_id)``
             (phase 6). Carried beside the tables rather than on them because the
             counts are an enrichment *input*, not a persisted column: `enrich`
@@ -87,6 +92,8 @@ class TaggedTables:
     false_friend_sources: list[str] = field(default_factory=list)
     concept_relations: list[ConceptRelation] = field(default_factory=list)
     concept_relation_sources: list[str] = field(default_factory=list)
+    sense_relations: list[SenseRelation] = field(default_factory=list)
+    sense_relation_sources: list[str] = field(default_factory=list)
     sense_counts: dict[tuple[str, str], int] = field(default_factory=dict)
     concept_counts: dict[str, int] = field(default_factory=dict)
 
@@ -108,8 +115,10 @@ def transform(
     Returns:
         The populated `TaggedTables`. Lemmas/senses are tagged ``omw``; concepts
         are ``omw`` or ``cili`` per `group_to_records`. Concept-relation rows hold
-        the OMW hypernym edges (tagged ``omw``); the false-friend table stays empty
-        (those arrive in phase 7). The SemCor count maps ride along for `enrich`.
+        the OMW synset edges (``omw``) and the derived antonyms (``derived``);
+        sense-relation rows are ``omw``. The false-friend table stays empty (no
+        source supplies them; phase 8). The SemCor count maps ride along for
+        `enrich`.
     """
     grouped = group_to_records(omw_entries, cili_glosses)
 
@@ -121,7 +130,9 @@ def transform(
         senses=grouped.senses,
         sense_sources=[SOURCE_OMW] * len(grouped.senses),
         concept_relations=grouped.relations,
-        concept_relation_sources=[SOURCE_OMW] * len(grouped.relations),
+        concept_relation_sources=grouped.relation_sources,
+        sense_relations=grouped.sense_relations,
+        sense_relation_sources=[SOURCE_OMW] * len(grouped.sense_relations),
         sense_counts=grouped.sense_counts,
         concept_counts=grouped.concept_counts,
     )

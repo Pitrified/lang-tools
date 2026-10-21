@@ -19,6 +19,7 @@ On-disk layout under ``<data_fol>/lexicon/``:
     concepts.parquet               # single file
     false_friends.parquet          # single file
     concept_relations.parquet      # single file
+    sense_relations.parquet        # single file (English antonymy, phase 7)
 
 The persisted shape is **lean**: only the source fields plus the computed ``id``
 (kept as an index column). Cosmetic computed fields (`has_accent`,
@@ -36,6 +37,7 @@ from lang_tools.lexicon.concept import Concept
 from lang_tools.lexicon.lemma import Lemma
 from lang_tools.lexicon.relations import ConceptRelation
 from lang_tools.lexicon.relations import FalseFriendRelation
+from lang_tools.lexicon.relations import SenseRelation
 from lang_tools.lexicon.sense import Sense
 
 if TYPE_CHECKING:
@@ -63,6 +65,7 @@ _MODELS: dict[str, type[BaseModel]] = {
     "senses": Sense,
     "false_friends": FalseFriendRelation,
     "concept_relations": ConceptRelation,
+    "sense_relations": SenseRelation,
 }
 
 #: Ordered persisted columns per table (the pyarrow schema field order).
@@ -95,6 +98,7 @@ _COLUMNS: dict[str, list[str]] = {
         "explanation_notes",
     ],
     "concept_relations": ["concept_id_a", "concept_id_b", "relation_type"],
+    "sense_relations": ["sense_id_a", "sense_id_b", "relation_type"],
 }
 
 #: Columns stored as a Parquet ``map<...>`` (read back as a dict). ``definitions``
@@ -113,6 +117,7 @@ _DROP_ON_LOAD: dict[str, frozenset[str]] = {
     "senses": frozenset({"id"}),
     "false_friends": frozenset(),
     "concept_relations": frozenset(),
+    "sense_relations": frozenset(),
 }
 
 
@@ -245,6 +250,13 @@ def _schema(name: str) -> Any:  # noqa: ANN401 - pyarrow.Schema, kept lazy
             [
                 ("concept_id_a", pa.string()),
                 ("concept_id_b", pa.string()),
+                ("relation_type", pa.string()),
+            ],
+        ),
+        "sense_relations": pa.schema(
+            [
+                ("sense_id_a", pa.string()),
+                ("sense_id_b", pa.string()),
                 ("relation_type", pa.string()),
             ],
         ),

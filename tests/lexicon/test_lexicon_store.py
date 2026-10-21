@@ -11,6 +11,7 @@ from lang_tools.lexicon.lemma_store import CorpusNotFoundError
 from lang_tools.lexicon.lemma_store import LexiconStore
 from lang_tools.lexicon.relations import ConceptRelation
 from lang_tools.lexicon.relations import FalseFriendRelation
+from lang_tools.lexicon.relations import SenseRelation
 from lang_tools.lexicon.sense import Sense
 
 C_BANK = "c__bank-money__0011aabbccdd"
@@ -47,12 +48,19 @@ def _build_store() -> LexiconStore:
         ConceptRelation(
             concept_id_a=C_BANK,
             concept_id_b=C_BENCH,
-            relation_type="related",
+            relation_type="similar",
         ),
         ConceptRelation(
             concept_id_a=C_TRAIN,
             concept_id_b=C_BANK,
             relation_type="hypernym",
+        ),
+    ]
+    sense_relations = [
+        SenseRelation(
+            sense_id_a=senses[2].id,
+            sense_id_b=senses[3].id,
+            relation_type="antonym",
         ),
     ]
     return LexiconStore.from_models(
@@ -61,6 +69,7 @@ def _build_store() -> LexiconStore:
         senses=senses,
         false_friends=false_friends,
         concept_relations=concept_relations,
+        sense_relations=sense_relations,
     )
 
 
@@ -129,7 +138,7 @@ def test_false_friend_symmetry() -> None:
 
 def test_concept_relations_directional_and_symmetric() -> None:
     store = _build_store()
-    # C_BANK touches both a symmetric ('related') and a directional ('hypernym') edge.
+    # C_BANK touches both a symmetric ('similar') and a directional ('hypernym') edge.
     all_for_bank = store.concept_relations_for(C_BANK)
     assert len(all_for_bank) == 2
     # The directional hypernym edge is reachable from its target too.
@@ -138,6 +147,24 @@ def test_concept_relations_directional_and_symmetric() -> None:
     assert hyper[0].concept_id_a == C_TRAIN
     # And from the source.
     assert len(store.concept_relations_for(C_TRAIN, relation_type="hypernym")) == 1
+
+
+def test_sense_relations_reachable_from_either_endpoint() -> None:
+    store = _build_store()
+    bank = Lemma(text="bank", language="en")
+    bench = Lemma(text="bench", language="en")
+    bank_sense = Sense(lemma_id=bank.id, concept_id=C_BANK).id
+    bench_sense = Sense(lemma_id=bench.id, concept_id=C_BENCH).id
+    # Stored once, canonically ordered, so both ends see the same edge.
+    from_bank = store.sense_relations_for(bank_sense)
+    from_bench = store.sense_relations_for(bench_sense, relation_type="antonym")
+    assert len(from_bank) == 1
+    assert from_bank == from_bench
+    assert {from_bank[0].sense_id_a, from_bank[0].sense_id_b} == {
+        bank_sense,
+        bench_sense,
+    }
+    assert store.sense_relations_for(bank_sense, relation_type="derivation") == []
 
 
 def test_on_demand_hydration_resolves_backrefs() -> None:
@@ -190,6 +217,7 @@ def test_missing_ids_return_empty_or_none() -> None:
     assert store.senses_for_lemma("missing") == []
     assert store.get_false_friends_for_lemma("missing") == []
     assert store.concept_relations_for("missing") == []
+    assert store.sense_relations_for("missing") == []
 
 
 def test_from_data_fol_loads_the_parquet_corpus(tmp_path) -> None:  # noqa: ANN001
@@ -204,6 +232,24 @@ def test_from_data_fol_loads_the_parquet_corpus(tmp_path) -> None:  # noqa: ANN0
     store = LexiconStore.from_data_fol(tmp_path)
     assert [lem.text for lem in store.get_all_lemmas()] == ["casa"]
     assert [c.id for c in store.concepts_for_lemma(casa.id)] == [cid]
+
+
+def test_sense_relations_round_trip_through_parquet(tmp_path) -> None:  # noqa: ANN001
+    """The sense_relations table survives Parquet on both load paths."""
+    _write_small_corpus(tmp_path)
+    edge = SenseRelation(
+        sense_id_a="00000000000000bb",
+        sense_id_b="00000000000000aa",
+        relation_type="antonym",
+    )
+    _dump_table("sense_relations", [edge], data_fol=tmp_path)
+    for validate in (False, True):
+        store = LexiconStore.from_data_fol(
+            tmp_path,
+            db_path=":memory:",
+            validate=validate,
+        )
+        assert store.sense_relations_for("00000000000000aa") == [edge]
 
 
 def test_from_data_fol_missing_corpus_raises(tmp_path) -> None:  # noqa: ANN001

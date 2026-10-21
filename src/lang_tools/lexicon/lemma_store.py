@@ -70,13 +70,15 @@ if TYPE_CHECKING:
 
     from lang_tools.lexicon.relations import ConceptRelation
     from lang_tools.lexicon.relations import FalseFriendRelation
+    from lang_tools.lexicon.relations import SenseRelation
 
 #: Bump to invalidate every persisted SQLite cache after a schema/codec change.
 #: v2: concepts gained ``lexfile`` + ``examples`` and hypernym `ConceptRelation`
 #: edges are now populated (phase 5.54 / 5.5 Step 4).
 #: v3: concepts gained ``commonness`` and senses carry the phase-6 frequency /
 #: CEFR values, so a v2 cache is missing columns the queries now select.
-CACHE_VERSION = 3
+#: v4: the ``sense_relations`` table (phase 7), so a v3 cache lacks a table.
+CACHE_VERSION = 4
 
 #: Filename of the persisted SQLite cache built inside a corpus directory. It is
 #: rebuilt from the Parquet whenever the corpus signature changes; never committed
@@ -98,6 +100,7 @@ TABLES: tuple[str, ...] = (
     "senses",
     "false_friends",
     "concept_relations",
+    "sense_relations",
 )
 
 #: Columns stored as JSON text in SQLite (the list / dict model fields). Every
@@ -108,6 +111,7 @@ _JSON_COLUMNS: dict[str, frozenset[str]] = {
     "senses": frozenset(),
     "false_friends": frozenset({"explanation_notes"}),
     "concept_relations": frozenset(),
+    "sense_relations": frozenset(),
 }
 
 #: Secondary indexes per table (beyond the implicit primary key on ``id``).
@@ -117,6 +121,7 @@ _INDEXES: dict[str, tuple[str, ...]] = {
     "senses": ("lemma_id", "concept_id"),
     "false_friends": ("lemma_id_a", "lemma_id_b"),
     "concept_relations": ("concept_id_a", "concept_id_b"),
+    "sense_relations": ("sense_id_a", "sense_id_b"),
 }
 
 #: Tables whose first column (``id``) is a unique primary key.
@@ -285,6 +290,7 @@ class LexiconStore:
         senses: list[Sense],
         false_friends: list[FalseFriendRelation],
         concept_relations: list[ConceptRelation],
+        sense_relations: list[SenseRelation],
         db_path: Path | None = None,
     ) -> LexiconStore:
         """Build a store by loading model lists into a fresh SQLite database.
@@ -295,6 +301,7 @@ class LexiconStore:
             senses: All sense edges.
             false_friends: All false-friend edges.
             concept_relations: All concept-relation edges.
+            sense_relations: All sense-relation edges.
             db_path: On-disk database path; an in-memory database when None
                 (the default - the sample corpus is tiny). The full corpus passes
                 a path so the build is paid once.
@@ -313,6 +320,7 @@ class LexiconStore:
                 "senses": senses,
                 "false_friends": false_friends,
                 "concept_relations": concept_relations,
+                "sense_relations": sense_relations,
             },
         )
         cls._warn_on_slug_collisions(c.id for c in concepts)
@@ -585,6 +593,33 @@ class LexiconStore:
             params = (concept_id, concept_id, relation_type)
         return self._query("concept_relations", sql, params)
 
+    def sense_relations_for(
+        self,
+        sense_id: str,
+        relation_type: str | None = None,
+    ) -> list[SenseRelation]:
+        """Return the sense relations touching a sense (e.g. its antonyms).
+
+        Symmetric edges are stored once in canonical order, so the sense may be
+        either endpoint. Optionally filter by `relation_type`.
+
+        Args:
+            sense_id: The `Sense.id` whose relations to fetch.
+            relation_type: Restrict to a single relation type when given.
+
+        Returns:
+            The matching relation edges (empty when absent).
+        """
+        sql = (
+            f"SELECT {_select_cols('sense_relations')} FROM sense_relations "  # noqa: S608
+            "WHERE (sense_id_a = ? OR sense_id_b = ?)"
+        )
+        params: tuple[object, ...] = (sense_id, sense_id)
+        if relation_type is not None:
+            sql += " AND relation_type = ?"
+            params = (sense_id, sense_id, relation_type)
+        return self._query("sense_relations", sql, params)
+
     # --- On-demand hydration (bounded, opt-in, fresh instances) ----------
 
     def hydrate_lemma(self, lemma: Lemma) -> Lemma:
@@ -773,3 +808,11 @@ def concept_relations_for(
 ) -> list[ConceptRelation]:
     """Return the concept relations touching a concept."""
     return get_store().concept_relations_for(concept_id, relation_type=relation_type)
+
+
+def sense_relations_for(
+    sense_id: str,
+    relation_type: str | None = None,
+) -> list[SenseRelation]:
+    """Return the sense relations touching a sense (e.g. its antonyms)."""
+    return get_store().sense_relations_for(sense_id, relation_type=relation_type)

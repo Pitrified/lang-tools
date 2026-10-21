@@ -13,6 +13,7 @@ from lang_tools.lexicon.codec import PROVENANCE_COL
 from lang_tools.lexicon.ingestion.acquire import read_manifest
 from lang_tools.lexicon.ingestion.enrich import CEFR_BANDS
 from lang_tools.lexicon.ingestion.pipeline import build_initial
+from lang_tools.lexicon.ingestion.sources.omw import SenseLink
 from lang_tools.lexicon.ingestion.sources.omw import SynsetEntry
 from lang_tools.lexicon.lemma_id import lemma_id
 from lang_tools.lexicon.lemma_store import LexiconStore
@@ -52,6 +53,7 @@ def test_build_writes_parquet_manifest_and_loads_via_store(tmp_path: Path) -> No
         "senses": 4,
         "false_friends": 0,
         "concept_relations": 0,
+        "sense_relations": 0,
     }
 
     # The corpus loads back through the SQLite store.
@@ -95,6 +97,41 @@ def test_provenance_is_omw_only_on_disk_and_dropped_on_load(tmp_path: Path) -> N
     store = LexiconStore.from_data_fol(tmp_path)
     concept = store.get_all_concepts()[0]
     assert PROVENANCE_COL not in concept.model_dump()
+
+
+def test_relations_reach_disk_with_their_provenance(tmp_path: Path) -> None:
+    # pt states the taxonomy only as hyponym; en states a sense antonym. Both
+    # reach the corpus, the derived concept antonym tagged so it stays visible.
+    entries = [
+        SynsetEntry(
+            "en", "en-1", "i001", "of high temperature", ("hot",), pos="a",
+            sense_links=(SenseLink("hot", "antonym", "en-2", "cold"),),
+        ),
+        SynsetEntry("en", "en-2", "i002", "of low temperature", ("cold",), pos="a"),
+        SynsetEntry("pt", "pt-3", "i003", "um animal", ("animal",), pos="n",
+                    relations={"hyponym": ("pt-4",)}),
+        SynsetEntry("pt", "pt-4", "i004", "um cao", ("cão",), pos="n"),
+    ]
+    summary = build_initial(["en", "pt"], data_fol=tmp_path, omw_entries=entries)
+    assert summary.counts["concept_relations"] == 2
+    assert summary.counts["sense_relations"] == 1
+
+    table = pq.read_table(tmp_path / "lexicon" / "concept_relations.parquet")
+    tagged = dict(
+        zip(
+            table.column("relation_type").to_pylist(),
+            table.column(PROVENANCE_COL).to_pylist(),
+            strict=True,
+        ),
+    )
+    assert tagged == {"antonym": "derived", "hypernym": "omw"}
+
+    store = LexiconStore.from_data_fol(tmp_path)
+    hot = next(lem for lem in store.get_all_lemmas() if lem.text == "hot")
+    (hot_sense,) = store.senses_for_lemma(hot.id)
+    assert [r.relation_type for r in store.sense_relations_for(hot_sense.id)] == [
+        "antonym",
+    ]
 
 
 def test_sample_carved_to_separate_corpus(tmp_path: Path) -> None:

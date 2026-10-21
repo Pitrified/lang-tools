@@ -21,7 +21,9 @@ the mapping logic testable without any download. See
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
+from dataclasses import field
 import html
 import re
 from typing import TYPE_CHECKING
@@ -34,8 +36,12 @@ from lang_tools.lexicon.concept import Concept
 from lang_tools.lexicon.concept_id import concept_id
 from lang_tools.lexicon.ingestion.deps import OptionalDependencyMissingError
 from lang_tools.lexicon.lemma import Lemma
+from lang_tools.lexicon.lemma_id import lemma_id
+from lang_tools.lexicon.relations import RELATION_ANTONYM
 from lang_tools.lexicon.relations import RELATION_HYPERNYM
+from lang_tools.lexicon.relations import SYMMETRIC_CONCEPT_RELATIONS
 from lang_tools.lexicon.relations import ConceptRelation
+from lang_tools.lexicon.relations import SenseRelation
 from lang_tools.lexicon.sense import Sense
 
 if TYPE_CHECKING:
@@ -49,6 +55,39 @@ if TYPE_CHECKING:
 #: Both are permissive. `transform` re-exports ``SOURCE_OMW`` and owns the rest.
 SOURCE_OMW = "omw"
 SOURCE_CILI = "cili"
+#: Provenance of a concept edge the source does not state but implies: the
+#: concept-level ``antonym`` edges lifted from English sense antonymy (phase 7).
+SOURCE_DERIVED = "derived"
+
+#: ``wn`` synset relation name -> ``(stored type, reverse the endpoints?)``.
+#: Phase 7: each WordNet inverse pair is stored in one direction, and both of its
+#: names are read, so a lexicon that states a link from only one side still
+#: contributes it. OMW 1.4's English mirrors every pair but one link; the rule
+#: costs nothing there and does not assume it of any other source. Names absent
+#: here (``domain_*``, ``exemplifies``, ...) are deferred and never read. See
+#: `relations.DIRECTIONAL_CONCEPT_RELATIONS` for what each stored orientation
+#: means.
+SYNSET_RELATIONS: dict[str, tuple[str, bool]] = {
+    "hypernym": (RELATION_HYPERNYM, False),
+    "hyponym": (RELATION_HYPERNYM, True),
+    "instance_hypernym": ("instance_hypernym", False),
+    "instance_hyponym": ("instance_hypernym", True),
+    "mero_member": ("mero_member", False),
+    "holo_member": ("mero_member", True),
+    "mero_part": ("mero_part", False),
+    "holo_part": ("mero_part", True),
+    "mero_substance": ("mero_substance", False),
+    "holo_substance": ("mero_substance", True),
+    "entails": ("entails", False),  # no inverse type occurs in OMW 1.4
+    "causes": ("causes", False),  # no inverse type occurs in OMW 1.4
+    "similar": ("similar", False),  # symmetric: canonical order makes direction moot
+    "also": ("also", False),
+    "attribute": ("attribute", False),
+}
+
+#: ``wn`` sense relation names read into `SenseRelation` edges. Only English has
+#: any sense relations at all; ``derivation`` / ``pertainym`` are deferred.
+SENSE_RELATIONS: frozenset[str] = frozenset({RELATION_ANTONYM})
 
 #: WordNet single-letter part-of-speech codes -> our labels.
 _POS_LABELS: dict[str, str] = {
@@ -219,6 +258,23 @@ def is_malformed_form(form: str) -> bool:
 
 
 @dataclass(frozen=True)
+class SenseLink:
+    """One sense-level relation read off a synset member (the pure shape).
+
+    Attributes:
+        form: The member form of *this* synset the link starts from.
+        relation_type: The ``wn`` sense relation name (in `SENSE_RELATIONS`).
+        target_synset_id: Lexicon-local id of the target sense's synset.
+        target_form: The member form of the target sense.
+    """
+
+    form: str
+    relation_type: str
+    target_synset_id: str
+    target_form: str
+
+
+@dataclass(frozen=True)
 class SynsetEntry:
     """One OMW synset flattened for one language (the pure intermediate shape).
 
@@ -240,10 +296,11 @@ class SynsetEntry:
         lexfile: WordNet lexicographer class (e.g. ``"noun.motion"``), if any.
             Concept-level: present on the English synset, shared via the ILI.
         examples: The synset's example sentences in `language` (concept-level).
-        hypernyms: Lexicon-local synset ids this synset points to as hypernyms
-            (same wordnet, so same `language`). Resolved to `ConceptRelation`
-            edges in `group_to_records`; hyponymy is the same edge read in
-            reverse, so it is not stored separately.
+        relations: ``wn`` relation name -> lexicon-local target synset ids (same
+            wordnet, so same `language`), for the names in `SYNSET_RELATIONS`.
+            Resolved to normalized `ConceptRelation` edges in `group_to_records`.
+        sense_links: Sense-level relations of this synset's members (antonymy),
+            resolved to `SenseRelation` edges in `group_to_records`.
     """
 
     language: str
@@ -255,7 +312,8 @@ class SynsetEntry:
     pos: str | None = None
     lexfile: str | None = None
     examples: tuple[str, ...] = ()
-    hypernyms: tuple[str, ...] = ()
+    relations: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    sense_links: tuple[SenseLink, ...] = ()
 
 
 #: Language whose wordnet carries SemCor sense-tag counts. Only the English
@@ -320,7 +378,11 @@ class GroupedRecords:
         lemmas: The de-duplicated member lemmas, sorted by id.
         senses: The lemma <-> concept edges, sorted by id.
         concept_sources: Provenance tags parallel to `concepts`.
-        relations: Sorted unique hypernym `ConceptRelation` edges.
+        relations: Sorted unique `ConceptRelation` edges: the normalized synset
+            relations plus the concept antonyms derived from sense antonymy.
+        relation_sources: Provenance tags parallel to `relations` (`SOURCE_OMW`
+            for read edges, `SOURCE_DERIVED` for the derived antonyms).
+        sense_relations: Sorted unique `SenseRelation` edges (antonymy).
         sense_counts: ``{(lemma_id, concept_id): semcor_count}`` for the senses
             that carry one. Sparse by nature (English only, and 17% of English
             senses), so absence means "no count", never "counted zero".
@@ -336,6 +398,8 @@ class GroupedRecords:
     senses: list[Sense]
     concept_sources: list[str]
     relations: list[ConceptRelation]
+    relation_sources: list[str]
+    sense_relations: list[SenseRelation]
     sense_counts: dict[tuple[str, str], int]
     concept_counts: dict[str, int]
 
@@ -459,44 +523,171 @@ def _group_examples(group: list[SynsetEntry]) -> dict[str, list[str]]:
     return {lang: sorted(examples) for lang, examples in sorted(by_lang.items())}
 
 
-def _hypernym_edges(
+def _relation_edges(
     grouped: Mapping[str, list[SynsetEntry]],
     key_to_cid: Mapping[tuple[str, str], str],
-) -> tuple[list[ConceptRelation], int]:
-    """Resolve OMW hypernym links to deduped, sorted `ConceptRelation` edges.
+) -> tuple[set[tuple[str, str, str]], Counter[str], int]:
+    """Resolve OMW synset relations to normalized ``(a, b, type)`` concept edges.
 
-    Each ``hypernym`` target is a lexicon-local synset id in the same language, so
-    it resolves through `key_to_cid` (built from every ingested synset). An edge is
-    directional: ``concept_id_a`` is the more specific child, ``concept_id_b`` its
-    hypernym (the parent); hyponymy is this edge read in reverse, so it is not
-    stored separately. A target that does not resolve (filtered out / cross-lexicon)
-    is counted as dangling and dropped, never emitted as a half edge.
+    Each target is a lexicon-local synset id in the same language, so it resolves
+    through `key_to_cid` (built from every ingested synset). `SYNSET_RELATIONS`
+    maps each ``wn`` name to its stored type and says whether to swap the
+    endpoints, so ``x hyponym y`` and ``y hypernym x`` land on the same edge;
+    symmetric types are put in canonical ``a < b`` order here, so the two halves
+    of an unmirrored pair dedupe too. A target that does not resolve (filtered out
+    / cross-lexicon) is counted as dangling and dropped, never emitted as a half
+    edge; so is a link from a concept to itself.
+
+    Contradictions: reading both names of a pair can surface a directional edge
+    stated in *both* orientations. OMW 1.4 has one - the known WordNet 3.0
+    ``restrain`` / ``inhibit`` cycle, where ``restrain`` lists ``inhibit`` as both
+    its hypernym and its hyponym. Each orientation is scored by how many links
+    state it; the better-supported one is kept (there, ``restrain -> inhibit``,
+    stated twice against once), and a tie drops both rather than guess.
 
     Returns:
-        The sorted unique hypernym edges and the dropped-dangling-edge count.
+        The unique edges, the dropped-dangling counts per ``wn`` relation name,
+        and the number of contradicted directional pairs that had to be resolved.
     """
-    edges: set[tuple[str, str]] = set()
+    support, dangling = _relation_support(grouped, key_to_cid)
+    edges: set[tuple[str, str, str]] = set()
+    contradicted = 0
+    for (a, b, rel), count in support.items():
+        against = 0 if rel in SYMMETRIC_CONCEPT_RELATIONS else support[b, a, rel]
+        if against and a < b:
+            contradicted += 1  # count each contradicted pair once
+        if count > against:
+            edges.add((a, b, rel))
+    return edges, dangling, contradicted
+
+
+def _relation_support(
+    grouped: Mapping[str, list[SynsetEntry]],
+    key_to_cid: Mapping[tuple[str, str], str],
+) -> tuple[Counter[tuple[str, str, str]], Counter[str]]:
+    """Count how many source links state each normalized ``(a, b, type)`` edge.
+
+    Returns:
+        The per-edge support counts and the dangling counts per ``wn`` name.
+    """
+    support: Counter[tuple[str, str, str]] = Counter()
+    dangling: Counter[str] = Counter()
+    for group in grouped.values():
+        for entry in group:
+            source = key_to_cid.get((entry.language, entry.synset_id))
+            if source is None:  # pragma: no cover - the entry is always in the map
+                continue
+            for name, targets in entry.relations.items():
+                if name not in SYNSET_RELATIONS:
+                    continue  # the reader already filters; guard fakes anyway
+                stored, reverse = SYNSET_RELATIONS[name]
+                for target in targets:
+                    other = key_to_cid.get((entry.language, target))
+                    if other is None:
+                        dangling[name] += 1
+                        continue
+                    if other == source:  # OMW never self-links; guard anyway
+                        continue
+                    a, b = (other, source) if reverse else (source, other)
+                    if stored in SYMMETRIC_CONCEPT_RELATIONS and a > b:
+                        a, b = b, a
+                    support[a, b, stored] += 1
+    return support, dangling
+
+
+def _sense_relation_edges(
+    grouped: Mapping[str, list[SynsetEntry]],
+    key_to_cid: Mapping[tuple[str, str], str],
+    senses: Mapping[tuple[str, str], Sense],
+) -> tuple[list[SenseRelation], set[tuple[str, str, str]], int]:
+    """Resolve sense links to `SenseRelation` edges and derived concept edges.
+
+    A link names a member form of its own synset and a form + synset on the
+    target side; both resolve to a ``(lemma_id, concept_id)`` sense through the
+    same `lemma_id` / `key_to_cid` keys the sense table was built on. Either end
+    can fail to resolve - a target synset not ingested, or a form dropped as
+    malformed - and is then counted and dropped, never half-emitted.
+
+    Each resolved antonym also implies its two *concepts* are opposed; that
+    concept-level ``antonym`` edge is derived here, since concepts are shared
+    across languages and it is the only way the wordnets with no sense relations
+    get opposites (phase 7 Decision 2).
+
+    Returns:
+        The sorted unique sense edges, the derived ``(a, b, type)`` concept edges
+        (canonically ordered; antonymy is symmetric), and the dangling count.
+    """
+    sense_edges: set[tuple[str, str, str]] = set()
+    derived: set[tuple[str, str, str]] = set()
     dangling = 0
     for group in grouped.values():
         for entry in group:
-            child = key_to_cid.get((entry.language, entry.synset_id))
-            if child is None:  # pragma: no cover - the entry is always in the map
-                continue
-            for target in entry.hypernyms:
-                parent = key_to_cid.get((entry.language, target))
-                if parent is None:
+            source_cid = key_to_cid.get((entry.language, entry.synset_id))
+            for link in entry.sense_links:
+                target_cid = key_to_cid.get((entry.language, link.target_synset_id))
+                if source_cid is None or target_cid is None:
                     dangling += 1
-                elif parent != child:  # OMW never self-links; guard anyway
-                    edges.add((child, parent))
+                    continue
+                source_key = (
+                    lemma_id(unescape_form(link.form), entry.language),
+                    source_cid,
+                )
+                target_key = (
+                    lemma_id(unescape_form(link.target_form), entry.language),
+                    target_cid,
+                )
+                if source_key not in senses or target_key not in senses:
+                    dangling += 1  # a form dropped as malformed, or not a member
+                    continue
+                low, high = sorted((senses[source_key].id, senses[target_key].id))
+                if low == high:  # pragma: no cover - OMW never self-links
+                    continue
+                sense_edges.add((low, high, link.relation_type))
+                if source_cid != target_cid:
+                    a, b = sorted((source_cid, target_cid))
+                    derived.add((a, b, link.relation_type))
     relations = [
-        ConceptRelation(
-            concept_id_a=a,
-            concept_id_b=b,
-            relation_type=RELATION_HYPERNYM,
-        )
-        for a, b in sorted(edges)
+        SenseRelation(sense_id_a=a, sense_id_b=b, relation_type=rel)
+        for a, b, rel in sorted(sense_edges)
     ]
-    return relations, dangling
+    return relations, derived, dangling
+
+
+def _assemble_relations(
+    grouped: Mapping[str, list[SynsetEntry]],
+    key_to_cid: Mapping[tuple[str, str], str],
+    senses: Mapping[tuple[str, str], Sense],
+) -> tuple[list[ConceptRelation], list[str], list[SenseRelation]]:
+    """Build both relation tables, tag each concept edge, and log what was dropped.
+
+    A derived antonym edge that the source also states directly stays a read
+    (`SOURCE_OMW`) edge; only edges the source does not state are `SOURCE_DERIVED`.
+
+    Returns:
+        The sorted concept edges, their provenance tags (parallel), and the sorted
+        sense edges.
+    """
+    read_edges, dangling, contradicted = _relation_edges(grouped, key_to_cid)
+    if dangling:
+        lg.info("Dropped relation link(s) with no resolved target: {}", dict(dangling))
+    if contradicted:
+        lg.info("Resolved {} edge(s) stated in both directions", contradicted)
+    sense_relations, derived_edges, sense_dangling = _sense_relation_edges(
+        grouped,
+        key_to_cid,
+        senses,
+    )
+    if sense_dangling:
+        lg.info("Dropped {} sense relation(s) with an unresolved end", sense_dangling)
+    tagged = dict.fromkeys(read_edges, SOURCE_OMW)
+    for edge in derived_edges:
+        tagged.setdefault(edge, SOURCE_DERIVED)
+    ordered = sorted(tagged)
+    relations = [
+        ConceptRelation(concept_id_a=a, concept_id_b=b, relation_type=rel)
+        for a, b, rel in ordered
+    ]
+    return relations, [tagged[edge] for edge in ordered], sense_relations
 
 
 def group_to_records(
@@ -538,9 +729,14 @@ def group_to_records(
     Phase 5.5 Step 4 fields, all concept-level (ILI-keyed, so they propagate):
     each concept also gets its `lexfile` (from the English synset, see
     `_pick_lexfile`) and per-language `examples` (from the synset, see
-    `_group_examples`), and the OMW ``hypernym`` links become directional
-    `ConceptRelation` edges (see `_hypernym_edges`). A hypernym target that does
-    not resolve to a concept is dropped and logged, never emitted half-formed.
+    `_group_examples`).
+
+    Relations (phase 7): the OMW synset links in `SYNSET_RELATIONS` become
+    normalized `ConceptRelation` edges, both names of each inverse pair read and
+    stored one way (see `_relation_edges`); English sense antonymy becomes
+    `SenseRelation` edges plus derived concept-level ``antonym`` edges (see
+    `_sense_relation_edges`). A link whose target does not resolve is dropped and
+    logged, never emitted half-formed.
 
     SemCor counts (phase 6): `SynsetEntry.member_counts` rides along with the
     member forms, so the counts are attributed while the ILI group is still open -
@@ -551,8 +747,9 @@ def group_to_records(
     Returns:
         A `GroupedRecords` with the concepts, lemmas and senses (each sorted by id
         for determinism), the per-concept provenance tags parallel to the sorted
-        concepts, the sorted unique hypernym `ConceptRelation` edges, and the
-        SemCor sense/concept count maps.
+        concepts, the sorted unique `ConceptRelation` edges with their
+        provenance tags, the sorted unique `SenseRelation` edges, and the SemCor
+        sense/concept count maps.
     """
     glosses = cili_glosses or {}
     grouped: dict[str, list[SynsetEntry]] = {}
@@ -613,9 +810,11 @@ def group_to_records(
                     )
                     concept_counts[cid] = concept_counts.get(cid, 0) + count
 
-    relations, dangling = _hypernym_edges(grouped, key_to_cid)
-    if dangling:
-        lg.info("Dropped {} hypernym edge(s) with an unresolved target", dangling)
+    relations, relation_sources, sense_relations = _assemble_relations(
+        grouped,
+        key_to_cid,
+        senses,
+    )
     if malformed_dropped:
         lg.info(
             "Dropped {} malformed member form(s) (5.55 Q4 / 5.57)",
@@ -632,6 +831,8 @@ def group_to_records(
         senses=sorted_senses,
         concept_sources=concept_sources,
         relations=relations,
+        relation_sources=relation_sources,
+        sense_relations=sense_relations,
         sense_counts=sense_counts,
         concept_counts=concept_counts,
     )
@@ -654,6 +855,16 @@ def wn_synset_entries(
     ``omw-iwn``) and silently merge them, making the build non-deterministic.
     Driving from `_omw_lexicon` pins each language to exactly one wordnet.
 
+    Each wordnet is opened with **no expansion** (``expand=""``). By default ``wn``
+    lets a lexicon that has no relations of its own borrow another installed
+    lexicon's, projected through the ILI - and in OMW 1.4 only English carries any
+    relations. Read that way, the pt/es/fr/it "relations" were English's graph
+    seen through each wordnet's partial coverage, which is why their hypernym and
+    hyponym links looked unmirrored and why ~250k of them pointed at synsets the
+    lexicon does not have. Concepts are grouped by ILI, so English's own edges
+    already connect them; reading the projection again added nothing and
+    misreported both the asymmetry and the dangling counts (phase 7).
+
     Args:
         langs: ISO 639-1 codes to read (e.g. ``["en", "pt"]``). Each maps to a
             single OMW lexicon via `OMW_LEXICONS`.
@@ -674,7 +885,7 @@ def wn_synset_entries(
         wn.config.data_directory = data_dir  # pyright: ignore[reportPrivateImportUsage]
     for language in langs:
         spec = _omw_lexicon(language, omw_version)
-        wordnet = wn.Wordnet(lexicon=spec)
+        wordnet = wn.Wordnet(lexicon=spec, expand="")
         read_counts = language == COUNT_LANGUAGE
         for synset in wordnet.synsets():
             yield SynsetEntry(
@@ -687,8 +898,39 @@ def wn_synset_entries(
                 pos=synset.pos,
                 lexfile=synset.lexfile(),
                 examples=tuple(synset.examples()),
-                hypernyms=tuple(h.id for h in synset.hypernyms()),
+                relations=_synset_relations(synset),
+                sense_links=_sense_links(synset),
             )
+
+
+def _synset_relations(synset: Any) -> dict[str, tuple[str, ...]]:  # noqa: ANN401 - wn.Synset
+    """Return the synset's `SYNSET_RELATIONS` links as ``{name: target ids}``."""
+    return {
+        name: tuple(target.id for target in targets)
+        for name, targets in synset.relations().items()
+        if name in SYNSET_RELATIONS and targets
+    }
+
+
+def _sense_links(synset: Any) -> tuple[SenseLink, ...]:  # noqa: ANN401 - wn.Synset
+    """Return the `SENSE_RELATIONS` links of the synset's member senses.
+
+    Read for every language, not just English: only English carries any today,
+    but nothing about the shape is English-specific, so a richer wordnet would be
+    picked up without a code change.
+    """
+    return tuple(
+        SenseLink(
+            form=sense.word().lemma(),
+            relation_type=name,
+            target_synset_id=target.synset().id,
+            target_form=target.word().lemma(),
+        )
+        for sense in synset.senses()
+        for name, targets in sense.relations().items()
+        if name in SENSE_RELATIONS
+        for target in targets
+    )
 
 
 def _member_counts(synset: Any) -> tuple[int, ...]:  # noqa: ANN401 - wn.Synset
