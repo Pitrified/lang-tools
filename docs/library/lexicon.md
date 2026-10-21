@@ -54,6 +54,11 @@ only, but phase 5.54 Topic 3 measured the concept-level value predicting the
 different things and are kept apart - `None` is "no English member to count at
 all", `0.0` is "an English member SemCor never tagged".
 
+`topics` are the concept's learner topics (`food`, `animals`, `places`, ...),
+from phase 8. They belong to the meaning, not the word: `bank` is `money` in one
+sense and `nature` in another. See [Topics](#topics-phase-8) below for where they
+come from and how a lemma gets them.
+
 Granularity note: example sentences live at the granularity their source
 provides. OMW examples are concept-level, so they go on `Concept.examples`;
 `Lemma.examples` stays for genuinely lemma-level sources. Today only OMW fills
@@ -176,7 +181,10 @@ first use) and thin delegating helpers - the stable surface `lang-tutor` and the
 webapp consume:
 
 - Lemmas: `get_all_lemmas`, `get_lemma_by_id`, `get_lemmas_by_language`,
-  `get_lemmas_by_topic`, `get_lemmas_filtered`.
+  `get_lemmas_by_topic`, `get_lemmas_filtered`. A lemma's `topics` as returned
+  here are **derived**: its own curated tags plus the topics of every concept it
+  has a sense in, computed once per cache build into an indexed `lemma_topics`
+  table, so a topic filter is a lookup rather than a scan.
 - Concepts: `get_all_concepts`, `get_concept_by_id`.
 - Adjacency: `concepts_for_lemma`, `lemmas_for_concept` (optional `language`),
   `senses_for_lemma`, `senses_for_concept`.
@@ -268,7 +276,7 @@ one source of truth. `run_quality_checks(data_fol)` executes a registry of named
 DuckDB checks (row counts, edge reconciliation, gloss/example/lexfile coverage,
 slug collisions, `definition == lemma`, provenance snapshot, ...) and returns a
 typed `QualityReport`; `render_report` / `write_report` turn it into a markdown
-report that leads with ten regression invariants. Four are 05.56's:
+report that leads with eleven regression invariants. Four are 05.56's:
 
 - kaikki-tagged rows are 0 (the 5.5 cleanup holds on disk);
 - dangling sense / relation endpoints are 0;
@@ -304,6 +312,11 @@ invariant now covers `sense_relations` endpoints too:
 The report also lists edges per table and type, and the provenance snapshot
 splits `concept_relations` into `omw` and `derived`, so a lost type shows up in
 the report diff.
+
+Phase 8 added the eleventh: every concept topic is in the reviewed vocabulary of
+`data/curated/topics.json` (a topic with no reviewed table at all counts as
+unreviewed), with topic coverage per language and concepts per topic reported
+beside it.
 
 The notebook under `scratch_space/09_concept_model/05.4_data_quality/` is a thin
 caller that regenerates `report.md` wholesale on every run - the report is
@@ -508,6 +521,34 @@ calibration error. Band agreement is 41.2% exact / 74.4% within one band in
 English; Italian sits at a mean offset of +1.23 bands, a measured limitation of
 reusing English cutoffs rather than one we correct for. A form Kelly grades more
 than once keeps its easiest band, mirroring the easiest-sense rule on our side.
+
+#### Topics (phase 8)
+
+`ingestion.topics` tags each concept with learner topics as a build stage, from
+the committed, human-reviewed `data/curated/topics.json`:
+
+- a **vocabulary** of 26 learner topics - the only values a concept may carry;
+- a **`lexfile` map** over the WordNet lexicographer classes every concept has
+  (`noun.food` -> `food`, `noun.animal` -> `animals`, `verb.motion` ->
+  `movement`, ...). Classes that name a grammatical or abstract bucket rather
+  than something a learner browses by (`adj.all`, `adv.all`, `noun.attribute`,
+  `noun.state`, `verb.change`, ...) are deliberately unmapped: topics are a
+  filter, and no topic beats a meaningless one;
+- a small **`domain` map** over OMW's English `domain_topic` links, for the few
+  of its 430 domains a learner would recognize (music, sport, cooking,
+  medicine, ...); law, chemistry, mythology and the rest stay unmapped.
+
+A mapping that names a topic outside the vocabulary fails the load. Topics change
+only by editing the table and rebuilding, so like the curated gloss overrides
+they survive every rebuild. On the five-language build 82,405 of 117,659 concepts
+are tagged and 76-86% of each language's lemmas carry a topic. The gate reports
+coverage per language and concepts per topic, and fails if any concept carries a
+topic the reviewed vocabulary does not list.
+
+Mapping quality is bounded by WordNet's classes: a polysemous lemma collects the
+topics of all its senses (`bank` gets seven), and small classes can surprise
+(`verb.weather` includes "give off" verbs, so es `despedir` lands in `weather`).
+Both are reasons to review the table, not defects in the derivation.
 
 #### Provenance column
 

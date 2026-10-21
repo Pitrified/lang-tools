@@ -30,7 +30,9 @@ The canonical content model plus the read/query helpers over the on-disk lemma
 store. These read helpers are the in-process content surface phase 2 consumes
 (phase 3 replaces them with HTTP calls).
 
-- `Lemma` (thin token) and `LemmaExample`.
+- `Lemma` (thin token) and `LemmaExample`. `Lemma.topics` as read from the store
+  is derived from the lemma's senses (phase 8), so a tutor filtering by topic sees
+  every meaning's topics.
 - `Concept` (language-independent synset) and `Sense` (the explicit
   lemma <-> concept edge hosting per-sense frequency / CEFR).
 - `FalseFriendRelation`, `ConceptRelation`, `SenseRelation` - decoupled relation
