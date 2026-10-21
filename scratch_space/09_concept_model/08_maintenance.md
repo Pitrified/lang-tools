@@ -205,9 +205,10 @@ was chosen that way - see
 
 Waiting on the user:
 
-1. **Pick the backfill model and path**: `gpt-5.6-luna` by batch (most faithful, ~$4) or
-   `gpt-6-luna` (~$1.80 by batch, but its batch queue did not start in 1.5 h; ~$3.60 live,
-   several hours). Reasoning off either way.
+1. **Pick the backfill model and path.** After a second pass with prompt v3 (no added facts),
+   the recommendation is `gpt-6-luna` + v3: as faithful as `gpt-5.6-luna` on the sample, more
+   concise, ~$1.80 by batch or ~$3.60 live; its batch queue stalled once, so the path (batch
+   vs live) is the open question. Reasoning off either way.
 2. **Review the 161 proposed member-form drops** in `data/curated/member_form_drops.jsonl`:
    flip the agreed rows to `accepted`. Known wrong verdicts to leave unaccepted: pt "Doença da
    urina em xarope de ácer" (a real disease name); "déficit budgétaire et déficit public" and

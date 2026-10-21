@@ -1,8 +1,12 @@
-"""gpt-6-luna on the same 4 comparison chunks, live (not batch), reasoning off."""
+"""gpt-6-luna on the same 4 comparison chunks, live (not batch), reasoning off.
+
+Usage: compare_gloss_models_live.py [prompt_version]  (default "2"; "3" = no added facts)
+"""
 
 import collections
 import json
 import os
+import sys
 
 os.environ.setdefault("SAMPLE_API_KEY", "placeholder-not-a-secret")
 os.environ.setdefault("OPENAI_API_KEY", "proxy-injected")
@@ -30,7 +34,9 @@ PRICES = {"input_per_m": 0.10, "cached_per_m": 0.01, "output_per_m": 0.50}  # st
 
 data_fol = get_lang_tools_params().paths.data_fol
 root = data_fol / "_raw" / "lexicon" / "maintenance" / "gloss_compare"
-work = root / f"{MODEL}-live"
+VERSION = sys.argv[1] if len(sys.argv) > 1 else "2"
+TAG = MODEL if VERSION == "2" else f"{MODEL}-v{VERSION}"
+work = root / (f"{MODEL}-live" if VERSION == "2" else f"{TAG}-live")
 items = missing_glosses(data_fol)
 by_key = {item.key: item for item in items}
 by_lang = collections.defaultdict(list)
@@ -39,7 +45,7 @@ for key, chunk in chunk_items(items):
 picked = [lang_chunks[len(lang_chunks) // 2] for _, lang_chunks in sorted(by_lang.items())]
 print("chunks", [k for k, _ in picked])
 
-chain = build_gloss_translate_chain(NoReasoningConfig(model=MODEL))
+chain = build_gloss_translate_chain(NoReasoningConfig(model=MODEL), version=VERSION)
 outputs = run_chain(chain, picked, checkpoint=work / "run.jsonl", concurrency=4)
 records = read_records(work / "run.jsonl")
 for r in records:
@@ -52,12 +58,13 @@ for key, chunk in picked:
 cost = totals.cost(**PRICES)
 n = max(1, len(rows))
 print(
-    f"{MODEL} none chunks_ok={len(outputs)}/4 glosses={len(rows)} in={totals.input_tokens} "
+    f"{TAG} none chunks_ok={len(outputs)}/4 glosses={len(rows)} in={totals.input_tokens} "
     f"out={totals.output_tokens} reasoning={totals.reasoning_tokens} cost=${cost:.4f} "
     f"full_backfill~${cost / n * len(items):.2f} (standard) "
     f"~${cost / n * len(items) / 2:.2f} (batch) {dict(collections.Counter(r.rationale or 'ok' for r in rows))}",
 )
-(root / MODEL / "glosses.json").write_text(
+(root / TAG).mkdir(parents=True, exist_ok=True)
+(root / TAG / "glosses.json").write_text(
     json.dumps(
         {r.language + ":" + r.concept_id.rsplit("__", 1)[1]: r.proposed_definition for r in rows},
         ensure_ascii=False,

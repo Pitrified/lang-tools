@@ -66,9 +66,34 @@ Read side by side on the 100 (see the samples file):
 - **`gpt-5-mini` - fluent, embellishes.** "a gentle blow" -> "coup léger et bref donné avec la
   main ou un objet"; a garbled "(mien: bohrium)". Twice `gpt-5.6-luna`'s price.
 
+## Second pass: `gpt-6-luna` with prompt v3
+
+`gpt-6-luna`'s one weakness was true-but-unrequested detail. Prompt `gloss_translate/v3`
+keeps the request for a natural, idiomatic rendering (explicitly not word for word) and adds a
+negative list: no facts the English gloss does not state (atomic numbers, dates, places,
+taxonomy), no purpose or usage unless stated, no examples or synonyms, no leading headword; a
+short gloss stays short. Same 4 chunks, live, reasoning `none`.
+
+| | in / out tokens | cost of the 100 | full backfill, batch / live | failed the screen | median length vs English |
+| --- | --- | --- | --- | --- | --- |
+| `gpt-6-luna` + v3 | 5,393 / 3,087 | $0.0021 (standard) | ~$1.80 / ~$3.60 | 0 | 1.12x |
+| `gpt-6-luna` + v2 | 4,833 / 3,182 | $0.0021 (standard) | ~$1.80 / ~$3.60 | 1 | 1.18x |
+| `gpt-5.6-luna` + v2 | 4,833 / 3,152 | $0.0024 (batch) | ~$4.10 / ~$8.30 | 0 | 1.16x |
+
+v3 changed 49 of the 100 glosses, and the additions are gone: fr "Élément chimique
+transuranien de numéro atomique 107" -> "Élément chimique transuranien"; "Serpent venimeux du
+genre Bothrops" -> "Serpent du genre Bothrops"; es "... cuya función principal es marcar goles"
+-> "Jugador de la línea ofensiva de un equipo de fútbol"; "plain wanderer" no longer names its
+genus. It still reads as native prose rather than a calque (es "Que resulta ofensivo para la
+mente"; "Elemento químico situado más allá del uranio en la tabla periódica"). Worth noting:
+`gpt-5.6-luna` had added the atomic number too (es "de número atómico 107"), so the habit was
+not unique to `gpt-6-luna`.
+
 ## Recommendation
 
-`gpt-5.6-luna` (most faithful, batch path proven, ~$4) or `gpt-6-luna` (half the price, ~$1.80
-by batch, but its batch queue did not start in 1.5 h, so it may have to run live at ~$3.60 and
-several hours). The difference is about $2 against strict faithfulness. Not yet decided - see
-the next steps in [`../08_maintenance.md`](../08_maintenance.md).
+After the second pass, **`gpt-6-luna` with prompt v3**: on this sample it is as faithful as
+`gpt-5.6-luna`, the most concise of the three, and half the price per token (~$1.80 by batch,
+~$3.60 live). The open risk is operational, not quality: its batch queue did not start in
+1.5 h, so the full run may have to go live, which takes hours at modest concurrency (not yet
+measured against the rate limits). `gpt-5.6-luna` with v3 was not tested. Not yet decided -
+see the next steps in [`../08_maintenance.md`](../08_maintenance.md).
