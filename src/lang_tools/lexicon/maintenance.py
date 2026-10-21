@@ -7,7 +7,13 @@ a reviewable JSONL, and only human-accepted proposals are applied back to the
 canonical Parquet. A thin notebook under ``notebooks/lexicon_maintain/`` drives
 the loop; all the logic lives here.
 
-The one worklist so far is the re-scoped ``definition == lemma`` residue: a
+Phase 8 generalized the pieces every worklist shares: `write_jsonl` /
+`read_jsonl` for the reviewable proposal files, `load_curated` for the accepted
+rows of a committed ``data/curated/*.jsonl`` input, and matching on the
+slug-independent `concept_key` so a curated row survives a re-slug. Each
+worklist keeps its own proposal model and its own apply step.
+
+The first worklist is the re-scoped ``definition == lemma`` residue: a
 per-language gloss that equals the concept's *sole* member form in that language
 (see `lang_tools.lexicon.quality`). Each worklist entry carries the context the
 repair prompt is grounded in (member forms, the English gloss and members, the
@@ -29,7 +35,8 @@ Durability seam (phase 05.58):
     file format and same model as the review artifact, so the loop's output is
     literally the build's input. `apply_gloss_proposals` remains the way to repair
     the corpus in place without a rebuild; the curated file is what makes the
-    repair survive one.
+    repair survive one. Overrides match on `concept_key`, not the full id, so a
+    re-slug (phase 8's tier-2 qualifiers) does not make them stale.
 """
 
 from __future__ import annotations
@@ -48,6 +55,7 @@ from lang_tools.lexicon.codec import PROVENANCE_COL
 from lang_tools.lexicon.codec import _dump_table
 from lang_tools.lexicon.codec import _read_table_rows
 from lang_tools.lexicon.codec import model_from_row
+from lang_tools.lexicon.concept_id import concept_key
 from lang_tools.lexicon.lemma_store import CorpusNotFoundError
 from lang_tools.lexicon.quality import LEXICON_SUBDIR
 from lang_tools.lexicon.quality import _connect
@@ -55,9 +63,16 @@ from lang_tools.lexicon.quality import _def_eq_sole_member_hits
 from lang_tools.lexicon.quality import _table_sources
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from pathlib import Path
 
     from lang_tools.lexicon.concept import Concept
+
+#: Review state every proposal model carries; only ``accepted`` rows ever apply.
+ReviewStatus = Literal["proposed", "accepted", "rejected"]
+
+#: Folder of committed curated build inputs, relative to the project data folder.
+CURATED_SUBDIR = "curated"
 
 #: Provenance tag applied to rows whose gloss an accepted proposal rewrote.
 SOURCE_LLM = "llm"
@@ -125,7 +140,7 @@ class GlossProposal(BaseModel):
     current_definition: str
     proposed_definition: str
     rationale: str = ""
-    status: Literal["proposed", "accepted", "rejected"] = "proposed"
+    status: ReviewStatus = "proposed"
 
 
 def thin_gloss_worklist(data_fol: Path) -> list[ThinGloss]:
@@ -208,40 +223,76 @@ def _enrich_hit(
     )
 
 
-def write_proposals(proposals: list[GlossProposal], path: Path) -> Path:
-    """Write proposals to a reviewable JSONL file (one proposal per line).
+def write_jsonl(rows: Sequence[BaseModel], path: Path) -> Path:
+    """Write models to a JSONL file, one per line, in the given order.
 
     Args:
-        proposals: The proposals to persist.
-        path: Destination JSONL path (staging scratch; never committed).
+        rows: The models to persist (proposals, curated rows, ...).
+        path: Destination JSONL path.
 
     Returns:
         The path written.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as fh:
-        for proposal in proposals:
-            fh.write(json.dumps(proposal.model_dump(), ensure_ascii=False))
+        for row in rows:
+            fh.write(json.dumps(row.model_dump(mode="json"), ensure_ascii=False))
             fh.write("\n")
     return path
 
 
-def read_proposals(path: Path) -> list[GlossProposal]:
-    """Read a (reviewed) proposals JSONL back into validated models.
+def read_jsonl[ModelT: BaseModel](model: type[ModelT], path: Path) -> list[ModelT]:
+    """Read a (possibly hand-edited) JSONL file back into validated models.
 
     Args:
-        path: The JSONL written by `write_proposals`, possibly hand-edited
-            (typically: `status` flipped and/or `proposed_definition` refined).
+        model: The row model to validate each line into.
+        path: The JSONL file.
 
     Returns:
-        The validated proposals.
+        The validated rows; blank lines are skipped.
     """
     with path.open("r", encoding="utf-8") as fh:
-        return [
-            GlossProposal.model_validate(json.loads(line))
-            for line in fh
-            if line.strip()
-        ]
+        return [model.model_validate(json.loads(line)) for line in fh if line.strip()]
+
+
+def curated_path(data_fol: Path, filename: str) -> Path:
+    """Return the path of a committed curated input under ``<data_fol>/curated/``."""
+    return data_fol / CURATED_SUBDIR / filename
+
+
+def load_curated[ModelT: BaseModel](
+    model: type[ModelT],
+    data_fol: Path,
+    filename: str,
+) -> list[ModelT]:
+    """Read the **accepted** rows of a committed curated JSONL, if it exists.
+
+    Rows still under review (``proposed``) or ``rejected`` are filtered out
+    here, so a build never applies something nobody accepted.
+
+    Args:
+        model: The row model; it must have a ``status`` field.
+        data_fol: Project data folder.
+        filename: File name under ``<data_fol>/curated/``.
+
+    Returns:
+        The accepted rows, or an empty list when the file does not exist.
+    """
+    path = curated_path(data_fol, filename)
+    if not path.exists():
+        return []
+    rows = read_jsonl(model, path)
+    return [row for row in rows if getattr(row, "status", None) == "accepted"]
+
+
+def write_proposals(proposals: list[GlossProposal], path: Path) -> Path:
+    """Write gloss proposals to a reviewable JSONL file (see `write_jsonl`)."""
+    return write_jsonl(proposals, path)
+
+
+def read_proposals(path: Path) -> list[GlossProposal]:
+    """Read a (reviewed) gloss proposals JSONL back (see `read_jsonl`)."""
+    return read_jsonl(GlossProposal, path)
 
 
 def apply_gloss_proposals(
@@ -328,10 +379,7 @@ def load_gloss_overrides(data_fol: Path) -> list[GlossProposal]:
         Non-accepted rows are filtered out here, so a build never applies a
         proposal that is still under review.
     """
-    path = gloss_overrides_path(data_fol)
-    if not path.exists():
-        return []
-    return [p for p in read_proposals(path) if p.status == "accepted"]
+    return load_curated(GlossProposal, data_fol, gloss_overrides_path(data_fol).name)
 
 
 def apply_gloss_overrides(
@@ -347,8 +395,9 @@ def apply_gloss_overrides(
     applied row is re-tagged `SOURCE_LLM`, matching what `apply_gloss_proposals`
     does on the Parquet.
 
-    An override whose concept id is not in the build is **stale** - ids are
-    rebuilt, so a slug change can outdate one. Stale overrides are logged and
+    Overrides match on `concept_key` (the id's slug-independent hash half), so
+    a re-slug does not outdate them. An override whose key is not in the build
+    at all is **stale** - its concept is gone. Stale overrides are logged and
     counted rather than raised: failing here would block every rebuild after a
     legitimate re-slug, and the quality gate already catches the consequence (the
     `definition == lemma` count climbing back above its baseline).
@@ -364,11 +413,11 @@ def apply_gloss_overrides(
     if not overrides:
         return (0, 0)
 
-    by_id = {concept.id: index for index, concept in enumerate(concepts)}
+    by_key = {concept_key(concept.id): index for index, concept in enumerate(concepts)}
     applied = 0
     stale = 0
     for override in overrides:
-        index = by_id.get(override.concept_id)
+        index = by_key.get(concept_key(override.concept_id))
         if index is None:
             lg.warning(
                 "Stale gloss override: no concept {} in this build (kept in the "

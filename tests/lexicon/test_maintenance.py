@@ -13,8 +13,11 @@ from lang_tools.lexicon.lemma_store import CorpusNotFoundError
 from lang_tools.lexicon.maintenance import GlossProposal
 from lang_tools.lexicon.maintenance import ProposalConceptNotFoundError
 from lang_tools.lexicon.maintenance import apply_gloss_proposals
+from lang_tools.lexicon.maintenance import curated_path
+from lang_tools.lexicon.maintenance import load_curated
 from lang_tools.lexicon.maintenance import read_proposals
 from lang_tools.lexicon.maintenance import thin_gloss_worklist
+from lang_tools.lexicon.maintenance import write_jsonl
 from lang_tools.lexicon.maintenance import write_proposals
 from lang_tools.lexicon.relations import ConceptRelation
 from lang_tools.lexicon.sense import Sense
@@ -164,3 +167,20 @@ def test_apply_unknown_concept_raises(tmp_path: Path) -> None:
     )
     with pytest.raises(ProposalConceptNotFoundError):
         apply_gloss_proposals([proposal], data_fol=tmp_path)
+
+
+def test_load_curated_keeps_only_accepted_rows(tmp_path: Path) -> None:
+    rows = [
+        GlossProposal(
+            concept_id=C_MIND,
+            language="en",
+            current_definition="earnest",
+            proposed_definition=f"definition {status}",
+            status=status,
+        )
+        for status in ("accepted", "proposed", "rejected")
+    ]
+    write_jsonl(rows, curated_path(tmp_path, "example.jsonl"))
+    loaded = load_curated(GlossProposal, tmp_path, "example.jsonl")
+    assert [row.proposed_definition for row in loaded] == ["definition accepted"]
+    assert load_curated(GlossProposal, tmp_path, "missing.jsonl") == []

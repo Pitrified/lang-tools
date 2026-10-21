@@ -4,7 +4,9 @@ import pytest
 
 from lang_tools.lexicon.concept_id import CONCEPT_ID_RE
 from lang_tools.lexicon.concept_id import EmptyConceptSlugError
+from lang_tools.lexicon.concept_id import InvalidConceptIdForKeyError
 from lang_tools.lexicon.concept_id import concept_id
+from lang_tools.lexicon.concept_id import concept_key
 
 
 def test_concept_id_is_deterministic() -> None:
@@ -34,3 +36,17 @@ def test_concept_id_distinct_keys_differ() -> None:
 def test_concept_id_rejects_blank_slug() -> None:
     with pytest.raises(EmptyConceptSlugError):
         concept_id("  ", "some-key")
+
+
+def test_concept_key_ignores_the_slug() -> None:
+    # The same source key under two slugs: different ids, one key.
+    before = concept_id("aaron", "ili::i1")
+    after = concept_id("aaron-baseball", "ili::i1")
+    assert before != after
+    assert concept_key(before) == concept_key(after)
+    assert len(concept_key(before)) == 12
+
+
+def test_concept_key_rejects_a_non_id() -> None:
+    with pytest.raises(InvalidConceptIdForKeyError):
+        concept_key("not-an-id")

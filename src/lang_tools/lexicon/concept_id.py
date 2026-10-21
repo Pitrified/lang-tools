@@ -2,9 +2,11 @@
 
 A concept id is ``c__{slug}__{hash[:12]}``: a human-readable slug for
 legibility plus a 12-hex safety net hashed from the stable source key (the OMW
-synset / ILI key). The hash - not the slug - guarantees uniqueness, so editing
-a slug for readability never changes the id and two concepts that happen to
-derive the same slug still get distinct ids.
+synset / ILI key). The hash - not the slug - guarantees uniqueness, so two
+concepts that happen to derive the same slug still get distinct ids. A slug
+change does change the id string, but never its hash half: `concept_key`
+returns that half, and curated inputs that must survive a re-slug (phase 8)
+match on it rather than on the full id.
 
 The slug is supplied pre-computed (the slug-source choice - OMW/ILI key first,
 else English gloss - is finalized in the ingestion phase), mirroring
@@ -56,3 +58,41 @@ def concept_id(slug: str, source_key: str) -> str:
         raise EmptyConceptSlugError
     digest = hashlib.sha1(source_key.encode("utf-8"), usedforsecurity=False).hexdigest()
     return f"c__{slug}__{digest[:12]}"
+
+
+class InvalidConceptIdForKeyError(ValueError):
+    """Raised when `concept_key` is given a string that is not a concept id."""
+
+    def __init__(self, value: str) -> None:
+        """Initialize with the offending value.
+
+        Args:
+            value: The string that does not match `CONCEPT_ID_RE`.
+        """
+        super().__init__(f"Not a concept id: {value!r}")
+        self.value = value
+
+
+def concept_key(cid: str) -> str:
+    """Return the slug-independent half of a concept id (its 12-hex hash).
+
+    The hash is computed from the source grouping key alone, so it is the same
+    before and after any slug change; the slug half is not.
+
+    Args:
+        cid: A concept id of the form ``c__{slug}__{hash}``.
+
+    Returns:
+        The 12-character hex suffix.
+
+    Raises:
+        InvalidConceptIdForKeyError: If `cid` is not a well-formed concept id.
+
+    Example:
+        ::
+
+            concept_key("c__cut-noun-act__0011aabbccdd")  # -> "0011aabbccdd"
+    """
+    if not CONCEPT_ID_RE.match(cid):
+        raise InvalidConceptIdForKeyError(cid)
+    return cid.rsplit("__", 1)[1]

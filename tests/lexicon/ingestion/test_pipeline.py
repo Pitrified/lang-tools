@@ -241,6 +241,19 @@ def test_curated_override_survives_a_rebuild(tmp_path: Path) -> None:
     assert manifest["gloss_overrides"] == {"applied": 1, "stale": 0}
 
 
+def test_curated_override_survives_a_re_slug(tmp_path: Path) -> None:
+    # The override names the concept under an older slug; its hash half is the
+    # same, so it still applies (phase 8: tier-2 qualifiers re-slug every id).
+    build_initial(["en", "pt"], data_fol=tmp_path, omw_entries=_omw())
+    cid = _house_concept_id(tmp_path)
+    old_slug_id = "c__old-slug__" + cid.rsplit("__", 1)[1]
+    _write_override(tmp_path, old_slug_id)
+
+    summary = build_initial(["en", "pt"], data_fol=tmp_path, omw_entries=_omw())
+    assert summary.gloss_overrides_applied == 1
+    assert summary.gloss_overrides_stale == 0
+
+
 def test_unaccepted_override_is_not_applied(tmp_path: Path) -> None:
     build_initial(["en", "pt"], data_fol=tmp_path, omw_entries=_omw())
     cid = _house_concept_id(tmp_path)
