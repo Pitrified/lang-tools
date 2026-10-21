@@ -71,6 +71,8 @@ def test_screen_accepts_a_gloss_and_rejects_the_bad_kinds() -> None:
     assert _verdict("Construção que serve de habitação.") == ("proposed", "")
     assert _verdict("") == ("rejected", "missing")
     assert _verdict("Casa.") == ("rejected", "restates a member word")
+    # Folded like the gate: accents and the build-time style do not hide it.
+    assert _verdict("Cása") == ("rejected", "restates a member word")
     assert _verdict("a dwelling that serves as living quarters") == (
         "rejected",
         "untranslated",

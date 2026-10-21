@@ -26,11 +26,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 import random
 from typing import TYPE_CHECKING
+import unicodedata
 
 from lang_tools.lexicon.codec import LEXICON_SUBDIR
 from lang_tools.lexicon.concept_id import concept_key
 from lang_tools.lexicon.lemma_store import CorpusNotFoundError
 from lang_tools.lexicon.maintenance import GlossProposal
+from lang_tools.lexicon.maintenance import normalize_gloss
 from lang_tools.lexicon.quality import _connect
 from lang_tools.lexicon.quality import _table_sources
 from lang_tools.llm.gloss_translate import GlossSource
@@ -226,14 +228,30 @@ def _tidy(text: str) -> str:
     return text.replace("\u2011", "-").replace("\u2010", "-").strip()
 
 
+def _fold(text: str) -> str:
+    """Fold a gloss or form for comparison: build-time style, no case, no accents.
+
+    Matches what the quality gate compares (``lower(strip_accents(...))``), after
+    the `normalize_gloss` the build applies, so a gloss that passes here cannot
+    turn into a restated member word at build time.
+    """
+    decomposed = unicodedata.normalize("NFKD", normalize_gloss(text, ""))
+    bare = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
+    return bare.casefold()
+
+
 def _screen(item: BackfillItem, text: str) -> str:
     """Return why a generated gloss is unusable, or ``""``."""
     if not text:
         return "missing"
-    folded = text.casefold().rstrip(".")
-    if folded in {member.casefold() for member in item.target_members}:
+    folded = _fold(text)
+    if folded in {_fold(member) for member in item.target_members}:
         return "restates a member word"
-    if folded == item.english_definition.casefold().rstrip("."):
+    # Untranslated keeps accents: fr "Médiocre" for "mediocre" is a translation.
+    if normalize_gloss(text, "").casefold() == normalize_gloss(
+        item.english_definition,
+        "",
+    ).casefold():
         return "untranslated"
     if len(text) > MAX_LENGTH_RATIO * max(len(item.english_definition), 20):
         return "runaway length"
