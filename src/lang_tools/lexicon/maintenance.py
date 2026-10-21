@@ -443,6 +443,38 @@ def load_gloss_backfill(data_fol: Path) -> list[GlossProposal]:
     return load_curated(GlossProposal, data_fol, GLOSS_BACKFILL_FILE)
 
 
+#: Dashes and apostrophes the backfill model emits, mapped to the plain ASCII the
+#: source glosses use (and the learner types).
+_GLOSS_CHAR_MAP = str.maketrans({"\u2013": "-", "\u2014": "-", "\u2019": "'"})
+
+
+def normalize_gloss(text: str, english: str) -> str:
+    """Bring a generated gloss to the corpus gloss style (phase 8).
+
+    OMW glosses are lowercase fragments with no final period; the backfill model
+    mostly writes capitalized sentences, and not consistently. This lowercases the
+    first letter unless the English gloss starts with a capital (a proper noun:
+    "United States photographer") or the first word is an acronym, strips one
+    final period (not an ellipsis or "etc."), and maps en / em dashes to ``-`` and
+    the typographic apostrophe to ``'``.
+
+    Args:
+        text: The generated gloss.
+        english: The concept's English gloss, used to keep proper nouns.
+
+    Returns:
+        The normalized gloss.
+    """
+    text = text.translate(_GLOSS_CHAR_MAP).strip()
+    if text.endswith(".") and not text.endswith(("..", "etc.")):
+        text = text[:-1].rstrip()
+    first_word = text.split(" ", 1)[0]
+    keeps_capital = english[:1].isupper() or first_word[1:2].isupper()
+    if text[:1].isupper() and not keeps_capital:
+        text = text[0].lower() + text[1:]
+    return text
+
+
 def apply_gloss_backfill(
     concepts: list[Concept],
     *,
@@ -454,7 +486,8 @@ def apply_gloss_backfill(
     has a gloss in that language (OMW added one, or a curated override did), the
     source gloss wins and the row is skipped. Each filled gloss is tagged in
     `Concept.definition_sources`; the concept row's own provenance tag is left
-    alone, because its other glosses are still the source's.
+    alone, because its other glosses are still the source's. The text goes in
+    through `normalize_gloss`, so the committed rows stay as generated.
 
     Args:
         concepts: The freshly built concepts, mutated in place.
@@ -473,7 +506,10 @@ def apply_gloss_backfill(
         if concept.definitions.get(row.language):
             skipped += 1
             continue
-        concept.definitions[row.language] = row.proposed_definition
+        concept.definitions[row.language] = normalize_gloss(
+            row.proposed_definition,
+            concept.definitions.get("en", ""),
+        )
         concept.definition_sources[row.language] = SOURCE_LLM
         filled += 1
     if backfill:

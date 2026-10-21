@@ -550,6 +550,32 @@ topics of all its senses (`bank` gets seven), and small classes can surprise
 (`verb.weather` includes "give off" verbs, so es `despedir` lands in `weather`).
 Both are reasons to review the table, not defects in the derivation.
 
+#### Non-English gloss backfill (phase 8)
+
+OMW glosses every concept in English but almost none in fr, pt or es, and only
+2,122 in it. The backfill fills those gaps from the committed, reviewed
+`data/curated/gloss_backfill.jsonl`, one row per (concept, language):
+
+- `ingestion.gloss_backfill.missing_glosses` builds the worklist (every concept with
+  a member word but no gloss in that language), and the `llm.gloss_translate` chain
+  renders each gloss from the English one, grounded in both languages' member words,
+  in Brazilian Portuguese and neutral Spanish. `check_glosses` rejects an empty
+  gloss, a bare member word, the untranslated English, or a runaway length.
+- Rows are accepted by sampled human review (`review_sample`, then `accept_run`);
+  only `accepted` rows reach the build.
+- `maintenance.apply_gloss_backfill` runs after the curated overrides and only fills
+  gaps, so a source or curated gloss always wins. Each filled gloss is tagged `llm`
+  in `Concept.definition_sources`.
+- On the way in, `normalize_gloss` brings the text to the corpus gloss style:
+  a lowercase first letter (kept capital when the English gloss starts with one,
+  or for an acronym), no final period, and plain `-` and `'` in place of en/em
+  dashes and typographic apostrophes. The committed rows stay as generated.
+
+The first run (2026-10-21, `gpt-6-luna` with prompt `gloss_translate/v3`, one
+OpenAI batch, about $1.87) accepted 174,315 glosses across the four languages. The
+model choice and the quality review are recorded under
+`scratch_space/09_concept_model/08_maintenance/`.
+
 #### Provenance column
 
 The provenance tag lives **on disk only**: the codec writes it as an extra

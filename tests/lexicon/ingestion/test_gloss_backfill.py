@@ -16,6 +16,7 @@ from lang_tools.lexicon.maintenance import GLOSS_BACKFILL_FILE
 from lang_tools.lexicon.maintenance import GlossProposal
 from lang_tools.lexicon.maintenance import apply_gloss_backfill
 from lang_tools.lexicon.maintenance import curated_path
+from lang_tools.lexicon.maintenance import normalize_gloss
 from lang_tools.lexicon.maintenance import write_jsonl
 from lang_tools.lexicon.quality import run_quality_checks
 from lang_tools.llm.gloss_translate import GlossTranslateOutput
@@ -115,7 +116,7 @@ def test_backfill_fills_gaps_only_and_tags_the_gloss() -> None:
             concept_id="c__old-slug__0011aabbccdd",  # matched by key, not slug
             language=lang,
             current_definition="",
-            proposed_definition=f"generated {lang}",
+            proposed_definition=f"Generated {lang}.",
             status="accepted",
         )
 
@@ -124,9 +125,26 @@ def test_backfill_fills_gaps_only_and_tags_the_gloss() -> None:
     assert concept.definitions == {
         "en": "a dwelling",
         "es": "vivienda",
-        "pt": "generated pt",
+        "pt": "generated pt",  # normalized
     }
     assert concept.definition_sources == {"pt": "llm"}
+
+
+def test_normalize_gloss_matches_the_corpus_style() -> None:
+    assert normalize_gloss("Libro de bolsillo.", "pocket-sized book") == (
+        "libro de bolsillo"
+    )
+    dashed = "Compositor inglês (1902\u20131983)."
+    expected = "Compositor inglês (1902-1983)"
+    assert normalize_gloss(dashed, "English composer") == expected
+    assert normalize_gloss("Capriola all\u2019indietro", "a backward somersault") == (
+        "capriola all'indietro"
+    )
+    assert normalize_gloss("ADN mitocondrial.", "mitochondrial DNA") == (
+        "ADN mitocondrial"
+    )
+    ellipsis = "Fiori, frutti, ecc..."
+    assert normalize_gloss(ellipsis, "flowers") == "fiori, frutti, ecc..."
 
 
 def test_build_applies_an_accepted_backfill_and_the_gate_counts_it(
@@ -144,7 +162,7 @@ def test_build_applies_an_accepted_backfill_and_the_gate_counts_it(
     )
     assert summary.glosses_backfilled == 1
     (concept,) = LexiconStore.from_data_fol(tmp_path).get_all_concepts()
-    assert concept.definitions["pt"] == "Construção para morar."
+    assert concept.definitions["pt"] == "construção para morar"  # normalized
     assert concept.definition_sources == {"pt": "llm"}
 
     report = run_quality_checks(tmp_path)
