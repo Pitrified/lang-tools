@@ -7,6 +7,8 @@ from pathlib import Path
 import pytest
 
 from lang_tools.lexicon.codec import _dump_table
+from lang_tools.lexicon.codec import _schema
+from lang_tools.lexicon.codec import _write_parquet
 from lang_tools.lexicon.concept import Concept
 from lang_tools.lexicon.lemma import Lemma
 from lang_tools.lexicon.lemma_store import CorpusNotFoundError
@@ -16,6 +18,7 @@ from lang_tools.lexicon.quality import render_report
 from lang_tools.lexicon.quality import run_quality_checks
 from lang_tools.lexicon.quality import write_report
 from lang_tools.lexicon.relations import ConceptRelation
+from lang_tools.lexicon.relations import SenseRelation
 from lang_tools.lexicon.sense import Sense
 
 C_HOUSE = "c__house__0011aabbccdd"
@@ -118,8 +121,9 @@ def test_checks_cover_the_step4_fields(tmp_path: Path) -> None:
     assert by_name["lexfile_coverage"].rows == [[2, 1, 1]]
     # examples: the house concept has one en example.
     assert by_name["concept_example_coverage"].rows == [["en", 1]]
-    # relations: one hypernym edge.
-    assert by_name["relation_types"].rows == [["hypernym", 1]]
+    # relations: one hypernym edge, and no sense_relations file at all (a
+    # pre-phase-7 corpus), which reads as an empty table rather than failing.
+    assert by_name["relation_types"].rows == [["concept_relations", "hypernym", 1]]
 
 
 def test_kaikki_invariant_fails_on_tagged_lemma(tmp_path: Path) -> None:
@@ -304,3 +308,93 @@ def test_band_claimed_as_measured_fails(tmp_path: Path) -> None:
     )
     report = run_quality_checks(tmp_path, definition_equals_lemma_baseline=1)
     assert not _invariant(report, "invalid_cefr_band")
+
+
+def _add_concept_relations(data_fol: Path, *extra: ConceptRelation) -> None:
+    """Rewrite the seed's concept_relations with the seed edge plus `extra`."""
+    seed = ConceptRelation(
+        concept_id_a=C_HOUSE,
+        concept_id_b=C_BUILDING,
+        relation_type="hypernym",
+    )
+    _dump_table("concept_relations", [seed, *extra], data_fol=data_fol)
+
+
+def test_relation_invariants_pass_on_a_clean_graph(tmp_path: Path) -> None:
+    _seed_corpus(tmp_path)
+    house = Lemma(text="house", language="en").id
+    building = Lemma(text="building", language="en").id
+    _dump_table(
+        "sense_relations",
+        [
+            SenseRelation(
+                sense_id_a=Sense(lemma_id=house, concept_id=C_HOUSE).id,
+                sense_id_b=Sense(lemma_id=building, concept_id=C_BUILDING).id,
+                relation_type="antonym",
+            ),
+        ],
+        data_fol=tmp_path,
+    )
+    report = run_quality_checks(tmp_path, definition_equals_lemma_baseline=1)
+    assert report.passed
+    rows = {res.name: res for res in report.results}["relation_types"].rows
+    assert ["sense_relations", "antonym", 1] in rows
+
+
+def test_unreviewed_relation_type_fails(tmp_path: Path) -> None:
+    _seed_corpus(tmp_path)
+    _add_concept_relations(
+        tmp_path,
+        ConceptRelation(
+            concept_id_a=C_HOUSE,
+            concept_id_b=C_BUILDING,
+            relation_type="domain_topic",
+        ),
+    )
+    report = run_quality_checks(tmp_path, definition_equals_lemma_baseline=1)
+    assert not _invariant(report, "unknown_relation_type")
+    assert not report.passed
+
+
+def test_directional_edge_stored_both_ways_fails(tmp_path: Path) -> None:
+    _seed_corpus(tmp_path)
+    _add_concept_relations(
+        tmp_path,
+        ConceptRelation(
+            concept_id_a=C_BUILDING,
+            concept_id_b=C_HOUSE,
+            relation_type="hypernym",
+        ),
+    )
+    report = run_quality_checks(tmp_path, definition_equals_lemma_baseline=1)
+    assert not _invariant(report, "misoriented_relation")
+
+
+def test_symmetric_edge_out_of_canonical_order_fails(tmp_path: Path) -> None:
+    # The model would reorder it, so write the raw row the way a broken writer would.
+    _seed_corpus(tmp_path)
+    high, low = sorted((C_HOUSE, C_BUILDING), reverse=True)
+    _write_parquet(
+        tmp_path / "lexicon" / "concept_relations.parquet",
+        [{"concept_id_a": high, "concept_id_b": low, "relation_type": "similar"}],
+        _schema("concept_relations"),
+    )
+    report = run_quality_checks(tmp_path, definition_equals_lemma_baseline=1)
+    assert not _invariant(report, "misoriented_relation")
+
+
+def test_dangling_sense_relation_fails(tmp_path: Path) -> None:
+    _seed_corpus(tmp_path)
+    _dump_table(
+        "sense_relations",
+        [
+            SenseRelation(
+                sense_id_a="00000000000000aa",
+                sense_id_b="00000000000000bb",
+                relation_type="antonym",
+            ),
+        ],
+        data_fol=tmp_path,
+    )
+    report = run_quality_checks(tmp_path, definition_equals_lemma_baseline=1)
+    assert not _invariant(report, "dangling_edges")

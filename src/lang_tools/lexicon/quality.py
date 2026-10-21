@@ -35,6 +35,17 @@ Invariants:
       value composed from components rather than measured),
     - every band is one of `VALID_CEFR_BANDS` and is flagged estimated, because
       no graded list is ever merged into the shipped corpus.
+
+    Phase 7 added two for the relation graph, and extended the dangling-edge
+    invariant to the new ``sense_relations`` table:
+
+    - every stored relation type is in the reviewed vocabulary
+      (`relations.CONCEPT_RELATION_TYPES` / `relations.SENSE_RELATION_TYPES`);
+      an unknown type means the reader let a new OMW type through unreviewed,
+    - no edge is stored in the wrong orientation: a directional type never holds
+      both ``(a, b)`` and ``(b, a)``, and a symmetric type is always ``a < b``.
+      The inverse-pair normalization is what guarantees this, so a violation
+      means it broke.
 """
 
 from __future__ import annotations
@@ -50,6 +61,11 @@ from pydantic import Field
 from lang_tools.lexicon.codec import LEXICON_SUBDIR
 from lang_tools.lexicon.codec import StoreDependencyMissingError
 from lang_tools.lexicon.lemma_store import CorpusNotFoundError
+from lang_tools.lexicon.relations import CONCEPT_RELATION_TYPES
+from lang_tools.lexicon.relations import DIRECTIONAL_CONCEPT_RELATIONS
+from lang_tools.lexicon.relations import SENSE_RELATION_TYPES
+from lang_tools.lexicon.relations import SYMMETRIC_CONCEPT_RELATIONS
+from lang_tools.lexicon.relations import SYMMETRIC_SENSE_RELATIONS
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -82,7 +98,23 @@ _TABLE_GLOBS = {
     "senses": "senses/*.parquet",
     "false_friends": "false_friends.parquet",
     "concept_relations": "concept_relations.parquet",
+    "sense_relations": "sense_relations.parquet",
 }
+
+#: Tables a corpus may predate, read as an empty relation when their file is
+#: absent so the gate still runs on a pre-phase-7 corpus (the per-type counts
+#: then show no sense edges at all, which is visible rather than silent).
+_OPTIONAL_TABLES = {
+    "sense_relations": (
+        "(SELECT NULL::VARCHAR AS sense_id_a, NULL::VARCHAR AS sense_id_b, "
+        "NULL::VARCHAR AS relation_type WHERE false)"
+    ),
+}
+
+
+def _sql_list(values: frozenset[str]) -> str:
+    """Render a set of strings as a sorted SQL ``IN`` list literal."""
+    return "(" + ", ".join(f"'{value}'" for value in sorted(values)) + ")"
 
 
 class CheckResult(BaseModel):
@@ -155,7 +187,11 @@ def _table_sources(data_fol: Path) -> dict[str, str]:
     """Map each table to its ``read_parquet(...)`` source expression."""
     table_dir = data_fol / LEXICON_SUBDIR
     return {
-        name: f"read_parquet('{table_dir / glob}')"
+        name: (
+            _OPTIONAL_TABLES[name]
+            if name in _OPTIONAL_TABLES and not (table_dir / glob).exists()
+            else f"read_parquet('{table_dir / glob}')"
+        )
         for name, glob in _TABLE_GLOBS.items()
     }
 
@@ -222,6 +258,7 @@ UNION ALL SELECT 'lemmas', count(*) FROM {t["lemmas"]}
 UNION ALL SELECT 'senses', count(*) FROM {t["senses"]}
 UNION ALL SELECT 'false_friends', count(*) FROM {t["false_friends"]}
 UNION ALL SELECT 'concept_relations', count(*) FROM {t["concept_relations"]}
+UNION ALL SELECT 'sense_relations', count(*) FROM {t["sense_relations"]}
 """,
     ),
     (
@@ -256,6 +293,12 @@ SELECT 'relation->missing concept', count(*)
   LEFT JOIN {t["concepts"]} ca ON r.concept_id_a = ca.id
   LEFT JOIN {t["concepts"]} cb ON r.concept_id_b = cb.id
   WHERE ca.id IS NULL OR cb.id IS NULL
+UNION ALL
+SELECT 'sense relation->missing sense', count(*)
+  FROM {t["sense_relations"]} r
+  LEFT JOIN {t["senses"]} sa ON r.sense_id_a = sa.id
+  LEFT JOIN {t["senses"]} sb ON r.sense_id_b = sb.id
+  WHERE sa.id IS NULL OR sb.id IS NULL
 """,
     ),
     (
@@ -369,12 +412,19 @@ FROM {t["concepts"]}
     ),
     (
         "relation_types",
-        "Concept relation types",
-        "Typed concept-relation edges by type (hypernym edges from 5.5 Step 4; "
-        "hyponymy is the reverse read, not stored).",
+        "Relation edges per type",
+        "Stored edges per table and type (phase 7). Each WordNet inverse pair is "
+        "read from both names and stored in one direction, so `hypernym` includes "
+        "the links a lexicon states only as `hyponym`, and `mero_*` the `holo_*` "
+        "ones. Concept `antonym` edges are derived from English sense antonymy. "
+        "A type that disappears between builds is a lost source, not a cleanup.",
         lambda t: f"""
-SELECT relation_type, count(*) AS n
-FROM {t["concept_relations"]} GROUP BY relation_type ORDER BY n DESC
+SELECT 'concept_relations' AS tbl, relation_type, count(*) AS n
+FROM {t["concept_relations"]} GROUP BY relation_type
+UNION ALL
+SELECT 'sense_relations', relation_type, count(*)
+FROM {t["sense_relations"]} GROUP BY relation_type
+ORDER BY tbl, n DESC
 """,
     ),
     (
@@ -523,12 +573,13 @@ def _provenance_check(con: Any, t: dict[str, str]) -> CheckResult:  # noqa: ANN4
     parts = [
         f"SELECT '{name}' AS tbl, source, count(*) AS n "
         f"FROM {t[name]} GROUP BY source"
-        for name in ("concepts", "lemmas", "senses")
+        for name in ("concepts", "lemmas", "senses", "concept_relations")
         if _has_column(con, t[name], "source")
     ]
     description = (
-        "Per-row on-disk source tag counts (omw|cili|llm|manual; kaikki is a "
-        "legacy value no writer sets)."
+        "Per-row on-disk source tag counts (omw|cili|derived|llm|manual; kaikki "
+        "is a legacy value no writer sets; derived marks the concept antonyms "
+        "lifted from English sense antonymy)."
     )
     if not parts:
         return CheckResult(
@@ -557,8 +608,9 @@ def _evaluate_invariants(
 ) -> list[InvariantResult]:
     """Measure and evaluate the regression invariants.
 
-    The first four are 05.56's; the last four are phase 6's, guarding the
-    frequency/CEFR signals the build now writes.
+    The first four are 05.56's; the next four are phase 6's, guarding the
+    frequency/CEFR signals the build now writes; the last two are phase 7's,
+    guarding the relation graph.
     """
     kaikki_lemmas = _scalar(
         con,
@@ -584,6 +636,10 @@ SELECT (SELECT count(*) FROM {t["senses"]} s
           LEFT JOIN {t["concepts"]} ca ON r.concept_id_a = ca.id
           LEFT JOIN {t["concepts"]} cb ON r.concept_id_b = cb.id
           WHERE ca.id IS NULL OR cb.id IS NULL)
+     + (SELECT count(*) FROM {t["sense_relations"]} r
+          LEFT JOIN {t["senses"]} sa ON r.sense_id_a = sa.id
+          LEFT JOIN {t["senses"]} sb ON r.sense_id_b = sb.id
+          WHERE sa.id IS NULL OR sb.id IS NULL)
 """,
     )
     lemma_no_sense = _scalar(
@@ -631,6 +687,32 @@ WHERE NOT s.frequency_is_estimated
 SELECT count(*) FROM {t["senses"]}
 WHERE (cefr_level IS NOT NULL AND cefr_level NOT IN {VALID_CEFR_BANDS!r})
    OR (cefr_level IS NOT NULL AND NOT cefr_is_estimated)
+""",
+    )
+    unknown_types = _scalar(
+        con,
+        f"""
+SELECT (SELECT count(*) FROM {t["concept_relations"]}
+          WHERE relation_type NOT IN {_sql_list(CONCEPT_RELATION_TYPES)})
+     + (SELECT count(*) FROM {t["sense_relations"]}
+          WHERE relation_type NOT IN {_sql_list(SENSE_RELATION_TYPES)})
+""",
+    )
+    misoriented = _scalar(
+        con,
+        f"""
+SELECT (SELECT count(*) FROM {t["concept_relations"]} r
+          JOIN {t["concept_relations"]} back
+            ON back.concept_id_a = r.concept_id_b
+           AND back.concept_id_b = r.concept_id_a
+           AND back.relation_type = r.relation_type
+          WHERE r.relation_type IN {_sql_list(DIRECTIONAL_CONCEPT_RELATIONS)})
+     + (SELECT count(*) FROM {t["concept_relations"]}
+          WHERE relation_type IN {_sql_list(SYMMETRIC_CONCEPT_RELATIONS)}
+            AND concept_id_a > concept_id_b)
+     + (SELECT count(*) FROM {t["sense_relations"]}
+          WHERE relation_type IN {_sql_list(SYMMETRIC_SENSE_RELATIONS)}
+            AND sense_id_a > sense_id_b)
 """,
     )
     return [
@@ -689,6 +771,20 @@ WHERE (cefr_level IS NOT NULL AND cefr_level NOT IN {VALID_CEFR_BANDS!r})
             value=bad_bands,
             requirement="0",
             passed=bad_bands == 0,
+        ),
+        InvariantResult(
+            name="unknown_relation_type",
+            title="relation edges with an unreviewed type",
+            value=unknown_types,
+            requirement="0",
+            passed=unknown_types == 0,
+        ),
+        InvariantResult(
+            name="misoriented_relation",
+            title="relation edges stored both ways or out of canonical order",
+            value=misoriented,
+            requirement="0",
+            passed=misoriented == 0,
         ),
     ]
 
