@@ -14,6 +14,8 @@ Public API:
     LemmaGeneratorInput, LemmaGeneratorOutput, GeneratedLemma,
         build_lemma_generator_chain
     GlossRepairInput, GlossRepairOutput, build_gloss_repair_chain
+    SlugQualifierInput, SlugQualifierOutput, QualifierCandidate, KeyedQualifier,
+        build_slug_qualifier_chain
 """
 
 from lang_tools.llm.conversation import ConversationInput
@@ -30,6 +32,11 @@ from lang_tools.llm.lemma_generator import GeneratedLemma
 from lang_tools.llm.lemma_generator import LemmaGeneratorInput
 from lang_tools.llm.lemma_generator import LemmaGeneratorOutput
 from lang_tools.llm.lemma_generator import build_lemma_generator_chain
+from lang_tools.llm.slug_qualifier import KeyedQualifier
+from lang_tools.llm.slug_qualifier import QualifierCandidate
+from lang_tools.llm.slug_qualifier import SlugQualifierInput
+from lang_tools.llm.slug_qualifier import SlugQualifierOutput
+from lang_tools.llm.slug_qualifier import build_slug_qualifier_chain
 from lang_tools.llm.splitter import SplitterInput
 from lang_tools.llm.splitter import SplitterOutput
 from lang_tools.llm.splitter import build_paragraph_splitter_chain
@@ -49,8 +56,12 @@ __all__ = [
     "GlossRepairOutput",
     "GreetingInput",
     "GreetingOutput",
+    "KeyedQualifier",
     "LemmaGeneratorInput",
     "LemmaGeneratorOutput",
+    "QualifierCandidate",
+    "SlugQualifierInput",
+    "SlugQualifierOutput",
     "SplitterInput",
     "SplitterOutput",
     "TopicSuggestionInput",
@@ -62,6 +73,7 @@ __all__ = [
     "build_greeting_chain",
     "build_lemma_generator_chain",
     "build_paragraph_splitter_chain",
+    "build_slug_qualifier_chain",
     "build_topic_suggestion_chain",
     "build_translation_chain",
 ]

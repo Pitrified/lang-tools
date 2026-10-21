@@ -195,6 +195,8 @@ def strict_json_schema(model: type[BaseModel]) -> dict[str, Any]:
 def batch_requests[InputT: BaseModelKwargs, OutputT: BaseModel](
     chain: StructuredLLMChain[InputT, OutputT],
     items: Sequence[tuple[str, InputT]],
+    *,
+    extra_body: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Render Batch API request lines for `items` with `chain`'s own prompt.
 
@@ -205,6 +207,8 @@ def batch_requests[InputT: BaseModelKwargs, OutputT: BaseModel](
     Args:
         chain: The structured chain whose prompt and output model to use.
         items: ``(key, input)`` pairs; the key becomes the request ``custom_id``.
+        extra_body: Extra request-body fields merged into every request, e.g.
+            ``{"reasoning_effort": "low"}`` for a reasoning model.
 
     Returns:
         One request dict per item, ready to be written as JSONL.
@@ -232,6 +236,7 @@ def batch_requests[InputT: BaseModelKwargs, OutputT: BaseModel](
                         {"role": "system", "content": str(m.content)} for m in messages
                     ],
                     "response_format": response_format,
+                    **(extra_body or {}),
                 },
             },
         )
@@ -292,6 +297,7 @@ def submit_batch[InputT: BaseModelKwargs, OutputT: BaseModel](
     *,
     checkpoint: Path,
     workdir: Path,
+    extra_body: dict[str, Any] | None = None,
 ) -> str | None:
     """Upload the items the checkpoint does not hold yet as one OpenAI batch.
 
@@ -300,6 +306,7 @@ def submit_batch[InputT: BaseModelKwargs, OutputT: BaseModel](
         items: ``(key, input)`` pairs.
         checkpoint: The job's checkpoint (finished keys are skipped).
         workdir: Where the request JSONL and the batch id are kept.
+        extra_body: Extra request-body fields (see `batch_requests`).
 
     Returns:
         The batch id, or ``None`` when nothing is left to run.
@@ -314,7 +321,7 @@ def submit_batch[InputT: BaseModelKwargs, OutputT: BaseModel](
     workdir.mkdir(parents=True, exist_ok=True)
     request_path = workdir / "batch_requests.jsonl"
     with request_path.open("w", encoding="utf-8") as fh:
-        for request in batch_requests(chain, todo):
+        for request in batch_requests(chain, todo, extra_body=extra_body):
             fh.write(json.dumps(request, ensure_ascii=False) + "\n")
     client = OpenAI()
     with request_path.open("rb") as fh:

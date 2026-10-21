@@ -56,8 +56,17 @@ def concept_id(slug: str, source_key: str) -> str:
     slug = slug.strip()
     if not slug:
         raise EmptyConceptSlugError
-    digest = hashlib.sha1(source_key.encode("utf-8"), usedforsecurity=False).hexdigest()
-    return f"c__{slug}__{digest[:12]}"
+    return f"c__{slug}__{source_key_hash(source_key)}"
+
+
+def source_key_hash(source_key: str) -> str:
+    """Return the 12-hex hash a concept id carries for `source_key`.
+
+    It is what `concept_key` reads back out of an id, available before the slug
+    (and so the id) is known - which is when slug assignment needs it.
+    """
+    digest = hashlib.sha1(source_key.encode("utf-8"), usedforsecurity=False)
+    return digest.hexdigest()[:12]
 
 
 class InvalidConceptIdForKeyError(ValueError):

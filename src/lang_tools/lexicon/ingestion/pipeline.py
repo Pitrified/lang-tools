@@ -28,6 +28,7 @@ from lang_tools.lexicon.ingestion.acquire import write_manifest
 from lang_tools.lexicon.ingestion.enrich import enrich
 from lang_tools.lexicon.ingestion.sample import DEFAULT_SAMPLE_CONCEPTS
 from lang_tools.lexicon.ingestion.sample import carve_sample
+from lang_tools.lexicon.ingestion.slug_qualifiers import load_slug_qualifiers
 from lang_tools.lexicon.ingestion.sources.cili import load_cili_glosses
 from lang_tools.lexicon.ingestion.sources.frequency import lemma_zipf
 from lang_tools.lexicon.ingestion.sources.frequency import wordfreq_version
@@ -64,6 +65,8 @@ class BuildSummary:
             flagged estimated, and the per-band CEFR totals).
         topics_tagged: Concepts that received at least one learner topic from the
             curated topic table (phase 8).
+        slug_qualifiers_applied: Concepts whose slug took a curated tier-2
+            qualifier (phase 8).
     """
 
     languages: list[str]
@@ -74,6 +77,7 @@ class BuildSummary:
     gloss_overrides_stale: int = 0
     enrichment: dict[str, int] = dc_field(default_factory=dict)
     topics_tagged: int = 0
+    slug_qualifiers_applied: int = 0
 
 
 def _clean_corpus_tables(data_fol: Path) -> None:
@@ -237,7 +241,9 @@ def build_initial(
         if cili_glosses is None:
             cili_glosses = loaded_cili
 
-    tables = transform(omw_entries, cili_glosses)
+    # Tier-2 slug qualifiers are a curated input like the gloss overrides: they
+    # shape the ids, so they go in before anything is keyed on a concept id.
+    tables = transform(omw_entries, cili_glosses, load_slug_qualifiers(data_fol))
     # Curated gloss repairs are re-applied here so a rebuild reproduces them; a
     # post-hoc Parquet edit would be silently reverted by this very build (05.58).
     applied, stale = apply_gloss_overrides(
@@ -278,6 +284,7 @@ def build_initial(
         "gloss_overrides": {"applied": applied, "stale": stale},
         "enrichment": {"wordfreq": wordfreq_version(), **enrichment},
         "topics": {"concepts_tagged": topics_tagged},
+        "slug_qualifiers": {"applied": tables.qualifiers_applied},
         **(extra_manifest or {}),
     }
     path = write_manifest(data_fol, manifest)
@@ -292,4 +299,5 @@ def build_initial(
         gloss_overrides_stale=stale,
         enrichment=enrichment,
         topics_tagged=topics_tagged,
+        slug_qualifiers_applied=tables.qualifiers_applied,
     )

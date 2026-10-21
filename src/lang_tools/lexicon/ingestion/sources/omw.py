@@ -34,6 +34,7 @@ from loguru import logger as lg
 from lang_tools.language.normalization import normalize
 from lang_tools.lexicon.concept import Concept
 from lang_tools.lexicon.concept_id import concept_id
+from lang_tools.lexicon.concept_id import source_key_hash
 from lang_tools.lexicon.ingestion.deps import OptionalDependencyMissingError
 from lang_tools.lexicon.lemma import Lemma
 from lang_tools.lexicon.lemma_id import lemma_id
@@ -390,6 +391,7 @@ class GroupedRecords:
         concept_domains: ``{concept_id: {domain name, ...}}`` gathered from the
             group's `SynsetEntry.domain_topics`, for the topic stage. Only
             concepts with a domain are present.
+        qualifiers_applied: Concepts whose slug took a tier-2 qualifier.
         sense_counts: ``{(lemma_id, concept_id): semcor_count}`` for the senses
             that carry one. Sparse by nature (English only, and 17% of English
             senses), so absence means "no count", never "counted zero".
@@ -410,6 +412,7 @@ class GroupedRecords:
     concept_domains: dict[str, set[str]]
     sense_counts: dict[tuple[str, str], int]
     concept_counts: dict[str, int]
+    qualifiers_applied: int = 0
 
 
 def _grouping_key(entry: SynsetEntry) -> str:
@@ -437,22 +440,29 @@ def _pick_slug_source(group: list[SynsetEntry]) -> str:
     return "concept"
 
 
-def _tiered_slugs(grouped: Mapping[str, list[SynsetEntry]]) -> dict[str, str]:
-    """Compute the final slug per grouping key with the 5.55 tier-0/1 scheme.
+def _tiered_slugs(
+    grouped: Mapping[str, list[SynsetEntry]],
+    qualifiers: Mapping[str, str] | None = None,
+) -> tuple[dict[str, str], int]:
+    """Compute the final slug per grouping key with the 5.55 + phase-8 tiers.
 
     Tier 0: the `_pick_slug_source` slug; kept when unique across the build.
     Tier 1: when the tier-0 slug collides (or is the generic ``"concept"``
     fallback), append the concept's slugified lexfile as a deterministic
-    discriminant (``cut`` -> ``cut-noun-act`` vs ``cut-verb-contact``). Groups
-    that still collide after tier 1 (same slug *and* same lexfile - true
-    polysemy) keep the tier-1 slug; the id hash carries uniqueness regardless,
-    and the LLM qualifier tier is deferred to phase 8.
+    discriminant (``cut`` -> ``cut-noun-act`` vs ``cut-verb-contact``).
+    Tier 2 (phase 8): a concept whose tier-1 slug still collides (same slug *and*
+    same lexfile - true polysemy) takes its curated qualifier, if one was
+    accepted, keyed by the grouping key's hash (`source_key_hash`, the half of the
+    id a re-slug never changes). See `_qualified_slugs`. Anything left colliding
+    keeps its tier-1 slug; the id hash carries uniqueness regardless.
 
     Args:
         grouped: The grouping-key -> entries map built by `group_to_records`.
+        qualifiers: Accepted tier-2 qualifiers, ``{key hash: qualifier}``.
 
     Returns:
-        ``{grouping_key: final_slug}`` for every group.
+        ``{grouping_key: final_slug}`` for every group, and how many groups took
+        a tier-2 qualifier.
     """
     base_slugs = {
         key: slugify(_pick_slug_source(group)) for key, group in grouped.items()
@@ -468,7 +478,49 @@ def _tiered_slugs(grouped: Mapping[str, list[SynsetEntry]]) -> dict[str, str]:
                 slugs[key] = f"{base}-{slugify(lexfile)}"
                 continue
         slugs[key] = base
-    return slugs
+    if not qualifiers:
+        return slugs, 0
+    return _qualified_slugs(slugs, base_slugs, qualifiers)
+
+
+def _qualified_slugs(
+    tier1: dict[str, str],
+    base_slugs: Mapping[str, str],
+    qualifiers: Mapping[str, str],
+) -> tuple[dict[str, str], int]:
+    """Apply tier-2 qualifiers to the still-colliding tier-1 slugs.
+
+    Each colliding key with a qualifier ``q`` tries, in order: ``{base}-{q}``
+    (shortest, e.g. ``hot-stolen-smuggled``), then ``{tier1}-{q}`` (when two
+    lexfiles' groups picked the same qualifier for one base word), then its
+    tier-1 slug. A candidate is kept only if no other concept in the whole build
+    ends up with the same slug; the loop moves colliding candidates down one
+    option at a time, so it stops after at most three passes and is deterministic.
+    """
+    counts = Counter(tier1.values())
+    options: dict[str, list[str]] = {}
+    for key, slug in tier1.items():
+        qualifier = qualifiers.get(source_key_hash(key))
+        if counts[slug] > 1 and qualifier:
+            q = "-".join(w for w in slugify(qualifier).split("-") if w)
+            options[key] = [f"{base_slugs[key]}-{q}", f"{slug}-{q}", slug]
+    final = dict(tier1)
+    choice = dict.fromkeys(options, 0)
+    for key, tries in options.items():
+        final[key] = tries[0]
+    while True:
+        counts = Counter(final.values())
+        moved = False
+        for key, tries in options.items():
+            if counts[final[key]] > 1 and choice[key] < len(tries) - 1:
+                choice[key] += 1
+                final[key] = tries[choice[key]]
+                moved = True
+        if not moved:
+            break
+    applied = sum(1 for key in options if final[key] != tier1[key])
+    lg.info("Applied {} tier-2 slug qualifier(s)", applied)
+    return final, applied
 
 
 def _pick_lexfile(group: list[SynsetEntry]) -> str | None:
@@ -701,6 +753,7 @@ def _assemble_relations(
 def group_to_records(
     entries: Iterable[SynsetEntry],
     cili_glosses: Mapping[str, str] | None = None,
+    slug_qualifiers: Mapping[str, str] | None = None,
 ) -> GroupedRecords:
     """Group flattened synset entries by ILI into concept/lemma/sense models.
 
@@ -733,6 +786,8 @@ def group_to_records(
         cili_glosses: Optional ``{ili_id: english_gloss}`` map (the `cili` loader's
             output), consulted only to fill a missing English gloss. ``None``
             disables the fallback (every concept stays `SOURCE_OMW`).
+        slug_qualifiers: Accepted tier-2 slug qualifiers keyed by concept key
+            (the curated ``slug_qualifiers.jsonl``); ``None`` stops at tier 1.
 
     Phase 5.5 Step 4 fields, all concept-level (ILI-keyed, so they propagate):
     each concept also gets its `lexfile` (from the English synset, see
@@ -764,7 +819,7 @@ def group_to_records(
     for entry in entries:
         grouped.setdefault(_grouping_key(entry), []).append(entry)
 
-    slugs = _tiered_slugs(grouped)
+    slugs, qualified = _tiered_slugs(grouped, slug_qualifiers)
     concepts: list[Concept] = []
     concept_source_by_id: dict[str, str] = {}
     lemmas: dict[str, Lemma] = {}
@@ -846,6 +901,7 @@ def group_to_records(
         sense_relations=sense_relations,
         concept_domains=concept_domains,
         sense_counts=sense_counts,
+        qualifiers_applied=qualified,
         concept_counts=concept_counts,
     )
 

@@ -82,6 +82,7 @@ class TaggedTables:
             ``0``; one with no English member at all is absent.
         concept_domains: ``{concept_id: {domain name, ...}}`` from the OMW
             ``domain_topic`` links; a topic-stage input, never persisted.
+        qualifiers_applied: Concepts whose slug took a tier-2 qualifier.
     """
 
     lemmas: list[Lemma] = field(default_factory=list)
@@ -99,11 +100,13 @@ class TaggedTables:
     sense_counts: dict[tuple[str, str], int] = field(default_factory=dict)
     concept_counts: dict[str, int] = field(default_factory=dict)
     concept_domains: dict[str, set[str]] = field(default_factory=dict)
+    qualifiers_applied: int = 0
 
 
 def transform(
     omw_entries: Iterable[SynsetEntry],
     cili_glosses: Mapping[str, str] | None = None,
+    slug_qualifiers: Mapping[str, str] | None = None,
 ) -> TaggedTables:
     """Build the source-tagged lexical tables from the OMW backbone.
 
@@ -114,6 +117,7 @@ def transform(
         cili_glosses: Optional ``{ili_id: english_gloss}`` map from the `cili`
             loader, used only to fill a concept's missing English gloss (tagged
             ``cili``); ``None`` disables the fallback.
+        slug_qualifiers: Accepted tier-2 slug qualifiers keyed by concept key.
 
     Returns:
         The populated `TaggedTables`. Lemmas/senses are tagged ``omw``; concepts
@@ -123,7 +127,7 @@ def transform(
         source supplies them; phase 8). The SemCor count maps ride along for
         `enrich`.
     """
-    grouped = group_to_records(omw_entries, cili_glosses)
+    grouped = group_to_records(omw_entries, cili_glosses, slug_qualifiers)
 
     return TaggedTables(
         lemmas=grouped.lemmas,
@@ -139,4 +143,5 @@ def transform(
         sense_counts=grouped.sense_counts,
         concept_counts=grouped.concept_counts,
         concept_domains=grouped.concept_domains,
+        qualifiers_applied=grouped.qualifiers_applied,
     )
