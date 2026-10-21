@@ -1,5 +1,5 @@
 ---
-status: planned
+status: in progress
 ---
 
 # Phase 7 - semantic relations
@@ -83,35 +83,69 @@ are opposed, and concepts are shared across languages, so the derived edge gives
 and Portuguese opposites they otherwise cannot have. Emitted as `ConceptRelation` with
 `relation_type="antonym"` (symmetric), tagged so the derivation is visible.
 
-## Decisions to confirm
+## Decisions (settled 2026-10-21)
 
-Recommendations given; each changes what gets built.
+All five were put to the user as recommendations; each was confirmed as recommended.
 
-1. **Read `hyponym` as well as `hypernym`** and normalize to one direction.
-   Recommend **yes**: it recovers ~10k edges per non-English lexicon that are otherwise
-   invisible, and the graph is the backbone every other signal leans on.
-   **This has a blast radius worth stating up front:** hypernym depth feeds phase 6's CEFR
-   score, so a denser taxonomy moves the bands, and phase 6's Kelly validation has to be
-   re-run and the cutoffs likely re-fitted. That is the cost of the fix, and it argues for
-   doing it now rather than after more phases lean on the bands.
-2. **Antonymy: store sense-level *and* derive concept-level.**
-   Recommend both. Sense-level is what the source actually says; the derived concept edge
-   is the only way pt/es/fr/it get opposites at all, and it is the same propagation
-   argument phase 6 already validated for commonness. The alternative - English-only
-   antonymy - makes the feature useless in four of five languages.
-3. **Which synset types ship.** Recommend hypernym (+ hyponym-derived), `instance_hypernym`,
-   `similar`, the three mero/holo pairs, `also`, `entails`, `causes`, `attribute`.
-   Defer `domain_*` / `exemplifies` (topic metadata, better served by phase 8's topics) and
-   **defer `derivation`** (74,708 edges, English-only, morphological rather than semantic,
-   and no consumer asks for word families yet).
-4. **Keep depth reading `hypernym` only**, excluding `instance_hypernym`.
-   Recommend yes: "Rome is an instance of city" is not the same claim as "a city is a kind
-   of settlement", and mixing them would deepen every proper noun by one for no semantic
-   reason. It also bounds decision 1's effect on phase 6 to genuine taxonomy.
-5. **No persisted degree metric.** 5.54 asked for connectivity "for the phase-6 ranking",
-   and phase 6 shipped without needing it. Recommend computing it if and when a consumer
-   appears, on the same reasoning phase 6 recorded for depth - and note that unlike depth,
-   degree *is* a bounded adjacency count the store can answer at query time.
+1. **Read `hyponym` as well as `hypernym`, normalized to one stored direction** - confirmed.
+   Recovers the non-English taxonomy the build silently dropped. The cost is accepted
+   up front: hypernym depth feeds phase 6's CEFR score, so Kelly validation re-runs in
+   Step 6 and `CEFR_CUTOFFS` is re-fitted if the bands moved. The losing option ("store the
+   recovered edges but freeze depth on the old reading") was rejected because it leaves two
+   notions of "the taxonomy" in one build.
+   **Widened by the execution-time survey (below):** the same normalization applies to
+   every inverse pair, not only hypernymy - outside English, the mero/holo pairs and
+   `instance_hypernym` are just as incompletely mirrored.
+2. **Antonymy: sense-level table *and* derived concept-level edges** - confirmed. The
+   `sense_relations` table records what the source says (English sense pairs); the derived
+   `ConceptRelation(antonym)` edges are what give pt/es/fr/it opposites at all. Derived
+   rows carry the provenance tag `derived`, so the derivation stays visible on disk. The
+   losing options were sense-only (antonymy useless in four of five languages) and
+   concept-only (loses which English senses the source opposed).
+3. **Shipped synset types: the plan's list** - confirmed: `hypernym` (+ hyponym),
+   `instance_hypernym` (+ instance_hyponym), `mero_member` / `mero_part` / `mero_substance`
+   (+ their `holo_*` inverses), `similar`, `also`, `attribute`, `entails`, `causes`.
+   Deferred: `domain_*` / `exemplifies` (topic metadata, phase 8) and `derivation` /
+   `pertainym` (English-only morphology, no consumer).
+4. **Depth reads `hypernym` only, excluding `instance_hypernym`** - confirmed. Already
+   true of `enrich.hypernym_depths`, which filters on `RELATION_HYPERNYM`; keeping
+   `instance_hypernym` a distinct type is what preserves it.
+5. **No persisted degree metric** - taken as recommended (computable at query time if a
+   consumer appears).
+
+## Execution-time survey (2026-10-21)
+
+Re-run on the fresh rebuild before writing code, across all five lexicons and every pair
+the shipped list touches (raw `wn` link counts, de-duplicated as `(source, target)` pairs).
+
+Directional inverse pairs - edges that exist **only** on the inverse side:
+
+| pair (stored <- inverse) | en | pt | es | fr | it |
+| --- | --- | --- | --- | --- | --- |
+| `hypernym` <- `hyponym` | 1 | 10,127 | 8,447 | 10,462 | 10,286 |
+| `instance_hypernym` <- `instance_hyponym` | 0 | 404 | 368 | 391 | 612 |
+| `mero_member` <- `holo_member` | 0 | 1,452 | 2,004 | 1,211 | 1,923 |
+| `mero_part` <- `holo_part` | 0 | 620 | 1,019 | 598 | 720 |
+| `mero_substance` <- `holo_substance` | 0 | 116 | 108 | 118 | 128 |
+
+`entails` and `causes` have no inverse type in any lexicon (`is_entailed_by` /
+`is_caused_by` never appear), so they are read as-is. The symmetric types are perfectly
+mirrored in English and not elsewhere (`similar` has 2,374 unmirrored pt links of 6,942;
+`also` and `attribute` about 30% / 25%), which is what canonical `a < b` ordering fixes.
+English sense antonymy: 7,979 directed links, 5 unmirrored, so it is symmetric too.
+
+Direction semantics, checked on known synsets so the stored orientation is documented
+rather than assumed: `car mero_part accelerator` (a = whole, b = part), `Rome holo_part
+Italy` (the inverse), `buy entails pay`, `kill causes die`, `Rome instance_hypernym
+national capital`, and `hot attribute temperature` / `hot` sense `antonym` `cold`.
+
+Phase 6 baseline for Step 6, reproduced on the fresh rebuild before any change: en
+41.2% exact / 74.4% within one band / Spearman 0.632; it Spearman 0.661 and mean offset
++1.23 - matching the numbers phase 6 recorded. One thing the reproduction surfaced:
+`fit_cutoffs` on today's corpus does not return the shipped `CEFR_CUTOFFS` (first cutoff
+0.2956 vs 0.2774; the shipped set leaves an en mean offset of +0.17 that a true fit would
+not), so the shipped cutoffs were fitted on an earlier state of the scores. Step 6 re-fits
+on the final phase-7 corpus either way.
 
 ## Steps
 
