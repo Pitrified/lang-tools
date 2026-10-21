@@ -1188,3 +1188,17 @@ Append-only. Newest at the bottom.
   reviewed lexfile table with lemma topics derived; OpenAI small model + Batch API; bulk
   glosses accepted by sampled review and tagged `llm`; thin notebooks). Status planned -> in
   progress.
+- 2026-10-21 : phase 8 executed through Step 5 and the Step-6 machinery. Done: the generalized
+  loop (curated rows keyed on `concept_key`, so they survive the re-slug), the resumable runner
+  with live + Batch paths, learner topics (82,405 concepts; lemma topics derived in the store),
+  slug tier 2 (23,012 qualifiers; distinct slugs 103,965 -> 117,588), lemmas settled on majority
+  text and POS (a first-wins bug had made *be* `Be`, a noun), `|` / `;` member-form repair, 161
+  member-form drops proposed for review, and the backfill machinery with per-gloss provenance.
+  Process correction recorded in the plan: the first LLM jobs ran on `gpt-5-mini` without a
+  model comparison or measured usage (reasoning was 74% of the slug batch's output; ~$5-7 spent
+  in all). Usage is now measured on every record, and the backfill model was compared on 100
+  glosses across 4 models with reasoning off (`08_maintenance/gloss_model_comparison.md`):
+  `gpt-5.6-luna` most faithful (~$4 by batch), `gpt-6-luna` close and cheaper (~$1.80 by batch,
+  queue stalled), `gpt-5-nano` / `gpt-5-mini` worse. Waiting on the user: backfill model and
+  path, the member-form drop review, the topic-table review.
+

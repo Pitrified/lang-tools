@@ -165,11 +165,70 @@ All five were put to the user as recommendations and confirmed as recommended.
 - Re-fitting `CEFR_CUTOFFS` (phase 6's decision, listed above).
 - Wikidata / kaikki as gloss sources (license and sense-blind-join reasons recorded in 5.5).
 
+## Progress (2026-10-21)
+
+| step | state | where |
+| --- | --- | --- |
+| 1. Generalize the loop | done | `maintenance.py`: `write_jsonl` / `read_jsonl` / `load_curated`; curated rows match on `concept_key` so they survive a re-slug |
+| 2. LLM runner | done | `llm/runner.py`: checkpointed live + Batch paths; **measured token usage on every record** (added after the fact, see below) |
+| 3. Topics | done | `data/curated/topics.json` (26 topics, 31 of 45 lexfiles, 13 domains); 82,405 concepts tagged, 76-86% of lemmas per language |
+| 4. Slug tier 2 | done | `data/curated/slug_qualifiers.jsonl`: 23,012 of 23,476 accepted; distinct slugs 103,965 -> 117,588 of 117,659 |
+| 5. Member forms | machinery done, **review pending** | lemmas settle on majority text + POS (4,198 POS and 884 display-text fixes); pipe- and semicolon-joined variants repaired; 161 drops proposed in `data/curated/member_form_drops.jsonl`, none accepted |
+| 6. Gloss backfill | machinery done, **model choice pending** | prompt `gloss_translate/v2`; nothing generated beyond samples |
+| 7. Rebuild + docs | partly | rebuilt and gated after steps 3-5 (11 invariants pass); docs cover topics only |
+
+Found along the way and routed here as findings, not acted on:
+
+- Lemma identity folds case **and accents**, so distinct words share one lemma (fr `à` / `a`,
+  es `ágape` / `agape`, pt `avó` / `avô`). That is the phase-1 `lemma_id` rule, which
+  `lang-tutor`'s progress keys depend on - a decision, not a fix.
+- The CEFR overlay uses the token's frequency for every sense, so a rare sense of a very
+  frequent token gets an easy band (beryllium `Be` is A1 through the verb *be*). Phase 6's
+  design; joins the open `CEFR_CUTOFFS` re-fit question.
+
+### Spend and the process correction
+
+The first three LLM jobs (slug tier 2, form review, gloss samples) ran on `gpt-5-mini` without
+a model comparison and without measured usage; the plan's "order of dollars" estimate was low
+because hidden reasoning was 74% of the slug batch's output. Total so far: roughly $5-7 (slug
+batch ~$3.70 measured; form review ~$1-2 estimated). From here on: **measure usage on a small
+sample, compare models, and get the user's go-ahead before any paid run.** The backfill model
+was chosen that way - see
+[`08_maintenance/gloss_model_comparison.md`](08_maintenance/gloss_model_comparison.md).
+
+### Next steps
+
+Waiting on the user:
+
+1. **Pick the backfill model and path**: `gpt-5.6-luna` by batch (most faithful, ~$4) or
+   `gpt-6-luna` (~$1.80 by batch, but its batch queue did not start in 1.5 h; ~$3.60 live,
+   several hours). Reasoning off either way.
+2. **Review the 161 proposed member-form drops** in `data/curated/member_form_drops.jsonl`:
+   flip the agreed rows to `accepted`. Known wrong verdicts to leave unaccepted: pt "Doença da
+   urina em xarope de ácer" (a real disease name); "déficit budgétaire et déficit public" and
+   "sarcelle à ailes bleues ou sarcelle soucrourou" (want splitting, not dropping).
+3. **Review the topic table** `data/curated/topics.json` once, as Decision 2 requires (31
+   lexfile rows, 13 domain rows; known noise: `verb.weather` carries "give off" verbs).
+4. Decide whether to act on the two findings above (lemma identity; CEFR overlay), or leave
+   them for phase 6 / 9.
+
+Then, once 1-3 are answered:
+
+5. Run the backfill with the chosen model: a sample first with measured usage reported,
+   then the full run; write `data/curated/gloss_backfill.jsonl` as `proposed`, draw 50 per
+   language for the user's review, `accept_run` on approval.
+6. Rebuild + re-gate with the accepted drops and glosses; regenerate `report.md` and the seed.
+7. Thin notebooks under `notebooks/lexicon_maintain/` for the slug, form-review and backfill
+   jobs (Decision 5; the runs so far used scratch drivers, now kept under
+   `08_maintenance/` for the comparison).
+8. Docs: `lexicon.md` for the runner and usage tracking, slug tier 2, lemma settling, the
+   member-form review, the backfill and `definition_sources`; tracking; close the phase.
+
 ## Done when
 
-- [ ] One documented maintenance framework runs every worklist, with resumable LLM runs and
+- [x] One documented maintenance framework runs every worklist, with resumable LLM runs and
       reviewable, auditable output; the gloss loop runs on it unchanged.
-- [ ] Every concept the lexfile table covers carries a topic, and a lemma's topics come from
+- [x] Every concept the lexfile table covers carries a topic, and a lemma's topics come from
       its senses; the webapp and `lang-tutor` topic filters return lemmas on the real corpus.
 - [ ] The chosen LLM worklists have run, been accepted under their rule, and landed as
       curated build inputs that survive a rebuild.
