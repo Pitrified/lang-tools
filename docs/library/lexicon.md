@@ -21,16 +21,19 @@ membership, so `model_dump()` stays byte-stable.
 A `Lemma` is the lexical *token*: one surface form in one language. It always
 carries a stable `id`, a normalised form, an optional part of speech, topic
 tags, curated examples, and provenance. The id is derived from
-`(text, language)` after normalisation, so two records that differ only in case
-or accents collide cleanly. The lemma stores **no meaning of its own** -
+`(text, language)` with case and accents **kept** (phase 8 step 9): pt `avó` and
+`avô`, es `ordenar` and `ordeñar`, en `Be` (beryllium) and `be` are different
+words, so they are different lemmas. Only Unicode composition and surrounding
+whitespace are normalised. Search stays accent- and case-insensitive through
+`normalized`, which is the lookup key, not the identity. The lemma stores **no meaning of its own** -
 definitions, cross-lingual links, frequency, and CEFR complexity live on the
 `Concept` and `Sense` it participates in.
 
 ```python
 from lang_tools.lexicon.lemma import Lemma
 
-lemma = Lemma(text="Café", language="fr", part_of_speech="noun", topics=["food"])
-lemma.id            # 16-char sha1 prefix
+lemma = Lemma(text="café", language="fr", part_of_speech="noun", topics=["food"])
+lemma.id            # 16-char sha1 prefix of "fr::café"
 lemma.normalized    # 'cafe'
 lemma.has_accent    # True
 lemma.length        # 4
@@ -551,15 +554,16 @@ estimated, and every band is valid and flagged.
 `ingestion.cefr_validation` measures the bands against a graded list and re-fits
 `CEFR_CUTOFFS` when the score changes, driven by the thin
 `notebooks/lexicon_enrich/06_validate_cefr.ipynb`. It is careful about what Kelly
-can settle. It **can** validate the ordering: rank correlation is 0.632 (en) and
+can settle. It **can** validate the ordering: rank correlation is 0.631 (en) and
 0.661 (it), and the Italian figure is the meaningful one, since the cutoffs were
 fitted on English alone. It **cannot** set the absolute scale, because Kelly
 grades the ~7.5k most frequent words, so its own "C2" means "least frequent of
 the common head" rather than "hardest word in the language" - which is why 82% of
 this corpus lands in C2 and why that is a property of the two vocabularies, not a
-calibration error. Band agreement is 41.2% exact / 74.4% within one band in
-English; Italian sits at a mean offset of +1.23 bands, a measured limitation of
-reusing English cutoffs rather than one we correct for. A form Kelly grades more
+calibration error. With the cutoffs re-fitted in phase 8 step 9, band agreement
+is 41.8% exact / 73.9% within one band in English (mean offset 0) and 23.1% /
+63.8% in Italian, which still sits at a mean offset of +1.05 bands, a measured
+limitation of reusing English cutoffs rather than one we correct for. A form Kelly grades more
 than once keeps its easiest band, mirroring the easiest-sense rule on our side.
 
 #### Topics (phase 8)
@@ -597,10 +601,28 @@ sport topics still come in through OMW's domain links.
 
 #### Member forms (phase 8)
 
-OMW gives a lemma's display text and part of speech once per synset it appears in,
-and they do not always agree. The build now settles each lemma on the **majority**
-text and POS across its synsets instead of the first one seen (4,198 POS and 884
-display-text fixes on the five-language build). Member forms that OMW joins with
+OMW gives a lemma's part of speech once per synset it appears in, and they do not
+always agree. The build settles each lemma on the **majority** POS across its
+synsets instead of the first one seen (4,198 POS fixes on the five-language build).
+
+Because identity keeps case and accents, the wordnets' noisy spellings of one
+word would otherwise become separate lemmas. `spelling_noise_folds` maps them to
+one canonical form before ids are minted:
+
+- a non-English form with a stray capital folds to lowercase, unless one of its
+  concepts has a capitalized English member (a name, an acronym): pt `Cuspir` ->
+  `cuspir`, but pt `ONU` (English `UN`) keeps its capitals;
+- case variants that share a concept fold to the lowercase one, else to the most
+  frequent, most capitalized one (pt `Golden gate bridge` -> `Golden Gate Bridge`);
+- accent variants that share a concept fold the spelling with fewer marks into the
+  fullest one (es `percepcion` -> `percepción`); spellings with as many marks stay
+  apart as parallel norms (pt `blasfémia` / `blasfêmia`).
+
+Variants that never share a concept are different words and never fold: pt `avó` /
+`avô`, es `mono` / `moño`, it `papa` / `papà`, en `State` / `state`, it `Mosca` /
+`mosca`. The token frequency lookup does not lend a lowercase lemma's count to its
+capitalized twin (`wordfreq` lowercases its input), so `Be` no longer inherits
+*be*'s A1. Member forms that OMW joins with
 `;` or `|` are split by `member_forms`, keeping only the segments tagged with the
 form's own language. What is left - non-English forms of five words or more, or
 over 40 characters - goes through the form review above.

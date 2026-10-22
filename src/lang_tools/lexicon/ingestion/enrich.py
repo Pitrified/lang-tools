@@ -75,19 +75,21 @@ CEFR_BANDS = ("A1", "A2", "B1", "B2", "C1", "C2")
 
 #: Score cutoffs between adjacent bands (5 cutoffs for 6 bands), ascending with
 #: difficulty. **Fitted** on the English lemmas Kelly covers, by matching Kelly's
-#: own band proportions on that subset (2026-09-02). Measured against Kelly on
-#: the shipped corpus: exact agreement 41.2% and within-one-band 74.4% (en),
-#: against 20.8% / 49.4% for the hand-guessed values they replaced.
+#: own band proportions on that subset. First fitted 2026-09-02; re-fitted
+#: 2026-10-22 (phase 8 step 9) because the shipped set no longer matched the
+#: current score (en mean offset +0.17 where a fit has 0). Measured against Kelly
+#: on the shipped corpus: en exact 41.8% / within one band 73.9%; it 23.1% / 63.8%
+#: (was 19.5% / 59.4%). The first hand-guessed values scored 20.8% / 49.4% (en).
 #:
 #: Applied unchanged to every language, because the inputs are corpus-normalized
 #: and re-quantiling per language would force an identical band histogram
 #: everywhere, destroying the cross-language comparison the concept-level signal
-#: exists to give. The *ordering* transfers: rank correlation with Kelly is 0.632
+#: exists to give. The *ordering* transfers: rank correlation with Kelly is 0.631
 #: in English and 0.661 in Italian, a language the cutoffs were never fitted on.
 #:
 #: The *absolute* scale does not fully transfer, and the gap is measured rather
-#: than assumed: Italian sits at a mean offset of +1.23 bands (we call its words
-#: harder than Kelly-it does), against +0.17 for English. A per-language offset
+#: than assumed: Italian sits at a mean offset of +1.05 bands (we call its words
+#: harder than Kelly-it does), against 0 for English. A per-language offset
 #: correction is deliberately not invented here - it would need a graded list per
 #: language to fit, and three of the five have none.
 #:
@@ -99,7 +101,7 @@ CEFR_BANDS = ("A1", "A2", "B1", "B2", "C1", "C2")
 #: is therefore a catch-all "past the end of the syllabus" bucket, and the bands
 #: that matter to a learner (A1-B1, ~7.7% of senses, ~38k) are the ones Kelly can
 #: actually speak to.
-CEFR_CUTOFFS = (0.2774, 0.3387, 0.4015, 0.4410, 0.4764)
+CEFR_CUTOFFS = (0.2956, 0.3561, 0.4147, 0.4499, 0.4813)
 
 #: Weights of the difficulty score's terms; they sum to 1.0.
 #: Lemma frequency dominates because it is the strongest measured signal against
