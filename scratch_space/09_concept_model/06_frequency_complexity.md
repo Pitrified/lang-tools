@@ -306,7 +306,11 @@ had a real argument behind it.
 
 ## Result (2026-09-02)
 
-> **Reopened by phase 8 (2026-10-21), not yet done:** the overlay lends a token's frequency to
+> **Resolved 2026-10-22 (phase 8 step 9):** no frequency is lent across case any more (`Be` is
+> C2), and `CEFR_CUTOFFS` was re-fitted: en 41.8% exact / 73.9% within one (offset 0), it
+> 23.1% / 63.8% (offset +1.05). The table below is the 2026-09-02 measurement.
+>
+> **Reopened by phase 8 (2026-10-21):** the overlay lends a token's frequency to
 > every sense, so a rare sense of a frequent token bands easy (beryllium `Be` is A1 through
 > *be*, and `wordfreq` lowercases, so a separate `Be` lemma would inherit it too). Decided: fix
 > it alongside the lemma-identity change, then re-run this phase's Kelly validation and re-fit

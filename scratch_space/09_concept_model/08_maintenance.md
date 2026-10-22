@@ -267,7 +267,11 @@ Then, once 1-3 are answered:
    member forms, backfill, topic review) and `llm.md` (new chains, runner). Original note:
    `lexicon.md` for the runner and usage tracking, slug tier 2, lemma settling, the
    member-form review, the backfill and `definition_sources`; tracking; close the phase.
-9. **Lemma identity + per-sense frequency** (decided, its own step; after the worklists settle,
+9. ~~Lemma identity + per-sense frequency~~ - **done 2026-10-22**: identity keeps case and
+   accents, `spelling_noise_folds` folds 16,601 noisy spellings, no frequency lent across
+   case, drops re-keyed, `CEFR_CUTOFFS` re-fitted (it 19.5% -> 23.1% exact). Result in
+   [`08_maintenance/lemma_identity_and_sense_frequency.md`](08_maintenance/lemma_identity_and_sense_frequency.md).
+   Original note: (decided, its own step; after the worklists settle,
    before phase 9 reconnects `lang-tutor`, so the lemma-id migration happens once): case- and
    accent-aware `lemma_id`, the case-noise collapse rule, re-key `member_form_drops.jsonl`,
    frequency no longer lent across case, then phase 6's Kelly re-validation and the
@@ -285,4 +289,4 @@ Then, once 1-3 are answered:
 - [x] The gate carries the new sections; `uv run pytest && uv run ruff check . && uv run
       pyright` green; docs + tracking updated.
 
-Phase 8 is **closed (2026-10-22)** except step 9, which runs as its own step before phase 9.
+Phase 8 is **closed (2026-10-22)**, step 9 included.

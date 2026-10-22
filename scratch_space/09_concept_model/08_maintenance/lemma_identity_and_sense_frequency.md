@@ -1,8 +1,9 @@
-# Lemma identity and per-sense frequency (decided 2026-10-21, not yet implemented)
+# Lemma identity and per-sense frequency (decided 2026-10-21, done 2026-10-22)
 
 Two defects found during the phase-8 member-form review. The user decided both are wrong
 ("avó and avô are not the same thing"; "beryllium is not *be*"). This note records the
-measurements, the shape of the fix and its cost. **Nothing here is implemented yet.**
+measurements, the shape of the fix and its cost. **Implemented 2026-10-22** as phase 8 step 9;
+see the Result at the end.
 
 ## 4a - lemma identity must not fold accents
 
@@ -78,3 +79,40 @@ Two separate causes.
 Overall: a few days of careful work, mostly measurement and review rather than code, with one
 id migration. It should land as its own step - after the phase-8 worklists settle and before
 phase 9 reconnects `lang-tutor` - so the id churn happens once.
+
+## Result (2026-10-22)
+
+- **Identity.** `lemma_id` hashes the NFC form with case and accents kept. Lowercase
+  unaccented lemmas kept their ids.
+- **Noise folds, not a case rule alone.** The first build with the new identity showed that
+  the measured "shares a synset" groups were only part of the noise: pt and fr also had stray
+  capitals on forms whose lowercase twin sits on a different synset, multiword names with
+  inconsistent capitals (pt `Golden gate bridge`), and source typos that lost an accent (es
+  `percepcion` beside `percepción`). `sources.omw.spelling_noise_folds` folds, before ids are
+  minted:
+  1. a non-English form with a capital, none of whose concepts has a capitalized English
+     member, to lowercase (pt `Cuspir`; pt `ONU`, English `UN`, keeps its capitals);
+  2. case variants that share a concept, to the lowercase one, else the most frequent and
+     most capitalized one;
+  3. accent variants that share a concept, the one with fewer marks into the fullest one;
+     variants with as many marks stay apart (pt `blasfémia` / `blasfêmia`, two norms).
+  16,601 forms fold (pt 12,308, fr 3,779, es 320, it 159, en 35). Variants that never share
+  a concept never fold: pt `avó` / `avô`, es `ordenar` / `ordeñar`, `mono` / `moño`, it
+  `papa` / `papà`, `Mosca` / `mosca`, en `State` / `state`, `Be` / `be` are all two lemmas.
+- **Corpus.** Lemmas 320,904 -> 324,336 (en +1,389, pt +1,024, fr +693, es +241, it +85);
+  senses 490,654 -> 491,363. Gate PASS.
+- **Frequency.** `lemma_zipf` no longer lends a lowercase lemma's count to a capitalized twin
+  (2,332 forms). en `Be` is now C2 with no token frequency (was A1 through *be*).
+- **Curated inputs.** `member_form_drops.jsonl` re-keyed from each row's form (132 rows), and 5
+  more to the folded lowercase lemma; all 153 accepted drops apply. Every other curated file is
+  concept-keyed and unaffected.
+- **CEFR.** Kelly validation on the new corpus was unchanged by the identity change itself
+  (en 41.2% exact / 74.3% within one / Spearman 0.631; it 19.5% / 59.4% / 0.661). The open
+  re-fit was then taken: `CEFR_CUTOFFS` (0.2774, 0.3387, 0.4015, 0.4410, 0.4764) -> (0.2956,
+  0.3561, 0.4147, 0.4499, 0.4813). en 41.8% / 73.9%, mean offset +0.17 -> 0; it 23.1% /
+  63.8% (+3.6 / +4.4 points), offset +1.23 -> +1.05. Senses in A1-B1 37.5k -> 44.4k. The
+  shipped cutoffs are now a fixed point of `fit_cutoffs`.
+- **Known source error, not ours.** OMW-pt attaches `avô` (grandfather) to the grandmother
+  synset as well; identity cannot fix a wrong membership.
+- **`lang-tutor`.** Per-user progress keyed on the changed ids resets; noted in
+  `docs/library/frozen_api.md` for phase 9.
