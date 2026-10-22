@@ -287,6 +287,10 @@ On 200 random selected candidates, v5 gives:
   batch prices;
 - `gpt-6-luna`: 23 traps, mostly misjudging; full run about **$1.15**.
 
+**Paid run on hold (2026-10-22).** Asked for approval with the numbers above; the user
+chose to hold and review the prompt and the numbers first. Acceptance, when it runs,
+is a sampled review per language pair (as for the gloss backfill).
+
 ## Out of scope
 
 - Fixing OMW coverage holes (*embarazada*, *parents*): new-lemma mapping, in the backlog.
