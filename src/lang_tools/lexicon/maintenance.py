@@ -85,6 +85,9 @@ GLOSS_OVERRIDES_SUBPATH = "curated/gloss_overrides.jsonl"
 #: Committed generated non-English glosses (phase 8), under ``data/curated/``.
 GLOSS_BACKFILL_FILE = "gloss_backfill.jsonl"
 
+#: Committed curated example sentences (phase 9), under ``data/curated/``.
+EXAMPLE_SENTENCES_FILE = "example_sentences.jsonl"
+
 
 class ProposalConceptNotFoundError(KeyError):
     """Raised when an accepted proposal targets a concept id not in the corpus."""
@@ -521,3 +524,69 @@ def apply_gloss_backfill(
         )
     return filled, skipped, stale
 
+
+class ExampleSentence(BaseModel):
+    """One curated example sentence for a concept (a JSONL line, phase 9).
+
+    OMW carries example sentences for en (and a few it) concepts only, so the
+    other languages get theirs from this committed input. Each row names the
+    lemma it illustrates, so a reviewer can check the sentence actually uses
+    the word; the build only reads ``concept_id``, ``language`` and
+    ``sentence``.
+
+    Attributes:
+        concept_id: The concept the sentence illustrates (matched on its key).
+        language: Language of the sentence.
+        lemma: The lemma form the sentence uses (review aid).
+        sentence: The example sentence.
+        translation: An English translation (review aid).
+        status: Only ``accepted`` rows are applied.
+        model: Who wrote it (``"manual"`` for a hand-written row).
+    """
+
+    concept_id: str
+    language: str
+    lemma: str
+    sentence: str
+    translation: str = ""
+    status: ReviewStatus = "proposed"
+    model: str = "manual"
+
+
+def load_example_sentences(data_fol: Path) -> list[ExampleSentence]:
+    """Read the accepted curated example sentences, if any."""
+    return load_curated(ExampleSentence, data_fol, EXAMPLE_SENTENCES_FILE)
+
+
+def apply_example_sentences(
+    concepts: list[Concept],
+    *,
+    sentences: list[ExampleSentence],
+) -> tuple[int, int]:
+    """Append curated example sentences to `Concept.examples`, in place.
+
+    A sentence the concept already lists in that language is not added twice,
+    so re-applying is a no-op. Rows naming a concept this build lacks are
+    counted as stale and skipped, never fatal (the gloss overrides' rule).
+
+    Args:
+        concepts: The freshly built concepts, mutated in place.
+        sentences: Accepted rows, typically from `load_example_sentences`.
+
+    Returns:
+        ``(added, stale)`` counts.
+    """
+    by_key = {concept_key(concept.id): concept for concept in concepts}
+    added = stale = 0
+    for row in sentences:
+        concept = by_key.get(concept_key(row.concept_id))
+        if concept is None:
+            stale += 1
+            continue
+        current = concept.examples.setdefault(row.language, [])
+        if row.sentence not in current:
+            current.append(row.sentence)
+            added += 1
+    if sentences:
+        lg.info("Example sentences: {} added, {} stale", added, stale)
+    return added, stale

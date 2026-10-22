@@ -653,6 +653,20 @@ OpenAI batch, about $1.87) accepted 174,315 glosses across the four languages. T
 model choice and the quality review are recorded under
 `scratch_space/09_concept_model/08_maintenance/`.
 
+#### Example sentences (phase 9)
+
+OMW carries example sentences for en (32.9k concepts) and a few it ones only.
+The other languages take theirs from the committed
+`data/curated/example_sentences.jsonl`. Each row holds a concept id, the
+language, the lemma the sentence uses (a review aid), the sentence, and an
+English translation. `maintenance.apply_example_sentences` appends the accepted
+rows to `Concept.examples` at build time, after the gloss backfill, and never
+adds the same sentence twice. Like the other curated inputs, rows match on
+`concept_key`, so a re-slug does not make them stale.
+
+The first ten rows (2026-10-22, four pt, three es, three fr) are hand-written to
+prove the path end to end. They are not a scaled-up set.
+
 #### Provenance column
 
 The provenance tag lives **on disk only**: the codec writes it as an extra

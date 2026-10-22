@@ -10,8 +10,10 @@ from lang_tools.lexicon.codec import _read_table_rows
 from lang_tools.lexicon.concept import Concept
 from lang_tools.lexicon.lemma import Lemma
 from lang_tools.lexicon.lemma_store import CorpusNotFoundError
+from lang_tools.lexicon.maintenance import ExampleSentence
 from lang_tools.lexicon.maintenance import GlossProposal
 from lang_tools.lexicon.maintenance import ProposalConceptNotFoundError
+from lang_tools.lexicon.maintenance import apply_example_sentences
 from lang_tools.lexicon.maintenance import apply_gloss_proposals
 from lang_tools.lexicon.maintenance import curated_path
 from lang_tools.lexicon.maintenance import load_curated
@@ -184,3 +186,19 @@ def test_load_curated_keeps_only_accepted_rows(tmp_path: Path) -> None:
     loaded = load_curated(GlossProposal, tmp_path, "example.jsonl")
     assert [row.proposed_definition for row in loaded] == ["definition accepted"]
     assert load_curated(GlossProposal, tmp_path, "missing.jsonl") == []
+
+
+def test_example_sentences_append_once_and_count_stale() -> None:
+    house = Concept(id="c__house-living__0011aabbccdd", examples={"en": ["a house"]})
+    row = ExampleSentence(
+        # A re-slugged id still matches on the hash key.
+        concept_id="c__house-renamed__0011aabbccdd",
+        language="pt",
+        lemma="casa",
+        sentence="A casa é grande.",
+        status="accepted",
+    )
+    stale_row = row.model_copy(update={"concept_id": "c__gone__ffffffffffff"})
+    added, stale = apply_example_sentences([house], sentences=[row, row, stale_row])
+    assert (added, stale) == (1, 1)
+    assert house.examples == {"en": ["a house"], "pt": ["A casa é grande."]}
