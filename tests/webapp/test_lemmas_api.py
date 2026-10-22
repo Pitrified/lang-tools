@@ -8,13 +8,40 @@ from lang_tools.lexicon.lemma_store import get_lemmas_filtered
 class TestListLemmas:
     """Tests for GET /api/v1/lemmas."""
 
-    def test_list_all_lemmas(self, client: TestClient) -> None:
-        """No filter returns the full pool as JSON."""
+    def test_list_is_paged_with_a_total(self, client: TestClient) -> None:
+        """No filter returns the first page, with the pool size in a header."""
         response = client.get("/api/v1/lemmas")
         assert response.status_code == 200
         payload = response.json()
         assert isinstance(payload, list)
-        assert len(payload) == len(get_lemmas_filtered())
+        total = len(get_lemmas_filtered())
+        assert len(payload) == min(100, total)
+        assert response.headers["X-Total-Count"] == str(total)
+
+    def test_pages_do_not_overlap(self, client: TestClient) -> None:
+        """Consecutive pages are disjoint and ordered by the folded form."""
+        first = client.get("/api/v1/lemmas", params={"limit": 5}).json()
+        second = client.get("/api/v1/lemmas", params={"limit": 5, "offset": 5}).json()
+        assert not {lem["id"] for lem in first} & {lem["id"] for lem in second}
+        assert first[-1]["normalized"] <= second[0]["normalized"]
+
+    def test_prefix_search(self, client: TestClient) -> None:
+        """``q`` matches the start of the folded form."""
+        known = get_lemmas_filtered(language="pt")[0]
+        response = client.get(
+            "/api/v1/lemmas",
+            params={"language": "pt", "q": known.normalized[:3]},
+        )
+        assert known.id in {lem["id"] for lem in response.json()}
+        assert all(
+            lem["normalized"].startswith(known.normalized[:3])
+            for lem in response.json()
+        )
+
+    def test_page_size_is_capped(self, client: TestClient) -> None:
+        """A page larger than the cap is rejected."""
+        response = client.get("/api/v1/lemmas", params={"limit": 10_000})
+        assert response.status_code == 422
 
     def test_filter_by_language(self, client: TestClient) -> None:
         """The language filter narrows the result to one language."""
@@ -23,7 +50,8 @@ class TestListLemmas:
         payload = response.json()
         assert payload
         assert all(lemma["language"] == "pt" for lemma in payload)
-        assert len(payload) == len(get_lemmas_filtered(language="pt"))
+        expected = len(get_lemmas_filtered(language="pt"))
+        assert len(payload) == min(100, expected)
 
     def test_filter_by_topic(self, client: TestClient) -> None:
         """The topic filter narrows the result to lemmas carrying the topic."""

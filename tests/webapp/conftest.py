@@ -23,6 +23,7 @@ from lang_tools.lexicon.lemma_store import LexiconStore
 from lang_tools.lexicon.lemma_store import reset_store
 from lang_tools.lexicon.lemma_store import set_store
 from lang_tools.params.lang_tools_params import get_lang_tools_params
+from lang_tools.webapp.routers.cards_router import router as cards_router
 from lang_tools.webapp.routers.concepts_router import router as concepts_router
 from lang_tools.webapp.routers.lemmas_router import router as lemmas_router
 
@@ -75,7 +76,7 @@ def app(test_config: WebappConfig) -> FastAPI:
     """Build the content read API application."""
     return create_app(
         config=test_config,
-        extra_routers=[lemmas_router, concepts_router],
+        extra_routers=[lemmas_router, concepts_router, cards_router],
     )
 
 

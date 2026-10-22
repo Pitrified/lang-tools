@@ -195,7 +195,9 @@ first use) and thin delegating helpers - the stable surface `lang-tutor` and the
 webapp consume:
 
 - Lemmas: `get_all_lemmas`, `get_lemma_by_id`, `get_lemmas_by_language`,
-  `get_lemmas_by_topic`, `get_lemmas_filtered`. A lemma's `topics` as returned
+  `get_lemmas_by_topic`, `get_lemmas_filtered` (optional `query` prefix,
+  folded like `normalized`, and `limit` / `offset` paging ordered by the folded
+  form), `count_lemmas_filtered`. A lemma's `topics` as returned
   here are **derived**: its own curated tags plus the topics of every concept it
   has a sense in, computed once per cache build into an indexed `lemma_topics`
   table, so a topic filter is a lookup rather than a scan.
@@ -207,6 +209,51 @@ webapp consume:
   with an optional `relation_type`; a symmetric edge is found from either end).
 
 These are point lookups and bounded adjacency joins, not aggregations.
+
+### Drill cards (phase 9)
+
+A drill needs more than the thin `Lemma`: what the word means, how hard it is,
+and how to say it in another language. `LemmaCard` (`lang_tools.lexicon.card`)
+is that learner-facing read model, computed by the store at query time and
+never persisted:
+
+- `lemma`: the thin token, unchanged.
+- `concept_id`, `cefr_level`, `sense_frequency`: the lemma's **best sense**.
+  That is the highest `sense_frequency`, ties going to the more common concept
+  (`Concept.commonness`), then the easier band.
+- `gloss`: the best concept's definition in the requested gloss language.
+- `translations`: language -> the concept's other lemmas, most frequent first.
+  The lemma's own language lists its synonyms.
+- `examples`: the concept's example sentences in the lemma's language.
+
+The commonness tie-break matters outside English. The SemCor prior that splits a
+lemma's frequency across its senses is English-only, so every sense of a pt lemma
+ties on frequency. Without the tie-break, pt *casa* picks "apartment" over
+"house", and *falar* picks "deal" over "say".
+
+`lemma_cards(CardQuery)` returns a bounded list (at most 500, default 50). The
+filters are:
+
+- language;
+- CEFR window (`min_cefr` / `max_cefr`);
+- topic, part of speech, exact length;
+- `accented_only` and `single_word`, which means one lowercase alphabetic token,
+  so no proper nouns, compounds or digits;
+- `require_translation` (in every `translation_languages`), `require_example`;
+- `exclude_ids`.
+
+The order is random (seeded with `seed` for a reproducible sample) or
+`frequency`. `lemma_card(lemma_id)` returns one card.
+
+Both read a narrow `lemma_drill` table, derived once per cache build like
+`lemma_topics`. It holds each lemma's best sense and its text flags, indexed on
+`(language, cefr_level)`. A query filters and orders that table alone and fetches
+only the picked lemma rows, so a 200-card window over the full corpus takes
+20-50 ms.
+
+Known limit: WordNet has no function words, so a few very frequent forms map to
+an odd best sense (en *a* -> angstrom, fr *sans* -> lilac). A drill that wants
+content words can filter on `part_of_speech`.
 
 ### Hydration and the guard
 

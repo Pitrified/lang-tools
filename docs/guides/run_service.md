@@ -83,14 +83,20 @@ curl -s "http://127.0.0.1:8010/api/v1/lemmas?language=pt"
 
 ## Read API
 
-All endpoints are public and return JSON `Lemma` objects (the same model
-`lang-tutor` imports), including the computed fields `id`, `has_accent`,
-`accented_chars`, and `length`.
+All endpoints are public and return JSON models `lang-tutor` imports: `Lemma`
+(including the computed fields `id`, `has_accent`, `accented_chars`, and
+`length`), `Concept`, the relation edges, and the `LemmaCard` drill view (see
+the lexicon page).
 
 | Method | Path | Description |
 | ------ | ---- | ----------- |
-| `GET` | `/api/v1/lemmas` | List lemmas. Optional query params `language` (ISO 639-1) and `topic`. |
+| `GET` | `/api/v1/lemmas` | One page of lemmas, ordered by the folded form. Optional query params `language` (ISO 639-1), `topic`, `q` (prefix of the folded form), `limit` (default 100, max 500) and `offset`. The total match count is in the `X-Total-Count` header. |
 | `GET` | `/api/v1/lemmas/{lemma_id}` | Fetch one lemma by its deterministic id. `404` when absent. |
+| `GET` | `/api/v1/lemmas/{lemma_id}/false-friends` | The lemma's false-friend edges. |
+| `GET` | `/api/v1/concepts/{concept_id}` | Fetch one concept. `404` when absent. |
+| `GET` | `/api/v1/concepts/{concept_id}/relations` | The concept's typed relation edges. |
+| `GET` | `/api/v1/cards` | A bounded sample of `LemmaCard` drill cards. The query string is a `CardQuery`, for example `language=pt&max_cefr=B1&single_word=true&limit=20`. List fields repeat the key (`translation_languages=en&translation_languages=it`). |
+| `GET` | `/api/v1/cards/{lemma_id}` | One lemma's card. Optional `gloss_language` and repeated `translation_languages`. `404` when absent. |
 | `GET` | `/health` | Liveness/health probe (from fastapi-tools). |
 
 Example:
@@ -98,6 +104,7 @@ Example:
 ```bash
 curl -s "http://127.0.0.1:8010/api/v1/lemmas?language=pt&topic=basics"
 curl -s "http://127.0.0.1:8010/api/v1/lemmas/bf1c1f94e4bca388"
+curl -s "http://127.0.0.1:8010/api/v1/cards?language=pt&max_cefr=A2&single_word=true&limit=5"
 ```
 
 `lang-tutor` points at this service with `LANG_TOOLS_BASE_URL`; see its
