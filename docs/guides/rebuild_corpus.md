@@ -56,8 +56,10 @@ uv sync --all-extras
 The params singleton is loaded on import and reads one placeholder secret,
 `SAMPLE_API_KEY`. Copy `nokeys.env` to `~/cred/lang-tools/.env` and fill it in
 (any value works for `SAMPLE_API_KEY`). No real API key is needed to build the
-corpus; `OPENAI_API_KEY` only matters for the LLM gloss-repair loop
-(`notebooks/lexicon_maintain/gloss_repair.ipynb`).
+corpus: every LLM-generated input (gloss repairs, slug qualifiers, form drops, the
+gloss backfill) is committed under `data/curated/` and applied by the build.
+`OPENAI_API_KEY` only matters to re-run one of those jobs
+(`notebooks/lexicon_maintain/`).
 
 ### Network, disk, memory
 
