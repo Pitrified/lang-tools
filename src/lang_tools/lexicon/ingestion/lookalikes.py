@@ -30,6 +30,7 @@ import re
 from typing import TYPE_CHECKING
 from typing import Literal
 
+from loguru import logger as lg
 import pyarrow as pa
 from pydantic import BaseModel
 
@@ -37,14 +38,22 @@ from lang_tools.language.normalization import normalize
 from lang_tools.lexicon.codec import LEXICON_SUBDIR
 from lang_tools.lexicon.lemma_store import CorpusNotFoundError
 from lang_tools.lexicon.maintenance import CURATED_SUBDIR
+from lang_tools.lexicon.maintenance import load_curated
 from lang_tools.lexicon.maintenance import read_jsonl
 from lang_tools.lexicon.quality import _connect
 from lang_tools.lexicon.quality import _table_sources
+from lang_tools.lexicon.relations import LookalikeKind
+from lang_tools.lexicon.relations import LookalikeRelation
+from lang_tools.llm.lookalike_verify import LookalikeVerifyInput
+from lang_tools.llm.lookalike_verify import LookalikeVerifyOutput
+from lang_tools.llm.lookalike_verify import PairSource
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from collections.abc import Sequence
     from pathlib import Path
+
+    from lang_tools.lexicon.lemma_store import LexiconStore
 
 #: Suffix rewrites, per language, applied once to the lowercase form *before*
 #: accents are folded: pt *-ção* and *-cão* fold to the same letters, but only
@@ -212,9 +221,6 @@ def _levenshtein(a: str, b: str) -> int:
 
 # --- Candidate generation -----------------------------------------------------
 
-#: A look-alike edge's kind. ``full``: no meaning in common; ``partial``: they
-#: share only a minor sense; ``cognate``: they share the main sense.
-LookalikeKind = Literal["full", "partial", "cognate"]
 
 #: Lowest similarity a pair needs to become a candidate (tuned on the gold set:
 #: 113 of 116 gold false friends score at least 0.7, the rest 0.67).
@@ -262,6 +268,11 @@ class LookalikeCandidate:
     form_similarity: float = 0.0
     same_pos: bool = False
     known_zipf: float | None = None
+
+    @property
+    def key(self) -> str:
+        """Return the item key, ``{target_id}:{known_id}``."""
+        return f"{self.target_id}:{self.known_id}"
 
     @property
     def pair(self) -> tuple[str, str]:
@@ -599,3 +610,238 @@ def score_against_gold(
         totals=totals,
         kind_agreement=agreement,
     )
+
+
+# --- Verification worklist and proposals ----------------------------------------
+
+#: English names of the languages the verifier prompt mentions.
+LANGUAGE_NAMES: dict[str, str] = {
+    "en": "English",
+    "pt": "Portuguese",
+    "it": "Italian",
+    "es": "Spanish",
+    "fr": "French",
+}
+
+#: Pairs per verifier request; instructions are paid once per chunk.
+VERIFY_CHUNK_SIZE = 20
+
+#: Senses shown per word, most common first.
+_SENSES_SHOWN = 3
+
+#: Committed curated look-alike edges (the verifier's reviewed output).
+LOOKALIKES_FILE = "lookalikes.jsonl"
+
+
+def sense_summary(store: LexiconStore, lemma_id: str) -> str:
+    """Return a word's main senses as ``"gloss (English words)"`` strings.
+
+    Args:
+        store: The lexicon store.
+        lemma_id: The lemma to summarize.
+
+    Returns:
+        Up to three senses, most common first, joined with `` / ``.
+    """
+    parts: list[str] = []
+    for card in store.lemma_sense_cards(lemma_id)[:_SENSES_SHOWN]:
+        english = ", ".join(card.translations.get("en", [])[:3])
+        gloss = card.gloss or ""
+        parts.append(f"{gloss} ({english})" if english else gloss)
+    return " / ".join(part for part in parts if part)
+
+
+def verify_chunks(
+    store: LexiconStore,
+    candidates: Sequence[LookalikeCandidate],
+    *,
+    target: str = "pt",
+    size: int = VERIFY_CHUNK_SIZE,
+) -> list[tuple[str, LookalikeVerifyInput]]:
+    """Group candidates into verifier requests, one known language per chunk.
+
+    Args:
+        store: The lexicon store, for the sense summaries.
+        candidates: The candidates to verify.
+        target: The language being learned.
+        size: Pairs per request.
+
+    Returns:
+        ``(chunk_key, input)`` pairs, deterministic for a given candidate set.
+    """
+    by_language: dict[str, list[LookalikeCandidate]] = {}
+    for cand in sorted(candidates, key=lambda c: (c.known_language, c.key)):
+        by_language.setdefault(cand.known_language, []).append(cand)
+    summaries: dict[str, str] = {}
+
+    def _senses(lemma_id: str) -> str:
+        if lemma_id not in summaries:
+            summaries[lemma_id] = sense_summary(store, lemma_id)
+        return summaries[lemma_id]
+
+    chunks: list[tuple[str, LookalikeVerifyInput]] = []
+    for language, group in by_language.items():
+        for start in range(0, len(group), size):
+            part = group[start : start + size]
+            chunks.append(
+                (
+                    f"{target}-{language}:{part[0].key}",
+                    LookalikeVerifyInput(
+                        target_language_name=LANGUAGE_NAMES[target],
+                        known_language_name=LANGUAGE_NAMES[language],
+                        pairs=[
+                            PairSource(
+                                key=cand.key,
+                                target_word=cand.target_text,
+                                target_senses=_senses(cand.target_id),
+                                known_word=cand.known_text,
+                                known_senses=_senses(cand.known_id),
+                            )
+                            for cand in part
+                        ],
+                    ),
+                ),
+            )
+    return chunks
+
+
+class LookalikeProposal(BaseModel):
+    """One reviewable look-alike edge (a line of ``data/curated/lookalikes.jsonl``).
+
+    Attributes:
+        target_id: Lemma id on the learned side.
+        target_text: Its form (review aid).
+        known_id: Lemma id on the known side.
+        known_text: Its form (review aid).
+        known_language: The known side's language.
+        kind: The verifier's verdict (``unrelated`` rows are kept as rejected).
+        note: The learner note in English, for a false friend.
+        similarity: The generator's similarity score.
+        status: ``proposed`` until a reviewed run is accepted; only
+            ``accepted`` rows are applied.
+        model: The model that produced the verdict, or ``manual``.
+        prompt_sha: The prompt's hash, for provenance.
+    """
+
+    target_id: str
+    target_text: str
+    known_id: str
+    known_text: str
+    known_language: str
+    kind: Literal["full", "partial", "cognate", "unrelated"]
+    note: str = ""
+    similarity: float | None = None
+    status: Literal["proposed", "accepted", "rejected"] = "proposed"
+    model: str = ""
+    prompt_sha: str = ""
+
+
+def proposals_from_verdicts(
+    candidates: Sequence[LookalikeCandidate],
+    outputs: Iterable[LookalikeVerifyOutput],
+    *,
+    model: str = "",
+    prompt_sha: str = "",
+) -> list[LookalikeProposal]:
+    """Turn verifier outputs into reviewable proposals.
+
+    A verdict whose key matches no candidate is dropped (the model mistyped
+    it). An ``unrelated`` verdict, or a false friend without a note, is written
+    as ``rejected`` so the review sees it but the build never applies it.
+
+    Args:
+        candidates: The candidates that were verified.
+        outputs: The verifier outputs.
+        model: The model name, recorded on each row.
+        prompt_sha: The prompt hash, recorded on each row.
+
+    Returns:
+        One proposal per matched verdict, sorted by key.
+    """
+    by_key = {cand.key: cand for cand in candidates}
+    rows: dict[str, LookalikeProposal] = {}
+    for output in outputs:
+        for verdict in output.verdicts:
+            cand = by_key.get(verdict.key)
+            if cand is None:
+                continue
+            note = " ".join(verdict.note.split())
+            missing_note = verdict.kind in {"full", "partial"} and not note
+            rows[cand.key] = LookalikeProposal(
+                target_id=cand.target_id,
+                target_text=cand.target_text,
+                known_id=cand.known_id,
+                known_text=cand.known_text,
+                known_language=cand.known_language,
+                kind=verdict.kind,
+                note=note if verdict.kind in {"full", "partial"} else "",
+                similarity=cand.similarity,
+                status=(
+                    "rejected"
+                    if verdict.kind == "unrelated" or missing_note
+                    else "proposed"
+                ),
+                model=model,
+                prompt_sha=prompt_sha,
+            )
+    return [rows[key] for key in sorted(rows)]
+
+
+def accept_run(
+    proposals: Sequence[LookalikeProposal],
+    *,
+    languages: Iterable[str],
+) -> list[LookalikeProposal]:
+    """Flip the ``proposed`` rows of the reviewed languages to ``accepted``."""
+    chosen = set(languages)
+    return [
+        row.model_copy(update={"status": "accepted"})
+        if row.status == "proposed" and row.known_language in chosen
+        else row
+        for row in proposals
+    ]
+
+
+def load_lookalikes(data_fol: Path) -> list[LookalikeProposal]:
+    """Read the accepted rows of the committed look-alike file, if any."""
+    return load_curated(LookalikeProposal, data_fol, LOOKALIKES_FILE)
+
+
+def apply_lookalikes(
+    lemma_ids: Iterable[str],
+    proposals: Iterable[LookalikeProposal],
+) -> tuple[list[LookalikeRelation], int]:
+    """Build the look-alike edges from accepted proposals (phase 11).
+
+    A row whose lemmas are not both in the build is counted as stale and
+    skipped, never fatal (the curated-input rule). ``unrelated`` rows never
+    become edges.
+
+    Args:
+        lemma_ids: Every lemma id of the build.
+        proposals: Accepted rows, typically from `load_lookalikes`.
+
+    Returns:
+        ``(edges, stale)``: one edge per pair, and the stale row count.
+    """
+    known = set(lemma_ids)
+    edges: dict[tuple[str, str], LookalikeRelation] = {}
+    stale = 0
+    for row in proposals:
+        if row.kind == "unrelated":
+            continue
+        if row.target_id not in known or row.known_id not in known:
+            stale += 1
+            continue
+        notes = {"en": row.note} if row.note else {}
+        edge = LookalikeRelation(
+            lemma_id_a=row.target_id,
+            lemma_id_b=row.known_id,
+            kind=row.kind,
+            similarity_score=row.similarity,
+            explanation_notes=notes,
+        )
+        edges[edge.lemma_id_a, edge.lemma_id_b] = edge
+    if stale:
+        lg.warning("Look-alikes: {} stale row(s) skipped", stale)
+    return [edges[pair] for pair in sorted(edges)], stale

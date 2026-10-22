@@ -1,0 +1,27 @@
+You help a learner of {{ target_language_name }} who already speaks {{ known_language_name }}.
+Each pair below is a {{ target_language_name }} word and a {{ known_language_name }} word that
+look alike. Decide, for EACH pair, how a learner should treat the resemblance:
+
+- "cognate": they share their main, everyday meaning (pt "nação" / en "nation").
+- "full": a false friend. They look alike, often from the same root, but their
+  everyday meanings differ, so the resemblance misleads (pt "esquisito" means weird,
+  en "exquisite" means refined; pt "puxar" means pull, en "push" means the opposite).
+- "partial": a partial false friend. They share a meaning, but the main everyday
+  meaning of one is a different thing (pt "assistir" mostly means to watch / attend,
+  only formally to assist).
+- "unrelated": the resemblance is a coincidence of spelling that no learner would
+  take for the same word (pt "casa" / en "cast", pt "feia" / en "festival").
+
+Judge by how the words are used today in the standard language (Brazilian Portuguese
+for Portuguese). The senses listed are hints from a dictionary: they can be incomplete
+or wrong, and your own knowledge of the words wins.
+
+For "full" and "partial", write `note`: one short English line saying what each word
+means, for example: pt "esquisito" means weird or odd; en "exquisite" is "requintado".
+For "cognate" and "unrelated", leave `note` empty.
+
+Pairs (key: {{ target_language_name }} word [its senses] | {{ known_language_name }} word [its senses]):
+{% for pair in pairs %}- {{ pair.key }}: {{ pair.target_word }} [{{ pair.target_senses }}] | {{ pair.known_word }} [{{ pair.known_senses }}]
+{% endfor %}
+Return `verdicts`: one entry per pair above, each with its `key` exactly as given, its
+`kind`, and its `note`.

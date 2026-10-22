@@ -7,16 +7,23 @@ import pytest
 from lang_tools.lexicon.ingestion.lookalikes import DEFAULT_SELECT_THRESHOLD
 from lang_tools.lexicon.ingestion.lookalikes import GoldPair
 from lang_tools.lexicon.ingestion.lookalikes import LookalikeCandidate
+from lang_tools.lexicon.ingestion.lookalikes import accept_run
+from lang_tools.lexicon.ingestion.lookalikes import apply_lookalikes
 from lang_tools.lexicon.ingestion.lookalikes import cognate_key
 from lang_tools.lexicon.ingestion.lookalikes import find_candidates
 from lang_tools.lexicon.ingestion.lookalikes import key_similarity
 from lang_tools.lexicon.ingestion.lookalikes import load_gold
+from lang_tools.lexicon.ingestion.lookalikes import proposals_from_verdicts
 from lang_tools.lexicon.ingestion.lookalikes import score_against_gold
 from lang_tools.lexicon.ingestion.lookalikes import select_candidates
 from lang_tools.lexicon.ingestion.lookalikes import skeleton
+from lang_tools.lexicon.ingestion.lookalikes import verify_chunks
 from lang_tools.lexicon.ingestion.pipeline import build_initial
 from lang_tools.lexicon.ingestion.sources.omw import SynsetEntry
 from lang_tools.lexicon.lemma_id import lemma_id
+from lang_tools.lexicon.lemma_store import LexiconStore
+from lang_tools.llm.lookalike_verify import KeyedVerdict
+from lang_tools.llm.lookalike_verify import LookalikeVerifyOutput
 from lang_tools.params.lang_tools_params import get_lang_tools_params
 
 
@@ -161,3 +168,60 @@ def test_committed_gold_set_is_consistent() -> None:
         assert g.pt_lemma_id == lemma_id(g.pt, "pt")
         assert g.other_lemma_id == lemma_id(g.other, g.other_language)
         assert g.pair == f"pt-{g.other_language}"
+
+
+def test_verify_chunks_proposals_and_edges(tmp_path: Path) -> None:
+    build_initial(["en", "pt", "it"], data_fol=tmp_path, omw_entries=_entries())
+    store = LexiconStore.from_data_fol(tmp_path)
+    cands = select_candidates(find_candidates(tmp_path), min_known_zipf=0.0)
+    chunks = verify_chunks(store, cands, size=1)
+    assert len(chunks) == len(cands)
+    first = chunks[0][1]
+    assert first.target_language_name == "Portuguese"
+    assert first.pairs[0].target_senses  # grounded in the word's senses
+
+    trap = next(c for c in cands if c.target_text == "esquisito")
+    nation = next(c for c in cands if c.known_text == "nation")
+    output = LookalikeVerifyOutput(
+        verdicts=[
+            KeyedVerdict(key=trap.key, kind="full", note="pt esquisito means  weird"),
+            KeyedVerdict(key=nation.key, kind="cognate", note="ignored"),
+            KeyedVerdict(key="mistyped:key", kind="full", note="x"),
+        ],
+    )
+    rows = proposals_from_verdicts(cands, [output], model="m")
+    assert {(r.target_text, r.kind, r.status) for r in rows} == {
+        ("esquisito", "full", "proposed"),
+        ("nação", "cognate", "proposed"),
+    }
+    assert next(r for r in rows if r.kind == "full").note == "pt esquisito means weird"
+    assert next(r for r in rows if r.kind == "cognate").note == ""
+
+    accepted = accept_run(rows, languages=["en"])
+    edges, stale = apply_lookalikes(
+        [trap.target_id, trap.known_id, nation.target_id, nation.known_id],
+        accepted,
+    )
+    assert stale == 0
+    assert {e.kind for e in edges} == {"full", "cognate"}
+    assert next(e for e in edges if e.kind == "full").explanation_notes == {
+        "en": "pt esquisito means weird",
+    }
+
+
+def test_unrelated_and_noteless_verdicts_are_rejected() -> None:
+    cand = _cand("t1", "a", 0.9)
+    output = LookalikeVerifyOutput(
+        verdicts=[KeyedVerdict(key=cand.key, kind="full", note="")],
+    )
+    assert proposals_from_verdicts([cand], [output])[0].status == "rejected"
+    output = LookalikeVerifyOutput(
+        verdicts=[KeyedVerdict(key=cand.key, kind="unrelated")],
+    )
+    row = proposals_from_verdicts([cand], [output])[0]
+    assert row.status == "rejected"
+    edges, stale = apply_lookalikes(
+        ["t1", "a"], [row.model_copy(update={"status": "accepted"})]
+    )
+    assert edges == []
+    assert stale == 0
