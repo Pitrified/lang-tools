@@ -51,6 +51,10 @@ from typing import TYPE_CHECKING
 
 from loguru import logger as lg
 
+from lang_tools.language.normalization import has_accent
+from lang_tools.language.normalization import normalize as _normalize
+from lang_tools.lexicon.card import CardQuery
+from lang_tools.lexicon.card import LemmaCard
 from lang_tools.lexicon.codec import _COLUMNS
 from lang_tools.lexicon.codec import LEXICON_SUBDIR
 from lang_tools.lexicon.codec import _load_table
@@ -80,7 +84,8 @@ if TYPE_CHECKING:
 #: v4: the ``sense_relations`` table (phase 7), so a v3 cache lacks a table.
 #: v5: concepts gained ``topics`` and the derived ``lemma_topics`` table (phase 8).
 #: v6: concepts gained ``definition_sources`` (per-gloss provenance, phase 8).
-CACHE_VERSION = 6
+#: v7: the derived ``lemma_drill`` table behind `LemmaCard` (phase 9).
+CACHE_VERSION = 7
 
 #: Filename of the persisted SQLite cache built inside a corpus directory. It is
 #: rebuilt from the Parquet whenever the corpus signature changes; never committed
@@ -259,10 +264,131 @@ UPDATE lemmas SET topics = (
     conn.commit()
 
 
+def _derive_drill_table(conn: sqlite3.Connection) -> None:
+    """Build ``lemma_drill``, the narrow indexed table behind `LemmaCard`.
+
+    One row per lemma: its language and part of speech, its **best sense**, and
+    the per-text drill filters (character length, single lowercase word, has a
+    diacritic). The flags are computed in Python because SQLite's ``lower()``
+    is ASCII-only.
+
+    The best sense is the highest ``sense_frequency``; ties go to the more
+    common concept (`Concept.commonness`), then the easier CEFR band, then the
+    concept id so the pick is deterministic. The commonness tie-break matters
+    outside English: the SemCor prior that splits a lemma's frequency across
+    its senses is English-only, so every sense of a pt lemma ties on
+    frequency, and without it pt ``casa`` would pick "apartment" over "house".
+
+    A card query filters and orders this table alone, then fetches only the
+    picked lemma rows, so a random sample over a whole language stays a cheap
+    scan. Derived once per cache build, like ``lemma_topics``.
+    """
+    conn.execute(
+        "CREATE TEMP TABLE lemma_flags ("
+        "lemma_id TEXT PRIMARY KEY, char_len INTEGER, single_word INTEGER,"
+        " accented INTEGER)",
+    )
+    rows = conn.execute("SELECT id, text FROM lemmas").fetchall()
+    conn.executemany(
+        "INSERT INTO lemma_flags VALUES (?, ?, ?, ?)",
+        [
+            (
+                row["id"],
+                len(row["text"]),
+                int(_is_single_word(row["text"])),
+                int(has_accent(row["text"])),
+            )
+            for row in rows
+        ],
+    )
+    conn.executescript(
+        """
+CREATE TABLE lemma_drill AS
+  SELECT l.id AS lemma_id, l.language, l.part_of_speech,
+         b.concept_id, b.cefr_level, b.sense_frequency,
+         f.char_len, f.single_word, f.accented
+    FROM lemmas l
+    JOIN temp.lemma_flags f ON f.lemma_id = l.id
+    LEFT JOIN (
+      SELECT lemma_id, concept_id, cefr_level, sense_frequency FROM (
+        SELECT s.lemma_id, s.concept_id, s.cefr_level, s.sense_frequency,
+               row_number() OVER (
+                 PARTITION BY s.lemma_id
+                 ORDER BY s.sense_frequency DESC NULLS LAST,
+                          c.commonness DESC NULLS LAST,
+                          s.cefr_level ASC NULLS LAST,
+                          s.concept_id
+               ) AS rank
+          FROM senses s JOIN concepts c ON c.id = s.concept_id
+      ) WHERE rank = 1
+    ) b ON b.lemma_id = l.id;
+CREATE UNIQUE INDEX idx_lemma_drill_lemma ON lemma_drill (lemma_id);
+CREATE INDEX idx_lemma_drill_level ON lemma_drill (language, cefr_level);
+DROP TABLE temp.lemma_flags;
+""",
+    )
+    conn.commit()
+
+
+def _is_single_word(text: str) -> bool:
+    """Return True for one lowercase alphabetic token (no proper nouns)."""
+    return text.isalpha() and text == text.lower()
+
+
+def _card_rank(seed: int, lemma_id: str) -> int:
+    """Return a deterministic pseudo-random sort key for a seeded sample."""
+    digest = hashlib.blake2b(f"{seed}:{lemma_id}".encode(), digest_size=8).digest()
+    return int.from_bytes(digest, "big") >> 1
+
+
+def _card_where(query: CardQuery) -> tuple[list[str], list[object]]:
+    """Return the card SELECT's WHERE clauses and their parameters.
+
+    Every column is read from ``lemma_drill`` (alias ``d``).
+    """
+    valued: list[tuple[object, str]] = [
+        (query.language, "d.language = ?"),
+        (query.min_cefr, "d.cefr_level >= ?"),
+        (query.max_cefr, "d.cefr_level <= ?"),
+        (
+            query.topic,
+            "d.lemma_id IN (SELECT lemma_id FROM lemma_topics WHERE topic = ?)",
+        ),
+        (query.part_of_speech, "d.part_of_speech = ?"),
+        (query.length, "d.char_len = ?"),
+    ]
+    clauses = [clause for value, clause in valued if value is not None]
+    params: list[object] = [value for value, _ in valued if value is not None]
+    if query.accented_only:
+        clauses.append("d.accented = 1")
+    if query.single_word:
+        clauses.append("d.single_word = 1")
+    if query.exclude_ids:
+        marks = ", ".join("?" for _ in query.exclude_ids)
+        clauses.append(f"d.lemma_id NOT IN ({marks})")
+        params.extend(query.exclude_ids)
+    if query.require_translation:
+        for language in query.translation_languages:
+            clauses.append(
+                "EXISTS (SELECT 1 FROM senses s2"
+                " JOIN lemmas l2 ON l2.id = s2.lemma_id"
+                " WHERE s2.concept_id = d.concept_id AND l2.language = ?"
+                " AND l2.id <> d.lemma_id)",
+            )
+            params.append(language)
+    if query.require_example:
+        clauses.append(
+            "EXISTS (SELECT 1 FROM concepts c WHERE c.id = d.concept_id"
+            " AND json_array_length(c.examples, '$.' || d.language) > 0)",
+        )
+    return clauses or ["1 = 1"], params
+
+
 def _new_conn(target: str) -> sqlite3.Connection:
     """Open a SQLite connection with the row factory the store relies on."""
     conn = sqlite3.connect(target, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    conn.create_function("card_rank", 2, _card_rank, deterministic=True)
     return conn
 
 
@@ -357,6 +483,7 @@ class LexiconStore:
             },
         )
         _derive_lemma_topics(conn)
+        _derive_drill_table(conn)
         cls._warn_on_slug_collisions(c.id for c in concepts)
         return cls(conn)
 
@@ -436,6 +563,7 @@ class LexiconStore:
             _build_schema(conn)
             concept_ids = _populate_raw(conn, data_fol)
             _derive_lemma_topics(conn)
+            _derive_drill_table(conn)
             cls._warn_on_slug_collisions(concept_ids)
             store = cls(conn)
 
@@ -506,21 +634,229 @@ class LexiconStore:
         self,
         language: str | None = None,
         topic: str | None = None,
+        *,
+        query: str | None = None,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> list[Lemma]:
-        """Filter lemmas by language and/or topic.
+        """Filter lemmas by language, topic and/or a search prefix, optionally paged.
 
         A topic matches through the derived ``lemma_topics`` index, so it covers
         both a lemma's own tags and the topics of the concepts it realises.
+        A paged read (``limit`` set) is ordered by ``normalized`` then id, so
+        consecutive pages neither overlap nor skip; an unpaged read keeps the
+        table order.
+
+        Args:
+            language: ISO 639-1 code to filter by.
+            topic: Topic tag to filter by.
+            query: Prefix of the accent- and case-folded form (``normalized``).
+            limit: Page size; every match when None.
+            offset: Matches to skip before the page (with ``limit``).
+
+        Returns:
+            The matching lemmas.
         """
-        sql = f"SELECT {_select_cols('lemmas')} FROM lemmas WHERE 1 = 1"  # noqa: S608
+        where, params = self._lemma_filter(language, topic, query)
+        sql = f"SELECT {_select_cols('lemmas')} FROM lemmas WHERE {where}"  # noqa: S608
+        if limit is not None:
+            sql += " ORDER BY normalized, id LIMIT ? OFFSET ?"
+            params = (*params, limit, offset)
+        return self._query("lemmas", sql, params)
+
+    def count_lemmas_filtered(
+        self,
+        language: str | None = None,
+        topic: str | None = None,
+        *,
+        query: str | None = None,
+    ) -> int:
+        """Count the lemmas `get_lemmas_filtered` would return unpaged."""
+        where, params = self._lemma_filter(language, topic, query)
+        sql = f"SELECT count(*) FROM lemmas WHERE {where}"  # noqa: S608
+        return int(self._conn.execute(sql, params).fetchone()[0])
+
+    @staticmethod
+    def _lemma_filter(
+        language: str | None,
+        topic: str | None,
+        query: str | None,
+    ) -> tuple[str, tuple[object, ...]]:
+        """Return the WHERE clause and parameters shared by the lemma filters."""
+        clauses = ["1 = 1"]
         params: list[object] = []
         if language:
-            sql += " AND language = ?"
+            clauses.append("language = ?")
             params.append(language)
         if topic:
-            sql += " AND id IN (SELECT lemma_id FROM lemma_topics WHERE topic = ?)"
+            clauses.append("id IN (SELECT lemma_id FROM lemma_topics WHERE topic = ?)")
             params.append(topic)
-        return self._query("lemmas", sql, tuple(params))
+        if query:
+            clauses.append("substr(normalized, 1, ?) = ?")
+            folded = _normalize(query)
+            params.extend([len(folded), folded])
+        return " AND ".join(clauses), tuple(params)
+
+    # --- Drill cards -----------------------------------------------------
+
+    def lemma_cards(self, query: CardQuery) -> list[LemmaCard]:
+        """Return the drill cards matching a `CardQuery`.
+
+        Each card joins the lemma with its best sense (see `LemmaCard`), the
+        sense's concept gloss and examples, and the other lemmas of that concept
+        as translations. The match is one indexed SELECT bounded by
+        ``query.limit``; the gloss and translations are two batched reads over
+        the page.
+
+        Args:
+            query: The filters, order, and page size.
+
+        Returns:
+            Up to ``query.limit`` cards.
+        """
+        clauses, params = _card_where(query)
+        if query.order == "frequency":
+            order = "d.sense_frequency DESC NULLS LAST, d.lemma_id"
+        elif query.seed is None:
+            order = "random()"
+        else:
+            order = "card_rank(?, d.lemma_id)"
+            params.append(query.seed)
+        params.append(query.limit)
+        return self._select_cards(
+            " AND ".join(clauses),
+            tuple(params),
+            order=order,
+            gloss_language=query.gloss_language,
+            translation_languages=query.translation_languages,
+        )
+
+    def lemma_card(
+        self,
+        lemma_id: str,
+        *,
+        gloss_language: str = "en",
+        translation_languages: Sequence[str] = ("en",),
+    ) -> LemmaCard | None:
+        """Return the drill card of one lemma (None when absent).
+
+        Args:
+            lemma_id: The lemma's deterministic id.
+            gloss_language: Language of the card's gloss.
+            translation_languages: Languages to fill the translations with.
+
+        Returns:
+            The card, or None when no lemma has the id.
+        """
+        cards = self._select_cards(
+            "d.lemma_id = ?",
+            (lemma_id, 1),
+            order="d.lemma_id",
+            gloss_language=gloss_language,
+            translation_languages=translation_languages,
+        )
+        return cards[0] if cards else None
+
+    def _select_cards(
+        self,
+        where: str,
+        params: tuple[object, ...],
+        *,
+        order: str,
+        gloss_language: str,
+        translation_languages: Sequence[str],
+    ) -> list[LemmaCard]:
+        """Run the card SELECT (``params`` ends with the limit) and fill each card."""
+        sql = (
+            "SELECT lemma_id, concept_id, cefr_level, sense_frequency"  # noqa: S608
+            f" FROM lemma_drill d WHERE {where} ORDER BY {order} LIMIT ?"
+        )
+        rows = self._conn.execute(sql, params).fetchall()
+        lemmas = self._lemmas_by_ids([r["lemma_id"] for r in rows])
+        concept_ids = sorted({r["concept_id"] for r in rows if r["concept_id"]})
+        concepts = self._card_concepts(concept_ids)
+        translations = self._card_translations(concept_ids, translation_languages)
+        cards: list[LemmaCard] = []
+        for row in rows:
+            lemma = lemmas[row["lemma_id"]]
+            cid = row["concept_id"]
+            definitions, examples = concepts.get(cid, ({}, {}))
+            cards.append(
+                LemmaCard(
+                    lemma=lemma,
+                    concept_id=cid,
+                    cefr_level=row["cefr_level"],
+                    sense_frequency=row["sense_frequency"],
+                    gloss=definitions.get(gloss_language),
+                    translations={
+                        language: [
+                            text
+                            for lid, text in translations.get((cid, language), [])
+                            if lid != lemma.id
+                        ]
+                        for language in translation_languages
+                    },
+                    examples=list(examples.get(lemma.language, [])),
+                ),
+            )
+        return cards
+
+    def _lemmas_by_ids(self, lemma_ids: Sequence[str]) -> dict[str, Lemma]:
+        """Return ``lemma_id -> Lemma`` for a page of cards."""
+        if not lemma_ids:
+            return {}
+        marks = ", ".join("?" for _ in lemma_ids)
+        lemmas: list[Lemma] = self._query(
+            "lemmas",
+            f"SELECT {_select_cols('lemmas')} FROM lemmas WHERE id IN ({marks})",  # noqa: S608
+            tuple(lemma_ids),
+        )
+        return {lemma.id: lemma for lemma in lemmas}
+
+    def _card_concepts(
+        self,
+        concept_ids: Sequence[str],
+    ) -> dict[str, tuple[dict[str, str], dict[str, list[str]]]]:
+        """Return ``concept_id -> (definitions, examples)`` for a page of cards."""
+        if not concept_ids:
+            return {}
+        marks = ", ".join("?" for _ in concept_ids)
+        rows = self._conn.execute(
+            f"SELECT id, definitions, examples FROM concepts WHERE id IN ({marks})",  # noqa: S608
+            tuple(concept_ids),
+        ).fetchall()
+        return {
+            row["id"]: (
+                json.loads(row["definitions"] or "{}"),
+                json.loads(row["examples"] or "{}"),
+            )
+            for row in rows
+        }
+
+    def _card_translations(
+        self,
+        concept_ids: Sequence[str],
+        languages: Sequence[str],
+    ) -> dict[tuple[str, str], list[tuple[str, str]]]:
+        """Return ``(concept_id, language) -> [(lemma_id, text)]``, by frequency."""
+        if not concept_ids or not languages:
+            return {}
+        c_marks = ", ".join("?" for _ in concept_ids)
+        l_marks = ", ".join("?" for _ in languages)
+        rows = self._conn.execute(
+            "SELECT s.concept_id, l.language, l.id, l.text FROM senses s"  # noqa: S608
+            # CROSS JOIN pins the join order: drive from the concept index on
+            # senses, not from the (far less selective) lemma language index.
+            " CROSS JOIN lemmas l ON l.id = s.lemma_id"
+            f" WHERE s.concept_id IN ({c_marks})"
+            f" AND l.language IN ({l_marks})"
+            " ORDER BY s.sense_frequency DESC NULLS LAST, l.text",
+            (*concept_ids, *languages),
+        ).fetchall()
+        out: dict[tuple[str, str], list[tuple[str, str]]] = defaultdict(list)
+        for row in rows:
+            out[row["concept_id"], row["language"]].append((row["id"], row["text"]))
+        return out
 
     # --- Concept reads ---------------------------------------------------
 
@@ -800,9 +1136,50 @@ def get_lemmas_by_topic(topic: str) -> list[Lemma]:
 def get_lemmas_filtered(
     language: str | None = None,
     topic: str | None = None,
+    *,
+    query: str | None = None,
+    limit: int | None = None,
+    offset: int = 0,
 ) -> list[Lemma]:
-    """Filter lemmas by language and/or topic."""
-    return get_store().get_lemmas_filtered(language=language, topic=topic)
+    """Filter lemmas by language, topic and/or search prefix, optionally paged."""
+    return get_store().get_lemmas_filtered(
+        language=language,
+        topic=topic,
+        query=query,
+        limit=limit,
+        offset=offset,
+    )
+
+
+def count_lemmas_filtered(
+    language: str | None = None,
+    topic: str | None = None,
+    *,
+    query: str | None = None,
+) -> int:
+    """Count the lemmas matching the filters."""
+    return get_store().count_lemmas_filtered(
+        language=language, topic=topic, query=query
+    )
+
+
+def lemma_cards(query: CardQuery) -> list[LemmaCard]:
+    """Return the drill cards matching a `CardQuery`."""
+    return get_store().lemma_cards(query)
+
+
+def lemma_card(
+    lemma_id: str,
+    *,
+    gloss_language: str = "en",
+    translation_languages: Sequence[str] = ("en",),
+) -> LemmaCard | None:
+    """Return the drill card of one lemma (None when absent)."""
+    return get_store().lemma_card(
+        lemma_id,
+        gloss_language=gloss_language,
+        translation_languages=translation_languages,
+    )
 
 
 def get_all_concepts() -> list[Concept]:
