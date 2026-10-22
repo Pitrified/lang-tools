@@ -171,6 +171,8 @@ def test_accented_length_and_pos_filters() -> None:
         "café",
     ]
     assert _texts(store.lemma_cards(CardQuery(language="pt", length=3))) == ["lar"]
+    long_only = store.lemma_cards(CardQuery(language="pt", min_length=5))
+    assert _texts(long_only) == ["Lisboa", "guarda-chuva"]
     assert store.lemma_cards(CardQuery(language="pt", part_of_speech="verb")) == []
 
 

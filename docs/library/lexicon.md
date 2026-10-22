@@ -236,7 +236,7 @@ filters are:
 
 - language;
 - CEFR window (`min_cefr` / `max_cefr`);
-- topic, part of speech, exact length;
+- topic, part of speech, exact or minimum length;
 - `accented_only` and `single_word`, which means one lowercase alphabetic token,
   so no proper nouns, compounds or digits;
 - `require_translation` (in every `translation_languages`), `require_example`;

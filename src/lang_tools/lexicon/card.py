@@ -76,6 +76,8 @@ class CardQuery(BaseModel):
         topic: Topic tag (the lemma's own or a sense concept's).
         part_of_speech: Lemma part of speech (``"noun"``, ``"verb"``, ...).
         length: Exact character length of the lemma text.
+        min_length: Minimum character length (drops one- and two-letter
+            tokens such as letter names from a drill).
         accented_only: Keep only lemmas whose text carries a diacritic.
         single_word: Keep only one lowercase alphabetic token (no spaces,
             hyphens, digits, apostrophes, or capitals - so no proper nouns).
@@ -96,6 +98,7 @@ class CardQuery(BaseModel):
     topic: str | None = None
     part_of_speech: str | None = None
     length: int | None = Field(default=None, ge=1)
+    min_length: int | None = Field(default=None, ge=1)
     accented_only: bool = False
     single_word: bool = False
     exclude_ids: list[str] = Field(default_factory=list)

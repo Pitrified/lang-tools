@@ -356,6 +356,7 @@ def _card_where(query: CardQuery) -> tuple[list[str], list[object]]:
         ),
         (query.part_of_speech, "d.part_of_speech = ?"),
         (query.length, "d.char_len = ?"),
+        (query.min_length, "d.char_len >= ?"),
     ]
     clauses = [clause for value, clause in valued if value is not None]
     params: list[object] = [value for value, _ in valued if value is not None]
