@@ -66,6 +66,14 @@ class TestReadCard:
         assert card["lemma"]["id"] == known.id
         assert "en" in card["translations"]
 
+    def test_sense_cards(self, client: TestClient) -> None:
+        """Every sense comes back as a card, the best one first."""
+        known = get_lemmas_filtered(language="pt")[0]
+        best = client.get(f"/api/v1/cards/{known.id}").json()
+        senses = client.get(f"/api/v1/cards/{known.id}/senses").json()
+        assert senses
+        assert senses[0]["concept_id"] == best["concept_id"]
+
     def test_read_missing_card(self, client: TestClient) -> None:
         """An unknown id returns 404."""
         response = client.get("/api/v1/cards/does-not-exist")

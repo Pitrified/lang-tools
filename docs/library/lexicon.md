@@ -243,7 +243,9 @@ filters are:
 - `exclude_ids`.
 
 The order is random (seeded with `seed` for a reproducible sample) or
-`frequency`. `lemma_card(lemma_id)` returns one card.
+`frequency`. `lemma_card(lemma_id)` returns one card, and
+`lemma_sense_cards(lemma_id)` returns one card per sense, best first, for a
+page that shows every meaning.
 
 Both read a narrow `lemma_drill` table, derived once per cache build like
 `lemma_topics`. It holds each lemma's best sense and its text flags, indexed on

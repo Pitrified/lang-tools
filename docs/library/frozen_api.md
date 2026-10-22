@@ -50,9 +50,10 @@ store. These read helpers are the in-process content surface phase 2 consumes
   prefix and `limit` / `offset` paging (unpaged by default in-process). The HTTP
   list is **paged by default** (100 per page, max 500), because the full corpus
   holds 324k lemmas.
-- `LemmaCard`, `CardQuery`, `lemma_cards`, `lemma_card` (phase 9) - the
-  learner-facing drill view: a lemma with its best sense's CEFR band, gloss,
-  translations, and examples, sampled by a bounded filter. This is what
+- `LemmaCard`, `CardQuery`, `lemma_cards`, `lemma_card`, `lemma_sense_cards`
+  (phase 9) - the learner-facing drill view: a lemma with its best sense's CEFR
+  band, gloss, translations, and examples, sampled by a bounded filter (or one
+  card per sense for a detail page). This is what
   `lang-tutor` builds exercise rounds from (`GET /api/v1/cards` over HTTP).
 - `get_all_concepts`, `get_concept_by_id`, `concepts_for_lemma`,
   `lemmas_for_concept`, `senses_for_lemma`, `senses_for_concept`,

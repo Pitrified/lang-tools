@@ -757,6 +757,44 @@ class LexiconStore:
         )
         return cards[0] if cards else None
 
+    def lemma_sense_cards(
+        self,
+        lemma_id: str,
+        *,
+        gloss_language: str = "en",
+        translation_languages: Sequence[str] = ("en",),
+    ) -> list[LemmaCard]:
+        """Return one card per sense of a lemma, best sense first.
+
+        The same shape as `lemma_card`, but for every meaning: each card names
+        its sense's concept, band, and frequency, with that concept's gloss,
+        translations, and examples. Senses are ordered like the best-sense pick
+        (frequency, then commonness, then the easier band), so the first card
+        equals `lemma_card`.
+
+        Args:
+            lemma_id: The lemma's deterministic id.
+            gloss_language: Language of each card's gloss.
+            translation_languages: Languages to fill the translations with.
+
+        Returns:
+            The cards (empty when the lemma is absent or has no sense).
+        """
+        rows = self._conn.execute(
+            "SELECT s.lemma_id, s.concept_id, s.cefr_level, s.sense_frequency"
+            " FROM senses s JOIN concepts c ON c.id = s.concept_id"
+            " WHERE s.lemma_id = ?"
+            " ORDER BY s.sense_frequency DESC NULLS LAST,"
+            " c.commonness DESC NULLS LAST, s.cefr_level ASC NULLS LAST,"
+            " s.concept_id",
+            (lemma_id,),
+        ).fetchall()
+        return self._fill_cards(
+            rows,
+            gloss_language=gloss_language,
+            translation_languages=translation_languages,
+        )
+
     def _select_cards(
         self,
         where: str,
@@ -772,7 +810,21 @@ class LexiconStore:
             f" FROM lemma_drill d WHERE {where} ORDER BY {order} LIMIT ?"
         )
         rows = self._conn.execute(sql, params).fetchall()
-        lemmas = self._lemmas_by_ids([r["lemma_id"] for r in rows])
+        return self._fill_cards(
+            rows,
+            gloss_language=gloss_language,
+            translation_languages=translation_languages,
+        )
+
+    def _fill_cards(
+        self,
+        rows: Sequence[sqlite3.Row],
+        *,
+        gloss_language: str,
+        translation_languages: Sequence[str],
+    ) -> list[LemmaCard]:
+        """Build one card per ``(lemma_id, concept_id, cefr, frequency)`` row."""
+        lemmas = self._lemmas_by_ids(sorted({r["lemma_id"] for r in rows}))
         concept_ids = sorted({r["concept_id"] for r in rows if r["concept_id"]})
         concepts = self._card_concepts(concept_ids)
         translations = self._card_translations(concept_ids, translation_languages)
@@ -1176,6 +1228,20 @@ def lemma_card(
 ) -> LemmaCard | None:
     """Return the drill card of one lemma (None when absent)."""
     return get_store().lemma_card(
+        lemma_id,
+        gloss_language=gloss_language,
+        translation_languages=translation_languages,
+    )
+
+
+def lemma_sense_cards(
+    lemma_id: str,
+    *,
+    gloss_language: str = "en",
+    translation_languages: Sequence[str] = ("en",),
+) -> list[LemmaCard]:
+    """Return one card per sense of a lemma, best sense first."""
+    return get_store().lemma_sense_cards(
         lemma_id,
         gloss_language=gloss_language,
         translation_languages=translation_languages,

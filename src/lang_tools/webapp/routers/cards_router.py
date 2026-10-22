@@ -13,6 +13,7 @@ Routes:
         query string is a `CardQuery`; list fields repeat the key, e.g.
         ``translation_languages=en&translation_languages=it``).
     GET /api/v1/cards/{lemma_id}   - the card of one lemma.
+    GET /api/v1/cards/{lemma_id}/senses - one card per sense, best first.
 """
 
 from typing import Annotated
@@ -26,6 +27,7 @@ from lang_tools.lexicon.card import CardQuery
 from lang_tools.lexicon.card import LemmaCard
 from lang_tools.lexicon.lemma_store import lemma_card
 from lang_tools.lexicon.lemma_store import lemma_cards
+from lang_tools.lexicon.lemma_store import lemma_sense_cards
 
 router = APIRouter(prefix="/api/v1/cards", tags=["cards"])
 
@@ -80,3 +82,33 @@ async def read_card(
             detail=f"Lemma not found: {lemma_id}",
         )
     return card
+
+
+@router.get("/{lemma_id}/senses", summary="List one card per sense of a lemma")
+async def read_sense_cards(
+    lemma_id: str,
+    gloss_language: Annotated[
+        str,
+        Query(description="Language of each card's gloss"),
+    ] = "en",
+    translation_languages: Annotated[
+        list[str] | None,
+        Query(description="Languages to list translations in (repeatable)"),
+    ] = None,
+) -> list[LemmaCard]:
+    """Return one card per sense of a lemma, best sense first.
+
+    Args:
+        lemma_id: The lemma's deterministic id.
+        gloss_language: Language of each card's gloss.
+        translation_languages: Languages to fill the translations with
+            (``["en"]`` when omitted).
+
+    Returns:
+        The cards (empty for an unknown lemma or one with no sense).
+    """
+    return lemma_sense_cards(
+        lemma_id,
+        gloss_language=gloss_language,
+        translation_languages=translation_languages or ["en"],
+    )

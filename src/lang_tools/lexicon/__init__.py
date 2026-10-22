@@ -8,8 +8,9 @@ Public API:
         tables.
     lemma_id, concept_id, sense_id: deterministic id constructors.
     LexiconStore, get_store: the read/query store over the whole graph.
-    LemmaCard, CardQuery, lemma_cards, lemma_card: the learner-facing drill view
-        (a lemma with its best sense's level, gloss, and translations).
+    LemmaCard, CardQuery, lemma_cards, lemma_card, lemma_sense_cards: the
+        learner-facing drill view (a lemma with its best sense's level, gloss,
+        and translations; or one card per sense).
     get_all_lemmas, get_lemma_by_id, get_lemmas_by_language, get_lemmas_by_topic,
         get_lemmas_filtered, count_lemmas_filtered: lemma read helpers.
     get_all_concepts, get_concept_by_id, concepts_for_lemma, lemmas_for_concept,
@@ -48,6 +49,7 @@ from lang_tools.lexicon.lemma_store import get_lemmas_filtered
 from lang_tools.lexicon.lemma_store import get_store
 from lang_tools.lexicon.lemma_store import lemma_card
 from lang_tools.lexicon.lemma_store import lemma_cards
+from lang_tools.lexicon.lemma_store import lemma_sense_cards
 from lang_tools.lexicon.lemma_store import lemmas_for_concept
 from lang_tools.lexicon.lemma_store import sense_relations_for
 from lang_tools.lexicon.lemma_store import senses_for_concept
@@ -88,6 +90,7 @@ __all__ = [
     "lemma_card",
     "lemma_cards",
     "lemma_id",
+    "lemma_sense_cards",
     "lemmas_for_concept",
     "sense_id",
     "sense_relations_for",

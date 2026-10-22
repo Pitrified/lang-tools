@@ -138,6 +138,15 @@ def test_card_gloss_language() -> None:
     assert card.gloss == "edificio"
 
 
+def test_sense_cards_list_every_meaning_best_first() -> None:
+    store = _store()
+    cards = store.lemma_sense_cards(Lemma(text="casa", language="pt").id)
+    assert [card.concept_id for card in cards] == [C_HOUSE, C_HOME]
+    assert cards[1].cefr_level == "A2"
+    assert cards[1].translations["en"] == ["home"]
+    assert store.lemma_sense_cards("nope") == []
+
+
 def test_missing_card_is_none() -> None:
     assert _store().lemma_card("nope") is None
 
