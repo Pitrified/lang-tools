@@ -71,6 +71,10 @@ class CardQuery(BaseModel):
         require_translation: Keep only cards with at least one translation in
             every language of ``translation_languages``.
         require_example: Keep only cards with an example sentence.
+        example_mentions_lemma: Keep only cards with an example sentence that
+            contains the lemma's text. Example sentences belong to the
+            concept, so without this any of its lemmas can draw a sentence
+            that never uses it.
         min_cefr: Lowest CEFR band of the best sense (inclusive).
         max_cefr: Highest CEFR band of the best sense (inclusive).
         topic: Topic tag (the lemma's own or a sense concept's).
@@ -93,6 +97,7 @@ class CardQuery(BaseModel):
     translation_languages: list[str] = Field(default_factory=lambda: ["en"])
     require_translation: bool = False
     require_example: bool = False
+    example_mentions_lemma: bool = False
     min_cefr: CefrLevel | None = None
     max_cefr: CefrLevel | None = None
     topic: str | None = None

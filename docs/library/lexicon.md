@@ -239,7 +239,9 @@ filters are:
 - topic, part of speech, exact or minimum length;
 - `accented_only` and `single_word`, which means one lowercase alphabetic token,
   so no proper nouns, compounds or digits;
-- `require_translation` (in every `translation_languages`), `require_example`;
+- `require_translation` (in every `translation_languages`), `require_example`,
+  `example_mentions_lemma` (an example that contains the lemma's text, since a
+  concept's examples are shared by all of its lemmas);
 - `exclude_ids`.
 
 The order is random (seeded with `seed` for a reproducible sample) or

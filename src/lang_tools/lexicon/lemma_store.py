@@ -382,6 +382,16 @@ def _card_where(query: CardQuery) -> tuple[list[str], list[object]]:
             "EXISTS (SELECT 1 FROM concepts c WHERE c.id = d.concept_id"
             " AND json_array_length(c.examples, '$.' || d.language) > 0)",
         )
+    if query.example_mentions_lemma:
+        # SQLite's lower() folds ASCII only, which covers the sentence-initial
+        # capital ("A casa ...") but not an accented one ("Água ...").
+        clauses.append(
+            "EXISTS (SELECT 1 FROM concepts c"
+            " JOIN lemmas lt ON lt.id = d.lemma_id,"
+            " json_each(c.examples, '$.' || d.language) j"
+            " WHERE c.id = d.concept_id"
+            " AND instr(lower(j.value), lower(lt.text)) > 0)",
+        )
     return clauses or ["1 = 1"], params
 
 

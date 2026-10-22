@@ -184,6 +184,29 @@ def test_require_translation_and_example() -> None:
     assert _texts(with_example) == ["casa"]
 
 
+def test_example_must_mention_the_lemma() -> None:
+    """A concept example is shared by its lemmas; only casa's names casa."""
+    store = _store()
+    lar = Lemma(text="lar", language="pt")
+    home_example = Concept(
+        id=C_HOME,
+        definitions={"en": "where one lives"},
+        examples={"pt": ["A casa é grande."]},
+    )
+    shared = LexiconStore.from_models(
+        lemmas=[lar],
+        concepts=[home_example],
+        senses=[Sense(lemma_id=lar.id, concept_id=C_HOME)],
+        false_friends=[],
+        concept_relations=[],
+        sense_relations=[],
+    )
+    assert shared.lemma_cards(CardQuery(language="pt", require_example=True))
+    assert not shared.lemma_cards(CardQuery(language="pt", example_mentions_lemma=True))
+    mentions = store.lemma_cards(CardQuery(language="pt", example_mentions_lemma=True))
+    assert _texts(mentions) == ["casa"]
+
+
 def test_topic_and_exclude() -> None:
     store = _store()
     assert _texts(store.lemma_cards(CardQuery(language="pt", topic="home"))) == ["casa"]
