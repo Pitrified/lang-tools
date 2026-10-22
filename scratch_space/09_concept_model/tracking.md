@@ -7,9 +7,10 @@ relation edge tables), plus an open-source multilingual dataset built on OMW.
 Full analysis and decisions in
 [`00-concepts-brainstorm.md`](00-concepts-brainstorm.md).
 
-Status: phase 1 fully planned; phases 2-10 are draft scope sketches (~1 page
-each) to hold the overarching story. Phases are intentionally easy to merge or
-split as the design firms up.
+Status (2026-10-22): phases 1-9 done; phase 11 (false friends) is next and runs
+**before** phase 10 (licensing), which stays last. Deferred work with no phase is
+listed under [Backlog](#backlog-deferred-no-phase-yet), so this file is the one
+place to look for what is planned and what is not.
 
 ## Key decisions (cross-cutting)
 
@@ -70,9 +71,59 @@ split as the design firms up.
 | 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | done | Finished the relation graph: ten synset types read from both names of each inverse pair and stored one way, `instance_hypernym` split out of `hypernym`, a `sense_relations` table for English antonymy and derived concept `antonym` edges so pt/es/fr/it reach opposites (pt `quente` -> `frio`); 97,666 -> 137,936 concept edges + 3,992 sense edges, two new gate invariants. The build disproved the plan's headline - the non-English wordnets carry no relations, `wn`'s expansion had projected English's - and showed the old hypernym edges already held instance links, so Decision 4 was revisited and depth walks both; CEFR bands and Kelly validation unchanged. |
 | 8  | Maintenance (LLM-based)       | [`08_maintenance.md`](08_maintenance.md)                 | done | Generalized 5.55's gloss loop into worklist -> proposer -> reviewable JSONL -> curated build input, with a resumable OpenAI runner (live + Batch, measured token usage on every record). Ran and landed: learner topics (80,856 concepts, 75-86% of lemmas per language, table reviewed), slug tier 2 (23,012 qualifiers; distinct slugs 103,965 -> 117,588), member-form review (153 drops), lemma text/POS settled on the majority, and the non-en gloss backfill (174,315 glosses, `gpt-6-luna` batch, $1.87 measured; fr/pt/es 0% and it 5.5% -> 100%). Total LLM spend ~$7-9; after an early overspend every paid run is sample-measured and approved first. Step 9 (2026-10-22): lemma identity keeps case and accents (avó/avô, Be/be are two lemmas), 16,601 noisy spellings folded, no frequency lent across case, `CEFR_CUTOFFS` re-fitted (it exact 19.5% -> 23.1%); lemmas 320,904 -> 324,336; `lang-tutor` must re-key per-user progress in phase 9. |
 | 9  | Sample data + consumer uplift | [`09_sample_and_consumer.md`](09_sample_and_consumer.md) | done | `lang-tutor` reconnected to the concept model on `feat/lexicon`. `lang-tools` serves a `LemmaCard` drill view (best sense's CEFR band, gloss, translations, examples; ties broken by concept commonness, since the SemCor split is English-only) through a bounded `CardQuery` (`/api/v1/cards`, 20-50 ms per 200-card window), plus paged lemma lists. `lang-tutor` draws every round from cards weighted by session progress. 10 hand-written pt/es/fr example sentences; pt teatro dropped from the dwelling concept. The end-to-end run over HTTP plays every exercise in pt/en/fr, after fixing never-committed page scripts and four front-end bugs. Suites green (356 / 140). |
+| 11 | False friends (runs before 10) | [`11_false_friends.md`](11_false_friends.md) | draft | Fill the empty `false_friends` table: look-alike lemma pairs across languages whose meanings differ. Brainstorm (2026-10-22) with measurements: spelling similarity alone gives 2-4k noisy candidates per language pair; a translation check plus per-sense logic catches 23 of 34 classic pairs present in the corpus; spelling-divergent pairs (push / puxar) need a sound-correspondence or IPA channel. |
 | 10 | Licensing & packaging         | [`10_licensing_docs.md`](10_licensing_docs.md)           | draft  | Finalize open license, source attribution / dataset card, and docs.                                                    |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
+
+## Backlog (deferred, no phase yet)
+
+Work a phase explicitly put off, with where it was decided. Nothing here is scheduled;
+promote an item to a numbered phase (and a sub-plan file) when it is picked up.
+
+- **Mapping new lemmas into the corpus.** Phase 8 built a generic
+  worklist -> proposer -> reviewed JSONL -> curated build input loop, and new-lemma
+  mapping was one of its intended uses: a word that is not in OMW (a learner's lookup, a
+  frequency-list form, an LLM-generated lemma) gets proposed concept links that are
+  reviewed before the build applies them. It was deferred because nothing feeds new
+  lemmas in yet, so there is no worklist to run. Pick it up when a source appears. It
+  would also cover the OMW coverage holes the phase-11 measurements hit: en *parents*,
+  es *embarazada* and *constipado*, and pt *eventualmente* are absent. See
+  [`08_maintenance.md`](08_maintenance.md), Decisions, item 1.
+- **Merge on re-ingestion.** The corpus is built once from pinned sources plus the
+  committed curated inputs under `data/curated/` (overrides, backfills, drops, topics,
+  qualifiers, sentences), so a rebuild reproduces curated state (the 5.58 rule). What
+  does not exist is a *smart merge* for when an upstream source changes, such as a new
+  OMW release or re-sourcing pt from upstream own-pt in phase 10. That merge would diff
+  the new machine output against the old baseline and re-check the curated rows that
+  went stale. The per-row `source` tag and the build manifest were kept as the seam for
+  it. See [`05_ingestion.md`](05_ingestion.md), "Deferred: re-ingestion merge".
+- **`derivation` and `pertainym` relations.** OMW-en carries 74,708 derivation and 8,023
+  pertainym links (*happy* -> *happiness*, *atomic* -> *atom*). Phase 7 left them out:
+  they are English-only, sense-level morphology, and nothing consumed them. They would
+  matter for a word-family feature ("words built from *feliz*"), or as a phase-11
+  signal for telling a derivational relative from a false friend. See
+  [`07_relations.md`](07_relations.md), Decisions, item 3, and Out of scope.
+- **Durable per-user progress (`lang-tutor`).** Phase 9 records each exercise's lemma
+  results in `SessionProgressService`, in memory per server process. Weighted selection
+  works within a run, but a restart forgets everything. The follow-up is a durable
+  store (a JSON file or SQLite per user in `lang-tutor`, behind the same service seam),
+  a `lang-tutor` change only. See
+  [`09_sample_and_consumer.md`](09_sample_and_consumer.md), Q2.
+- **More example sentences for pt / es / fr.** OMW has example sentences for en (about
+  33k concepts) and it (about 1.4k) only. Phase 9 proved the path with 10 hand-written
+  rows in `data/curated/example_sentences.jsonl`, applied at build, with
+  `CardQuery.example_mentions_lemma` keeping each one to the lemma it uses. Sentence
+  reconstruction works, but has only 3-4 sentences per language. There are two ways to
+  scale it:
+  - an LLM job on the phase-8 loop (an A1-B1 worklist, one sentence per lemma,
+    sample-measured and approved before a paid run);
+  - Tatoeba (CC-BY, staged in 5.54), the sourced alternative.
+
+  See [`09_sample_and_consumer.md`](09_sample_and_consumer.md), Q1.
+
+Dropped, not deferred: an LLM pass estimating CEFR bands for pt/es/fr (phase 8,
+finding 4: nothing to validate it against).
 
 Likely merge/split points as we iterate:
 
@@ -1214,3 +1265,4 @@ Append-only. Newest at the bottom.
   once; banners added to phases 6 and 9.
 - 2026-10-22 : audited lang-tutor and wrote the phase-9 plan of record (status planned). See `09_sample_and_consumer.md`.
 - 2026-10-22 : executed phase 9 (status done). See the Result section of `09_sample_and_consumer.md`; lang-tutor pushed to its `feat/lexicon` (`753cb71`).
+- 2026-10-22 : added the Backlog section (deferred work with no phase) and drafted phase 11, false friends, to run before licensing; brainstorm with measurements in `11_false_friends.md`.
