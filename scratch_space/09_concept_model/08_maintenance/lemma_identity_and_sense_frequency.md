@@ -112,7 +112,9 @@ phase 9 reconnects `lang-tutor` - so the id churn happens once.
   0.3561, 0.4147, 0.4499, 0.4813). en 41.8% / 73.9%, mean offset +0.17 -> 0; it 23.1% /
   63.8% (+3.6 / +4.4 points), offset +1.23 -> +1.05. Senses in A1-B1 37.5k -> 44.4k. The
   shipped cutoffs are now a fixed point of `fit_cutoffs`.
-- **Known source error, not ours.** OMW-pt attaches `avô` (grandfather) to the grandmother
-  synset as well; identity cannot fix a wrong membership.
+- **Source membership error, patched.** OMW-pt also attached `avô` (grandfather) to the
+  grandmother synset. Identity cannot fix a wrong membership, so a hand-written `accepted` row
+  (`model: manual`) in `data/curated/member_form_drops.jsonl` drops that one sense; `avô`
+  keeps grandfather, grandparent and old man.
 - **`lang-tutor`.** Per-user progress keyed on the changed ids resets; noted in
   `docs/library/frozen_api.md` for phase 9.
