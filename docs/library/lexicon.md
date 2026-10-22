@@ -54,6 +54,11 @@ only, but phase 5.54 Topic 3 measured the concept-level value predicting the
 different things and are kept apart - `None` is "no English member to count at
 all", `0.0` is "an English member SemCor never tagged".
 
+`definition_sources` records where each non-source gloss came from, per language:
+`{"pt": "llm"}` for a gloss the phase-8 backfill generated. A language with no entry
+carries the concept row's own source (OMW). It is what lets the gate count generated
+content per language and a consumer show "machine-translated" next to a gloss.
+
 `topics` are the concept's learner topics (`food`, `animals`, `places`, ...),
 from phase 8. They belong to the meaning, not the word: `bank` is `money` in one
 sense and `nature` in another. See [Topics](#topics-phase-8) below for where they
@@ -84,10 +89,16 @@ OMW/ILI source key via `concept_id`, and the model validates its
 Slugs are tiered for legibility (phase 05.55): the preferred-lemma slug when it
 is unique across the build, else the slugified `lexfile` is appended as a
 deterministic discriminant (`c__cut-noun-act__...` vs `c__cut-verb-contact__...`).
-Concepts that still share a slug within one lexfile are true polysemy; the hash
-keeps their ids unique, and a gloss-derived qualifier tier is deferred to
-phase 8. Slug changes rebuild ids everywhere (senses, relations, sample) - they
-are never patched into the Parquet post hoc.
+Concepts that still share a slug within one lexfile are true polysemy. Phase 8
+adds tier 2: a qualifier of 1-3 words taken from the concept's own English gloss
+(`hot-temperature` vs `hot-stolen-smuggled`), read from the committed
+`data/curated/slug_qualifiers.jsonl` (see
+[Maintenance jobs](#maintenance-jobs-phase-8)). On the five-language build it
+takes the distinct slugs from 103,965 to 117,588 of 117,659 concepts; the few
+left keep their tier-1 slug, and the hash keeps every id unique regardless.
+Slug changes rebuild ids everywhere (senses, relations, sample) - they are never
+patched into the Parquet post hoc, which is why every curated input keys on
+`concept_key` (the slug-independent hash) rather than the full id.
 
 ## `Sense` model
 
@@ -375,6 +386,35 @@ gate already catches the consequence.
 So the reviewer's loop ends in two places: apply to the corpus you have, and append to the
 curated file so the next build keeps it.
 
+### Maintenance jobs (phase 8)
+
+Phase 8 generalizes that loop: every LLM job proposes rows into a committed curated
+file under `data/curated/`, a person (or a mechanical check the phase allows)
+reviews them, and the **build applies the accepted rows**, so a rebuild reproduces
+them. Rows key on `concept_key`, which survives the re-slugs the jobs themselves
+cause. `maintenance` holds the shared pieces (`ReviewStatus`, `write_jsonl` /
+`read_jsonl`, `curated_path`, `load_curated`, which returns accepted rows only).
+
+| Curated file | Written by | Review | Applied by |
+| --- | --- | --- | --- |
+| `gloss_overrides.jsonl` | gloss repair (05.55) | human | `apply_gloss_overrides` |
+| `topics.json` | hand-written table | human | `assign_topics` |
+| `slug_qualifiers.jsonl` | `slug_qualifier` chain | `check_qualifiers` (mechanical) | `sources.omw._tiered_slugs` |
+| `member_form_drops.jsonl` | `form_review` chain | human | `apply_form_drops` |
+| `gloss_backfill.jsonl` | `gloss_translate` chain | sampled human review | `apply_gloss_backfill` |
+
+Each job has a thin notebook under `notebooks/lexicon_maintain/` (`gloss_repair`,
+`slug_qualifiers`, `form_review`, `gloss_backfill`). The jobs run through
+`llm.runner` (checkpointed live or Batch runs with measured usage, see
+[LLM chains](llm.md#running-a-chain-over-a-corpus-worklist)), and the notebooks
+encode the spending rule: run a small live sample, read its measured cost, compare
+models if the choice is open, and only then flip `RUN_PAID` for the full batch.
+
+The 2026-10 runs: 23,012 slug qualifiers accepted of 23,476; 161 member-form drops
+proposed and reviewed (153 dropped, 8 kept: real names the model read as
+definitions, and two pairs joined by "et" / "ou" that want splitting); 174,315
+glosses backfilled across fr, pt, es and it.
+
 ## Ingestion
 
 `lang_tools.lexicon.ingestion` exposes two per-file loaders, both yielding thin
@@ -540,15 +580,30 @@ the committed, human-reviewed `data/curated/topics.json`:
 
 A mapping that names a topic outside the vocabulary fails the load. Topics change
 only by editing the table and rebuilding, so like the curated gloss overrides
-they survive every rebuild. On the five-language build 82,405 of 117,659 concepts
-are tagged and 76-86% of each language's lemmas carry a topic. The gate reports
+they survive every rebuild. On the five-language build 80,856 of 117,659 concepts
+are tagged and 75-86% of each language's lemmas carry a topic. The gate reports
 coverage per language and concepts per topic, and fails if any concept carries a
 topic the reviewed vocabulary does not list.
 
 Mapping quality is bounded by WordNet's classes: a polysemous lemma collects the
 topics of all its senses (`bank` gets seven), and small classes can surprise
-(`verb.weather` includes "give off" verbs, so es `despedir` lands in `weather`).
-Both are reasons to review the table, not defects in the derivation.
+(`verb.weather` held "give off" verbs, which is why it is now unmapped).
+Both are reasons to review the table, not defects in the derivation. The 2026-10
+review unmapped four verb classes whose members mostly do not fit their topic:
+`verb.weather` (mostly shine / burn / emit verbs), `verb.competition` (mostly
+fight / attack / fire, not sport), `verb.consumption` (mostly use / require /
+provide) and `verb.possession` (mostly generic give / hold / find). The weather and
+sport topics still come in through OMW's domain links.
+
+#### Member forms (phase 8)
+
+OMW gives a lemma's display text and part of speech once per synset it appears in,
+and they do not always agree. The build now settles each lemma on the **majority**
+text and POS across its synsets instead of the first one seen (4,198 POS and 884
+display-text fixes on the five-language build). Member forms that OMW joins with
+`;` or `|` are split by `member_forms`, keeping only the segments tagged with the
+form's own language. What is left - non-English forms of five words or more, or
+over 40 characters - goes through the form review above.
 
 #### Non-English gloss backfill (phase 8)
 

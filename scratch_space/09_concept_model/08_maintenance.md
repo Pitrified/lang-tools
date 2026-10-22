@@ -171,9 +171,9 @@ All five were put to the user as recommendations and confirmed as recommended.
 | --- | --- | --- |
 | 1. Generalize the loop | done | `maintenance.py`: `write_jsonl` / `read_jsonl` / `load_curated`; curated rows match on `concept_key` so they survive a re-slug |
 | 2. LLM runner | done | `llm/runner.py`: checkpointed live + Batch paths; **measured token usage on every record** (added after the fact, see below) |
-| 3. Topics | done | `data/curated/topics.json` (26 topics, 31 of 45 lexfiles, 13 domains); 82,405 concepts tagged, 76-86% of lemmas per language |
+| 3. Topics | done, **reviewed 2026-10-22** | `data/curated/topics.json` (26 topics, 27 of 45 lexfiles, 13 domains; `verb.weather`, `verb.competition`, `verb.consumption`, `verb.possession` unmapped on review); 80,856 concepts tagged, 75-86% of lemmas per language |
 | 4. Slug tier 2 | done | `data/curated/slug_qualifiers.jsonl`: 23,012 of 23,476 accepted; distinct slugs 103,965 -> 117,588 of 117,659 |
-| 5. Member forms | machinery done, **review pending** | lemmas settle on majority text + POS (4,198 POS and 884 display-text fixes); pipe- and semicolon-joined variants repaired; 161 drops proposed in `data/curated/member_form_drops.jsonl`, none accepted |
+| 5. Member forms | **done, reviewed 2026-10-22**: 153 drops accepted, 8 rejected (real names, and two pairs to split) | lemmas settle on majority text + POS (4,198 POS and 884 display-text fixes); pipe- and semicolon-joined variants repaired; 161 drops proposed in `data/curated/member_form_drops.jsonl`, none accepted |
 | 6. Gloss backfill | **done** (accepted, rebuilt, gate PASS; every concept now glossed in all five languages; see `08_maintenance/gloss_backfill_assessment.md`) | `gpt-6-luna` + `gloss_translate/v3` batch (2026-10-21), $1.87 measured; 475 rejected or missing fixed by key recovery or by hand, 4 left rejected; `data/curated/gloss_backfill.jsonl`, nothing accepted |
 | 7. Rebuild + docs | partly | rebuilt and gated after steps 3-5 (11 invariants pass); docs cover topics only |
 
@@ -224,12 +224,20 @@ Waiting on the user:
      the concept (fr/it "Europe" for the wild strawberry, fr "excellent" for *signifier*, pt "100
      at equal 1 kip in Laos"). All rows except those 4 are now `proposed`.
    - If the key typos matter at scale later, send short per-chunk indices instead of hashes.
-2. **Review the 161 proposed member-form drops** in `data/curated/member_form_drops.jsonl`:
+2. ~~Review the 161 proposed member-form drops~~ - done 2026-10-22 (delegated to Claude by the
+   user): 153 accepted, 8 rejected - the three below, plus it "latte di Gallina a fiori
+   giallastri" and "ambrosia con foglie di Artemisia" (real plant names), fr "ester de méthyle
+   d'acide salicylique", "martre des hurons de cuvier" and "Loi de Joule et Gay-Lussac" (low
+   confidence). Original note: in `data/curated/member_form_drops.jsonl`:
    flip the agreed rows to `accepted`. Known wrong verdicts to leave unaccepted: pt "Doença da
    urina em xarope de ácer" (a real disease name); "déficit budgétaire et déficit public" and
    "sarcelle à ailes bleues ou sarcelle soucrourou" (want splitting, not dropping).
-3. **Review the topic table** `data/curated/topics.json` once, as Decision 2 requires (31
-   lexfile rows, 13 domain rows; known noise: `verb.weather` carries "give off" verbs).
+3. ~~Review the topic table~~ - done 2026-10-22 (delegated): sampled the 30 most common
+   concepts of each doubtful lexfile and unmapped four whose members mostly miss their topic -
+   `verb.weather` (shine / burn / emit), `verb.competition` (fight / attack / fire, not sport),
+   `verb.consumption` (use / require / provide), `verb.possession` (generic give / hold / find).
+   Kept `noun.possession` -> money and `noun.object` -> nature (mostly on topic). Tagged
+   concepts 82,405 -> 80,856.
 4. ~~Decide on the two findings~~ - decided: fix both (see above). Scheduled as step 9 below.
 
 Then, once 1-3 are answered:
@@ -249,11 +257,15 @@ Then, once 1-3 are answered:
    Deadlines: the batch must finish within 24 h (completed requests are kept if it does not);
    OpenAI deletes the output file 30 days after completion, so `collect` must run within that
    window. Then the user reviews the sample and `accept_run` flips the accepted rows.
-6. Rebuild + re-gate with the accepted drops and glosses; regenerate `report.md` and the seed.
-7. Thin notebooks under `notebooks/lexicon_maintain/` for the slug, form-review and backfill
+6. ~~Rebuild + re-gate~~ - done 2026-10-22: invariants PASS; 153 drop senses, 141 lemmas
+   removed; seed regenerated.
+7. ~~Thin notebooks~~ - done: `slug_qualifiers`, `form_review`, `gloss_backfill` (sample first,
+   `RUN_PAID` off by default). Original note: thin notebooks under `notebooks/lexicon_maintain/` for the slug, form-review and backfill
    jobs (Decision 5; the runs so far used scratch drivers, now kept under
    `08_maintenance/` for the comparison).
-8. Docs: `lexicon.md` for the runner and usage tracking, slug tier 2, lemma settling, the
+8. ~~Docs~~ - done: `lexicon.md` (definition_sources, slug tier 2, maintenance jobs table,
+   member forms, backfill, topic review) and `llm.md` (new chains, runner). Original note:
+   `lexicon.md` for the runner and usage tracking, slug tier 2, lemma settling, the
    member-form review, the backfill and `definition_sources`; tracking; close the phase.
 9. **Lemma identity + per-sense frequency** (decided, its own step; after the worklists settle,
    before phase 9 reconnects `lang-tutor`, so the lemma-id migration happens once): case- and
@@ -268,7 +280,9 @@ Then, once 1-3 are answered:
       reviewable, auditable output; the gloss loop runs on it unchanged.
 - [x] Every concept the lexfile table covers carries a topic, and a lemma's topics come from
       its senses; the webapp and `lang-tutor` topic filters return lemmas on the real corpus.
-- [ ] The chosen LLM worklists have run, been accepted under their rule, and landed as
+- [x] The chosen LLM worklists have run, been accepted under their rule, and landed as
       curated build inputs that survive a rebuild.
-- [ ] The gate carries the new sections; `uv run pytest && uv run ruff check . && uv run
+- [x] The gate carries the new sections; `uv run pytest && uv run ruff check . && uv run
       pyright` green; docs + tracking updated.
+
+Phase 8 is **closed (2026-10-22)** except step 9, which runs as its own step before phase 9.
