@@ -258,6 +258,8 @@ commits), once GitHub access to that repo was granted.
   per-user store (a JSON file or SQLite in `lang-tutor`) would be its own step.
 - **Q3 - false friends.** The table is empty. Filling it is a separate data task in
   `lang-tools`, and trap drills wait for it.
+  -> Picked up as **phase 11** ([`11_false_friends.md`](11_false_friends.md)), widened to
+  false friends and cognates in one `lookalikes` table.
 
 ## Out of scope
 

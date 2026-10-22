@@ -33,6 +33,12 @@ free and open dataset". Depends on the source mix being final (phases 5-7).
 > (c) accept SA for the pt slice. WOLF/CeCILL-C needs the same treatment. Full snapshot in
 > [`05.56_rebuild_gate/05.56_rebuild_gate.md`](05.56_rebuild_gate/05.56_rebuild_gate.md) Findings.
 
+> **From phase 11 (2026-10-22).** Phase 11 (false friends and cognates) now runs before
+> this one. It may add a pronunciation tool: espeak-ng (GPL-3 program, only its output
+> stored), Epitran (MIT), CMUdict (BSD-style) or PanPhon (MIT). It also ships
+> LLM-written en notes in `data/curated/lookalikes.jsonl`. Check whatever it actually
+> used; it ships no Wiktionary / CC-BY-SA pronunciation data by design.
+
 ## What this phase will cover
 
 - **License decision** - **settled by the 5.5 cleanup**: drop kaikki/Wiktionary text
