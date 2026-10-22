@@ -1,10 +1,11 @@
 ---
-status: draft
+status: planned
 ---
 
 # Phase 11 - false friends
 
-> Draft: a brainstorm with measurements, not yet the plan of record. It runs **before**
+> Plan of record (2026-10-22): the brainstorm below with its measurements, plus the
+> Decisions section. It runs **before**
 > phase 10 (licensing): any new source it pulls in (a pronunciation tool or lexicon) then
 > gets license-checked with the rest.
 
@@ -216,9 +217,26 @@ candidates to send to the LLM) are made on those two numbers.
    and `LemmaCard` or a cards query flag carries it so a pair-matching round can use a
    false friend as a distractor.
 
+## Decisions (settled 2026-10-22)
+
+1. **Languages: en, pt, it**, as three pairs: en-pt, en-it and pt-it. es and fr come
+   later, with the same pipeline.
+2. **Cognate key first.** The deterministic spelling-correspondence rules go in step 2. The
+   IPA channel (espeak-ng plus PanPhon) is added in step 3 only if the gold set shows
+   spelling-divergent pairs the key still misses.
+3. **`kind` field on `FalseFriendRelation`:** `full` or `partial`, so a drill can pick
+   only full traps. This is a small model, codec and schema change, and needs a cache
+   version bump.
+4. **Keep true cognates.** The verifier labels them anyway. They are stored as a separate
+   output for a later "free vocabulary" deck, not as false-friend edges; whether that
+   is a `cognates` table or a curated JSONL only is decided in step 4.
+
 ## Open questions
 
-- **Language pairs.** en x {pt, es, fr, it} only, which is where a learner whose base
+- *(settled: language pairs, phonetics, partial false friends, cognates; see
+  Decisions.)* Still open: the learner-pool bound (below), and the gold-set size for
+  three pairs (about 20-25 per pair).
+- **Language pairs (settled: en x pt x it).** en x {pt, es, fr, it} only, which is where a learner whose base
   language is English gets trapped, or all ten pairs (es-pt is rich: *polvo*, *oficina*,
   *aceite*)? Lean: en x 4 first, inter-Romance next.
 - **Partial false friends.** Same edge with a note, or a `kind` field on
