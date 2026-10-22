@@ -291,6 +291,29 @@ On 200 random selected candidates, v5 gives:
 chose to hold and review the prompt and the numbers first. Acceptance, when it runs,
 is a sampled review per language pair (as for the gloss backfill).
 
+**Steps 6-8: built against test data (2026-10-22).** Everything downstream of the
+run is ready, so an approved run only needs to land its reviewed file.
+
+- **6, build and gate.** `build_initial` turns the accepted rows of
+  `data/curated/lookalikes.jsonl` into `lookalikes` edges once the lemma set is
+  final, tagged `manual` / `llm`. Stale rows are counted, never fatal, and the
+  counts reach `BuildSummary` and `_build.json`. The gate invariant
+  `invalid_lookalike_edge` checks endpoints, the two-language rule, canonical
+  order, duplicates, the kind, and the English note on every false friend.
+- **7, per-learner cards.** `CardQuery.known_languages` fills
+  `LemmaCard.lookalikes` (`LookalikeHint`, false friends first) in one batched read
+  per page. `CardQuery.lookalike = trap | cognate | none` filters on them,
+  relative to the known languages, and the card endpoints take `known_languages`.
+- **8, `lang-tutor`.**
+  - `LearnerParams`: target `pt`, known `en,it`, from the environment.
+  - Every card read names the known languages.
+  - Selection: traps x1.3, cognates x0.7.
+  - Pair matching: one false-friend decoy whose wrong tap shows the trap note.
+  - The lemma page: a "Looks like" box.
+
+Tests use fixture edges only. The real corpus keeps 0 edges until an approved,
+reviewed run lands.
+
 ## Out of scope
 
 - Fixing OMW coverage holes (*embarazada*, *parents*): new-lemma mapping, in the backlog.
