@@ -592,26 +592,88 @@ def test_domain_topics_gather_per_concept() -> None:
     assert grouped.concept_domains == {_cid(grouped, "a football move"): {"football"}}
 
 
-def test_a_merged_lemma_takes_its_majority_text_and_pos() -> None:
-    # "Be" (beryllium, a noun) is met first; "be" is a verb in two synsets. One
-    # lemma id, so it must read as the verb "be", not the first-seen noun "Be".
+def test_a_lemma_takes_its_majority_pos() -> None:
+    # "go" is met first as a noun, then as a verb in two synsets.
     entries = [
-        SynsetEntry("en", "n1", "i1", "a metallic element", ("Be",), pos="n"),
+        SynsetEntry("en", "n1", "i1", "a board game", ("go",), pos="n"),
+        SynsetEntry("en", "v1", "i2", "change location", ("go",), pos="v"),
+        SynsetEntry("en", "v2", "i3", "follow a procedure", ("go",), pos="v"),
+    ]
+    (lemma,) = group_to_records(entries).lemmas
+    assert (lemma.text, lemma.part_of_speech) == ("go", "verb")
+
+
+def test_a_pos_tie_goes_to_the_first_pos() -> None:
+    entries = [
+        SynsetEntry("en", "v1", "i2", "a made-up verb sense", ("run",), pos="v"),
+        SynsetEntry("en", "n1", "i1", "a score in baseball", ("run",), pos="n"),
+    ]
+    (lemma,) = group_to_records(entries).lemmas
+    assert lemma.part_of_speech == "noun"
+
+
+def test_case_and_accent_variants_are_separate_lemmas() -> None:
+    # Beryllium is not "be"; avó is not avô.
+    entries = [
+        SynsetEntry("en", "n1", "i1", "metallic element", ("Be", "beryllium"), pos="n"),
         SynsetEntry("en", "v1", "i2", "have the quality of being", ("be",), pos="v"),
-        SynsetEntry("en", "v2", "i3", "occupy a certain position", ("be",), pos="v"),
+        SynsetEntry("pt", "pn1", "i3", "", ("avó",), pos="n"),
+        SynsetEntry("pt", "pn2", "i4", "", ("avô",), pos="n"),
     ]
-    (lemma,) = group_to_records(entries).lemmas
-    assert lemma.text == "be"
-    assert lemma.part_of_speech == "verb"
+    texts = sorted(lemma.text for lemma in group_to_records(entries).lemmas)
+    assert texts == ["Be", "avó", "avô", "be", "beryllium"]
 
 
-def test_a_tie_goes_to_the_lowercase_variant_and_the_first_pos() -> None:
+def test_capitalization_noise_folds_to_lowercase() -> None:
     entries = [
-        SynsetEntry("en", "n1", "i1", "information technology", ("IT",), pos="n"),
-        SynsetEntry("en", "v1", "i2", "a made-up verb sense", ("it",), pos="v"),
+        # pt "Cuspir" beside "cuspir" in one synset: one word.
+        SynsetEntry("en", "v1", "i1", "expel saliva", ("spit",), pos="v"),
+        SynsetEntry("pt", "pv1", "i1", "", ("Cuspir", "cuspir"), pos="v"),
+        # pt "Abstrato" alone, on a concept with no capitalized English member.
+        SynsetEntry("en", "a1", "i2", "existing in the mind", ("abstract",), pos="a"),
+        SynsetEntry("pt", "pa1", "i2", "", ("Abstrato",), pos="a"),
+        # pt "ONU": its concept's English member "UN" is capitalized, so it stays.
+        SynsetEntry("en", "n1", "i3", "a league of nations", ("UN",), pos="n"),
+        SynsetEntry("pt", "pn1", "i3", "", ("ONU",), pos="n"),
+        # en "State" vs "state" on different concepts: two words, never folded.
+        SynsetEntry("en", "n2", "i4", "a territory", ("State",), pos="n"),
+        SynsetEntry("en", "n3", "i5", "the way something is", ("state",), pos="n"),
     ]
-    (lemma,) = group_to_records(entries).lemmas
-    assert (lemma.text, lemma.part_of_speech) == ("it", "noun")
+    lemmas = group_to_records(entries).lemmas
+    pt = sorted(lemma.text for lemma in lemmas if lemma.language == "pt")
+    assert pt == ["ONU", "abstrato", "cuspir"]  # Cuspir and Abstrato folded
+    en = sorted(lemma.text for lemma in lemmas if lemma.language == "en")
+    assert en == ["State", "UN", "abstract", "spit", "state"]
+
+
+def test_variant_spellings_of_one_meaning_fold_together() -> None:
+    entries = [
+        # Lost accent on one meaning: the fuller spelling wins.
+        SynsetEntry("en", "n1", "i1", "becoming aware", ("perception",), pos="n"),
+        SynsetEntry("es", "en1", "i1", "", ("percepcion", "percepción"), pos="n"),
+        # Two norms with as many marks each stay apart.
+        SynsetEntry("en", "n2", "i2", "irreverence", ("blasphemy",), pos="n"),
+        SynsetEntry("pt", "pn2", "i2", "", ("blasfémia", "blasfêmia"), pos="n"),
+        # Case variants of one name: the most capitalized wins.
+        SynsetEntry("en", "n3", "i3", "a bridge", ("Golden Gate Bridge",), pos="n"),
+        SynsetEntry(
+            "pt", "pn3", "i3", "", ("Golden gate bridge", "Golden Gate Bridge"), pos="n"
+        ),
+        # Accent variants on different meanings are different words.
+        SynsetEntry("en", "n4", "i4", "a monkey", ("monkey",), pos="n"),
+        SynsetEntry("es", "en4", "i4", "", ("mono",), pos="n"),
+        SynsetEntry("en", "n5", "i5", "a hair bun", ("bun",), pos="n"),
+        SynsetEntry("es", "en5", "i5", "", ("moño",), pos="n"),
+    ]
+    texts = {
+        (lemma.language, lemma.text) for lemma in group_to_records(entries).lemmas
+    }
+    assert ("es", "percepcion") not in texts
+    assert ("es", "percepción") in texts
+    assert {("pt", "blasfémia"), ("pt", "blasfêmia")} <= texts
+    assert ("pt", "Golden Gate Bridge") in texts
+    assert ("pt", "Golden gate bridge") not in texts
+    assert {("es", "mono"), ("es", "moño")} <= texts
 
 
 def test_joined_variants_split_into_separate_forms() -> None:

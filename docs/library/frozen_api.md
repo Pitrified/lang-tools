@@ -38,6 +38,11 @@ store. These read helpers are the in-process content surface phase 2 consumes
 - `FalseFriendRelation`, `ConceptRelation`, `SenseRelation` - decoupled relation
   edge tables.
 - `lemma_id`, `concept_id`, `sense_id` - deterministic id constructors.
+  `lemma_id` keeps case and accents since phase 8 step 9 (pt `avó` and `avô`, en
+  `Be` and `be` are different lemmas). That changed, once, the id of every lemma
+  whose form has a capital or a diacritic, and the ids of their senses. Any
+  per-user state keyed on those ids, such as `lang-tutor`'s progress, has to be
+  re-keyed. Lowercase unaccented lemmas kept their ids.
 - `LexiconStore`, `get_store` - the read/query store over the whole graph.
 - `get_all_lemmas`, `get_lemma_by_id`, `get_lemmas_by_language`,
   `get_lemmas_by_topic`, `get_lemmas_filtered` - lemma read/query helpers.

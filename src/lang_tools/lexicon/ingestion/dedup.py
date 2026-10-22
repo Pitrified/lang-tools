@@ -28,8 +28,8 @@ def merge_lemmas(left: Lemma, right: Lemma) -> Lemma:
 
     The scalar ``part_of_speech`` prefers non-null over null; if both differ,
     ``left`` wins. Collection fields (``topics``, ``examples``, ``sources``)
-    are merged. The resulting `text` keeps the `left` spelling so that accent
-    information is preserved when one side has it and the other does not.
+    are merged. Lemma identity keeps case and accents, so two records with one
+    id share their spelling (up to Unicode composition) and `left`'s is kept.
 
     Args:
         left: First record (its `text` is preserved).
@@ -45,13 +45,8 @@ def merge_lemmas(left: Lemma, right: Lemma) -> Lemma:
         msg = f"Cannot merge lemmas with different IDs: {left.id} vs {right.id}"
         raise ValueError(msg)
 
-    has_accent_left = any(c.isalpha() and not c.isascii() for c in left.text)
-    text = left.text if has_accent_left else right.text
-    if not text:
-        text = left.text
-
     return Lemma(
-        text=text,
+        text=left.text,
         language=left.language,
         normalized=left.normalized or right.normalized,
         part_of_speech=left.part_of_speech or right.part_of_speech,

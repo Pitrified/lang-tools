@@ -1,5 +1,7 @@
 """Tests for `lang_tools.lexicon.ingestion.dedup`."""
 
+import pytest
+
 from lang_tools.lexicon.ingestion.dedup import deduplicate
 from lang_tools.lexicon.ingestion.dedup import merge_lemmas
 from lang_tools.lexicon.lemma import Lemma
@@ -28,11 +30,10 @@ def test_merge_lemmas_unions_sources() -> None:
     assert merged.sources == ["csv", "wiktionary"]
 
 
-def test_merge_lemmas_prefers_accented_text() -> None:
-    a = _make(text="acao")
-    b = _make(text="ação")
-    merged = merge_lemmas(a, b)
-    assert merged.text == "ação"
+def test_merge_lemmas_refuses_an_accent_variant() -> None:
+    # Identity keeps accents: "acao" and "ação" are two lemmas, never merged.
+    with pytest.raises(ValueError, match="different IDs"):
+        merge_lemmas(_make(text="acao"), _make(text="ação"))
 
 
 def test_deduplicate_collapses_duplicates() -> None:

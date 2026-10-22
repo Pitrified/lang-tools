@@ -72,6 +72,13 @@ def lemma_zipf(lemmas: Iterable[Lemma]) -> dict[tuple[str, str], float]:
     words. Forms ``wordfreq`` does not know are **omitted** rather than stored as
     ``0.0``, so a missing key means "no frequency", never "frequency zero".
 
+    ``wordfreq`` lowercases its input, so a capitalized lemma would read its
+    lowercase twin's count: en ``Be`` (beryllium) would get the frequency of the
+    verb *be* and an A1 band. A capitalized lemma whose lowercase form is a
+    separate lemma of the same language is therefore omitted too - its token
+    frequency is unknown, not borrowed (phase 8 step 9). A capitalized lemma with
+    no lowercase twin (``Paris``) keeps its lookup.
+
     Args:
         lemmas: The lemmas to look up; duplicates are computed once.
 
@@ -82,17 +89,30 @@ def lemma_zipf(lemmas: Iterable[Lemma]) -> dict[tuple[str, str], float]:
         OptionalDependencyMissingError: When the ``ingest`` extra is not installed.
     """
     wordfreq = _require_wordfreq()
+    lemmas = list(lemmas)
+    forms = {(lemma.text, lemma.language) for lemma in lemmas}
     scores: dict[tuple[str, str], float] = {}
     seen: set[tuple[str, str]] = set()
+    shadowed = 0
     for lemma in lemmas:
         key = (lemma.text, lemma.language)
         if key in seen:
             continue
         seen.add(key)
+        lower = lemma.text.lower()
+        if lower != lemma.text and (lower, lemma.language) in forms:
+            shadowed += 1
+            continue
         zipf = wordfreq.zipf_frequency(lemma.text, lemma.language)
         if zipf > 0:
             scores[key] = zipf
-    lg.info("Frequency lookup: {} of {} forms known", len(scores), len(seen))
+    lg.info(
+        "Frequency lookup: {} of {} forms known; {} capitalized form(s) not lent "
+        "their lowercase twin's frequency",
+        len(scores),
+        len(seen),
+        shadowed,
+    )
     return scores
 
 

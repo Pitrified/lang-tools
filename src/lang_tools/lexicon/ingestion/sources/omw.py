@@ -28,6 +28,7 @@ import html
 import re
 from typing import TYPE_CHECKING
 from typing import Any
+import unicodedata
 
 from loguru import logger as lg
 
@@ -46,6 +47,7 @@ from lang_tools.lexicon.relations import SenseRelation
 from lang_tools.lexicon.sense import Sense
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from collections.abc import Iterable
     from collections.abc import Iterator
     from collections.abc import Mapping
@@ -278,6 +280,178 @@ def member_forms(raw_form: str, language: str = "") -> tuple[list[str], int]:
     return kept, dropped
 
 
+def _has_capital(form: str) -> bool:
+    """Report whether a form has any uppercase letter."""
+    return form != form.lower()
+
+
+def _bare(form: str) -> str:
+    """Return a form without its diacritics, case kept (``Ação`` -> ``Acao``)."""
+    decomposed = unicodedata.normalize("NFD", form)
+    return "".join(ch for ch in decomposed if not unicodedata.combining(ch))
+
+
+def _marks(form: str) -> int:
+    """Count a form's diacritics (combining marks once decomposed)."""
+    decomposed = unicodedata.normalize("NFD", form)
+    return sum(1 for ch in decomposed if unicodedata.combining(ch))
+
+
+def _member_concepts(
+    grouped: Mapping[str, list[SynsetEntry]],
+) -> tuple[dict[tuple[str, str], set[str]], set[str]]:
+    """Return every member form's concepts, and the concepts that look proper.
+
+    A concept looks proper when one of its English members has a capital (a
+    name, an acronym, a title).
+    """
+    concepts_of: dict[tuple[str, str], set[str]] = {}
+    proper: set[str] = set()
+    for key, group in grouped.items():
+        for entry in group:
+            for raw_form in entry.lemmas:
+                for form in member_forms(raw_form, entry.language)[0]:
+                    concepts_of.setdefault((entry.language, form), set()).add(key)
+                    if entry.language == COUNT_LANGUAGE and _has_capital(form):
+                        proper.add(key)
+    return concepts_of, proper
+
+
+def _components(
+    forms: list[str],
+    concepts_of: Mapping[str, set[str]],
+) -> list[list[str]]:
+    """Split variant spellings into groups that are linked by a shared concept."""
+    parent = {form: form for form in forms}
+
+    def find(form: str) -> str:
+        while parent[form] != form:
+            parent[form] = parent[parent[form]]
+            form = parent[form]
+        return form
+
+    for i, a in enumerate(forms):
+        for b in forms[i + 1 :]:
+            if concepts_of[a] & concepts_of[b]:
+                parent[find(a)] = find(b)
+    groups: dict[str, list[str]] = {}
+    for form in forms:
+        groups.setdefault(find(form), []).append(form)
+    return [sorted(group) for group in groups.values() if len(group) > 1]
+
+
+def _case_canonical(group: list[str], concepts_of: Mapping[str, set[str]]) -> str:
+    """Pick the spelling case variants of one meaning fold to.
+
+    The lowercase variant when there is one (the capital is noise on a common
+    word); else the variant met in the most synsets, then the most capitalized
+    (pt ``Golden Gate Bridge`` over ``Golden gate bridge``).
+    """
+    lower = [form for form in group if not _has_capital(form)]
+    if lower:
+        return lower[0]
+    return max(
+        group,
+        key=lambda f: (len(concepts_of[f]), sum(map(str.isupper, f)), f),
+    )
+
+
+def spelling_noise_folds(
+    grouped: Mapping[str, list[SynsetEntry]],
+) -> dict[tuple[str, str], str]:
+    """Map noisy spellings of a member form to one canonical form (phase 8 step 9).
+
+    Lemma identity keeps case and accents (`lemma_id`), because such pairs are
+    often two words: en ``Be`` (beryllium) and ``be``, pt ``avó`` and ``avô``, es
+    ``mono`` and ``moño``. But the wordnets also spell one word several ways, and
+    those must stay one lemma. Folds, in order:
+
+    - **Stray capitals.** A non-English capitalized form none of whose concepts has
+      a capitalized English member folds to lowercase (pt ``Cuspir`` -> ``cuspir``;
+      pt ``ONU``, whose English member is ``UN``, keeps its capitals).
+    - **Case variants of one meaning.** Variants that differ only by case and
+      share a concept fold to the lowercase one, else to the most frequent, most
+      capitalized one (pt ``Golden gate bridge`` -> ``Golden Gate Bridge``).
+    - **Lost accents on one meaning.** Variants that differ only by diacritics and
+      share a concept: a variant with fewer marks folds into the fullest one (es
+      ``percepcion`` -> ``percepción``). Variants with as many marks stay apart,
+      since they are parallel norms (pt ``blasfémia`` / ``blasfêmia``).
+
+    Variants that never share a concept are different words and never fold, so
+    ``avó`` / ``avô`` and en ``State`` / ``state`` stay two lemmas each.
+
+    Args:
+        grouped: The synset entries grouped by concept key.
+
+    Returns:
+        ``{(language, form): canonical form}`` for every form to fold.
+    """
+    concepts_of, proper = _member_concepts(grouped)
+    folds: dict[tuple[str, str], str] = {}
+    for (language, form), keys in concepts_of.items():
+        if language != COUNT_LANGUAGE and _has_capital(form) and not keys & proper:
+            folds[language, form] = form.lower()
+
+    for variant_key in (str.lower, _bare):
+        _fold_variants(concepts_of, folds, variant_key)
+    return _resolve_chains(folds)
+
+
+def _fold_variants(
+    concepts_of: Mapping[tuple[str, str], set[str]],
+    folds: dict[tuple[str, str], str],
+    variant_key: Callable[[str], str],
+) -> None:
+    """Add folds for the variants `variant_key` equates that share a concept.
+
+    `variant_key` is ``str.lower`` (case variants) or `_bare` (accent variants);
+    the forms are taken after the folds found so far, so the passes compose.
+    """
+    merged: dict[tuple[str, str], set[str]] = {}
+    for (language, form), keys in concepts_of.items():
+        target = folds.get((language, form), form)
+        merged.setdefault((language, target), set()).update(keys)
+    by_key: dict[tuple[str, str], list[str]] = {}
+    for language, form in merged:
+        by_key.setdefault((language, variant_key(form)), []).append(form)
+    for (language, _), forms in by_key.items():
+        if len(forms) < 2:  # noqa: PLR2004 - a pair is the smallest variant set
+            continue
+        local = {form: merged[language, form] for form in forms}
+        for group in _components(sorted(forms), local):
+            if variant_key is str.lower:
+                canonical = _case_canonical(group, local)
+                losers = [form for form in group if form != canonical]
+            else:
+                canonical = max(group, key=lambda f: (_marks(f), len(local[f]), f))
+                losers = [f for f in group if _marks(f) < _marks(canonical)]
+            for form in losers:
+                folds[language, form] = canonical
+
+
+def _resolve_chains(folds: Mapping[tuple[str, str], str]) -> dict[tuple[str, str], str]:
+    """Follow fold chains (``Percepcion`` -> ``percepcion`` -> ``percepción``)."""
+    resolved: dict[tuple[str, str], str] = {}
+    for (language, form), first in folds.items():
+        final, seen = first, {form}
+        while (language, final) in folds and final not in seen:
+            seen.add(final)
+            final = folds[language, final]
+        if final != form:
+            resolved[language, form] = final
+    return resolved
+
+
+def _log_folds(folds: Mapping[tuple[str, str], str]) -> None:
+    """Log how many forms `spelling_noise_folds` folded, per language."""
+    if folds:
+        lg.info(
+            "Folded {} noisy spelling(s) (case, lost accents) into one form: {}",
+            len(folds),
+            dict(sorted(Counter(language for language, _ in folds).items())),
+        )
+
+
 #: Order that breaks a part-of-speech tie between a lemma's synsets.
 _POS_ORDER = ("noun", "verb", "adjective", "adverb")
 
@@ -285,11 +459,12 @@ _POS_ORDER = ("noun", "verb", "adjective", "adverb")
 class _LemmaTally:
     """Collect every surface variant and part of speech a lemma id is seen with.
 
-    Lemma identity is case- and accent-insensitive (`lemma_id`), so one lemma
-    can be met as ``be`` in thirteen synsets and as ``Be`` (beryllium) in one, and
-    as a noun before it is met as a verb. Taking whichever came first made the
-    verb *be* display as ``Be`` and *go* a noun (phase 8: 4,198 lemmas had a POS
-    that was not their majority). `settle` picks the majority instead.
+    A lemma is met once per synset it belongs to, possibly with different parts
+    of speech: taking whichever came first made *go* a noun (phase 8: 4,198
+    lemmas had a POS that was not their majority). `settle` picks the majority.
+    Since identity keeps case and accents (step 9), every variant of a lemma id
+    is the same string up to Unicode composition, so the text tally only breaks
+    ties between composed and decomposed spellings.
     """
 
     def __init__(self) -> None:
@@ -307,7 +482,7 @@ class _LemmaTally:
 
         Text: the variant seen in the most synsets; a tie goes to the lowercase
         variant, then alphabetical order. POS: the most frequent; a tie follows
-        `_POS_ORDER`. Every variant normalizes to the same id, so the id holds.
+        `_POS_ORDER`. Every variant hashes to the same id, so the id holds.
         """
         forms = self.forms[lemma.id]
         text = min(forms, key=lambda f: (-forms[f], f != f.lower(), f))
@@ -753,12 +928,14 @@ def _sense_relation_edges(
     grouped: Mapping[str, list[SynsetEntry]],
     key_to_cid: Mapping[tuple[str, str], str],
     senses: Mapping[tuple[str, str], Sense],
+    folds: Mapping[tuple[str, str], str],
 ) -> tuple[list[SenseRelation], set[tuple[str, str, str]], int]:
     """Resolve sense links to `SenseRelation` edges and derived concept edges.
 
     A link names a member form of its own synset and a form + synset on the
     target side; both resolve to a ``(lemma_id, concept_id)`` sense through the
-    same `lemma_id` / `key_to_cid` keys the sense table was built on. Either end
+    same `lemma_id` / `key_to_cid` keys, and the same case `folds`, the sense
+    table was built on. Either end
     can fail to resolve - a target synset not ingested, or a form dropped as
     malformed - and is then counted and dropped, never half-emitted.
 
@@ -774,6 +951,11 @@ def _sense_relation_edges(
     sense_edges: set[tuple[str, str, str]] = set()
     derived: set[tuple[str, str, str]] = set()
     dangling = 0
+
+    def _lemma_key(form: str, language: str) -> str:
+        form = unescape_form(form)
+        return lemma_id(folds.get((language, form), form), language)
+
     for group in grouped.values():
         for entry in group:
             source_cid = key_to_cid.get((entry.language, entry.synset_id))
@@ -782,14 +964,8 @@ def _sense_relation_edges(
                 if source_cid is None or target_cid is None:
                     dangling += 1
                     continue
-                source_key = (
-                    lemma_id(unescape_form(link.form), entry.language),
-                    source_cid,
-                )
-                target_key = (
-                    lemma_id(unescape_form(link.target_form), entry.language),
-                    target_cid,
-                )
+                source_key = (_lemma_key(link.form, entry.language), source_cid)
+                target_key = (_lemma_key(link.target_form, entry.language), target_cid)
                 if source_key not in senses or target_key not in senses:
                     dangling += 1  # a form dropped as malformed, or not a member
                     continue
@@ -811,6 +987,7 @@ def _assemble_relations(
     grouped: Mapping[str, list[SynsetEntry]],
     key_to_cid: Mapping[tuple[str, str], str],
     senses: Mapping[tuple[str, str], Sense],
+    folds: Mapping[tuple[str, str], str] | None = None,
 ) -> tuple[list[ConceptRelation], list[str], list[SenseRelation]]:
     """Build both relation tables, tag each concept edge, and log what was dropped.
 
@@ -830,6 +1007,7 @@ def _assemble_relations(
         grouped,
         key_to_cid,
         senses,
+        folds or {},
     )
     if sense_dangling:
         lg.info("Dropped {} sense relation(s) with an unresolved end", sense_dangling)
@@ -914,6 +1092,7 @@ def group_to_records(
         grouped.setdefault(_grouping_key(entry), []).append(entry)
 
     slugs, qualified = _tiered_slugs(grouped, slug_qualifiers)
+    folds = spelling_noise_folds(grouped)
     concepts: list[Concept] = []
     concept_source_by_id: dict[str, str] = {}
     lemmas: dict[str, Lemma] = {}
@@ -952,7 +1131,8 @@ def group_to_records(
             for raw_form, count in _forms_with_counts(entry):
                 forms, dropped = member_forms(raw_form, entry.language)
                 malformed_dropped += dropped
-                for form in forms:
+                for raw in forms:
+                    form = folds.get((entry.language, raw), raw)
                     lemma = Lemma(
                         text=form,
                         language=entry.language,
@@ -975,7 +1155,9 @@ def group_to_records(
         grouped,
         key_to_cid,
         senses,
+        folds,
     )
+    _log_folds(folds)
     if malformed_dropped:
         lg.info(
             "Dropped {} malformed member form(s) (5.55 Q4 / 5.57)",
