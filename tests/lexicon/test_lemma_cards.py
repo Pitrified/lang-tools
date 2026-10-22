@@ -6,6 +6,7 @@ from lang_tools.lexicon.card import CardQuery
 from lang_tools.lexicon.concept import Concept
 from lang_tools.lexicon.lemma import Lemma
 from lang_tools.lexicon.lemma_store import LexiconStore
+from lang_tools.lexicon.relations import LookalikeRelation
 from lang_tools.lexicon.sense import Sense
 
 C_HOUSE = "c__house-building__0011aabbccdd"
@@ -247,3 +248,90 @@ def test_lemma_paging_and_prefix_search() -> None:
     assert [lem.text for lem in store.get_lemmas_filtered(query="CAF")] == ["café"]
     assert store.count_lemmas_filtered(language="pt") == 5
     assert store.count_lemmas_filtered(language="pt", query="ca") == 2
+
+
+def _lookalike_store() -> LexiconStore:
+    """Build pt casa / esquisito with an it cognate and an en false friend."""
+    casa = Lemma(text="casa", language="pt")
+    esquisito = Lemma(text="esquisito", language="pt")
+    lar = Lemma(text="lar", language="pt")
+    casa_it = Lemma(text="casa", language="it")
+    exquisite = Lemma(text="exquisite", language="en")
+    cid = "c__house-building__0011aabbccdd"
+    weird = "c__weird-strange__0022bbccddee"
+    lemmas = [casa, esquisito, lar, casa_it, exquisite]
+    return LexiconStore.from_models(
+        lemmas=lemmas,
+        concepts=[Concept(id=cid), Concept(id=weird)],
+        senses=[
+            Sense(lemma_id=casa.id, concept_id=cid),
+            Sense(lemma_id=lar.id, concept_id=cid),
+            Sense(lemma_id=casa_it.id, concept_id=cid),
+            Sense(lemma_id=esquisito.id, concept_id=weird),
+            Sense(lemma_id=exquisite.id, concept_id=weird),
+        ],
+        lookalikes=[
+            LookalikeRelation(
+                lemma_id_a=casa.id, lemma_id_b=casa_it.id, kind="cognate"
+            ),
+            LookalikeRelation(
+                lemma_id_a=esquisito.id,
+                lemma_id_b=exquisite.id,
+                kind="full",
+                explanation_notes={"en": 'pt "esquisito" means weird'},
+            ),
+        ],
+        concept_relations=[],
+        sense_relations=[],
+    )
+
+
+def test_cards_carry_lookalikes_in_known_languages() -> None:
+    store = _lookalike_store()
+    card = store.lemma_card(
+        Lemma(text="esquisito", language="pt").id,
+        known_languages=["en", "it"],
+    )
+    assert card is not None
+    assert card.is_trap
+    assert [(h.language, h.text, h.kind, h.note) for h in card.lookalikes] == [
+        ("en", "exquisite", "full", 'pt "esquisito" means weird'),
+    ]
+    casa = store.lemma_card(
+        Lemma(text="casa", language="pt").id, known_languages=["it"]
+    )
+    assert casa is not None
+    assert casa.has_cognate
+    assert not casa.is_trap
+    # Only the learner's known languages count.
+    alone = store.lemma_card(
+        Lemma(text="casa", language="pt").id, known_languages=["en"]
+    )
+    assert alone is not None
+    assert alone.lookalikes == []
+    # No known languages, no look-alikes.
+    plain = store.lemma_card(Lemma(text="esquisito", language="pt").id)
+    assert plain is not None
+    assert plain.lookalikes == []
+
+
+def test_lookalike_filter() -> None:
+    store = _lookalike_store()
+    known = ["en", "it"]
+    traps = store.lemma_cards(
+        CardQuery(language="pt", known_languages=known, lookalike="trap")
+    )
+    free = store.lemma_cards(
+        CardQuery(language="pt", known_languages=known, lookalike="cognate")
+    )
+    none = store.lemma_cards(
+        CardQuery(language="pt", known_languages=known, lookalike="none")
+    )
+    assert _texts(traps) == ["esquisito"]
+    assert _texts(free) == ["casa"]
+    assert _texts(none) == ["lar"]
+    # The filter is relative to the known languages.
+    en_only = store.lemma_cards(
+        CardQuery(language="pt", known_languages=["en"], lookalike="cognate")
+    )
+    assert en_only == []

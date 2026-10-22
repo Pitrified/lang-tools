@@ -78,3 +78,33 @@ class TestReadCard:
         """An unknown id returns 404."""
         response = client.get("/api/v1/cards/does-not-exist")
         assert response.status_code == 404
+
+
+class TestKnownLanguages:
+    """Look-alike parameters on the card endpoints."""
+
+    def test_known_languages_are_accepted(self, client: TestClient) -> None:
+        """The card endpoints take repeated known_languages and a lookalike filter."""
+        known = get_lemmas_filtered(language="pt")[0]
+        response = client.get(
+            f"/api/v1/cards/{known.id}",
+            params=[("known_languages", "en"), ("known_languages", "it")],
+        )
+        assert response.status_code == 200
+        assert response.json()["lookalikes"] == []
+        response = client.get(
+            "/api/v1/cards",
+            params=[
+                ("language", "pt"),
+                ("known_languages", "en"),
+                ("lookalike", "none"),
+                ("limit", "3"),
+            ],
+        )
+        assert response.status_code == 200
+        assert len(response.json()) == 3
+
+    def test_bad_lookalike_filter_is_rejected(self, client: TestClient) -> None:
+        """Only trap / cognate / none filter."""
+        response = client.get("/api/v1/cards", params={"lookalike": "maybe"})
+        assert response.status_code == 422

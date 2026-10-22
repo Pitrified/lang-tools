@@ -56,6 +56,10 @@ async def read_card(
         list[str] | None,
         Query(description="Languages to list translations in (repeatable)"),
     ] = None,
+    known_languages: Annotated[
+        list[str] | None,
+        Query(description="The learner's known languages, for look-alikes"),
+    ] = None,
 ) -> LemmaCard:
     """Return the drill card of one lemma.
 
@@ -64,6 +68,8 @@ async def read_card(
         gloss_language: Language of the card's gloss.
         translation_languages: Languages to fill the translations with
             (``["en"]`` when omitted).
+        known_languages: The learner's known languages; the card then lists
+            the lemma's look-alikes in them.
 
     Returns:
         The lemma's card.
@@ -75,6 +81,7 @@ async def read_card(
         lemma_id,
         gloss_language=gloss_language,
         translation_languages=translation_languages or ["en"],
+        known_languages=known_languages or [],
     )
     if card is None:
         raise HTTPException(
@@ -95,6 +102,10 @@ async def read_sense_cards(
         list[str] | None,
         Query(description="Languages to list translations in (repeatable)"),
     ] = None,
+    known_languages: Annotated[
+        list[str] | None,
+        Query(description="The learner's known languages, for look-alikes"),
+    ] = None,
 ) -> list[LemmaCard]:
     """Return one card per sense of a lemma, best sense first.
 
@@ -103,6 +114,8 @@ async def read_sense_cards(
         gloss_language: Language of each card's gloss.
         translation_languages: Languages to fill the translations with
             (``["en"]`` when omitted).
+        known_languages: The learner's known languages; the card then lists
+            the lemma's look-alikes in them.
 
     Returns:
         The cards (empty for an unknown lemma or one with no sense).
@@ -111,4 +124,5 @@ async def read_sense_cards(
         lemma_id,
         gloss_language=gloss_language,
         translation_languages=translation_languages or ["en"],
+        known_languages=known_languages or [],
     )

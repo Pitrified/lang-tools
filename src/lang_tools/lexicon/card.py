@@ -35,6 +35,27 @@ MAX_CARD_LIMIT = 500
 CefrLevel = Literal["A1", "A2", "B1", "B2", "C1", "C2"]
 
 
+class LookalikeHint(BaseModel):
+    """A look-alike of a card's lemma in one of the learner's known languages.
+
+    Attributes:
+        language: The known language.
+        text: The look-alike word.
+        kind: ``full`` / ``partial`` false friend, or ``cognate``.
+        note: The learner note (English) for a false friend.
+    """
+
+    language: str
+    text: str
+    kind: Literal["full", "partial", "cognate"]
+    note: str = ""
+
+    @property
+    def is_trap(self) -> bool:
+        """True for a false friend (``full`` or ``partial``)."""
+        return self.kind != "cognate"
+
+
 class LemmaCard(BaseModel):
     """A lemma with the meaning, level, and translations of its best sense.
 
@@ -48,6 +69,9 @@ class LemmaCard(BaseModel):
             frequent first. The card's own lemma is never listed; the lemma's
             own language, when requested, holds its synonyms.
         examples: Example sentences of the best concept in the lemma's language.
+        lookalikes: The lemma's look-alikes in the query's known languages
+            (phase 11): false friends first, then cognates. Empty when the
+            query names no known language.
     """
 
     lemma: Lemma
@@ -57,6 +81,17 @@ class LemmaCard(BaseModel):
     gloss: str | None = None
     translations: dict[str, list[str]] = Field(default_factory=dict)
     examples: list[str] = Field(default_factory=list)
+    lookalikes: list[LookalikeHint] = Field(default_factory=list)
+
+    @property
+    def is_trap(self) -> bool:
+        """True when the lemma is a false friend of a word the learner knows."""
+        return any(hint.is_trap for hint in self.lookalikes)
+
+    @property
+    def has_cognate(self) -> bool:
+        """True when the lemma is a cognate of a word the learner knows."""
+        return any(not hint.is_trap for hint in self.lookalikes)
 
 
 class CardQuery(BaseModel):
@@ -86,6 +121,12 @@ class CardQuery(BaseModel):
         single_word: Keep only one lowercase alphabetic token (no spaces,
             hyphens, digits, apostrophes, or capitals - so no proper nouns).
         exclude_ids: Lemma ids to leave out (e.g. the ones already drilled).
+        known_languages: The learner's known languages; each card then
+            carries its look-alikes in them (`LemmaCard.lookalikes`).
+        lookalike: Filter on those look-alikes: ``"trap"`` keeps lemmas that
+            are a false friend of a known word, ``"cognate"`` lemmas that are a
+            cognate of one and no trap, ``"none"`` lemmas with neither.
+            Needs ``known_languages``.
         order: ``"random"`` samples the matches, ``"frequency"`` returns the
             most frequent best senses first.
         seed: Makes ``"random"`` order deterministic when set.
@@ -107,6 +148,8 @@ class CardQuery(BaseModel):
     accented_only: bool = False
     single_word: bool = False
     exclude_ids: list[str] = Field(default_factory=list)
+    known_languages: list[str] = Field(default_factory=list)
+    lookalike: Literal["trap", "cognate", "none"] | None = None
     order: Literal["random", "frequency"] = "random"
     seed: int | None = None
     limit: int = Field(default=50, ge=1, le=MAX_CARD_LIMIT)

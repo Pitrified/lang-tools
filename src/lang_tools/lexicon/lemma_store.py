@@ -55,6 +55,7 @@ from lang_tools.language.normalization import has_accent
 from lang_tools.language.normalization import normalize as _normalize
 from lang_tools.lexicon.card import CardQuery
 from lang_tools.lexicon.card import LemmaCard
+from lang_tools.lexicon.card import LookalikeHint
 from lang_tools.lexicon.codec import _COLUMNS
 from lang_tools.lexicon.codec import LEXICON_SUBDIR
 from lang_tools.lexicon.codec import _load_table
@@ -379,6 +380,10 @@ def _card_where(query: CardQuery) -> tuple[list[str], list[object]]:
                 " AND l2.id <> d.lemma_id)",
             )
             params.append(language)
+    lookalike = _lookalike_clause(query)
+    if lookalike is not None:
+        clauses.append(lookalike[0])
+        params.extend(lookalike[1])
     if query.require_example:
         clauses.append(
             "EXISTS (SELECT 1 FROM concepts c WHERE c.id = d.concept_id"
@@ -395,6 +400,36 @@ def _card_where(query: CardQuery) -> tuple[list[str], list[object]]:
             " AND instr(lower(j.value), lower(lt.text)) > 0)",
         )
     return clauses or ["1 = 1"], params
+
+
+def _lookalike_clause(query: CardQuery) -> tuple[str, list[object]] | None:
+    """Return the WHERE clause of `CardQuery.lookalike` (None when unset)."""
+    if query.lookalike is None or not query.known_languages:
+        return None
+    trap, trap_params = _lookalike_exists(query.known_languages, ("full", "partial"))
+    if query.lookalike == "trap":
+        return trap, trap_params
+    cognate, cognate_params = _lookalike_exists(query.known_languages, ("cognate",))
+    if query.lookalike == "cognate":
+        return f"{cognate} AND NOT {trap}", [*cognate_params, *trap_params]
+    return f"NOT {cognate} AND NOT {trap}", [*cognate_params, *trap_params]
+
+
+def _lookalike_exists(
+    languages: Sequence[str],
+    kinds: Sequence[str],
+) -> tuple[str, list[object]]:
+    """Return an EXISTS clause: the drilled lemma (``d``) has such a look-alike."""
+    lang_marks = ", ".join("?" for _ in languages)
+    kind_marks = ", ".join("?" for _ in kinds)
+    # Only "?" placeholders are interpolated below.
+    clause = (
+        "EXISTS (SELECT 1 FROM lookalikes e JOIN lemmas o ON o.id = CASE"  # noqa: S608
+        " WHEN e.lemma_id_a = d.lemma_id THEN e.lemma_id_b ELSE e.lemma_id_a END"
+        " WHERE (e.lemma_id_a = d.lemma_id OR e.lemma_id_b = d.lemma_id)"
+        f" AND o.language IN ({lang_marks}) AND e.kind IN ({kind_marks}))"
+    )
+    return clause, [*languages, *kinds]
 
 
 def _new_conn(target: str) -> sqlite3.Connection:
@@ -742,6 +777,7 @@ class LexiconStore:
             order=order,
             gloss_language=query.gloss_language,
             translation_languages=query.translation_languages,
+            known_languages=query.known_languages,
         )
 
     def lemma_card(
@@ -750,6 +786,7 @@ class LexiconStore:
         *,
         gloss_language: str = "en",
         translation_languages: Sequence[str] = ("en",),
+        known_languages: Sequence[str] = (),
     ) -> LemmaCard | None:
         """Return the drill card of one lemma (None when absent).
 
@@ -757,6 +794,8 @@ class LexiconStore:
             lemma_id: The lemma's deterministic id.
             gloss_language: Language of the card's gloss.
             translation_languages: Languages to fill the translations with.
+            known_languages: The learner's known languages, for the card's
+                look-alikes.
 
         Returns:
             The card, or None when no lemma has the id.
@@ -767,6 +806,7 @@ class LexiconStore:
             order="d.lemma_id",
             gloss_language=gloss_language,
             translation_languages=translation_languages,
+            known_languages=known_languages,
         )
         return cards[0] if cards else None
 
@@ -776,6 +816,7 @@ class LexiconStore:
         *,
         gloss_language: str = "en",
         translation_languages: Sequence[str] = ("en",),
+        known_languages: Sequence[str] = (),
     ) -> list[LemmaCard]:
         """Return one card per sense of a lemma, best sense first.
 
@@ -789,6 +830,8 @@ class LexiconStore:
             lemma_id: The lemma's deterministic id.
             gloss_language: Language of each card's gloss.
             translation_languages: Languages to fill the translations with.
+            known_languages: The learner's known languages, for the look-alikes
+                (the same on every card: they belong to the lemma).
 
         Returns:
             The cards (empty when the lemma is absent or has no sense).
@@ -806,6 +849,7 @@ class LexiconStore:
             rows,
             gloss_language=gloss_language,
             translation_languages=translation_languages,
+            known_languages=known_languages,
         )
 
     def _select_cards(
@@ -816,6 +860,7 @@ class LexiconStore:
         order: str,
         gloss_language: str,
         translation_languages: Sequence[str],
+        known_languages: Sequence[str] = (),
     ) -> list[LemmaCard]:
         """Run the card SELECT (``params`` ends with the limit) and fill each card."""
         sql = (
@@ -827,6 +872,7 @@ class LexiconStore:
             rows,
             gloss_language=gloss_language,
             translation_languages=translation_languages,
+            known_languages=known_languages,
         )
 
     def _fill_cards(
@@ -835,9 +881,12 @@ class LexiconStore:
         *,
         gloss_language: str,
         translation_languages: Sequence[str],
+        known_languages: Sequence[str] = (),
     ) -> list[LemmaCard]:
         """Build one card per ``(lemma_id, concept_id, cefr, frequency)`` row."""
-        lemmas = self._lemmas_by_ids(sorted({r["lemma_id"] for r in rows}))
+        lemma_ids = sorted({r["lemma_id"] for r in rows})
+        lemmas = self._lemmas_by_ids(lemma_ids)
+        lookalikes = self._card_lookalikes(lemma_ids, known_languages)
         concept_ids = sorted({r["concept_id"] for r in rows if r["concept_id"]})
         concepts = self._card_concepts(concept_ids)
         translations = self._card_translations(concept_ids, translation_languages)
@@ -862,9 +911,52 @@ class LexiconStore:
                         for language in translation_languages
                     },
                     examples=list(examples.get(lemma.language, [])),
+                    lookalikes=lookalikes.get(lemma.id, []),
                 ),
             )
         return cards
+
+    def _card_lookalikes(
+        self,
+        lemma_ids: Sequence[str],
+        languages: Sequence[str],
+    ) -> dict[str, list[LookalikeHint]]:
+        """Return ``lemma_id -> look-alike hints`` in the given languages.
+
+        One batched read over both endpoints of the edge table. Hints are
+        ordered false friends first (``full``, then ``partial``), then cognates,
+        then by similarity.
+        """
+        if not lemma_ids or not languages:
+            return {}
+        id_marks = ", ".join("?" for _ in lemma_ids)
+        lang_marks = ", ".join("?" for _ in languages)
+        rows = self._conn.execute(
+            "SELECT p.lemma_id, o.language, o.text, e.kind, e.explanation_notes"  # noqa: S608
+            " FROM (SELECT lemma_id_a AS lemma_id, lemma_id_b AS other_id, rowid AS r"
+            f"       FROM lookalikes WHERE lemma_id_a IN ({id_marks})"
+            "       UNION ALL"
+            "       SELECT lemma_id_b, lemma_id_a, rowid FROM lookalikes"
+            f"       WHERE lemma_id_b IN ({id_marks})) p"
+            " JOIN lookalikes e ON e.rowid = p.r"
+            " JOIN lemmas o ON o.id = p.other_id"
+            f" WHERE o.language IN ({lang_marks})"
+            " ORDER BY CASE e.kind WHEN 'full' THEN 0 WHEN 'partial' THEN 1"
+            " ELSE 2 END, e.similarity_score DESC NULLS LAST, o.text",
+            (*lemma_ids, *lemma_ids, *languages),
+        ).fetchall()
+        out: dict[str, list[LookalikeHint]] = defaultdict(list)
+        for row in rows:
+            notes = json.loads(row["explanation_notes"] or "{}")
+            out[row["lemma_id"]].append(
+                LookalikeHint(
+                    language=row["language"],
+                    text=row["text"],
+                    kind=row["kind"],
+                    note=notes.get("en", ""),
+                ),
+            )
+        return out
 
     def _lemmas_by_ids(self, lemma_ids: Sequence[str]) -> dict[str, Lemma]:
         """Return ``lemma_id -> Lemma`` for a page of cards."""
@@ -1264,12 +1356,14 @@ def lemma_card(
     *,
     gloss_language: str = "en",
     translation_languages: Sequence[str] = ("en",),
+    known_languages: Sequence[str] = (),
 ) -> LemmaCard | None:
     """Return the drill card of one lemma (None when absent)."""
     return get_store().lemma_card(
         lemma_id,
         gloss_language=gloss_language,
         translation_languages=translation_languages,
+        known_languages=known_languages,
     )
 
 
@@ -1278,12 +1372,14 @@ def lemma_sense_cards(
     *,
     gloss_language: str = "en",
     translation_languages: Sequence[str] = ("en",),
+    known_languages: Sequence[str] = (),
 ) -> list[LemmaCard]:
     """Return one card per sense of a lemma, best sense first."""
     return get_store().lemma_sense_cards(
         lemma_id,
         gloss_language=gloss_language,
         translation_languages=translation_languages,
+        known_languages=known_languages,
     )
 
 

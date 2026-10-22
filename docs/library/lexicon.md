@@ -260,6 +260,16 @@ Both read a narrow `lemma_drill` table, derived once per cache build like
 only the picked lemma rows, so a 200-card window over the full corpus takes
 20-50 ms.
 
+**Look-alikes on cards (phase 11).** A `CardQuery` with `known_languages` (a
+learner who knows en and it is learning pt) fills `LemmaCard.lookalikes`: the
+lemma's look-alike edges toward those languages, as `LookalikeHint` rows
+(language, word, kind, English note), with false friends first.
+`LemmaCard.is_trap` and `has_cognate` read them. The `lookalike` filter keeps
+`trap` lemmas, `cognate` lemmas (a cognate and no trap), or `none` (neither), all
+relative to the known languages. Adding a language to the learner's list is just
+one more list item, since the edges are pairwise and the view is computed at read
+time.
+
 Known limit: WordNet has no function words, so a few very frequent forms map to
 an odd best sense (en *a* -> angstrom, fr *sans* -> lilac). A drill that wants
 content words can filter on `part_of_speech`.
@@ -708,6 +718,33 @@ The first run (2026-10-21, `gpt-6-luna` with prompt `gloss_translate/v3`, one
 OpenAI batch, about $1.87) accepted 174,315 glosses across the four languages. The
 model choice and the quality review are recorded under
 `scratch_space/09_concept_model/08_maintenance/`.
+
+#### Look-alikes: false friends and cognates (phase 11)
+
+`lookalikes` edges come from the committed, reviewed
+`data/curated/lookalikes.jsonl`. `ingestion.lookalikes` produces it in four
+stages:
+
+1. **Candidates.** `cognate_key` rewrites each form with cross-language spelling
+   correspondences: *factory* and *fattoria* both key as `fatori`.
+   `find_candidates` blocks and compares every single-word lemma of the target and
+   known languages, and `select_candidates` keeps each target word's best few.
+2. **Verification.** The `llm.lookalike_verify` chain classifies each candidate as
+   a `full` or `partial` false friend, a `cognate`, or `unrelated`, and writes an
+   English note for a false friend. `is_trap` then keeps a false-friend verdict
+   only when the words share a root or are spelled nearly the same.
+3. **Review.** A sampled review accepts the run (`accept_run`).
+4. **Build.** `build_initial` turns the accepted rows into edges
+   (`apply_lookalikes`), skipping stale ones, and tags each edge `manual` or `llm`.
+
+The gate's `invalid_lookalike_edge` invariant checks every edge: both endpoints
+exist, the endpoints are in two languages, the pair is in canonical order and not
+duplicated, the kind is known, and every false friend has an English note.
+
+The yardstick is a 200-pair hand-reviewed gold set,
+`data/curated/lookalike_gold.jsonl`, with `score_against_gold` to measure against
+it. The plan and the measurements are in
+`scratch_space/09_concept_model/11_false_friends.md`.
 
 #### Example sentences (phase 9)
 

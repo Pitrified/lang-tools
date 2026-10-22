@@ -26,6 +26,7 @@ lazily on first use - importing this subpackage never touches disk (see
 
 from lang_tools.lexicon.card import CardQuery
 from lang_tools.lexicon.card import LemmaCard
+from lang_tools.lexicon.card import LookalikeHint
 from lang_tools.lexicon.concept import Concept
 from lang_tools.lexicon.concept_id import concept_id
 from lang_tools.lexicon.hydration import NotHydratedError
@@ -72,6 +73,7 @@ __all__ = [
     "LemmaCard",
     "LemmaExample",
     "LexiconStore",
+    "LookalikeHint",
     "LookalikeRelation",
     "NotHydratedError",
     "Sense",

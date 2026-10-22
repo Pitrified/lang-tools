@@ -96,8 +96,8 @@ the lexicon page).
 | `GET` | `/api/v1/lemmas/{lemma_id}/lookalikes` | Every look-alike of the lemma, false friends and cognates. Optional repeated `languages` and `kinds`. |
 | `GET` | `/api/v1/concepts/{concept_id}` | Fetch one concept. `404` when absent. |
 | `GET` | `/api/v1/concepts/{concept_id}/relations` | The concept's typed relation edges. |
-| `GET` | `/api/v1/cards` | A bounded sample of `LemmaCard` drill cards. The query string is a `CardQuery`, for example `language=pt&max_cefr=B1&single_word=true&limit=20`. List fields repeat the key (`translation_languages=en&translation_languages=it`). |
-| `GET` | `/api/v1/cards/{lemma_id}` | One lemma's card. Optional `gloss_language` and repeated `translation_languages`. `404` when absent. |
+| `GET` | `/api/v1/cards` | A bounded sample of `LemmaCard` drill cards. The query string is a `CardQuery`, for example `language=pt&max_cefr=B1&single_word=true&limit=20`. List fields repeat the key (`translation_languages=en&translation_languages=it`). With `known_languages`, each card lists its look-alikes in them, and `lookalike=trap|cognate|none` filters on them. |
+| `GET` | `/api/v1/cards/{lemma_id}` | One lemma's card. Optional `gloss_language`, and repeated `translation_languages` and `known_languages`. `404` when absent. |
 | `GET` | `/api/v1/cards/{lemma_id}/senses` | One card per sense of the lemma, best first (same parameters). Empty for an unknown lemma. |
 | `GET` | `/health` | Liveness/health probe (from fastapi-tools). |
 
