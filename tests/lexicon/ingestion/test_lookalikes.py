@@ -11,8 +11,10 @@ from lang_tools.lexicon.ingestion.lookalikes import accept_run
 from lang_tools.lexicon.ingestion.lookalikes import apply_lookalikes
 from lang_tools.lexicon.ingestion.lookalikes import cognate_key
 from lang_tools.lexicon.ingestion.lookalikes import find_candidates
+from lang_tools.lexicon.ingestion.lookalikes import is_trap
 from lang_tools.lexicon.ingestion.lookalikes import key_similarity
 from lang_tools.lexicon.ingestion.lookalikes import load_gold
+from lang_tools.lexicon.ingestion.lookalikes import near_identical
 from lang_tools.lexicon.ingestion.lookalikes import proposals_from_verdicts
 from lang_tools.lexicon.ingestion.lookalikes import score_against_gold
 from lang_tools.lexicon.ingestion.lookalikes import select_candidates
@@ -225,3 +227,31 @@ def test_unrelated_and_noteless_verdicts_are_rejected() -> None:
     )
     assert edges == []
     assert stale == 0
+
+
+def test_near_identical_and_trap_rule() -> None:
+    assert near_identical("data", "data")
+    assert near_identical("pato", "patto")
+    assert near_identical("café", "cafe")
+    assert not near_identical("castigo", "casting")
+    # A drifted shared root is a trap; a coincidence is not, unless spelled alike.
+    assert is_trap(
+        "full", same_root=True, target_text="prejuízo", known_text="prejudice"
+    )
+    assert not is_trap(
+        "full", same_root=False, target_text="castigo", known_text="casting"
+    )
+    assert is_trap("full", same_root=False, target_text="burro", known_text="burro")
+    assert is_trap("partial", same_root=None, target_text="a", known_text="b")
+    assert not is_trap("cognate", same_root=True, target_text="a", known_text="a")
+
+
+def test_coincidental_trap_verdict_becomes_unrelated() -> None:
+    cand = _cand("castigo", "casting", 0.8)
+    output = LookalikeVerifyOutput(
+        verdicts=[
+            KeyedVerdict(key=cand.key, kind="full", same_root=False, note="x"),
+        ],
+    )
+    row = proposals_from_verdicts([cand], [output])[0]
+    assert (row.kind, row.status, row.note) == ("unrelated", "rejected", "")

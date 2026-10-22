@@ -1,0 +1,52 @@
+You help a learner of {{ target_language_name }} who already speaks {{ known_language_name }}.
+Each pair below is a {{ target_language_name }} word and a {{ known_language_name }} word that
+look alike. Decide, for EACH pair, how the learner should treat the resemblance. Judge
+by spelling and by how the words are used today in the standard language (Brazilian
+Portuguese for Portuguese), not by etymology: what matters is whether a learner seeing
+the {{ target_language_name }} word would think of the {{ known_language_name }} one.
+
+Compare the MAIN everyday meaning of each word, the one a dictionary lists first and a
+native speaker thinks of:
+
+- "cognate": the main everyday meanings are the same, even if one word also has extra
+  senses (pt "nação" / en "nation"; pt "história" / en "history").
+- "partial": they share a real meaning, but the main everyday meaning of ONE of them is
+  something else (pt "assistir" is mostly to watch, only formally to assist; pt
+  "particular" is mostly private).
+- "full": no everyday meaning in common, so the resemblance misleads (pt "esquisito" is
+  weird, en "exquisite" is refined; pt "puxar" is pull, en "push" the opposite).
+- "unrelated": the resemblance is a coincidence a learner would not fall for: reading
+  one word would not make them think of the other (pt "casa" / en "cast", pt "prazo" /
+  en "prize", pt "inovador" / en "invader").
+
+Two common cases:
+- The same root in a different word form or part of speech (pt "resiliente" / en
+  "resilience", pt "cardióloga" / en "cardiology", pt "modernismo" / en "modernist") is
+  "cognate": the meaning carries over, so the resemblance helps the learner. Only call
+  such a pair "full" or "partial" when the shared root's meaning itself has drifted.
+- Technical words that merely share a few letters (pt "lecitina" / en "lectin", pt
+  "secretina" / en "secretary") are "unrelated" unless they are spelled almost alike.
+
+A pair spelled identically, or apart only by an accent, a doubled letter or a final
+vowel (pt "data" / en "data", pt "pato" / it "patto", pt "seta" / it "seta"), is never
+"unrelated": if the meanings differ it is "full" or "partial", whatever the words'
+origins. A different consonant is a real difference: pt "casa" / en "cast" and pt
+"cara" / en "card" are "unrelated" when the meanings have nothing in common.
+
+The senses listed are hints from a dictionary: they can be incomplete or wrong, and
+your knowledge of the words wins.
+
+Also answer `same_root`: true when the two words come from the same root (inherited or
+borrowed from a common ancestor word, like pt "prejuízo" / en "prejudice" from Latin
+"praeiudicium"), false when the resemblance is a coincidence (pt "castigo" / en
+"casting", pt "facção" / en "fiction").
+
+For "full" and "partial", write `note`: one short English line saying what each word
+means, for example: pt "esquisito" means weird or odd; en "exquisite" is "requintado".
+For "cognate" and "unrelated", leave `note` empty.
+
+Pairs (key: {{ target_language_name }} word [its senses] | {{ known_language_name }} word [its senses]):
+{% for pair in pairs %}- {{ pair.key }}: {{ pair.target_word }} [{{ pair.target_senses }}] | {{ pair.known_word }} [{{ pair.known_senses }}]
+{% endfor %}
+Return `verdicts`: one entry per pair above, each with its `key` exactly as given, its
+`kind`, `same_root`, and its `note`.

@@ -72,12 +72,15 @@ class KeyedVerdict(BaseModel):
     Attributes:
         key: The item key, echoed from the input.
         kind: ``full``, ``partial``, ``cognate`` or ``unrelated``.
+        same_root: Whether the two words share an etymological root (prompt
+            v5); None from an older prompt.
         note: For a false friend, one English line saying what each word means;
             empty otherwise.
     """
 
     key: str
     kind: Verdict
+    same_root: bool | None = None
     note: str = ""
 
 

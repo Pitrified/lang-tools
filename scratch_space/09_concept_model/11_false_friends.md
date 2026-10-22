@@ -225,6 +225,68 @@ from the gold-set precision curve, and report cost on a sample first.
    - Pair matching may use a false friend as a distractor.
    - Selection gets a mild down-weight for a cognate of a known word.
 
+## Progress (2026-10-22)
+
+**Step 1, gold set: done.** 200 pairs in `data/curated/lookalike_gold.jsonl`, all
+hand-written and checked against the corpus. That is 114 pt-en and 86 pt-it: 73 full
+and 43 partial false friends, 55 cognates and 29 noise pairs. 14 pairs from the first
+draft were dropped because a lemma is missing from OMW (pt *eventualmente*, it
+*squisito*, ...).
+
+**Step 2, deterministic candidates: done** (`ingestion.lookalikes`).
+
+- `cognate_key` applies suffix families, sound spellings, the prothetic *e-*,
+  infinitives (verbs only) and *-ly* (adverbs only). Suffixes are read before accents
+  are folded, so *balcão* is not a *-ção* noun.
+- Blocking uses the key prefix or the consonant skeleton.
+- `select_candidates` keeps the best 2 per (pt word, known language) at similarity
+  0.75 or more, with a known-side Zipf floor of 2.0. The rank prefers the same key,
+  then the same part of speech, then similarity, then exact spelling, then frequency.
+
+| Full corpus | Candidates | Gold full | Gold partial | Gold cognate | Noise through |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| raw (0.65) | 671,596 | 71/73 | 42/43 | 50/55 | 22/29 |
+| selected | 65,266 (pt-en 33,586, pt-it 31,680) | 68/73 | 41/43 | 49/55 | 7/29 |
+
+**Step 3, IPA: not added.** The false-friend misses are morphological (*sair* /
+*salire*, *mesa* / *mensa*, *ofício* / *ufficio*), and the cognate misses are old sound
+changes (*olho* / *occhio*). A pronunciation channel would recover one or two pairs, at
+the cost of a dependency and a license question.
+
+**Step 4, model change: done.** `LookalikeRelation` with `kind` in a `lookalikes`
+table, `get_lookalikes_for_lemma` and `/lookalikes`.
+
+**Step 5, verifier: chain and loop done; the full run waits for approval.**
+`llm.lookalike_verify` takes 20 pairs per request. Measured live on the 200 gold pairs,
+with costs at batch prices:
+
+| Model, prompt | Traps found (of 116) | False alarms | Gold sample |
+| --- | ---: | ---: | ---: |
+| `gpt-6-luna` v1 | 92 | 10 | $0.004 |
+| `gpt-5.6-luna` v1 | 93 | 10 | $0.008 |
+| `gpt-6-luna` v3 | 93 | 13 | $0.004 |
+| `gpt-6.1-sol` v3 (reasoning low) | 106 | 6 | $0.085 |
+| `gpt-6.1-sol` v4 | 108 | 7 | $0.088 |
+| `gpt-6-luna` v4 | 80 | 7 | $0.004 |
+| **`gpt-6.1-sol` v5 + root rule** | **106** | **6** | $0.097 |
+
+How the prompts changed, from what the measurements showed:
+
+- **v2 / v3:** identical forms are never `unrelated` (v1 called *data* / *data*
+  unrelated, reasoning from etymology).
+- **v4:** same-root relatives in another word form count as cognates. On real
+  candidates, sol had called *resiliente* / *resilience* a false friend.
+- **v5:** the model also answers `same_root`. A `full` / `partial` verdict then stands
+  only when the words share a root or are near-identical (`is_trap`). That removes the
+  mid-strength coincidences sol kept flagging (*castigo* / *casting*, *facção* /
+  *fiction*) without losing gold traps.
+
+On 200 random selected candidates, v5 gives:
+
+- `gpt-6.1-sol`: 30 traps, 83 cognates, 87 unrelated; full run about **$27** at
+  batch prices;
+- `gpt-6-luna`: 23 traps, mostly misjudging; full run about **$1.15**.
+
 ## Out of scope
 
 - Fixing OMW coverage holes (*embarazada*, *parents*): new-lemma mapping, in the backlog.

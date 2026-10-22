@@ -736,6 +736,52 @@ class LookalikeProposal(BaseModel):
     prompt_sha: str = ""
 
 
+def near_identical(a: str, b: str) -> bool:
+    """Return True when two forms differ only by accents, doubles or a final vowel.
+
+    Such forms look the same to a reader whatever their origin (pt *data* / en
+    *data*, pt *pato* / it *patto*), so a meaning difference is a trap even
+    without a shared root.
+    """
+
+    def _bare(text: str) -> str:
+        folded = _DOUBLE.sub(r"\1", fold(text))
+        stripped = _FINAL_VOWELS.sub("", folded)
+        return stripped if len(stripped) >= _MIN_KEY else folded
+
+    return _bare(a) == _bare(b)
+
+
+def is_trap(
+    kind: str,
+    *,
+    same_root: bool | None,
+    target_text: str,
+    known_text: str,
+) -> bool:
+    """Decide whether a false-friend verdict stands (phase 11, prompt v5).
+
+    A learner trap is a pair that shares a root whose meaning drifted, or a pair
+    spelled (nearly) the same. A model asked for kinds alone over-calls mid
+    resemblances (pt *castigo* / en *casting*); its etymology answer is the
+    sharper signal, so a ``full`` / ``partial`` verdict without a shared root
+    stands only for near-identical forms. A missing ``same_root`` (an older
+    prompt) keeps the verdict.
+
+    Args:
+        kind: The verdict.
+        same_root: The model's etymology answer.
+        target_text: The learned-side form.
+        known_text: The known-side form.
+
+    Returns:
+        True when the pair is kept as a false friend.
+    """
+    if kind not in {"full", "partial"}:
+        return False
+    return same_root is not False or near_identical(target_text, known_text)
+
+
 def proposals_from_verdicts(
     candidates: Sequence[LookalikeCandidate],
     outputs: Iterable[LookalikeVerifyOutput],
@@ -746,8 +792,9 @@ def proposals_from_verdicts(
     """Turn verifier outputs into reviewable proposals.
 
     A verdict whose key matches no candidate is dropped (the model mistyped
-    it). An ``unrelated`` verdict, or a false friend without a note, is written
-    as ``rejected`` so the review sees it but the build never applies it.
+    it). A false-friend verdict that fails `is_trap` becomes ``unrelated``. An
+    ``unrelated`` verdict, or a false friend without a note, is written as
+    ``rejected`` so the review sees it but the build never applies it.
 
     Args:
         candidates: The candidates that were verified.
@@ -766,20 +813,26 @@ def proposals_from_verdicts(
             if cand is None:
                 continue
             note = " ".join(verdict.note.split())
-            missing_note = verdict.kind in {"full", "partial"} and not note
+            kind = verdict.kind
+            if kind in {"full", "partial"} and not is_trap(
+                kind,
+                same_root=verdict.same_root,
+                target_text=cand.target_text,
+                known_text=cand.known_text,
+            ):
+                kind = "unrelated"
+            missing_note = kind in {"full", "partial"} and not note
             rows[cand.key] = LookalikeProposal(
                 target_id=cand.target_id,
                 target_text=cand.target_text,
                 known_id=cand.known_id,
                 known_text=cand.known_text,
                 known_language=cand.known_language,
-                kind=verdict.kind,
-                note=note if verdict.kind in {"full", "partial"} else "",
+                kind=kind,
+                note=note if kind in {"full", "partial"} else "",
                 similarity=cand.similarity,
                 status=(
-                    "rejected"
-                    if verdict.kind == "unrelated" or missing_note
-                    else "proposed"
+                    "rejected" if kind == "unrelated" or missing_note else "proposed"
                 ),
                 model=model,
                 prompt_sha=prompt_sha,
