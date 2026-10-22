@@ -28,6 +28,8 @@ from lang_tools.lexicon.ingestion.acquire import write_manifest
 from lang_tools.lexicon.ingestion.enrich import enrich
 from lang_tools.lexicon.ingestion.form_review import apply_form_drops
 from lang_tools.lexicon.ingestion.form_review import load_form_drops
+from lang_tools.lexicon.ingestion.lookalikes import apply_lookalikes
+from lang_tools.lexicon.ingestion.lookalikes import load_lookalikes
 from lang_tools.lexicon.ingestion.sample import DEFAULT_SAMPLE_CONCEPTS
 from lang_tools.lexicon.ingestion.sample import carve_sample
 from lang_tools.lexicon.ingestion.slug_qualifiers import load_slug_qualifiers
@@ -79,6 +81,10 @@ class BuildSummary:
             backfill (phase 8).
         examples_added: Example sentences added from the curated input
             (phase 9).
+        lookalikes_applied: Look-alike edges (false friends and cognates)
+            built from the reviewed curated input (phase 11).
+        lookalikes_stale: Reviewed look-alike rows naming a lemma this build
+            lacks; skipped, never fatal.
     """
 
     languages: list[str]
@@ -93,6 +99,8 @@ class BuildSummary:
     member_forms_dropped: int = 0
     glosses_backfilled: int = 0
     examples_added: int = 0
+    lookalikes_applied: int = 0
+    lookalikes_stale: int = 0
 
 
 def _clean_corpus_tables(data_fol: Path) -> None:
@@ -292,6 +300,13 @@ def build_initial(
         load_topic_table(data_fol),
         tables.concept_domains,
     )
+    # Reviewed look-alike edges (phase 11) are keyed on lemma ids, so they go in
+    # once the lemma set is final (after the member-form drops); like every
+    # curated input, a row naming a lemma this build lacks is skipped, not fatal.
+    tables.lookalikes, tables.lookalike_sources, lookalikes_stale = apply_lookalikes(
+        (lemma.id for lemma in tables.lemmas),
+        load_lookalikes(data_fol),
+    )
     counts = _write_tables(tables, data_fol)
 
     sample = carve_sample(tables, max_concepts=max_sample_concepts)
@@ -316,6 +331,10 @@ def build_initial(
         "member_form_drops": {"senses_dropped": forms_dropped},
         "gloss_backfill": {"filled": backfilled},
         "example_sentences": {"added": examples_added},
+        "lookalikes": {
+            "applied": len(tables.lookalikes),
+            "stale": lookalikes_stale,
+        },
         **(extra_manifest or {}),
     }
     path = write_manifest(data_fol, manifest)
@@ -334,4 +353,6 @@ def build_initial(
         member_forms_dropped=forms_dropped,
         glosses_backfilled=backfilled,
         examples_added=examples_added,
+        lookalikes_applied=len(tables.lookalikes),
+        lookalikes_stale=lookalikes_stale,
     )

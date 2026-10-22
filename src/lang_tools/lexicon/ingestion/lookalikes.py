@@ -863,7 +863,7 @@ def load_lookalikes(data_fol: Path) -> list[LookalikeProposal]:
 def apply_lookalikes(
     lemma_ids: Iterable[str],
     proposals: Iterable[LookalikeProposal],
-) -> tuple[list[LookalikeRelation], int]:
+) -> tuple[list[LookalikeRelation], list[str], int]:
     """Build the look-alike edges from accepted proposals (phase 11).
 
     A row whose lemmas are not both in the build is counted as stale and
@@ -875,10 +875,12 @@ def apply_lookalikes(
         proposals: Accepted rows, typically from `load_lookalikes`.
 
     Returns:
-        ``(edges, stale)``: one edge per pair, and the stale row count.
+        ``(edges, sources, stale)``: one edge per pair, its provenance tag
+        (``manual`` for a hand-written row, ``llm`` otherwise), and the stale
+        row count.
     """
     known = set(lemma_ids)
-    edges: dict[tuple[str, str], LookalikeRelation] = {}
+    edges: dict[tuple[str, str], tuple[LookalikeRelation, str]] = {}
     stale = 0
     for row in proposals:
         if row.kind == "unrelated":
@@ -894,7 +896,9 @@ def apply_lookalikes(
             similarity_score=row.similarity,
             explanation_notes=notes,
         )
-        edges[edge.lemma_id_a, edge.lemma_id_b] = edge
+        source = "manual" if row.model == "manual" else "llm"
+        edges[edge.lemma_id_a, edge.lemma_id_b] = (edge, source)
     if stale:
         lg.warning("Look-alikes: {} stale row(s) skipped", stale)
-    return [edges[pair] for pair in sorted(edges)], stale
+    ordered = [edges[pair] for pair in sorted(edges)]
+    return [edge for edge, _ in ordered], [source for _, source in ordered], stale

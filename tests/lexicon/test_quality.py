@@ -18,6 +18,7 @@ from lang_tools.lexicon.quality import render_report
 from lang_tools.lexicon.quality import run_quality_checks
 from lang_tools.lexicon.quality import write_report
 from lang_tools.lexicon.relations import ConceptRelation
+from lang_tools.lexicon.relations import LookalikeRelation
 from lang_tools.lexicon.relations import SenseRelation
 from lang_tools.lexicon.sense import Sense
 
@@ -443,3 +444,59 @@ def test_topics_without_a_reviewed_table_fail(tmp_path: Path) -> None:
     _tag_concepts(tmp_path, ["objects"])
     report = run_quality_checks(tmp_path, definition_equals_lemma_baseline=1)
     assert not _invariant(report, "unreviewed_topic")
+
+
+def _lookalike_corpus(data_fol: Path, edges: list[LookalikeRelation]) -> None:
+    """Write a two-language corpus (pt casa, en house / cast) plus the edges."""
+    casa = Lemma(text="casa", language="pt", part_of_speech="noun")
+    house = Lemma(text="house", language="en", part_of_speech="noun")
+    cast = Lemma(text="cast", language="en", part_of_speech="noun")
+    cid = "c__house__0011aabbccdd"
+    _dump_table("lemmas", [casa, house, cast], data_fol=data_fol)
+    _dump_table(
+        "concepts",
+        [Concept(id=cid, definitions={"en": "a dwelling", "pt": "moradia"})],
+        data_fol=data_fol,
+    )
+    _dump_table(
+        "senses",
+        [Sense(lemma_id=lem.id, concept_id=cid) for lem in (casa, house, cast)],
+        data_fol=data_fol,
+    )
+    _dump_table("lookalikes", edges, data_fol=data_fol)
+    _dump_table("concept_relations", [], data_fol=data_fol)
+
+
+def test_lookalike_invariant_passes_on_clean_edges(tmp_path: Path) -> None:
+    casa = Lemma(text="casa", language="pt").id
+    cast = Lemma(text="cast", language="en").id
+    edge = LookalikeRelation(
+        lemma_id_a=casa,
+        lemma_id_b=cast,
+        kind="full",
+        explanation_notes={"en": "pt casa means house"},
+    )
+    _lookalike_corpus(tmp_path, [edge])
+    assert _invariant(run_quality_checks(tmp_path), "invalid_lookalike_edge")
+
+
+@pytest.mark.parametrize(
+    "edge",
+    [
+        # A false friend without an English note.
+        {"a": ("casa", "pt"), "b": ("cast", "en"), "kind": "full", "notes": {}},
+        # Two lemmas of the same language.
+        {"a": ("house", "en"), "b": ("cast", "en"), "kind": "cognate", "notes": {}},
+        # An endpoint that is not a lemma of the corpus.
+        {"a": ("casa", "pt"), "b": ("gone", "en"), "kind": "cognate", "notes": {}},
+    ],
+)
+def test_lookalike_invariant_catches_bad_edges(tmp_path: Path, edge: dict) -> None:
+    rel = LookalikeRelation(
+        lemma_id_a=Lemma(text=edge["a"][0], language=edge["a"][1]).id,
+        lemma_id_b=Lemma(text=edge["b"][0], language=edge["b"][1]).id,
+        kind=edge["kind"],
+        explanation_notes=edge["notes"],
+    )
+    _lookalike_corpus(tmp_path, [rel])
+    assert not _invariant(run_quality_checks(tmp_path), "invalid_lookalike_edge")

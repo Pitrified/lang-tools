@@ -68,7 +68,8 @@ class TaggedTables:
         lemmas: Thin lexical tokens and their per-row provenance tags.
         concepts: Synsets and their tags.
         senses: Lemma <-> concept edges and their tags (always ``omw`` here).
-        lookalikes: False-friend edges; empty in the initial build (phase 7).
+        lookalikes: Look-alike edges; filled by the build from the reviewed
+            curated input (phase 11), never by the transform itself.
         concept_relations: Concept edges: the normalized OMW synset relations
             and the derived concept antonyms (phase 7).
         sense_relations: Sense edges (English antonymy, phase 7).

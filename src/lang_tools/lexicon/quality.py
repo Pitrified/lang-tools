@@ -95,6 +95,10 @@ TOKEN_FREQUENCY_COVERAGE_FLOOR = 70
 #: literal so the gate reads the corpus rather than the code that wrote it.
 VALID_CEFR_BANDS = ("A1", "A2", "B1", "B2", "C1", "C2")
 
+#: The look-alike edge kinds the gate accepts (`relations.LookalikeKind`),
+#: spelled out for the same reason as the bands.
+LOOKALIKE_KINDS: frozenset[str] = frozenset({"full", "partial", "cognate"})
+
 #: Tables queried by the checks; partitioned tables glob their per-language files.
 _TABLE_GLOBS = {
     "concepts": "concepts.parquet",
@@ -742,8 +746,8 @@ def _evaluate_invariants(
     """Measure and evaluate the regression invariants.
 
     The first four are 05.56's; the next four are phase 6's, guarding the
-    frequency/CEFR signals the build now writes; the last two are phase 7's,
-    guarding the relation graph.
+    frequency/CEFR signals the build now writes; then phase 7's two guarding the
+    relation graph, phase 11's look-alike edge check, and phase 8's topics.
     """
     kaikki_lemmas = _scalar(
         con,
@@ -848,6 +852,22 @@ SELECT (SELECT count(*) FROM {t["concept_relations"]} r
             AND sense_id_a > sense_id_b)
 """,
     )
+    bad_lookalikes = _scalar(
+        con,
+        f"""
+SELECT (SELECT count(*) FROM {t["lookalikes"]} e
+          LEFT JOIN {t["lemmas"]} la ON la.id = e.lemma_id_a
+          LEFT JOIN {t["lemmas"]} lb ON lb.id = e.lemma_id_b
+          WHERE la.id IS NULL OR lb.id IS NULL OR la.language = lb.language)
+     + (SELECT count(*) FROM {t["lookalikes"]}
+          WHERE lemma_id_a >= lemma_id_b
+             OR kind IS NULL OR kind NOT IN {_sql_list(LOOKALIKE_KINDS)}
+             OR (kind IN ('full', 'partial')
+                 AND coalesce(explanation_notes['en'], '') = ''))
+     + (SELECT count(*) - count(DISTINCT (lemma_id_a, lemma_id_b))
+          FROM {t["lookalikes"]})
+""",
+    )
     return [
         InvariantResult(
             name="kaikki_tagged_rows",
@@ -918,6 +938,17 @@ SELECT (SELECT count(*) FROM {t["concept_relations"]} r
             value=misoriented,
             requirement="0",
             passed=misoriented == 0,
+        ),
+        InvariantResult(
+            name="invalid_lookalike_edge",
+            title=(
+                "look-alike edges with a missing or same-language endpoint, "
+                "out of order, duplicated, of unknown kind, or a false friend "
+                "without an English note"
+            ),
+            value=bad_lookalikes,
+            requirement="0",
+            passed=bad_lookalikes == 0,
         ),
         InvariantResult(
             name="unreviewed_topic",

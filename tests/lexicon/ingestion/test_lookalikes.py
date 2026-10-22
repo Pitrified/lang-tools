@@ -5,8 +5,10 @@ from pathlib import Path
 import pytest
 
 from lang_tools.lexicon.ingestion.lookalikes import DEFAULT_SELECT_THRESHOLD
+from lang_tools.lexicon.ingestion.lookalikes import LOOKALIKES_FILE
 from lang_tools.lexicon.ingestion.lookalikes import GoldPair
 from lang_tools.lexicon.ingestion.lookalikes import LookalikeCandidate
+from lang_tools.lexicon.ingestion.lookalikes import LookalikeProposal
 from lang_tools.lexicon.ingestion.lookalikes import accept_run
 from lang_tools.lexicon.ingestion.lookalikes import apply_lookalikes
 from lang_tools.lexicon.ingestion.lookalikes import cognate_key
@@ -24,6 +26,8 @@ from lang_tools.lexicon.ingestion.pipeline import build_initial
 from lang_tools.lexicon.ingestion.sources.omw import SynsetEntry
 from lang_tools.lexicon.lemma_id import lemma_id
 from lang_tools.lexicon.lemma_store import LexiconStore
+from lang_tools.lexicon.maintenance import curated_path
+from lang_tools.lexicon.maintenance import write_jsonl
 from lang_tools.llm.lookalike_verify import KeyedVerdict
 from lang_tools.llm.lookalike_verify import LookalikeVerifyOutput
 from lang_tools.params.lang_tools_params import get_lang_tools_params
@@ -200,11 +204,12 @@ def test_verify_chunks_proposals_and_edges(tmp_path: Path) -> None:
     assert next(r for r in rows if r.kind == "cognate").note == ""
 
     accepted = accept_run(rows, languages=["en"])
-    edges, stale = apply_lookalikes(
+    edges, sources, stale = apply_lookalikes(
         [trap.target_id, trap.known_id, nation.target_id, nation.known_id],
         accepted,
     )
     assert stale == 0
+    assert sources == ["llm", "llm"]
     assert {e.kind for e in edges} == {"full", "cognate"}
     assert next(e for e in edges if e.kind == "full").explanation_notes == {
         "en": "pt esquisito means weird",
@@ -222,8 +227,9 @@ def test_unrelated_and_noteless_verdicts_are_rejected() -> None:
     )
     row = proposals_from_verdicts([cand], [output])[0]
     assert row.status == "rejected"
-    edges, stale = apply_lookalikes(
-        ["t1", "a"], [row.model_copy(update={"status": "accepted"})]
+    edges, _sources, stale = apply_lookalikes(
+        ["t1", "a"],
+        [row.model_copy(update={"status": "accepted"})],
     )
     assert edges == []
     assert stale == 0
@@ -255,3 +261,52 @@ def test_coincidental_trap_verdict_becomes_unrelated() -> None:
     )
     row = proposals_from_verdicts([cand], [output])[0]
     assert (row.kind, row.status, row.note) == ("unrelated", "rejected", "")
+
+
+def test_build_applies_reviewed_lookalikes(tmp_path: Path) -> None:
+    """Accepted rows become edges at build time; a stale row is skipped."""
+    esquisito = lemma_id("esquisito", "pt")
+    exquisite = lemma_id("exquisite", "en")
+    rows = [
+        LookalikeProposal(
+            target_id=esquisito,
+            target_text="esquisito",
+            known_id=exquisite,
+            known_text="exquisite",
+            known_language="en",
+            kind="full",
+            note='pt "esquisito" means weird; en "exquisite" is "requintado".',
+            similarity=1.0,
+            status="accepted",
+            model="manual",
+        ),
+        LookalikeProposal(
+            target_id=lemma_id("sumido", "pt"),
+            target_text="sumido",
+            known_id=exquisite,
+            known_text="exquisite",
+            known_language="en",
+            kind="full",
+            note="stale",
+            status="accepted",
+        ),
+        LookalikeProposal(
+            target_id=lemma_id("nação", "pt"),
+            target_text="nação",
+            known_id=lemma_id("nation", "en"),
+            known_text="nation",
+            known_language="en",
+            kind="cognate",
+            status="proposed",  # not reviewed yet: never applied
+        ),
+    ]
+    write_jsonl(rows, curated_path(tmp_path, LOOKALIKES_FILE))
+    summary = build_initial(
+        ["en", "pt", "it"], data_fol=tmp_path, omw_entries=_entries()
+    )
+    assert (summary.lookalikes_applied, summary.lookalikes_stale) == (1, 1)
+    store = LexiconStore.from_data_fol(tmp_path)
+    hits = store.get_false_friends_for_lemma(esquisito)
+    assert [(other.text, edge.kind) for other, edge in hits] == [("exquisite", "full")]
+    assert hits[0][1].explanation_notes["en"].startswith('pt "esquisito"')
+    assert store.get_lookalikes_for_lemma(lemma_id("nação", "pt")) == []
