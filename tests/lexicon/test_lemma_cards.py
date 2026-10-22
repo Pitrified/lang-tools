@@ -74,7 +74,7 @@ def _store() -> LexiconStore:
         lemmas=lemmas,
         concepts=concepts,
         senses=senses,
-        false_friends=[],
+        lookalikes=[],
         concept_relations=[],
         sense_relations=[],
     )
@@ -122,7 +122,7 @@ def test_frequency_tie_goes_to_the_more_common_concept() -> None:
             Sense(lemma_id=pedra.id, concept_id=rare, sense_frequency=4.0),
             Sense(lemma_id=pedra.id, concept_id=common, sense_frequency=4.0),
         ],
-        false_friends=[],
+        lookalikes=[],
         concept_relations=[],
         sense_relations=[],
     )
@@ -197,7 +197,7 @@ def test_example_must_mention_the_lemma() -> None:
         lemmas=[lar],
         concepts=[home_example],
         senses=[Sense(lemma_id=lar.id, concept_id=C_HOME)],
-        false_friends=[],
+        lookalikes=[],
         concept_relations=[],
         sense_relations=[],
     )

@@ -16,7 +16,7 @@ from lang_tools.lexicon.concept import Concept
 from lang_tools.lexicon.lemma import Lemma
 from lang_tools.lexicon.lemma import LemmaExample
 from lang_tools.lexicon.relations import ConceptRelation
-from lang_tools.lexicon.relations import FalseFriendRelation
+from lang_tools.lexicon.relations import LookalikeRelation
 from lang_tools.lexicon.sense import Sense
 
 
@@ -87,14 +87,14 @@ def test_concept_commonness_keeps_zero_apart_from_absent(tmp_path: Path) -> None
 
 
 def test_false_friend_map_and_canonical_order_round_trip(tmp_path: Path) -> None:
-    edge = FalseFriendRelation(
+    edge = LookalikeRelation(
         lemma_id_a="zzz",
         lemma_id_b="aaa",
         similarity_score=0.9,
         explanation_notes={"en": "trap"},
     )
-    _dump_table("false_friends", [edge], data_fol=tmp_path)
-    [loaded] = _load_table("false_friends", data_fol=tmp_path)
+    _dump_table("lookalikes", [edge], data_fol=tmp_path)
+    [loaded] = _load_table("lookalikes", data_fol=tmp_path)
     assert loaded == edge
     # Canonical order is enforced by the model on both write and read.
     assert loaded.lemma_id_a == "aaa"

@@ -10,7 +10,7 @@ from lang_tools.lexicon.lemma import Lemma
 from lang_tools.lexicon.lemma_store import CorpusNotFoundError
 from lang_tools.lexicon.lemma_store import LexiconStore
 from lang_tools.lexicon.relations import ConceptRelation
-from lang_tools.lexicon.relations import FalseFriendRelation
+from lang_tools.lexicon.relations import LookalikeRelation
 from lang_tools.lexicon.relations import SenseRelation
 from lang_tools.lexicon.sense import Sense
 
@@ -41,8 +41,8 @@ def _build_store() -> LexiconStore:
         Sense(lemma_id=bank.id, concept_id=C_BANK),
         Sense(lemma_id=bench.id, concept_id=C_BENCH),
     ]
-    false_friends = [
-        FalseFriendRelation(lemma_id_a=banco.id, lemma_id_b=bank.id),
+    lookalikes = [
+        LookalikeRelation(lemma_id_a=banco.id, lemma_id_b=bank.id),
     ]
     concept_relations = [
         ConceptRelation(
@@ -67,7 +67,7 @@ def _build_store() -> LexiconStore:
         lemmas=lemmas,
         concepts=concepts,
         senses=senses,
-        false_friends=false_friends,
+        lookalikes=lookalikes,
         concept_relations=concept_relations,
         sense_relations=sense_relations,
     )
@@ -136,6 +136,49 @@ def test_false_friend_symmetry() -> None:
     assert from_bank[0][0].text == "banco"
 
 
+def test_lookalikes_filter_by_kind_and_language() -> None:
+    """Cognates are look-alikes but not false friends; languages narrow the view."""
+    casa = Lemma(text="casa", language="pt")
+    house = Lemma(text="house", language="en")
+    casa_it = Lemma(text="casa", language="it")
+    cast = Lemma(text="cast", language="en")
+    store = LexiconStore.from_models(
+        lemmas=[casa, house, casa_it, cast],
+        concepts=[],
+        senses=[],
+        lookalikes=[
+            LookalikeRelation(
+                lemma_id_a=casa.id,
+                lemma_id_b=casa_it.id,
+                kind="cognate",
+                similarity_score=1.0,
+            ),
+            LookalikeRelation(
+                lemma_id_a=casa.id,
+                lemma_id_b=cast.id,
+                kind="full",
+                similarity_score=0.75,
+                explanation_notes={"en": "pt casa means house"},
+            ),
+        ],
+        concept_relations=[],
+        sense_relations=[],
+    )
+    every = store.get_lookalikes_for_lemma(casa.id)
+    assert [(o.text, o.language, e.kind) for o, e in every] == [
+        ("casa", "it", "cognate"),
+        ("cast", "en", "full"),
+    ]
+    assert [
+        o.language for o, _ in store.get_lookalikes_for_lemma(casa.id, languages=["en"])
+    ] == ["en"]
+    traps = store.get_false_friends_for_lemma(casa.id)
+    assert [(o.text, e.explanation_notes) for o, e in traps] == [
+        ("cast", {"en": "pt casa means house"}),
+    ]
+    assert traps[0][1].is_false_friend
+
+
 def test_concept_relations_directional_and_symmetric() -> None:
     store = _build_store()
     # C_BANK touches both a symmetric ('similar') and a directional ('hypernym') edge.
@@ -169,7 +212,7 @@ def test_lemma_topics_come_from_every_sense_concept() -> None:
         lemmas=lemmas,
         concepts=concepts,
         senses=senses,
-        false_friends=[],
+        lookalikes=[],
         concept_relations=[],
         sense_relations=[],
     )

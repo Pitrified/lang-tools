@@ -108,7 +108,7 @@ def _clean_corpus_tables(data_fol: Path) -> None:
         return
     for partitioned in ("lemmas", "senses"):
         shutil.rmtree(lex / partitioned, ignore_errors=True)
-    for single in ("concepts", "false_friends", "concept_relations", "sense_relations"):
+    for single in ("concepts", "lookalikes", "concept_relations", "sense_relations"):
         (lex / f"{single}.parquet").unlink(missing_ok=True)
     # The persisted store cache (see lemma_store.STORE_DB_NAME) is now stale.
     for cache in ("_store.sqlite", "_store.sqlite.sig"):
@@ -139,10 +139,10 @@ def _write_tables(tables: TaggedTables, data_fol: Path) -> dict[str, int]:
     )
     _dump_senses_partitioned(tables, data_fol)
     _dump_table(
-        "false_friends",
-        tables.false_friends,
+        "lookalikes",
+        tables.lookalikes,
         data_fol=data_fol,
-        sources=tables.false_friend_sources,
+        sources=tables.lookalike_sources,
     )
     _dump_table(
         "concept_relations",
@@ -160,7 +160,7 @@ def _write_tables(tables: TaggedTables, data_fol: Path) -> dict[str, int]:
         "lemmas": len(tables.lemmas),
         "concepts": len(tables.concepts),
         "senses": len(tables.senses),
-        "false_friends": len(tables.false_friends),
+        "lookalikes": len(tables.lookalikes),
         "concept_relations": len(tables.concept_relations),
         "sense_relations": len(tables.sense_relations),
     }
@@ -299,7 +299,7 @@ def build_initial(
         "lemmas": len(sample.lemmas),
         "concepts": len(sample.concepts),
         "senses": len(sample.senses),
-        "false_friends": len(sample.false_friends),
+        "lookalikes": len(sample.lookalikes),
         "concept_relations": len(sample.concept_relations),
         "sense_relations": len(sample.sense_relations),
     }

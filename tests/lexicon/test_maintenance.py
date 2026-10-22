@@ -61,7 +61,7 @@ def _seed_corpus(data_fol: Path, *, with_provenance: bool = True) -> None:
     _dump_table("lemmas", [attenzione, mind, process], data_fol=data_fol)
     _dump_table("concepts", concepts, data_fol=data_fol, sources=sources)
     _dump_table("senses", senses, data_fol=data_fol)
-    _dump_table("false_friends", [], data_fol=data_fol)
+    _dump_table("lookalikes", [], data_fol=data_fol)
     _dump_table(
         "concept_relations",
         [

@@ -82,7 +82,7 @@ def _entries() -> list[SynsetEntry]:
     ]
 
 
-def test_find_candidates_labels_cognates_and_false_friends(tmp_path: Path) -> None:
+def test_find_candidates_labels_cognates_and_lookalikes(tmp_path: Path) -> None:
     build_initial(["en", "pt", "it"], data_fol=tmp_path, omw_entries=_entries())
     found = {(c.target_text, c.known_text): c for c in find_candidates(tmp_path)}
     assert found[("nação", "nation")].kind == "cognate"

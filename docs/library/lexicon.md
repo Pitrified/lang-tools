@@ -127,9 +127,14 @@ The per-sense values are filled by the build's enrichment stage; see
 Relations are stored as standalone edges, never embedded on the entities they
 connect:
 
-- `FalseFriendRelation` is a symmetric lemma-to-lemma edge (a misleading
-  cognate pair). Endpoints are held in canonical order
+- `LookalikeRelation` is a symmetric lemma-to-lemma edge between two forms that
+  look alike across languages, with a `kind`: a `full` false friend (no meaning
+  in common), a `partial` one (only a minor sense shared) or a `cognate` (the main
+  sense shared). Endpoints are held in canonical order
   (`lemma_id_a < lemma_id_b`) so each pair is stored once and dedups naturally.
+  Until phase 11 this was `FalseFriendRelation` in a `false_friends` table; one
+  `lookalikes` table now holds all three kinds, because a learner's view of a word
+  (a trap, free, or neither) needs them together.
 - `ConceptRelation` is a typed concept-to-concept edge. Directional types keep
   their source/target order; symmetric types reuse the canonical-ordering trick.
 - `SenseRelation` is a typed sense-to-sense edge, keyed on `Sense.id`. It holds

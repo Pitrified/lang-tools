@@ -112,8 +112,8 @@ def carve_sample(
             lemma_tags.append(tag)
 
     ff, ff_tags = _edges_within(
-        tables.false_friends,
-        tables.false_friend_sources,
+        tables.lookalikes,
+        tables.lookalike_sources,
         used_lemma_ids,
         lambda edge: (edge.lemma_id_a, edge.lemma_id_b),
     )
@@ -137,8 +137,8 @@ def carve_sample(
         concept_sources=kept_concept_tags,
         senses=senses,
         sense_sources=sense_tags,
-        false_friends=ff,
-        false_friend_sources=ff_tags,
+        lookalikes=ff,
+        lookalike_sources=ff_tags,
         concept_relations=rels,
         concept_relation_sources=rel_tags,
         sense_relations=sense_rels,

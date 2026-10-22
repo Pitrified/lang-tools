@@ -85,7 +85,7 @@ def _seed_corpus(
         ],
         data_fol=data_fol,
     )
-    _dump_table("false_friends", [], data_fol=data_fol)
+    _dump_table("lookalikes", [], data_fol=data_fol)
     _dump_table(
         "concept_relations",
         [
@@ -158,7 +158,7 @@ def test_definition_equals_lemma_excludes_other_member_coincidence(
         ],
         data_fol=tmp_path,
     )
-    _dump_table("false_friends", [], data_fol=tmp_path)
+    _dump_table("lookalikes", [], data_fol=tmp_path)
     _dump_table("concept_relations", [], data_fol=tmp_path)
     report = run_quality_checks(tmp_path)
     by_name = {inv.name: inv for inv in report.invariants}

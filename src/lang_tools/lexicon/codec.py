@@ -17,7 +17,7 @@ On-disk layout under ``<data_fol>/lexicon/``:
     lemmas/<lang>.parquet          # partitioned per language
     senses/<lang>.parquet          # partitioned per language (else _all.parquet)
     concepts.parquet               # single file
-    false_friends.parquet          # single file
+    lookalikes.parquet          # single file
     concept_relations.parquet      # single file
     sense_relations.parquet        # single file (English antonymy, phase 7)
 
@@ -36,7 +36,7 @@ from typing import Any
 from lang_tools.lexicon.concept import Concept
 from lang_tools.lexicon.lemma import Lemma
 from lang_tools.lexicon.relations import ConceptRelation
-from lang_tools.lexicon.relations import FalseFriendRelation
+from lang_tools.lexicon.relations import LookalikeRelation
 from lang_tools.lexicon.relations import SenseRelation
 from lang_tools.lexicon.sense import Sense
 
@@ -63,7 +63,7 @@ _MODELS: dict[str, type[BaseModel]] = {
     "lemmas": Lemma,
     "concepts": Concept,
     "senses": Sense,
-    "false_friends": FalseFriendRelation,
+    "lookalikes": LookalikeRelation,
     "concept_relations": ConceptRelation,
     "sense_relations": SenseRelation,
 }
@@ -99,9 +99,10 @@ _COLUMNS: dict[str, list[str]] = {
         "cefr_level",
         "cefr_is_estimated",
     ],
-    "false_friends": [
+    "lookalikes": [
         "lemma_id_a",
         "lemma_id_b",
+        "kind",
         "similarity_score",
         "explanation_notes",
     ],
@@ -115,7 +116,7 @@ _COLUMNS: dict[str, list[str]] = {
 #: dict the same way.
 _MAP_COLUMNS: dict[str, frozenset[str]] = {
     "concepts": frozenset({"definitions", "examples", "definition_sources"}),
-    "false_friends": frozenset({"explanation_notes"}),
+    "lookalikes": frozenset({"explanation_notes"}),
 }
 
 #: Columns the constructor does not accept (computed) and must be dropped on load.
@@ -123,7 +124,7 @@ _DROP_ON_LOAD: dict[str, frozenset[str]] = {
     "lemmas": frozenset({"id"}),
     "concepts": frozenset(),
     "senses": frozenset({"id"}),
-    "false_friends": frozenset(),
+    "lookalikes": frozenset(),
     "concept_relations": frozenset(),
     "sense_relations": frozenset(),
 }
@@ -248,10 +249,11 @@ def _schema(name: str) -> Any:  # noqa: ANN401 - pyarrow.Schema, kept lazy
                 ("cefr_is_estimated", pa.bool_()),
             ],
         ),
-        "false_friends": pa.schema(
+        "lookalikes": pa.schema(
             [
                 ("lemma_id_a", pa.string()),
                 ("lemma_id_b", pa.string()),
+                ("kind", pa.string()),
                 ("similarity_score", pa.float64()),
                 ("explanation_notes", str_map),
             ],

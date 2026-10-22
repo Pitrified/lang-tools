@@ -4,8 +4,12 @@ Relations between lexical entities are stored as standalone edges rather than
 embedded on the entities they connect, so each relationship lives in exactly
 one place and never drifts when one side is updated.
 
-`FalseFriendRelation` is a symmetric lemma-to-lemma edge (a misleading cognate
-pair). Symmetric edges are stored in a canonical orientation
+`LookalikeRelation` is a symmetric lemma-to-lemma edge between two forms that
+look alike across languages, with a `kind`: a ``full`` false friend (no meaning
+in common), a ``partial`` one (only a minor sense shared) or a ``cognate`` (the
+main sense shared). One table holds all three because a learner's question about
+a word ("does it look like something I know, and does it mean the same?") needs
+them together (phase 11). Symmetric edges are stored in a canonical orientation
 (``lemma_id_a < lemma_id_b``) so each pair appears once and dedups naturally.
 
 `ConceptRelation` is a typed concept-to-concept edge (hypernymy, meronymy,
@@ -27,9 +31,17 @@ reaches the corpus fails the build check rather than a constructor.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel
 from pydantic import Field
 from pydantic import model_validator
+
+#: The kinds of look-alike edge (phase 11).
+LookalikeKind = Literal["full", "partial", "cognate"]
+
+#: The kinds that are traps, i.e. false friends.
+FALSE_FRIEND_KINDS: frozenset[str] = frozenset({"full", "partial"})
 
 #: Directional, from the specific concept (``a``) to the broader one (``b``).
 #: Hyponymy is the same edge read backwards, so it is never *stored* separately,
@@ -108,24 +120,31 @@ class SelfRelationError(ValueError):
         self.entity_id = entity_id
 
 
-class FalseFriendRelation(BaseModel):
-    """A symmetric false-friend (misleading cognate) edge between two lemmas.
+class LookalikeRelation(BaseModel):
+    """A symmetric look-alike edge between two lemmas of different languages.
 
     Attributes:
         lemma_id_a: First lemma endpoint; held ``< lemma_id_b`` canonically.
         lemma_id_b: Second lemma endpoint.
-        similarity_score: Optional 0.0-1.0 visual / phonetic similarity.
-        explanation_notes: Per-language notes on the trap, keyed by ISO 639-1
-            code.
+        kind: ``full`` / ``partial`` false friend, or ``cognate``.
+        similarity_score: Optional 0.0-1.0 spelling similarity of the pair.
+        explanation_notes: Per-language notes for the learner, keyed by ISO
+            639-1 code (what each word means, for a false friend).
     """
 
     lemma_id_a: str
     lemma_id_b: str
+    kind: LookalikeKind = "full"
     similarity_score: float | None = None
     explanation_notes: dict[str, str] = Field(default_factory=dict)
 
+    @property
+    def is_false_friend(self) -> bool:
+        """True for a ``full`` or ``partial`` false friend (not a cognate)."""
+        return self.kind in FALSE_FRIEND_KINDS
+
     @model_validator(mode="after")
-    def _canonical_order(self) -> FalseFriendRelation:
+    def _canonical_order(self) -> LookalikeRelation:
         """Enforce ``lemma_id_a < lemma_id_b`` so the pair is stored once."""
         if self.lemma_id_a == self.lemma_id_b:
             raise SelfRelationError(self.lemma_id_a)
@@ -168,7 +187,7 @@ class SenseRelation(BaseModel):
 
     The endpoints are `Sense.id` values, so the edge names *which meaning* of each
     word it relates. Symmetric types (`SYMMETRIC_SENSE_RELATIONS`) are stored in
-    canonical ``a < b`` order, like `FalseFriendRelation`.
+    canonical ``a < b`` order, like `LookalikeRelation`.
 
     Attributes:
         sense_id_a: First endpoint (canonical-first when symmetric).

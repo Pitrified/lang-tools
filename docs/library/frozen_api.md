@@ -35,8 +35,12 @@ store. These read helpers are the in-process content surface phase 2 consumes
   every meaning's topics.
 - `Concept` (language-independent synset) and `Sense` (the explicit
   lemma <-> concept edge hosting per-sense frequency / CEFR).
-- `FalseFriendRelation`, `ConceptRelation`, `SenseRelation` - decoupled relation
-  edge tables.
+- `LookalikeRelation` (with `kind` = `full` / `partial` / `cognate` and
+  `FALSE_FRIEND_KINDS`), `ConceptRelation`, `SenseRelation` - decoupled relation
+  edge tables. Phase 11 renamed `FalseFriendRelation` / `false_friends` to
+  `LookalikeRelation` / `lookalikes`; `get_lookalikes_for_lemma` returns every
+  kind (filterable by language and kind), and `get_false_friends_for_lemma` keeps
+  returning only the false friends.
 - `lemma_id`, `concept_id`, `sense_id` - deterministic id constructors.
   `lemma_id` keeps case and accents since phase 8 step 9 (pt `avó` and `avô`, en
   `Be` and `be` are different lemmas). That changed, once, the id of every lemma
@@ -102,7 +106,7 @@ tree** - never bundled into the wheel.
 data/
   bootstrap/                          # committed JSONL sample seed (text, diffable)
     lemmas.jsonl  concepts.jsonl  senses.jsonl
-    false_friends.jsonl  concept_relations.jsonl  sense_relations.jsonl
+    lookalikes.jsonl  concept_relations.jsonl  sense_relations.jsonl
     lexicon/                          # seed Parquet built from the JSONL (gitignored)
   lexicon/                            # real source-of-truth Parquet (gitignored, built)
     _store.sqlite                     # derived runtime cache (gitignored, never shipped)

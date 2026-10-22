@@ -92,7 +92,8 @@ the lexicon page).
 | ------ | ---- | ----------- |
 | `GET` | `/api/v1/lemmas` | One page of lemmas, ordered by the folded form. Optional query params `language` (ISO 639-1), `topic`, `q` (prefix of the folded form), `limit` (default 100, max 500) and `offset`. The total match count is in the `X-Total-Count` header. |
 | `GET` | `/api/v1/lemmas/{lemma_id}` | Fetch one lemma by its deterministic id. `404` when absent. |
-| `GET` | `/api/v1/lemmas/{lemma_id}/false-friends` | The lemma's false-friend edges. |
+| `GET` | `/api/v1/lemmas/{lemma_id}/false-friends` | The lemma's false friends (look-alike edges of kind `full` / `partial`). |
+| `GET` | `/api/v1/lemmas/{lemma_id}/lookalikes` | Every look-alike of the lemma, false friends and cognates. Optional repeated `languages` and `kinds`. |
 | `GET` | `/api/v1/concepts/{concept_id}` | Fetch one concept. `404` when absent. |
 | `GET` | `/api/v1/concepts/{concept_id}/relations` | The concept's typed relation edges. |
 | `GET` | `/api/v1/cards` | A bounded sample of `LemmaCard` drill cards. The query string is a `CardQuery`, for example `language=pt&max_cefr=B1&single_word=true&limit=20`. List fields repeat the key (`translation_languages=en&translation_languages=it`). |

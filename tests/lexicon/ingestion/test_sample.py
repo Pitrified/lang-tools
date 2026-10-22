@@ -3,7 +3,7 @@
 from lang_tools.lexicon.ingestion.sample import carve_sample
 from lang_tools.lexicon.ingestion.sources.omw import SynsetEntry
 from lang_tools.lexicon.ingestion.transform import transform
-from lang_tools.lexicon.relations import FalseFriendRelation
+from lang_tools.lexicon.relations import LookalikeRelation
 
 
 def _many() -> list[SynsetEntry]:
@@ -32,22 +32,22 @@ def test_carve_drops_edges_with_endpoints_outside_slice() -> None:
     tables = transform(_many())
     # Add a false-friend edge between two lemmas; one will fall outside a tiny slice.
     a, b = tables.lemmas[0].id, tables.lemmas[-1].id
-    tables.false_friends.append(FalseFriendRelation(lemma_id_a=a, lemma_id_b=b))
-    tables.false_friend_sources.append("manual")
+    tables.lookalikes.append(LookalikeRelation(lemma_id_a=a, lemma_id_b=b))
+    tables.lookalike_sources.append("manual")
     sample = carve_sample(tables, max_concepts=1)
     # Only one concept's lemma survives, so the cross-slice edge is dropped.
-    assert sample.false_friends == []
+    assert sample.lookalikes == []
 
 
 def test_carve_keeps_fully_internal_edges() -> None:
     tables = transform(_many())
     sample_full = carve_sample(tables, max_concepts=5)
     a, b = sorted([tables.lemmas[0].id, tables.lemmas[1].id])
-    sample_full.false_friends.append(FalseFriendRelation(lemma_id_a=a, lemma_id_b=b))
-    sample_full.false_friend_sources.append("manual")
+    sample_full.lookalikes.append(LookalikeRelation(lemma_id_a=a, lemma_id_b=b))
+    sample_full.lookalike_sources.append("manual")
     kept = carve_sample(sample_full, max_concepts=5)
-    assert len(kept.false_friends) == 1
-    assert kept.false_friend_sources == ["manual"]
+    assert len(kept.lookalikes) == 1
+    assert kept.lookalike_sources == ["manual"]
 
 
 def test_carve_prefers_richer_concepts_over_alphabetical_order() -> None:

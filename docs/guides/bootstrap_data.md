@@ -14,7 +14,7 @@ from; the full corpus comes from the ingestion phase - see [Rebuilding the corpu
 | `lemmas.jsonl` | thin lexical tokens (all languages in one file) |
 | `concepts.jsonl` | language-independent concepts / synsets |
 | `senses.jsonl` | the lemma <-> concept edges |
-| `false_friends.jsonl` | false-friend token pairs |
+| `lookalikes.jsonl` | look-alike token pairs (false friends and cognates) |
 | `concept_relations.jsonl` | typed concept-to-concept edges |
 | `sense_relations.jsonl` | typed sense-to-sense edges (antonymy; empty when no antonym pair falls inside the slice) |
 

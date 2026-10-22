@@ -100,7 +100,7 @@ _TABLE_GLOBS = {
     "concepts": "concepts.parquet",
     "lemmas": "lemmas/*.parquet",
     "senses": "senses/*.parquet",
-    "false_friends": "false_friends.parquet",
+    "lookalikes": "lookalikes.parquet",
     "concept_relations": "concept_relations.parquet",
     "sense_relations": "sense_relations.parquet",
 }
@@ -260,7 +260,7 @@ _CHECKS: list[tuple[str, str, str, Callable[[dict[str, str]], str]]] = [
 SELECT 'concepts' AS tbl, count(*) AS n FROM {t["concepts"]}
 UNION ALL SELECT 'lemmas', count(*) FROM {t["lemmas"]}
 UNION ALL SELECT 'senses', count(*) FROM {t["senses"]}
-UNION ALL SELECT 'false_friends', count(*) FROM {t["false_friends"]}
+UNION ALL SELECT 'lookalikes', count(*) FROM {t["lookalikes"]}
 UNION ALL SELECT 'concept_relations', count(*) FROM {t["concept_relations"]}
 UNION ALL SELECT 'sense_relations', count(*) FROM {t["sense_relations"]}
 """,

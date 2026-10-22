@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from lang_tools.lexicon.ingestion.sources.omw import SynsetEntry
     from lang_tools.lexicon.lemma import Lemma
     from lang_tools.lexicon.relations import ConceptRelation
-    from lang_tools.lexicon.relations import FalseFriendRelation
+    from lang_tools.lexicon.relations import LookalikeRelation
     from lang_tools.lexicon.relations import SenseRelation
     from lang_tools.lexicon.sense import Sense
 
@@ -68,7 +68,7 @@ class TaggedTables:
         lemmas: Thin lexical tokens and their per-row provenance tags.
         concepts: Synsets and their tags.
         senses: Lemma <-> concept edges and their tags (always ``omw`` here).
-        false_friends: False-friend edges; empty in the initial build (phase 7).
+        lookalikes: False-friend edges; empty in the initial build (phase 7).
         concept_relations: Concept edges: the normalized OMW synset relations
             and the derived concept antonyms (phase 7).
         sense_relations: Sense edges (English antonymy, phase 7).
@@ -91,8 +91,8 @@ class TaggedTables:
     concept_sources: list[str] = field(default_factory=list)
     senses: list[Sense] = field(default_factory=list)
     sense_sources: list[str] = field(default_factory=list)
-    false_friends: list[FalseFriendRelation] = field(default_factory=list)
-    false_friend_sources: list[str] = field(default_factory=list)
+    lookalikes: list[LookalikeRelation] = field(default_factory=list)
+    lookalike_sources: list[str] = field(default_factory=list)
     concept_relations: list[ConceptRelation] = field(default_factory=list)
     concept_relation_sources: list[str] = field(default_factory=list)
     sense_relations: list[SenseRelation] = field(default_factory=list)

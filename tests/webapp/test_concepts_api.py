@@ -36,3 +36,24 @@ class TestFalseFriends:
         response = client.get("/api/v1/lemmas/does-not-exist/false-friends")
         assert response.status_code == 200
         assert response.json() == []
+
+
+class TestLookalikes:
+    """Tests for GET /api/v1/lemmas/{lemma_id}/lookalikes."""
+
+    def test_unknown_lemma_returns_empty_list(self, client: TestClient) -> None:
+        """Filters are accepted; an unknown lemma has no look-alikes."""
+        response = client.get(
+            "/api/v1/lemmas/does-not-exist/lookalikes",
+            params=[("languages", "en"), ("kinds", "cognate")],
+        )
+        assert response.status_code == 200
+        assert response.json() == []
+
+    def test_bad_kind_is_rejected(self, client: TestClient) -> None:
+        """Only full / partial / cognate are kinds."""
+        response = client.get(
+            "/api/v1/lemmas/x/lookalikes",
+            params={"kinds": "noise"},
+        )
+        assert response.status_code == 422

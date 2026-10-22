@@ -32,7 +32,7 @@ def test_no_row_is_tagged_kaikki() -> None:
         tables.lemma_sources
         + tables.concept_sources
         + tables.sense_sources
-        + tables.false_friend_sources
+        + tables.lookalike_sources
         + tables.concept_relation_sources
     )
     assert SOURCE_KAIKKI not in all_tags
@@ -52,5 +52,5 @@ def test_cili_fallback_tags_concept_cili() -> None:
 
 def test_relation_tables_stay_empty() -> None:
     tables = transform(_omw())
-    assert tables.false_friends == []
+    assert tables.lookalikes == []
     assert tables.concept_relations == []

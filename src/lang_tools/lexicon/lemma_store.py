@@ -63,6 +63,7 @@ from lang_tools.lexicon.codec import model_from_row
 from lang_tools.lexicon.codec import row_from_model
 from lang_tools.lexicon.concept import Concept
 from lang_tools.lexicon.lemma import Lemma
+from lang_tools.lexicon.relations import FALSE_FRIEND_KINDS
 from lang_tools.lexicon.sense import Sense
 from lang_tools.params.lang_tools_params import get_lang_tools_params
 
@@ -73,7 +74,7 @@ if TYPE_CHECKING:
     from pydantic import BaseModel
 
     from lang_tools.lexicon.relations import ConceptRelation
-    from lang_tools.lexicon.relations import FalseFriendRelation
+    from lang_tools.lexicon.relations import LookalikeRelation
     from lang_tools.lexicon.relations import SenseRelation
 
 #: Bump to invalidate every persisted SQLite cache after a schema/codec change.
@@ -85,7 +86,8 @@ if TYPE_CHECKING:
 #: v5: concepts gained ``topics`` and the derived ``lemma_topics`` table (phase 8).
 #: v6: concepts gained ``definition_sources`` (per-gloss provenance, phase 8).
 #: v7: the derived ``lemma_drill`` table behind `LemmaCard` (phase 9).
-CACHE_VERSION = 7
+#: v8: ``false_friends`` became ``lookalikes`` with a ``kind`` column (phase 11).
+CACHE_VERSION = 8
 
 #: Filename of the persisted SQLite cache built inside a corpus directory. It is
 #: rebuilt from the Parquet whenever the corpus signature changes; never committed
@@ -105,7 +107,7 @@ TABLES: tuple[str, ...] = (
     "lemmas",
     "concepts",
     "senses",
-    "false_friends",
+    "lookalikes",
     "concept_relations",
     "sense_relations",
 )
@@ -116,7 +118,7 @@ _JSON_COLUMNS: dict[str, frozenset[str]] = {
     "lemmas": frozenset({"topics", "examples", "sources"}),
     "concepts": frozenset({"definitions", "examples", "topics", "definition_sources"}),
     "senses": frozenset(),
-    "false_friends": frozenset({"explanation_notes"}),
+    "lookalikes": frozenset({"explanation_notes"}),
     "concept_relations": frozenset(),
     "sense_relations": frozenset(),
 }
@@ -126,7 +128,7 @@ _INDEXES: dict[str, tuple[str, ...]] = {
     "lemmas": ("language",),
     "concepts": (),
     "senses": ("lemma_id", "concept_id"),
-    "false_friends": ("lemma_id_a", "lemma_id_b"),
+    "lookalikes": ("lemma_id_a", "lemma_id_b"),
     "concept_relations": ("concept_id_a", "concept_id_b"),
     "sense_relations": ("sense_id_a", "sense_id_b"),
 }
@@ -458,7 +460,7 @@ class LexiconStore:
         lemmas: list[Lemma],
         concepts: list[Concept],
         senses: list[Sense],
-        false_friends: list[FalseFriendRelation],
+        lookalikes: list[LookalikeRelation],
         concept_relations: list[ConceptRelation],
         sense_relations: list[SenseRelation],
         db_path: Path | None = None,
@@ -469,7 +471,7 @@ class LexiconStore:
             lemmas: All lemmas.
             concepts: All concepts.
             senses: All sense edges.
-            false_friends: All false-friend edges.
+            lookalikes: All false-friend edges.
             concept_relations: All concept-relation edges.
             sense_relations: All sense-relation edges.
             db_path: On-disk database path; an in-memory database when None
@@ -488,7 +490,7 @@ class LexiconStore:
                 "lemmas": lemmas,
                 "concepts": concepts,
                 "senses": senses,
-                "false_friends": false_friends,
+                "lookalikes": lookalikes,
                 "concept_relations": concept_relations,
                 "sense_relations": sense_relations,
             },
@@ -983,26 +985,52 @@ class LexiconStore:
             params = (concept_id, language)
         return self._query("lemmas", sql, params)
 
-    def get_false_friends_for_lemma(
+    def get_lookalikes_for_lemma(
         self,
         lemma_id: str,
-    ) -> list[tuple[Lemma, FalseFriendRelation]]:
-        """Return each false friend of a lemma as ``(other_lemma, edge)``."""
-        edges = self._query(
-            "false_friends",
-            f"SELECT {_select_cols('false_friends')} FROM false_friends "  # noqa: S608
-            "WHERE lemma_id_a = ? OR lemma_id_b = ?",
-            (lemma_id, lemma_id),
+        *,
+        languages: Iterable[str] | None = None,
+        kinds: Iterable[str] | None = None,
+    ) -> list[tuple[Lemma, LookalikeRelation]]:
+        """Return each look-alike of a lemma as ``(other_lemma, edge)``.
+
+        Args:
+            lemma_id: The lemma whose look-alikes to fetch.
+            languages: Keep only look-alikes in these languages (for example a
+                learner's known languages); every language when None.
+            kinds: Keep only these edge kinds; every kind when None.
+
+        Returns:
+            The matches, most similar first.
+        """
+        sql = (
+            f"SELECT {_select_cols('lookalikes')} FROM lookalikes "  # noqa: S608
+            "WHERE (lemma_id_a = ? OR lemma_id_b = ?)"
         )
-        out: list[tuple[Lemma, FalseFriendRelation]] = []
+        params: list[object] = [lemma_id, lemma_id]
+        if kinds is not None:
+            kind_list = sorted(kinds)
+            sql += f" AND kind IN ({', '.join('?' for _ in kind_list)})"
+            params.extend(kind_list)
+        sql += " ORDER BY similarity_score DESC NULLS LAST, lemma_id_a, lemma_id_b"
+        edges: list[LookalikeRelation] = self._query("lookalikes", sql, tuple(params))
+        wanted = set(languages) if languages is not None else None
+        out: list[tuple[Lemma, LookalikeRelation]] = []
         for edge in edges:
             other_id = (
                 edge.lemma_id_b if edge.lemma_id_a == lemma_id else edge.lemma_id_a
             )
             other = self.get_lemma_by_id(other_id)
-            if other is not None:
+            if other is not None and (wanted is None or other.language in wanted):
                 out.append((other, edge))
         return out
+
+    def get_false_friends_for_lemma(
+        self,
+        lemma_id: str,
+    ) -> list[tuple[Lemma, LookalikeRelation]]:
+        """Return each false friend (``full`` or ``partial``) of a lemma."""
+        return self.get_lookalikes_for_lemma(lemma_id, kinds=FALSE_FRIEND_KINDS)
 
     def concept_relations_for(
         self,
@@ -1289,9 +1317,23 @@ def lemmas_for_concept(concept_id: str, language: str | None = None) -> list[Lem
     return get_store().lemmas_for_concept(concept_id, language=language)
 
 
+def get_lookalikes_for_lemma(
+    lemma_id: str,
+    *,
+    languages: Iterable[str] | None = None,
+    kinds: Iterable[str] | None = None,
+) -> list[tuple[Lemma, LookalikeRelation]]:
+    """Return each look-alike of a lemma as ``(other_lemma, edge)``."""
+    return get_store().get_lookalikes_for_lemma(
+        lemma_id,
+        languages=languages,
+        kinds=kinds,
+    )
+
+
 def get_false_friends_for_lemma(
     lemma_id: str,
-) -> list[tuple[Lemma, FalseFriendRelation]]:
+) -> list[tuple[Lemma, LookalikeRelation]]:
     """Return each false friend of a lemma as ``(other_lemma, edge)``."""
     return get_store().get_false_friends_for_lemma(lemma_id)
 

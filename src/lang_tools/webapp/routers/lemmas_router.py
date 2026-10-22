@@ -12,7 +12,10 @@ Routes:
         by language, topic and/or a search prefix (``q``); the total match
         count is in the ``X-Total-Count`` header.
     GET /api/v1/lemmas/{lemma_id}                 - fetch a single lemma by id.
-    GET /api/v1/lemmas/{lemma_id}/false-friends   - the lemma's false-friend edges.
+    GET /api/v1/lemmas/{lemma_id}/false-friends   - the lemma's false friends
+        (look-alike edges of kind ``full`` / ``partial``).
+    GET /api/v1/lemmas/{lemma_id}/lookalikes      - every look-alike, optionally
+        filtered by language and kind.
 """
 
 from typing import Annotated
@@ -29,7 +32,9 @@ from lang_tools.lexicon.lemma_store import count_lemmas_filtered
 from lang_tools.lexicon.lemma_store import get_false_friends_for_lemma
 from lang_tools.lexicon.lemma_store import get_lemma_by_id
 from lang_tools.lexicon.lemma_store import get_lemmas_filtered
-from lang_tools.lexicon.relations import FalseFriendRelation
+from lang_tools.lexicon.lemma_store import get_lookalikes_for_lemma
+from lang_tools.lexicon.relations import LookalikeKind
+from lang_tools.lexicon.relations import LookalikeRelation
 
 router = APIRouter(prefix="/api/v1/lemmas", tags=["lemmas"])
 
@@ -38,16 +43,16 @@ DEFAULT_PAGE_SIZE = 100
 MAX_PAGE_SIZE = 500
 
 
-class FalseFriendHit(BaseModel):
-    """One false-friend match: the other lemma plus the edge connecting it.
+class LookalikeHit(BaseModel):
+    """One look-alike match: the other lemma plus the edge connecting it.
 
     Attributes:
-        lemma: The misleading-cognate counterpart of the queried lemma.
-        relation: The false-friend edge (similarity, learner notes).
+        lemma: The look-alike counterpart of the queried lemma.
+        relation: The edge (kind, similarity, learner notes).
     """
 
     lemma: Lemma
-    relation: FalseFriendRelation
+    relation: LookalikeRelation
 
 
 @router.get("", summary="List lemmas")
@@ -123,7 +128,7 @@ async def read_lemma(lemma_id: str) -> Lemma:
 
 
 @router.get("/{lemma_id}/false-friends", summary="List a lemma's false friends")
-async def read_false_friends(lemma_id: str) -> list[FalseFriendHit]:
+async def read_false_friends(lemma_id: str) -> list[LookalikeHit]:
     """Return the false-friend matches of a lemma.
 
     Each match pairs the counterpart lemma with the edge that links them
@@ -134,9 +139,45 @@ async def read_false_friends(lemma_id: str) -> list[FalseFriendHit]:
         lemma_id: The deterministic id of the queried lemma.
 
     Returns:
-        The false-friend hits (empty when the lemma has none).
+        The false-friend hits (``full`` and ``partial``; empty when none).
     """
     return [
-        FalseFriendHit(lemma=other, relation=edge)
+        LookalikeHit(lemma=other, relation=edge)
         for other, edge in get_false_friends_for_lemma(lemma_id)
+    ]
+
+
+@router.get("/{lemma_id}/lookalikes", summary="List a lemma's look-alikes")
+async def read_lookalikes(
+    lemma_id: str,
+    languages: Annotated[
+        list[str] | None,
+        Query(description="Only look-alikes in these languages (repeatable)"),
+    ] = None,
+    kinds: Annotated[
+        list[LookalikeKind] | None,
+        Query(description="Only these kinds: full, partial, cognate (repeatable)"),
+    ] = None,
+) -> list[LookalikeHit]:
+    """Return a lemma's look-alikes: false friends and cognates.
+
+    Pass a learner's known languages as ``languages`` to get their view of the
+    word: a ``full`` / ``partial`` hit is a trap, a ``cognate`` hit makes it
+    easier.
+
+    Args:
+        lemma_id: The deterministic id of the queried lemma.
+        languages: Restrict to these languages.
+        kinds: Restrict to these edge kinds.
+
+    Returns:
+        The hits, most similar first (empty when the lemma has none).
+    """
+    return [
+        LookalikeHit(lemma=other, relation=edge)
+        for other, edge in get_lookalikes_for_lemma(
+            lemma_id,
+            languages=languages,
+            kinds=kinds,
+        )
     ]

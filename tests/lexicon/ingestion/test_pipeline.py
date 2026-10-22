@@ -51,7 +51,7 @@ def test_build_writes_parquet_manifest_and_loads_via_store(tmp_path: Path) -> No
         "lemmas": 4,
         "concepts": 2,
         "senses": 4,
-        "false_friends": 0,
+        "lookalikes": 0,
         "concept_relations": 0,
         "sense_relations": 0,
     }

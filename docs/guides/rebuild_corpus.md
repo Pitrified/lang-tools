@@ -14,7 +14,7 @@ procedure: run them in order and read the logged numbers.
 | Folder | What it holds | Produced by |
 | ------ | ------------- | ----------- |
 | `data/_raw/lexicon/wn_data/` | OMW 1.4 wordnets (en, pt, es, fr, it) + CILI, in a `wn` database | `01_download` |
-| `data/lexicon/` | the source-of-truth Parquet (`concepts`, `lemmas`, `senses`, `concept_relations`, `sense_relations`, `false_friends`) + `_build.json` manifest | `02_transform` |
+| `data/lexicon/` | the source-of-truth Parquet (`concepts`, `lemmas`, `senses`, `concept_relations`, `sense_relations`, `lookalikes`) + `_build.json` manifest | `02_transform` |
 | `data/bootstrap/lexicon/` | the carved ~50-concept sample corpus (tests and the webapp read it) | `02_transform` |
 | `data/lexicon/_store.sqlite` | the store's derived runtime cache; rebuilds itself on first load | first `LexiconStore` load |
 | `data/_raw/lexicon/staging/` | exploration-only datasets (Tatoeba, wordfreq lists, Wikidata lexemes, Kelly CEFR) + `_staging.json` | `00_stage` (optional) |
