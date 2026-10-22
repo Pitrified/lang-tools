@@ -1213,4 +1213,4 @@ Append-only. Newest at the bottom.
   before phase 9, so the lemma-id migration (every form with a capital or diacritic) happens
   once; banners added to phases 6 and 9.
 - 2026-10-22 : audited lang-tutor and wrote the phase-9 plan of record (status planned). See `09_sample_and_consumer.md`.
-- 2026-10-22 : executed phase 9 (status done). See the Result section of `09_sample_and_consumer.md`; the lang-tutor commits wait on GitHub access to be pushed.
+- 2026-10-22 : executed phase 9 (status done). See the Result section of `09_sample_and_consumer.md`; lang-tutor pushed to its `feat/lexicon` (`753cb71`).

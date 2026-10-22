@@ -240,8 +240,9 @@ of a pt lemma ties on frequency, and the tie fell to the alphabetical concept id
 - WordNet has no function words, so a few frequent forms map to odd senses
   (fr *sans* -> lilac, en *a* -> angstrom).
 - OMW-pt membership noise remains beyond the two patched rows (avô, teatro).
-- The `lang-tutor` commits could not be pushed from this session (403: the Claude
-  GitHub App is not installed on `Pitrified/lang-tutor`).
+
+The `lang-tutor` work is pushed to its `feat/lexicon` (`dc205e4..753cb71`, 11
+commits), once GitHub access to that repo was granted.
 
 ## Open questions
 
