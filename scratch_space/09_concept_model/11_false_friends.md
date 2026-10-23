@@ -448,6 +448,35 @@ Under the new rules the gold row pt *busto* / it *busta* was wrong; it is relabe
 `full` to `noise` (unrelated). Rows from a0021 to a0028 were not
 re-labelled; they carry the old `prompt_sha`.
 
+## Staleness audit and targeted re-check (2026-10-23)
+
+The guide changed four times during tier A. Each version is a distinct `prompt_sha`:
+
+| Guide | Batches | Change | Which old labels it can flip |
+| --- | --- | --- | --- |
+| `1d1b6f20` | a0001-a0010 | first rules | - |
+| `c8229b98` | a0011-a0012 | grammatical words are `u`; own cognate wins | `f`/`p` to `u` |
+| `fdec6154` | a0013-a0020 | inflected forms count by their most frequent reading | `f`/`p` either way |
+| `1ae8850c` | a0021-a0028 | near-identical is `f` only when plausibly confused | `f` to `u` |
+| `0b36ffd0` | a0029-a0033 | swapped letters; own cognate only when at least as close; shared ordinary sense is `p`, overlap is `p` not `c` | `u` to `f`, `f` to `p`, `c` to `p` |
+
+Most changes only move traps (`f`/`p`) to something else, so a full pass is not needed. The
+stale candidates, written to `data/work/lookalike_review/recheck_keys.txt`, are:
+
+- all 269 `f`/`p` rows from a0001 to a0028;
+- 260 `u` rows whose two words are near-identical under the current definition (accent,
+  doubled letter, final vowel, swapped letters), where the old own-cognate rule could have
+  hidden a closer look-alike;
+- 3 cognate rows that differ by swapped letters.
+
+Not covered: `c` rows that the overlap rule would make `p` (pt *andar* / it *andare*). Those
+cannot be found by spelling, and a missed `p` costs less than a wrong trap. A spot check in
+lang-tutor found the problem: the most frequent trap cards were *para* / *par*, *mas* /
+*mass*, *com* / *come*, all from a0001 under the first rules.
+
+The 532 pairs were served as re-check batches `r0001` to `r0003` with the new `recheck`
+command; the corpus build keeps the later row of a pair.
+
 ## Out of scope
 
 - Fixing OMW coverage holes (*embarazada*, *parents*): new-lemma mapping, in the backlog.
