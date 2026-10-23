@@ -345,11 +345,11 @@ cached v6 draft and the 1000-pair experiment harness.
 
   | Tier | Pairs | What |
   | --- | ---: | --- |
-  | A | TIER_A | pt word very common (Zipf 4.5 or more) |
-  | B | TIER_B | likely traps: near-identical or same-key pairs that the generator calls false friends, pt Zipf 2.5 or more, most common known word first |
-  | C | TIER_C | the rest of pt Zipf 3.5 to 4.5 |
-  | D | TIER_D | pt Zipf 2.5 to 3.5 |
-  | E | TIER_E | the rare tail, last or never |
+  | A | 5,499 | pt word very common (Zipf 4.5 or more) |
+  | B | 6,701 | likely traps: near-identical or same-key pairs that the generator calls false friends, pt Zipf 2.5 or more, most common known word first |
+  | C | 12,397 | the rest of pt Zipf 3.5 to 4.5 |
+  | D | 17,490 | pt Zipf 2.5 to 3.5 |
+  | E | 22,214 | the rare tail, last or never |
 
   Gold pairs stay out of the worklist and are imported directly (`import-gold`, tagged
   `manual`).
