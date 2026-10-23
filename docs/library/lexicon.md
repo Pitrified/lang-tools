@@ -722,28 +722,40 @@ model choice and the quality review are recorded under
 #### Look-alikes: false friends and cognates (phase 11)
 
 `lookalikes` edges come from the committed, reviewed
-`data/curated/lookalikes.jsonl`. `ingestion.lookalikes` produces it in four
+`data/curated/lookalikes.jsonl`. `ingestion.lookalikes` produces it in three
 stages:
 
 1. **Candidates.** `cognate_key` rewrites each form with cross-language spelling
    correspondences: *factory* and *fattoria* both key as `fatori`.
    `find_candidates` blocks and compares every single-word lemma of the target and
    known languages, and `select_candidates` keeps each target word's best few.
-2. **Verification.** The `llm.lookalike_verify` chain classifies each candidate as
-   a `full` or `partial` false friend, a `cognate`, or `unrelated`, and writes an
-   English note for a false friend. `is_trap` then keeps a false-friend verdict
-   only when the words share a root or are spelled nearly the same.
-3. **Review.** A sampled review accepts the run (`accept_run`).
-4. **Build.** `build_initial` turns the accepted rows into edges
-   (`apply_lookalikes`), skipping stale ones, and tags each edge `manual` or `llm`.
+2. **Verification**, by one of two paths that write the same rows:
+   - **Agent review**, the current path (`ingestion.lookalike_review`). The
+     candidates are ordered into a worklist by usefulness, in tiers: very
+     common target words first, then likely traps, then the rest by frequency.
+     Agents label them in batches of 100 against the rulebook in
+     [Reviewing look-alike pairs](../guides/lookalike_review.md). Hidden gold
+     pairs in every batch measure their agreement.
+   - **LLM verifier**, parked. The `llm.lookalike_verify` chain classifies each
+     candidate and writes the note. `is_trap` keeps a false-friend verdict only
+     when the words share a root or are spelled nearly the same, and a sampled
+     review accepts the run (`accept_run`).
+
+   Either way, each row is a `full` or `partial` false friend (with an English
+   note), a `cognate`, or `unrelated` (kept as a rejected row so it is never
+   reviewed twice).
+3. **Build.** `build_initial` turns the accepted rows into edges
+   (`apply_lookalikes`), skipping stale ones. It tags each edge `manual` (the
+   gold set), `agent` (a reviewed batch) or `llm`.
 
 The gate's `invalid_lookalike_edge` invariant checks every edge: both endpoints
 exist, the endpoints are in two languages, the pair is in canonical order and not
 duplicated, the kind is known, and every false friend has an English note.
 
-The yardstick is a 200-pair hand-reviewed gold set,
-`data/curated/lookalike_gold.jsonl`, with `score_against_gold` to measure against
-it. The plan and the measurements are in
+The yardstick is a 1000-pair hand-reviewed gold set,
+`data/curated/lookalike_gold.jsonl`: 200 curated pairs (known traps, cognates and
+coincidences) and 800 drawn from the selected candidates (`GoldPair.origin`).
+`score_against_gold` measures against it. The plan and the measurements are in
 `scratch_space/09_concept_model/11_false_friends.md`.
 
 #### Example sentences (phase 9)

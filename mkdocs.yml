@@ -82,6 +82,7 @@ nav:
       - Bootstrap sample seed: guides/bootstrap_data.md
       - Rebuilding the corpus: guides/rebuild_corpus.md
       - Running the read service: guides/run_service.md
+      - Reviewing look-alike pairs: guides/lookalike_review.md
   - Library:
       - Overview: library/index.md
       - Frozen API (lang-tutor contract): library/frozen_api.md

@@ -729,8 +729,13 @@ class LookalikeProposal(BaseModel):
         similarity: The generator's similarity score.
         status: ``proposed`` until a reviewed run is accepted; only
             ``accepted`` rows are applied.
-        model: The model that produced the verdict, or ``manual``.
-        prompt_sha: The prompt's hash, for provenance.
+        model: Who produced the verdict: ``manual`` for a hand-written row,
+            `REVIEW_MODEL` for an agent-reviewed batch (`lookalike_review`),
+            otherwise the LLM verifier's model name.
+        prompt_sha: The prompt's (or the review guide's) hash, for provenance.
+        batch: The review batch the row came from (empty for other sources).
+        edge_case: The reviewer flagged the call as a judgement call worth a
+            second look; the row is applied all the same.
     """
 
     target_id: str
@@ -744,6 +749,19 @@ class LookalikeProposal(BaseModel):
     status: Literal["proposed", "accepted", "rejected"] = "proposed"
     model: str = ""
     prompt_sha: str = ""
+    batch: str = ""
+    edge_case: bool = False
+
+
+#: `LookalikeProposal.model` for rows reviewed in an agent-harness batch.
+REVIEW_MODEL = "agent-review"
+
+
+def proposal_source(row: LookalikeProposal) -> str:
+    """Return the provenance tag of a row's edge: ``manual``, ``agent`` or ``llm``."""
+    if row.model == "manual":
+        return "manual"
+    return "agent" if row.model == REVIEW_MODEL else "llm"
 
 
 def near_identical(a: str, b: str) -> bool:
@@ -885,9 +903,9 @@ def apply_lookalikes(
         proposals: Accepted rows, typically from `load_lookalikes`.
 
     Returns:
-        ``(edges, sources, stale)``: one edge per pair, its provenance tag
-        (``manual`` for a hand-written row, ``llm`` otherwise), and the stale
-        row count.
+        ``(edges, sources, stale)``: one edge per pair (a later row for the
+        same pair wins), its provenance tag (`proposal_source`), and the
+        stale row count.
     """
     known = set(lemma_ids)
     edges: dict[tuple[str, str], tuple[LookalikeRelation, str]] = {}
@@ -906,7 +924,7 @@ def apply_lookalikes(
             similarity_score=row.similarity,
             explanation_notes=notes,
         )
-        source = "manual" if row.model == "manual" else "llm"
+        source = proposal_source(row)
         edges[edge.lemma_id_a, edge.lemma_id_b] = (edge, source)
     if stale:
         lg.warning("Look-alikes: {} stale row(s) skipped", stale)

@@ -314,6 +314,66 @@ run is ready, so an approved run only needs to land its reviewed file.
 Tests use fixture edges only. The real corpus keeps 0 edges until an approved,
 reviewed run lands.
 
+**Gold set expanded to 1000 pairs (2026-10-23).** I hand-labelled 800 more pairs, drawn
+from the selected candidates (`GoldPair.origin`):
+
+- 450 drawn at random, which measures precision on the real mix;
+- 350 from the near-identical selected candidates, where the hard calls are.
+
+Totals: 169 false friends (105 full, 64 partial), 488 cognates and 343 coincidences. The
+real mix is mostly cognates and coincidences: only 52 of the 800 sampled pairs are traps.
+Measured on the sampled 800, the generator's provisional kinds give:
+
+- `cognate`: 316 of 324 are true cognates; the other 8 are traps;
+- `full`: about 6 in 7 are coincidences.
+
+**Prompt caching (2026-10-23).** It works on the public API, but only above 1024 prompt
+tokens, and only explicit breakpoints avoid a 1.25x write on every variable tail. The v5
+static part is about 800 tokens, so no call so far was cached. Details, scripts and an
+unread batch probe are in [`11_false_friends/prompt_caching.md`](11_false_friends/prompt_caching.md).
+
+### Review through the agent harness (2026-10-23)
+
+The user trusts the hand-labelled pairs more than a cheap model, and the Claude
+subscription is a flat rate. So instead of a paid verifier run, the candidates are
+reviewed by agents (this harness), in batches spread over weeks within the
+subscription's limits. The OpenAI path stays available: the chain, prompts v1-v5, the
+cached v6 draft and the 1000-pair experiment harness.
+
+- **Order by usefulness** (`lookalike_review.build_worklist`, committed as
+  `data/curated/lookalike_worklist.jsonl`):
+
+  | Tier | Pairs | What |
+  | --- | ---: | --- |
+  | A | TIER_A | pt word very common (Zipf 4.5 or more) |
+  | B | TIER_B | likely traps: near-identical or same-key pairs that the generator calls false friends, pt Zipf 2.5 or more, most common known word first |
+  | C | TIER_C | the rest of pt Zipf 3.5 to 4.5 |
+  | D | TIER_D | pt Zipf 2.5 to 3.5 |
+  | E | TIER_E | the rare tail, last or never |
+
+  Gold pairs stay out of the worklist and are imported directly (`import-gold`, tagged
+  `manual`).
+- **Batches.**
+  - `serve` reserves 100 items under a lock and mixes in 5 hidden gold pairs.
+  - The reviewer writes one compact line per item (`N c|p|f|u[!] [note]`).
+  - `apply` validates the whole batch (every item, a note on every trap). It then appends
+    to `data/curated/lookalikes.jsonl` (`unrelated` as rejected), tagged `agent-review`,
+    with the batch id and the guide's hash, and logs the batch's numbers and gold
+    agreement to `data/curated/lookalike_review_log.jsonl`.
+  - Edges built from these rows carry the source `agent`.
+- **Rules and context.**
+  - `docs/guides/lookalike_review.md` is the rulebook: the four kinds, the hard cases (my
+    calls from labelling the gold set), notes, edge cases and the label format.
+  - The `.claude/skills/lookalike-review` skill is one batch's workflow.
+  - One subagent per batch, so each starts from a small context. The orchestrating
+    session only sees a four-line report per batch.
+- **Edge cases.** `!` after the letter marks a judgement call (*fogo* / *fog*). It is
+  applied as labelled and counted per batch, for a second look later.
+- **Effort.** Labelling the 800 gold pairs inline grew the context by about 89k tokens,
+  about 110 per pair. Most of the cost was re-reading a long conversation on every call,
+  which subagents with fresh contexts avoid. The 1,000-pair calibration batch (10
+  subagents) is the real measurement: the user reads the limit meter before and after.
+
 ## Out of scope
 
 - Fixing OMW coverage holes (*embarazada*, *parents*): new-lemma mapping, in the backlog.
