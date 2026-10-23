@@ -123,3 +123,9 @@ ran.
   *torcer* / en *torque* (gold `c`, agent `u`; the gold row looks wrong) and pt *salá* / it
   *sala* (gold `f`, agent `u` because pt *salá* is rare).
 - Tier A is complete: 5,499/5,499 after 33 batches.
+
+### Corpus rebuild after tier A
+
+`build_initial` (five languages, about 4 minutes) applied the 6,499 reviewed rows: 2,946
+look-alike edges (2,468 cognate, 266 full, 212 partial), 0 stale; unrelated rows give no edge.
+The previous build had 984 edges. The sample corpus carries 8.
