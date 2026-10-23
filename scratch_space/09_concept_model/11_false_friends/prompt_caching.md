@@ -40,11 +40,23 @@ same endpoint and key the project uses. The scripts are next to this file.
   last, and v5 already does so. A quality A/B (v5 versus the same text with the pairs
   first) is wired in `verify_experiments.py` (variant `v5-varfirst`). It was not run: we
   parked the paid path for the harness review.
-- **The Batch API is an open question.** Community threads disagree on whether cache
-  discounts apply to batch jobs. Probe batch `batch_6adb331091b08190aaa39f6180c67e3e`
-  (id in `batch_probe_id.txt`) holds six requests sharing a 1550-token prefix: three
-  implicit, three explicit. Read it with `uv run python cache_probe_batch.py check` and
-  record the per-request `cached_tokens` here. It was still `in_progress` on 2026-10-23.
+- **Caching works inside the Batch API (probe read 2026-10-23).** Probe batch
+  `batch_6adb331091b08190aaa39f6180c67e3e` (id in `batch_probe_id.txt`) held six requests
+  of 1568 prompt tokens sharing a 1550-token prefix, p0-p2 implicit and p3-p5 with an
+  explicit breakpoint. It completed 6/6:
+
+  | Request | Mode | `cached_tokens` | `cache_write_tokens` |
+  | --- | --- | ---: | ---: |
+  | p0 | implicit | 0 | 1565 |
+  | p1, p2 | implicit | 1554 | 11 |
+  | p3, p4, p5 | explicit | 1554 | 0 |
+
+  The first request writes the prefix and every later one reads 1554 of 1568 tokens (99%)
+  from cache, so the batch discount and the cache discount stack. The explicit requests
+  reused the prefix the implicit ones wrote and wrote nothing, so for one shared static
+  prefix the implicit mode is enough. Every batch pays one write of the prefix. Read the
+  result with `OPENAI_API_KEY=proxy-injected uv run python cache_probe_batch.py check`
+  (the proxy injects the real key).
 - **Our usage tracking misses writes.** `llm.runner.Usage` reads `cached_tokens` but not
   `cache_write_tokens`, and `UsageTotals.cost` bills no write surcharge. Add both before
   any cached paid run.
