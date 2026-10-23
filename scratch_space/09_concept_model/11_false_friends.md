@@ -445,7 +445,10 @@ now answers them:
   meanings are `p`, not `c` (pt *andar* / it *andare*, gold `p`).
 
 Under the new rules the gold row pt *busto* / it *busta* was wrong; it is relabelled from
-`full` to `noise` (unrelated). Rows from a0021 to a0028 were not
+`full` to `noise` (unrelated). Later, pt *torcer* / en *torque* was relabelled from `cognate`
+to `noise` too. The gold pairs are also imported into `lookalikes.jsonl` as `manual` rows,
+so relabelling the gold file alone leaves the corpus edge in place; both pairs got a newer
+`manual` row (batch `gold-fix`, `unrelated`), and the rebuild has 2,880 edges. Rows from a0021 to a0028 were not
 re-labelled; they carry the old `prompt_sha`.
 
 ## Staleness audit and targeted re-check (2026-10-23)
