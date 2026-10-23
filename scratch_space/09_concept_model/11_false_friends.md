@@ -477,6 +477,16 @@ lang-tutor found the problem: the most frequent trap cards were *para* / *par*, 
 The 532 pairs were served as re-check batches `r0001` to `r0003` with the new `recheck`
 command; the corpus build keeps the later row of a pair.
 
+**Result.** Gold 13/15. 108 of 532 labels changed (20%): 65 `f` and 11 `p` became `u` (all
+the grammatical-word traps, *para*, *mas*, *com*, *sem*, *ser*, among them), 12 `f` became
+`p`, 6 `p` became `f`, 10 `u` became `f`. The build had a bug: a later `unrelated` row was
+filtered out as rejected and never retracted the earlier edge, so the first rebuild showed
+2,958 edges. `load_lookalikes` now keeps only the latest row of each pair. The rebuild gives
+2,882 edges (2,471 cognate, 206 partial, 205 full). The lang-tutor spot check now leads with
+real traps: *precisa*, *cara* / it *caro*, *empresa* / *empress*, *era*, *time* (BR team),
+*sete* / it *sete*, *saber* / en *saber*. The re-check batches flagged many edge cases (58 in
+532), mostly short near-identical pairs against moderately common known words.
+
 ## Out of scope
 
 - Fixing OMW coverage holes (*embarazada*, *parents*): new-lemma mapping, in the backlog.
