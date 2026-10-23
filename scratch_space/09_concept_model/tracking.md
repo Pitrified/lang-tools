@@ -122,6 +122,11 @@ promote an item to a numbered phase (and a sub-plan file) when it is picked up.
 
   See [`09_sample_and_consumer.md`](09_sample_and_consumer.md), Q1.
 
+- **Phase 11 open points.** Tier A of the look-alike review is done; the follow-ups
+  (function-word translations, merge to main, seed re-export, edge-case rules, tier depth,
+  end-to-end check, housekeeping) are listed in
+  [`11_false_friends.md`](11_false_friends.md), "Open points after tier A".
+
 Dropped, not deferred: an LLM pass estimating CEFR bands for pt/es/fr (phase 8,
 finding 4: nothing to validate it against).
 

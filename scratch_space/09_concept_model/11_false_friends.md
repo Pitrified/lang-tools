@@ -490,6 +490,32 @@ real traps: *precisa*, *cara* / it *caro*, *empresa* / *empress*, *era*, *time* 
 *sete* / it *sete*, *saber* / en *saber*. The re-check batches flagged many edge cases (58 in
 532), mostly short near-identical pairs against moderately common known words.
 
+## Open points after tier A (2026-10-23)
+
+Besides tiers B to E, in priority order:
+
+1. **Function-word translations.** Rare homograph senses win the best-sense pick for very
+   common words, so lang-tutor shows *para* as "for example", *com* as "aft", *como* as
+   "east" (also *seja* "are", *cada* a Laotian coin, *dela* the pig genus). A learner meets
+   these on the first cards. Fix: a curated override for the top function words, or a rule
+   that a sense with no frequency data cannot become the best sense of a common lemma.
+2. **Merge `feat/lexicon` into main.** lang-tutor pins `lang-tools@main`.
+3. **Re-export the sample seed** (`data/bootstrap/`); its 8 look-alike edges predate the
+   review, so tests and the webapp sample mode run on stale traps.
+4. **Mine the `!` edge cases** (about 250) and the open gold disagreements (*fausto*,
+   *salá*, *preservar* / *preserver*, *macaco*, *estufa*, *pagode*) for the next rule.
+5. **Decide the tier depth.** Measure the false-friend yield on 200-pair samples of C, D, E
+   before paying for them (about 75 weekly points for B to E); or bring back a cheap-model
+   verifier for the low tiers, with agents checking only its traps.
+6. **End-to-end check in lang-tutor:** the HTTP read service on the rebuilt corpus, the trap
+   note after a wrong tap, and whether the trap bonus over-selects now that traps lead the
+   frequent cards.
+7. **Housekeeping:**
+   - (a) read the cache-probe result into `11_false_friends/prompt_caching.md`;
+   - (b) add `cache_write_tokens` to `Usage`;
+   - (c) close or fold the parked verifier (#22) and cheap-model prompting (#26) into item 5;
+   - (d) overlap cognates (*andar* / *andare*) the re-check could not find by spelling.
+
 ## Out of scope
 
 - Fixing OMW coverage holes (*embarazada*, *parents*): new-lemma mapping, in the backlog.
