@@ -50,3 +50,29 @@ Meter 35% to 45% (+10 points); weekly meter 43% to 44% (+1 point). The run began
   it 1 point, so the rest is about 78 points: more than one week's budget at this rate.
 - Quality held: gold 19/20 (the miss is pt *pagode* / en *pagoda*, gold `c`, agent `p` for the
   BR samba sense), 23 edge cases flagged over 800 pairs.
+
+## 2026-10-23: second lean round, four 200-pair batches (a0017 to a0020)
+
+Meter 45% to 52% (+7 points); weekly meter 44% to 45% (+1 point). No `/compact` before or during
+the round, so this is the cleanest data point so far. The user also saw a 344k token figure in
+the UI, close to the four subagents' sum below plus the short orchestration turns.
+
+| Part | Calls | Processed input | Tokens (harness) |
+| --- | ---: | ---: | ---: |
+| Main session (serve in one call, launch in one turn, short status replies, three commits) | about 10 | about 1M | |
+| Subagent a0017 (5 tool uses) | about 6 | about 0.35M | 82.5k |
+| Subagent a0018 (7 tool uses) | about 8 | about 0.45M | 82.7k |
+| Subagent a0019 (7 tool uses) | about 8 | about 0.45M | 82.7k |
+| Subagent a0020 (7 tool uses) | about 8 | about 0.45M | 85.7k |
+| **Total** | about 40 | **about 2.7M** | **333.6k subagents** |
+
+- Rough rate: 800 pairs for 7 points, about 115 pairs per point (versus 80 for round 1, which
+  carried more orchestration, and 57 for the first run). Read the 5-hour meter as roughly 2
+  points per 200-pair subagent, with orchestration on top.
+- Weekly: 1 point per 800 pairs in both lean rounds. The rest of the worklist (about 61.3k
+  pairs) is about 75 weekly points, so it spans more than one week.
+- Quality: gold 18/20 this round (misses pt *macaco* / it *macaco*, gold `p`; pt *estufa* /
+  it *stufa*, gold `f`), 96/100 overall. 30 edge cases in 800 pairs.
+- Open rule question raised by two agents: near-identical pairs against a common known word
+  that nobody would confuse (pt *dado* / en *dad*, *cabo* / *cab*, *preto* / *pretty*) are
+  labelled `f!` under the current guide, though `u` may fit better.
