@@ -520,6 +520,37 @@ Besides tiers B to E, in priority order:
    - (c) close or fold the parked verifier (#22) and cheap-model prompting (#26) into item 5;
    - (d) overlap cognates (*andar* / *andare*) the re-check could not find by spelling.
 
+## Edge-case mining (2026-10-23)
+
+After the re-check, 113 rows still carry `!` as their latest label. Grouped by spelling
+(identical, near-identical, shared root, other) and kind, two patterns cover most of them,
+and the open gold disagreements fit the same two:
+
+1. **A rare known word.** Identical or near-identical pairs whose known word a learner
+   probably does not know: en *palaver* (Zipf 2.2), *bonito* (2.5), *tardy*, *cede*, *primo*,
+   *quart*, *pinto*, *cantor*, *saber*, *valor* (3.2), it *bastante*, *lindo*, *podere*. The
+   agents split them between `f` and `u`, because the guide calls a near-identical pair `u`
+   when the known word is rare but treats identical spelling as `f` or `p` whatever the
+   frequency. Gold *fausto* / it *fausto* and *salá* / it *sala* are the same question. The
+   confusable ones sit well above: *cost* 5.2, *door* 5.1, *floor* 4.9, *come* 5.8. Of the
+   242 current traps, 46 have a known word under Zipf 3.3.
+   *Candidate rule:* a known word under Zipf 3.3 never makes a trap (`u`), identical
+   spelling included. Being mechanical, it could also be a build filter on trap edges
+   (the generator keeps candidates down to Zipf 2.0) instead of a reviewer judgement.
+2. **Inflected forms of one word disagree.** The same known word gets different labels
+   against forms of one pt word: *empresa* `f` / *empresas* `u` (*empress*), *bonito* `f`
+   / *bonita* `u`, *branco* `f` / *branca* `u`, *quarto* `f` / *quarta* `u`, *cantor* `p`
+   / *cantora* `u`, *fundo* `p` / *fundos* `c`. 16 such families exist; the rest differ
+   for a reason (*costas* is "back", *privada* "toilet", *secretaria* "office",
+   *escritório* "office"). Gold *preservar* / *preserver* is the derived-form variant.
+   *Candidate rule:* a plural or feminine form takes the label of its base form unless it
+   has an everyday meaning of its own, which the note then names.
+
+Smaller patterns, no rule proposed: shared-root pairs across parts of speech (*propaganda*
+/ it *propagandare*, *trânsito* / it *transitare*, *negócio* / it *negoziare*), labelled `c`
+or `p` inconsistently but rarely misleading; and register-dependent BR/PT words
+(*equipa*, *legal*, *vila*).
+
 ## Out of scope
 
 - Fixing OMW coverage holes (*embarazada*, *parents*): new-lemma mapping, in the backlog.
