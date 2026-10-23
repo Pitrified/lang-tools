@@ -1,5 +1,6 @@
 """Tests for look-alike candidates (`ingestion.lookalikes`, phase 11)."""
 
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -168,12 +169,16 @@ def test_committed_gold_set_is_consistent() -> None:
     gold = load_gold(get_lang_tools_params().paths.data_fol)
     if not gold:
         pytest.skip("no committed gold set in this checkout")
-    assert len(gold) == 200
-    assert len({g.ids for g in gold}) == 200
+    assert len(gold) == 1000
+    assert len({g.ids for g in gold}) == 1000
+    origins = Counter(g.origin for g in gold)
+    assert origins == {"curated": 200, "sampled-uniform": 450, "sampled-close": 350}
     for g in gold:
         assert g.pt_lemma_id == lemma_id(g.pt, "pt")
         assert g.other_lemma_id == lemma_id(g.other, g.other_language)
         assert g.pair == f"pt-{g.other_language}"
+        if g.kind in {"full", "partial"}:
+            assert g.reason  # every trap says what the words mean
 
 
 def test_verify_chunks_proposals_and_edges(tmp_path: Path) -> None:

@@ -514,6 +514,9 @@ GOLD_FILE = "lookalike_gold.jsonl"
 #: A gold pair's kind: an edge kind, or ``noise`` (look-alike, not confusing).
 GoldKind = Literal["full", "partial", "cognate", "noise"]
 
+#: How a gold pair was chosen (see `GoldPair.origin`).
+GoldOrigin = Literal["curated", "sampled-uniform", "sampled-close"]
+
 
 class GoldPair(BaseModel):
     """One hand-reviewed look-alike pair of the gold set.
@@ -528,6 +531,12 @@ class GoldPair(BaseModel):
         pt_lemma_id: The pt lemma's id.
         other_lemma_id: The other lemma's id.
         reviewed_by: ``"manual"`` for a hand-written row.
+        origin: How the pair entered the set: ``curated`` (hand-picked known
+            traps, cognates and coincidences; the base for generator recall),
+            ``sampled-uniform`` (drawn at random from the selected candidates,
+            so it measures precision on the real mix) or ``sampled-close``
+            (drawn from the near-identical selected candidates, where the
+            hard calls are).
     """
 
     pair: str
@@ -539,6 +548,7 @@ class GoldPair(BaseModel):
     pt_lemma_id: str
     other_lemma_id: str
     reviewed_by: str = "manual"
+    origin: GoldOrigin = "curated"
 
     @property
     def ids(self) -> tuple[str, str]:
