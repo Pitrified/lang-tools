@@ -77,3 +77,28 @@ step, so it tracks the running turn, not the meter; it is recorded here only as 
 - Open rule question raised by two agents: near-identical pairs against a common known word
   that nobody would confuse (pt *dado* / en *dad*, *cabo* / *cab*, *preto* / *pretty*) are
   labelled `f!` under the current guide, though `u` may fit better.
+
+## Round 3: eight 200-pair batches in parallel, after `/compact` (a0021 to a0028)
+
+Meter 53% to 72% (+19 points); weekly meter 45% to 48% (+3 points). `/compact` ran just before
+the round; eight agents were launched in one turn, and the main session made two commits while
+they ran.
+
+| Part | Tokens (harness) |
+| --- | ---: |
+| Subagents a0021 to a0028 (5 to 7 tool uses each) | 83.6k, 82.6k, 84.9k, 81.9k, 83.5k, 81.4k, 83.4k, 84.7k |
+| **Total** | **666.0k subagents** |
+
+- Rough rate: 1,600 pairs for 19 points, about 84 pairs per point, or about 2.4 points per
+  200-pair subagent. That is worse than round 2 (115), so eight in parallel did not save
+  anything; the compact itself and the meter's 1-point granularity may account for part of it.
+- Weekly: 1,600 pairs for 3 points, about 530 pairs per point. The rest of the worklist (about
+  59.7k pairs) is about 110 weekly points at this rate, or 75 at the round 2 rate.
+- Quality: gold 34/40 this round, 130/140 overall; 48 edge cases in 1,600 pairs. Misses:
+  *sopa* / en *soap* (gold `f`, swapped letters not covered by the near-identical rule),
+  *busto* / it *busta* and *seta* / it *setta* (gold `f`, agents applied "own cognate wins"),
+  *andar* / it *andare* (gold `p`, agent `c`), *guardar* / it *guardare* and *brigar* / it
+  *briga* (gold `p`, agents `f` when a minor sense is shared).
+- Open rule questions: identical spelling versus own cognate (pt *branca* / it *branca*, agent
+  `f!`); swapped letters; `p` versus `f` when only a minor sense is shared.
+- Tier A stands at 4,600/5,499 after 28 batches.
