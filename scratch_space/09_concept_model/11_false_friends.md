@@ -428,6 +428,26 @@ asks for `f` only when a learner could plausibly read one word as the other; a s
 nobody maps across is `u`. Earlier rows were not re-labelled; they carry `!` and the older
 `prompt_sha`, so they are easy to find for a later pass.
 
+## Three rules settled (2026-10-23, from `a0029` on)
+
+Round 3 (a0021 to a0028) left three open questions, raised by agents or by gold misses. The guide
+now answers them:
+
+- **Swapped letters.** Two swapped neighbouring letters count as near-identical (pt *sopa* /
+  en *soap*).
+- **Own cognate versus a closer look-alike.** The known language's own cognate wins only when it
+  is spelled at least as close to the pt word as the look-alike. pt *sopa* / en *soap* (gold
+  `f`) and pt *branca* / it *branca* (agent `f!`) are `f`; pt *busto* / it *busta* stays `u`. A
+  known word that only shares the spelling is not a cognate, so pt *seta* / it *setta* (gold
+  `f`) is not blocked by it *seta* (silk).
+- **Partial versus full.** A shared sense in ordinary use, even a secondary one, makes the pair
+  `p` (pt *guardar* / it *guardare*, pt *brigar* / it *briga*, both gold `p`). Overlapping main
+  meanings are `p`, not `c` (pt *andar* / it *andare*, gold `p`).
+
+Under the new rules the gold row pt *busto* / it *busta* (`full`) is wrong and should be
+`unrelated`; it is left as it is pending a decision. Rows from a0021 to a0028 were not
+re-labelled; they carry the old `prompt_sha`.
+
 ## Out of scope
 
 - Fixing OMW coverage holes (*embarazada*, *parents*): new-lemma mapping, in the backlog.

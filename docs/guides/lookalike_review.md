@@ -28,7 +28,8 @@ resemblance help them, mislead them, or not register at all?
 
 - **Spelling alone never makes a cognate.** Two common words spelled alike with different main
   meanings are `f` or `p`, whatever their origin (pt *malga*, a bowl / it *malga*, an alpine hut).
-- **Near-identical means apart only by an accent, a doubled letter or a final vowel.** A
+- **Near-identical means apart only by an accent, a doubled letter, a final vowel or two
+  swapped neighbouring letters** (pt *sopa* / en *soap*). A
   different consonant is a real difference (pt *casa* / en *cast*). Near-identical pairs whose
   meanings differ are `f` only when a learner could plausibly read one as the other: the known
   word is common and the pt word looks like a form of it (pt *deserto* / en *dessert*, pt
@@ -42,15 +43,26 @@ resemblance help them, mislead them, or not register at all?
   word is `u` against a content word it happens to resemble, because nobody reads one as the
   other (pt *com* / en *come*, pt *mas* / en *mass*, pt *sem* / it *seme*, pt *para* / en *par*).
   It is `f` or `p` only when the two share a root whose meaning drifted.
-- **The known language's own cognate wins.** When the known language has a direct cognate of the
-  pt word, a near-identical but different known word does not mislead, so it is `u`
-  (pt *caso* / it *casa*: it has *caso*; pt *casa* / it *cassa*: it has *casa*).
+- **The known language's own cognate wins when it is at least as close.** When the known
+  language has a direct cognate of the pt word (same root and same meaning), spelled at least as
+  close to the pt word as the look-alike, the look-alike does not mislead, so it is `u`
+  (pt *caso* / it *casa*: it has *caso*; pt *busto* / it *busta*: it has *busto*). When the
+  look-alike is closer than the cognate, it is the word a learner reaches for, so the pair is
+  judged on meaning (pt *sopa* / en *soap* is `f`, since *soup* is further off; pt *branca* /
+  it *branca*, a paw, is `f` though it has *bianca*). A known word that is merely spelled like
+  the pt word but means something else is not its cognate (pt *seta*, an arrow: it *seta* is
+  silk, so pt *seta* / it *setta* is still `f`).
 - **Inflected forms count by their most frequent reading.** When a word is both a lemma and a
   common inflected form of another word, judge the reading a learner meets most often and mention
   the other in the note. pt *era* ("was") / en *era* is `f`; pt *amo* (mostly "I love", also
   "master") / it *amo* ("I love", also "hook") is `p`, because the frequent reading is shared.
-- **Partial versus cognate:** ask whether the learner is misled *most of the time*. A shared but
-  rare sense does not rescue a pair: pt *privada* (BR: toilet) / en *privacy* is `f`.
+- **Partial versus cognate:** ask whether the learner is misled *most of the time*. When the
+  main meanings only overlap, it is `p`, not `c` (pt *andar*, to walk / it *andare*, to go).
+- **Partial versus full:** a shared sense makes the pair `p` when it is in ordinary use in
+  either language, even if it is not the main one (it *guardare* also means "watch over"; it
+  *attaccar briga* is "pick a fight", so pt *brigar* / it *briga* is `p`). It is `f` only when
+  the shared sense is technical, archaic or found only in dictionaries: pt *privada* (BR:
+  toilet) / en *privacy* is `f`.
 - **The sense lists are hints.** They miss everyday meanings (*regalo* shows only "muff") and
   sometimes belong to a rarer homograph. Your knowledge of the words wins.
 - **Proper-noun or slang senses** count only when they are the everyday meaning (pt *balada*
