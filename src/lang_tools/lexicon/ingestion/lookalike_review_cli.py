@@ -6,6 +6,7 @@ Usage, with ``CLI=lang_tools.lexicon.ingestion.lookalike_review_cli``::
     uv run python -m $CLI import-gold
     uv run python -m $CLI serve --batch a0001
     uv run python -m $CLI apply --batch a0001 --labels a0001.txt
+    uv run python -m $CLI recheck --batch r0001 --keys keys.txt
     uv run python -m $CLI status
 
 ``serve`` prints the batch's lines to stdout (gold items look like the others);
@@ -30,6 +31,7 @@ from lang_tools.lexicon.ingestion.lookalike_review import build_worklist
 from lang_tools.lexicon.ingestion.lookalike_review import gold_key
 from lang_tools.lexicon.ingestion.lookalike_review import import_gold
 from lang_tools.lexicon.ingestion.lookalike_review import lemma_frequencies
+from lang_tools.lexicon.ingestion.lookalike_review import recheck_batch
 from lang_tools.lexicon.ingestion.lookalike_review import render_batch
 from lang_tools.lexicon.ingestion.lookalike_review import review_status
 from lang_tools.lexicon.ingestion.lookalike_review import serve_batch
@@ -68,6 +70,11 @@ def main(argv: list[str] | None = None) -> int:
     serve.add_argument("--size", type=int, default=DEFAULT_BATCH_SIZE)
     serve.add_argument("--tier", choices=TIERS)
     serve.add_argument("--gold", type=int, default=DEFAULT_GOLD_PER_BATCH)
+    recheck = sub.add_parser("recheck", help="serve reviewed pairs again")
+    recheck.add_argument("--batch", required=True)
+    recheck.add_argument("--keys", type=Path, required=True)
+    recheck.add_argument("--size", type=int, default=DEFAULT_BATCH_SIZE)
+    recheck.add_argument("--gold", type=int, default=DEFAULT_GOLD_PER_BATCH)
     apply = sub.add_parser("apply", help="validate and record a batch's labels")
     apply.add_argument("--batch", required=True)
     apply.add_argument("--labels", type=Path, required=True)
@@ -91,6 +98,17 @@ def main(argv: list[str] | None = None) -> int:
                 gold_per_batch=args.gold,
             )
             _out(render_batch(items) if items else "nothing left to serve")
+        case "recheck":
+            items = recheck_batch(
+                data_fol,
+                get_store(),
+                batch=args.batch,
+                keys=args.keys.read_text().split(),
+                guide_path=guide,
+                size=args.size,
+                gold_per_batch=args.gold,
+            )
+            _out(render_batch(items) if items else "nothing left to re-check")
         case "apply":
             try:
                 log = apply_batch(

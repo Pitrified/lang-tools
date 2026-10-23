@@ -13,6 +13,7 @@ from lang_tools.lexicon.ingestion.lookalike_review import apply_batch
 from lang_tools.lexicon.ingestion.lookalike_review import build_worklist
 from lang_tools.lexicon.ingestion.lookalike_review import import_gold
 from lang_tools.lexicon.ingestion.lookalike_review import parse_labels
+from lang_tools.lexicon.ingestion.lookalike_review import recheck_batch
 from lang_tools.lexicon.ingestion.lookalike_review import review_status
 from lang_tools.lexicon.ingestion.lookalike_review import serve_batch
 from lang_tools.lexicon.ingestion.lookalike_review import tier_of
@@ -185,6 +186,56 @@ def test_serve_and_apply_a_batch(tmp_path: Path) -> None:
     assert (status.gold_agree, status.gold_total) == (2, 2)
     with pytest.raises(ValueError, match="already applied"):
         serve_batch(tmp_path, _store(), batch="a0001")
+
+
+def test_recheck_serves_reviewed_pairs_until_under_the_current_guide(
+    tmp_path: Path,
+) -> None:
+    _setup(tmp_path)
+    old_guide = tmp_path / "old.md"
+    old_guide.write_text("old rules")
+    items = serve_batch(tmp_path, _store(), batch="a0001", size=4, gold_per_batch=0)
+    apply_batch(tmp_path, "a0001", _labels_for(items), guide_path=old_guide)
+    keys = [item.key for item in items[:3]]
+    guide = tmp_path / "new.md"
+    guide.write_text("new rules")
+
+    first = recheck_batch(
+        tmp_path,
+        _store(),
+        batch="r1",
+        keys=keys,
+        guide_path=guide,
+        size=2,
+        gold_per_batch=1,
+    )
+    assert [i.key for i in first if i.gold_kind is None] == keys[:2]
+    assert all(i.rank is not None for i in first if i.gold_kind is None)
+    # pending keys are not served twice
+    second = recheck_batch(
+        tmp_path, _store(), batch="r2", keys=keys, guide_path=guide, gold_per_batch=0
+    )
+    assert [i.key for i in second] == keys[2:]
+    labels = "\n".join(
+        f"{i.n} u" if i.gold_kind == "noise" else f"{i.n} p a note" for i in first
+    )
+    apply_batch(tmp_path, "r1", labels, guide_path=guide)
+    apply_batch(tmp_path, "r2", "\n".join(f"{i.n} c" for i in second), guide_path=guide)
+    # every key now has a row under the new guide, so nothing is left
+    assert not recheck_batch(
+        tmp_path, _store(), batch="r3", keys=keys, guide_path=guide
+    )
+    rows = read_jsonl(LookalikeProposal, curated_path(tmp_path, LOOKALIKES_FILE))
+    latest = {f"{r.target_id}:{r.known_id}": r for r in rows}
+    assert [latest[k].kind for k in keys] == ["partial", "partial", "cognate"]
+    edges, _, _ = apply_lookalikes(
+        sorted({r.target_id for r in rows} | {r.known_id for r in rows}), rows
+    )
+    by_pair = {f"{e.lemma_id_b}:{e.lemma_id_a}": e.kind for e in edges} | {
+        f"{e.lemma_id_a}:{e.lemma_id_b}": e.kind for e in edges
+    }
+    # the later row of each re-checked pair wins
+    assert [by_pair[k] for k in keys] == ["partial", "partial", "cognate"]
 
 
 def test_bad_labels_write_nothing_and_gold_misses_are_logged(tmp_path: Path) -> None:

@@ -438,6 +438,124 @@ def _append(path: Path, rows: Sequence[BaseModel]) -> None:
         handle.writelines(row.model_dump_json() + "\n" for row in rows)
 
 
+def _write_batch(
+    data_fol: Path,
+    store: LexiconStore,
+    *,
+    batch: str,
+    picked: Sequence[WorkItem],
+    gold_per_batch: int,
+) -> list[BatchItem]:
+    """Mix hidden gold into ``picked``, shuffle, and write the batch file.
+
+    Must run under `_locked`.
+    """
+    pending = _pending(data_fol)
+    rng = random.Random(batch)  # noqa: S311 - a reproducible shuffle, not crypto
+    used_gold = {key for row in _log_rows(data_fol) for key in row.gold_keys} | {
+        item.key for items in pending.values() for item in items if item.gold_kind
+    }
+    gold_pool = [
+        pair for pair in load_gold(data_fol) if gold_key(pair) not in used_gold
+    ]
+    gold = rng.sample(gold_pool, min(gold_per_batch, len(gold_pool)))
+    entries: list[tuple[str, str, str, str, int | None, str | None, float | None]] = [
+        (
+            it.key,
+            it.target_text,
+            it.known_text,
+            it.known_language,
+            it.rank,
+            None,
+            it.similarity,
+        )
+        for it in picked
+    ]
+    entries += [
+        (gold_key(g), g.pt, g.other, g.other_language, None, g.kind, None) for g in gold
+    ]
+    rng.shuffle(entries)
+    items = []
+    for n, (key, target, known, language, rank, gold_kind, similarity) in enumerate(
+        entries, start=1
+    ):
+        target_id, known_id = key.split(":")
+        items.append(
+            BatchItem(
+                n=n,
+                key=key,
+                target_text=target,
+                known_text=known,
+                known_language=language,
+                target_senses=sense_summary(store, target_id)[:_TARGET_SENSES_SHOWN],
+                known_senses=sense_summary(store, known_id)[:_KNOWN_SENSES_SHOWN],
+                rank=rank,
+                gold_kind=gold_kind,
+                similarity=similarity,
+            )
+        )
+    _append(_work_dir(data_fol) / f"{batch}.jsonl", items)
+    return items
+
+
+def recheck_batch(
+    data_fol: Path,
+    store: LexiconStore,
+    *,
+    batch: str,
+    keys: Sequence[str],
+    guide_path: Path,
+    size: int = DEFAULT_BATCH_SIZE,
+    gold_per_batch: int = DEFAULT_GOLD_PER_BATCH,
+) -> list[BatchItem]:
+    """Serve already reviewed pairs again, for a re-check under the current guide.
+
+    Picks the next ``size`` of ``keys`` (``{target_id}:{known_id}``) that are on
+    the worklist, not pending, and whose latest review row was not written
+    under the current guide. `apply_batch` then appends new rows, and the
+    corpus build keeps the later row of a pair.
+
+    Args:
+        data_fol: Project data folder.
+        store: The lexicon store, for the sense summaries.
+        batch: The batch id (e.g. ``r0001``).
+        keys: The pairs to re-check, in the order to serve them.
+        guide_path: The review guide; rows already under its hash are skipped.
+        size: Pairs to reserve.
+        gold_per_batch: Hidden gold pairs to mix in.
+
+    Returns:
+        The batch items (empty when every key is re-checked or pending).
+    """
+    with _locked(data_fol):
+        pending = _pending(data_fol)
+        if batch in pending:
+            return pending[batch]
+        if any(row.batch == batch for row in _log_rows(data_fol)):
+            msg = f"batch {batch} was already applied"
+            raise ValueError(msg)
+        sha = guide_sha(guide_path)
+        path = curated_path(data_fol, LOOKALIKES_FILE)
+        latest = {
+            f"{row.target_id}:{row.known_id}": row.prompt_sha
+            for row in (read_jsonl(LookalikeProposal, path) if path.exists() else [])
+        }
+        busy = {item.key for items in pending.values() for item in items}
+        by_key = {item.key: item for item in load_worklist(data_fol)}
+        picked = [
+            by_key[key]
+            for key in keys
+            if key in by_key and key not in busy and latest.get(key) != sha
+        ][:size]
+        if not picked:
+            return []
+        items = _write_batch(
+            data_fol, store, batch=batch, picked=picked, gold_per_batch=gold_per_batch
+        )
+        lg.info("Served re-check batch {}: {} item(s)", batch, len(picked))
+        return items
+
+
 def serve_batch(
     data_fol: Path,
     store: LexiconStore,
@@ -481,61 +599,15 @@ def serve_batch(
         picked = [item for item in todo if item.tier == tier][:size]
         if not picked:
             return []
-        rng = random.Random(batch)  # noqa: S311 - a reproducible shuffle, not crypto
-        used_gold = {key for row in _log_rows(data_fol) for key in row.gold_keys} | {
-            item.key for items in pending.values() for item in items if item.gold_kind
-        }
-        gold_pool = [
-            pair for pair in load_gold(data_fol) if gold_key(pair) not in used_gold
-        ]
-        gold = rng.sample(gold_pool, min(gold_per_batch, len(gold_pool)))
-        entries: list[
-            tuple[str, str, str, str, int | None, str | None, float | None]
-        ] = [
-            (
-                it.key,
-                it.target_text,
-                it.known_text,
-                it.known_language,
-                it.rank,
-                None,
-                it.similarity,
-            )
-            for it in picked
-        ]
-        entries += [
-            (gold_key(g), g.pt, g.other, g.other_language, None, g.kind, None)
-            for g in gold
-        ]
-        rng.shuffle(entries)
-        items = []
-        for n, (key, target, known, language, rank, gold_kind, similarity) in enumerate(
-            entries, start=1
-        ):
-            target_id, known_id = key.split(":")
-            items.append(
-                BatchItem(
-                    n=n,
-                    key=key,
-                    target_text=target,
-                    known_text=known,
-                    known_language=language,
-                    target_senses=sense_summary(store, target_id)[
-                        :_TARGET_SENSES_SHOWN
-                    ],
-                    known_senses=sense_summary(store, known_id)[:_KNOWN_SENSES_SHOWN],
-                    rank=rank,
-                    gold_kind=gold_kind,
-                    similarity=similarity,
-                )
-            )
-        _append(_work_dir(data_fol) / f"{batch}.jsonl", items)
+        items = _write_batch(
+            data_fol, store, batch=batch, picked=picked, gold_per_batch=gold_per_batch
+        )
         lg.info(
             "Served batch {}: {} item(s) of tier {} + {} gold",
             batch,
             len(picked),
             tier,
-            len(gold),
+            len(items) - len(picked),
         )
         return items
 

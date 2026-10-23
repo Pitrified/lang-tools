@@ -47,3 +47,13 @@ A session that runs many batches keeps its own context small by handing each bat
 - After the batches, run `CLI status`, look at the gold misses in
   `data/curated/lookalike_review_log.jsonl`, then commit `data/curated/lookalikes.jsonl` and the log
   (both under Git LFS; add them with `git add -f`).
+
+## Re-checking pairs after a rule change
+
+When the guide changes, older rows keep their old `prompt_sha`. To re-check a chosen set of them,
+write their keys (`{target_id}:{known_id}`, one per line) to a file and serve them with
+`CLI recheck --batch r0001 --keys keys.txt --size 200`, then label and apply as usual. `recheck`
+skips keys that are pending or already have a row under the current guide, so successive ids
+(`r0001`, `r0002`, ...) walk through the list. The new rows are appended; the corpus build keeps
+the later row of a pair. A subagent handed an `r` id follows the steps above, with the batch
+already served.
