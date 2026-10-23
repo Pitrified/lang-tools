@@ -38,7 +38,7 @@ from lang_tools.language.normalization import normalize
 from lang_tools.lexicon.codec import LEXICON_SUBDIR
 from lang_tools.lexicon.lemma_store import CorpusNotFoundError
 from lang_tools.lexicon.maintenance import CURATED_SUBDIR
-from lang_tools.lexicon.maintenance import load_curated
+from lang_tools.lexicon.maintenance import curated_path
 from lang_tools.lexicon.maintenance import read_jsonl
 from lang_tools.lexicon.quality import _connect
 from lang_tools.lexicon.quality import _table_sources
@@ -884,8 +884,19 @@ def accept_run(
 
 
 def load_lookalikes(data_fol: Path) -> list[LookalikeProposal]:
-    """Read the accepted rows of the committed look-alike file, if any."""
-    return load_curated(LookalikeProposal, data_fol, LOOKALIKES_FILE)
+    """Read the accepted rows of the committed look-alike file, if any.
+
+    A pair can have several rows when it was re-checked; only its latest row
+    counts, so a later ``unrelated`` (rejected) row retracts an earlier edge.
+    """
+    path = curated_path(data_fol, LOOKALIKES_FILE)
+    if not path.exists():
+        return []
+    latest: dict[tuple[str, str], LookalikeProposal] = {}
+    for row in read_jsonl(LookalikeProposal, path):
+        latest.pop((row.target_id, row.known_id), None)
+        latest[row.target_id, row.known_id] = row
+    return [row for row in latest.values() if row.status == "accepted"]
 
 
 def apply_lookalikes(
@@ -896,7 +907,7 @@ def apply_lookalikes(
 
     A row whose lemmas are not both in the build is counted as stale and
     skipped, never fatal (the curated-input rule). ``unrelated`` rows never
-    become edges.
+    become edges, and retract an earlier row's edge for the same pair.
 
     Args:
         lemma_ids: Every lemma id of the build.
@@ -912,6 +923,7 @@ def apply_lookalikes(
     stale = 0
     for row in proposals:
         if row.kind == "unrelated":
+            edges.pop((row.target_id, row.known_id), None)
             continue
         if row.target_id not in known or row.known_id not in known:
             stale += 1

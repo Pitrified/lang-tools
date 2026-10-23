@@ -24,6 +24,7 @@ from lang_tools.lexicon.ingestion.lookalikes import GoldPair
 from lang_tools.lexicon.ingestion.lookalikes import LookalikeCandidate
 from lang_tools.lexicon.ingestion.lookalikes import LookalikeProposal
 from lang_tools.lexicon.ingestion.lookalikes import apply_lookalikes
+from lang_tools.lexicon.ingestion.lookalikes import load_lookalikes
 from lang_tools.lexicon.maintenance import curated_path
 from lang_tools.lexicon.maintenance import read_jsonl
 from lang_tools.lexicon.maintenance import write_jsonl
@@ -220,22 +221,21 @@ def test_recheck_serves_reviewed_pairs_until_under_the_current_guide(
         f"{i.n} u" if i.gold_kind == "noise" else f"{i.n} p a note" for i in first
     )
     apply_batch(tmp_path, "r1", labels, guide_path=guide)
-    apply_batch(tmp_path, "r2", "\n".join(f"{i.n} c" for i in second), guide_path=guide)
+    apply_batch(tmp_path, "r2", "\n".join(f"{i.n} u" for i in second), guide_path=guide)
     # every key now has a row under the new guide, so nothing is left
     assert not recheck_batch(
         tmp_path, _store(), batch="r3", keys=keys, guide_path=guide
     )
-    rows = read_jsonl(LookalikeProposal, curated_path(tmp_path, LOOKALIKES_FILE))
-    latest = {f"{r.target_id}:{r.known_id}": r for r in rows}
-    assert [latest[k].kind for k in keys] == ["partial", "partial", "cognate"]
+    rows = load_lookalikes(tmp_path)
+    latest = {f"{r.target_id}:{r.known_id}": r.kind for r in rows}
+    # the later row of a pair wins, and a later unrelated row retracts the edge
+    assert [latest.get(k) for k in keys] == ["partial", "partial", None]
     edges, _, _ = apply_lookalikes(
         sorted({r.target_id for r in rows} | {r.known_id for r in rows}), rows
     )
-    by_pair = {f"{e.lemma_id_b}:{e.lemma_id_a}": e.kind for e in edges} | {
-        f"{e.lemma_id_a}:{e.lemma_id_b}": e.kind for e in edges
-    }
-    # the later row of each re-checked pair wins
-    assert [by_pair[k] for k in keys] == ["partial", "partial", "cognate"]
+    pairs = {frozenset((e.lemma_id_a, e.lemma_id_b)) for e in edges}
+    assert {frozenset(k.split(":")) for k in keys[:2]} <= pairs
+    assert frozenset(keys[2].split(":")) not in pairs
 
 
 def test_bad_labels_write_nothing_and_gold_misses_are_logged(tmp_path: Path) -> None:
