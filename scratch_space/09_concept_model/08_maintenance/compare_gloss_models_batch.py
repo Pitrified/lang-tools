@@ -41,8 +41,12 @@ chunks = chunk_items(items)
 by_lang = collections.defaultdict(list)
 for key, chunk in chunks:
     by_lang[key.split(":")[0]].append((key, chunk))
-picked = [lang_chunks[len(lang_chunks) // 2] for _, lang_chunks in sorted(by_lang.items())]
-print("chunks", [k for k, _ in picked], "glosses", sum(len(c.concepts) for _, c in picked))
+picked = [
+    lang_chunks[len(lang_chunks) // 2] for _, lang_chunks in sorted(by_lang.items())
+]
+print(
+    "chunks", [k for k, _ in picked], "glosses", sum(len(c.concepts) for _, c in picked)
+)
 step = sys.argv[1]
 by_key = {item.key: item for item in items}
 
@@ -52,12 +56,18 @@ for model, (effort, p_in, p_cached, p_out) in MODELS.items():
     cp = work / "run.jsonl"
     if step == "submit":
         bid = submit_batch(
-            chain, picked, checkpoint=cp, workdir=work,
+            chain,
+            picked,
+            checkpoint=cp,
+            workdir=work,
             extra_body={"reasoning_effort": effort},
         )
         print(model, effort, bid)
     elif step == "collect":
-        print(model, collect_batch(chain, (work / "batch_id.txt").read_text(), checkpoint=cp))
+        print(
+            model,
+            collect_batch(chain, (work / "batch_id.txt").read_text(), checkpoint=cp),
+        )
     elif step == "report":
         records = read_records(cp)
         totals = summarize_usage(records)
@@ -66,7 +76,9 @@ for model, (effort, p_in, p_cached, p_out) in MODELS.items():
         rows = []
         for key, chunk in picked:
             if key in outputs:
-                rows += check_glosses([by_key[c.key] for c in chunk.concepts], outputs[key])
+                rows += check_glosses(
+                    [by_key[c.key] for c in chunk.concepts], outputs[key]
+                )
         reasons = collections.Counter(r.rationale or "ok" for r in rows)
         n = max(1, len(rows))
         print(
@@ -77,6 +89,15 @@ for model, (effort, p_in, p_cached, p_out) in MODELS.items():
             f"{dict(reasons)}",
         )
         (work / "glosses.json").write_text(
-            json.dumps({r.language + ":" + r.concept_id.rsplit("__", 1)[1]: r.proposed_definition for r in rows}, ensure_ascii=False, indent=1),
+            json.dumps(
+                {
+                    r.language
+                    + ":"
+                    + r.concept_id.rsplit("__", 1)[1]: r.proposed_definition
+                    for r in rows
+                },
+                ensure_ascii=False,
+                indent=1,
+            ),
             encoding="utf-8",
         )

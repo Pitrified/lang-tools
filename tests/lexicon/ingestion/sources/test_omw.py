@@ -151,7 +151,12 @@ def test_unique_slug_stays_tier0() -> None:
     # No collision -> the lexfile is not appended (tier 0 wins).
     entries = [
         SynsetEntry(
-            "en", "s1", "i1", "a dwelling", ("house",), pos="n",
+            "en",
+            "s1",
+            "i1",
+            "a dwelling",
+            ("house",),
+            pos="n",
             lexfile="noun.artifact",
         ),
     ]
@@ -164,11 +169,21 @@ def test_colliding_slugs_get_lexfile_discriminant() -> None:
     # Two concepts sharing the tier-0 slug `cut` split on their lexfiles.
     entries = [
         SynsetEntry(
-            "en", "s1", "i1", "separate with an edge", ("cut",), pos="v",
+            "en",
+            "s1",
+            "i1",
+            "separate with an edge",
+            ("cut",),
+            pos="v",
             lexfile="verb.contact",
         ),
         SynsetEntry(
-            "en", "s2", "i2", "the act of cutting", ("cut",), pos="n",
+            "en",
+            "s2",
+            "i2",
+            "the act of cutting",
+            ("cut",),
+            pos="n",
             lexfile="noun.act",
         ),
     ]
@@ -183,10 +198,22 @@ def test_same_lexfile_collision_keeps_tier1_slug() -> None:
     # hash disambiguates; the qualifier tier is deferred to phase 8.
     entries = [
         SynsetEntry(
-            "en", "s1", "i1", "person one", ("aaron",), pos="n", lexfile="noun.person",
+            "en",
+            "s1",
+            "i1",
+            "person one",
+            ("aaron",),
+            pos="n",
+            lexfile="noun.person",
         ),
         SynsetEntry(
-            "en", "s2", "i2", "person two", ("aaron",), pos="n", lexfile="noun.person",
+            "en",
+            "s2",
+            "i2",
+            "person two",
+            ("aaron",),
+            pos="n",
+            lexfile="noun.person",
         ),
     ]
     grouped = group_to_records(entries)
@@ -284,7 +311,12 @@ def test_malformed_forms_dropped_with_their_senses() -> None:
     # still attaches, so the concept is not orphaned.
     entries = [
         SynsetEntry(
-            "fr", "fr-1", "i1", "une grotte", ("grotte", "Grotte#Culture"), pos="n",
+            "fr",
+            "fr-1",
+            "i1",
+            "une grotte",
+            ("grotte", "Grotte#Culture"),
+            pos="n",
         ),
     ]
     grouped = group_to_records(entries)
@@ -349,7 +381,12 @@ def test_lexfile_prefers_english_synset_and_propagates() -> None:
     entries = [
         SynsetEntry("pt", "pt-1", "iL", "uma moradia", ("casa",), pos="n"),
         SynsetEntry(
-            "en", "en-1", "iL", "a dwelling", ("house",), pos="n",
+            "en",
+            "en-1",
+            "iL",
+            "a dwelling",
+            ("house",),
+            pos="n",
             lexfile="noun.artifact",
         ),
     ]
@@ -361,11 +398,21 @@ def test_lexfile_prefers_english_synset_and_propagates() -> None:
 def test_examples_are_concept_level_per_language_sorted_unique() -> None:
     entries = [
         SynsetEntry(
-            "en", "en-1", "iE", "a dwelling", ("house",), pos="n",
+            "en",
+            "en-1",
+            "iE",
+            "a dwelling",
+            ("house",),
+            pos="n",
             examples=("they built a house", "a house", "a house"),
         ),
         SynsetEntry(
-            "pt", "pt-1", "iE", "uma moradia", ("casa",), pos="n",
+            "pt",
+            "pt-1",
+            "iE",
+            "uma moradia",
+            ("casa",),
+            pos="n",
             examples=("uma casa",),
         ),
     ]
@@ -382,7 +429,12 @@ def test_hypernym_links_become_directional_concept_relations() -> None:
     # dog (en-1) -> animal (en-2). The child is concept_id_a, the parent _b.
     entries = [
         SynsetEntry(
-            "en", "en-1", "i1", "a dog", ("dog",), pos="n",
+            "en",
+            "en-1",
+            "i1",
+            "a dog",
+            ("dog",),
+            pos="n",
             relations={"hypernym": ("en-2",)},
         ),
         SynsetEntry("en", "en-2", "i2", "an animal", ("animal",), pos="n"),
@@ -403,11 +455,21 @@ def test_hypernym_edges_dedupe_and_drop_dangling() -> None:
     # A second synset of the same ILI repeats the en-2 link -> one deduped edge.
     entries = [
         SynsetEntry(
-            "en", "en-1", "iA", "a dog", ("dog",), pos="n",
+            "en",
+            "en-1",
+            "iA",
+            "a dog",
+            ("dog",),
+            pos="n",
             relations={"hypernym": ("en-2", "en-missing")},
         ),
         SynsetEntry(
-            "en", "en-1b", "iA", "a dog too", ("hound",), pos="n",
+            "en",
+            "en-1b",
+            "iA",
+            "a dog too",
+            ("hound",),
+            pos="n",
             relations={"hypernym": ("en-2",)},
         ),
         SynsetEntry("en", "en-2", "iB", "an animal", ("animal",), pos="n"),
@@ -434,7 +496,12 @@ def test_hyponym_only_link_is_stored_as_a_reversed_hypernym() -> None:
     entries = [
         SynsetEntry("pt", "pt-1", "i1", "um cao", ("cão",), pos="n"),
         SynsetEntry(
-            "pt", "pt-2", "i2", "um animal", ("animal",), pos="n",
+            "pt",
+            "pt-2",
+            "i2",
+            "um animal",
+            ("animal",),
+            pos="n",
             relations={"hyponym": ("pt-1",)},
         ),
     ]
@@ -446,11 +513,21 @@ def test_hyponym_only_link_is_stored_as_a_reversed_hypernym() -> None:
 def test_both_halves_of_an_inverse_pair_dedupe_to_one_edge() -> None:
     entries = [
         SynsetEntry(
-            "en", "en-1", "i1", "a car", ("car",), pos="n",
+            "en",
+            "en-1",
+            "i1",
+            "a car",
+            ("car",),
+            pos="n",
             relations={"mero_part": ("en-2",)},
         ),
         SynsetEntry(
-            "en", "en-2", "i2", "a pedal", ("accelerator",), pos="n",
+            "en",
+            "en-2",
+            "i2",
+            "a pedal",
+            ("accelerator",),
+            pos="n",
             relations={"holo_part": ("en-1",)},
         ),
     ]
@@ -466,11 +543,21 @@ def test_edge_stated_both_ways_keeps_the_better_supported_direction() -> None:
     # inhibit is stated twice, the reverse once.
     entries = [
         SynsetEntry(
-            "en", "en-1", "i1", "keep in check", ("restrain",), pos="v",
+            "en",
+            "en-1",
+            "i1",
+            "keep in check",
+            ("restrain",),
+            pos="v",
             relations={"hypernym": ("en-2",), "hyponym": ("en-2",)},
         ),
         SynsetEntry(
-            "en", "en-2", "i2", "control and refrain", ("inhibit",), pos="v",
+            "en",
+            "en-2",
+            "i2",
+            "control and refrain",
+            ("inhibit",),
+            pos="v",
             relations={"hyponym": ("en-1",)},
         ),
     ]
@@ -483,11 +570,21 @@ def test_edge_stated_both_ways_keeps_the_better_supported_direction() -> None:
 def test_edge_stated_both_ways_equally_is_dropped() -> None:
     entries = [
         SynsetEntry(
-            "en", "en-1", "i1", "first", ("one",), pos="n",
+            "en",
+            "en-1",
+            "i1",
+            "first",
+            ("one",),
+            pos="n",
             relations={"hypernym": ("en-2",)},
         ),
         SynsetEntry(
-            "en", "en-2", "i2", "second", ("two",), pos="n",
+            "en",
+            "en-2",
+            "i2",
+            "second",
+            ("two",),
+            pos="n",
             relations={"hypernym": ("en-1",)},
         ),
     ]
@@ -497,15 +594,30 @@ def test_edge_stated_both_ways_equally_is_dropped() -> None:
 def test_unmirrored_symmetric_links_get_canonical_order() -> None:
     entries = [
         SynsetEntry(
-            "it", "it-1", "i1", "caldo", ("caldo",), pos="a",
+            "it",
+            "it-1",
+            "i1",
+            "caldo",
+            ("caldo",),
+            pos="a",
             relations={"similar": ("it-2",)},
         ),
         SynsetEntry(
-            "it", "it-2", "i2", "bollente", ("bollente",), pos="a",
+            "it",
+            "it-2",
+            "i2",
+            "bollente",
+            ("bollente",),
+            pos="a",
             relations={"similar": ("it-1",)},
         ),
         SynsetEntry(
-            "it", "it-3", "i3", "tiepido", ("tiepido",), pos="a",
+            "it",
+            "it-3",
+            "i3",
+            "tiepido",
+            ("tiepido",),
+            pos="a",
             relations={"similar": ("it-1",)},  # unmirrored: it-1 never names it-3
         ),
     ]
@@ -521,7 +633,12 @@ def test_unmirrored_symmetric_links_get_canonical_order() -> None:
 def test_unlisted_relation_names_are_not_stored() -> None:
     entries = [
         SynsetEntry(
-            "en", "en-1", "i1", "a tackle", ("tackle",), pos="n",
+            "en",
+            "en-1",
+            "i1",
+            "a tackle",
+            ("tackle",),
+            pos="n",
             relations={"domain_topic": ("en-2",), "entails": ("en-2",)},
         ),
         SynsetEntry("en", "en-2", "i2", "football", ("football",), pos="n"),
@@ -537,11 +654,21 @@ def test_sense_antonym_is_stored_and_derived_to_concept_level() -> None:
     # lets "quente" reach "frio".
     entries = [
         SynsetEntry(
-            "en", "en-1", "i1", "of high temperature", ("hot",), pos="a",
+            "en",
+            "en-1",
+            "i1",
+            "of high temperature",
+            ("hot",),
+            pos="a",
             sense_links=(SenseLink("hot", "antonym", "en-2", "cold"),),
         ),
         SynsetEntry(
-            "en", "en-2", "i2", "of low temperature", ("cold",), pos="a",
+            "en",
+            "en-2",
+            "i2",
+            "of low temperature",
+            ("cold",),
+            pos="a",
             sense_links=(SenseLink("cold", "antonym", "en-1", "hot"),),
         ),
         SynsetEntry("pt", "pt-1", "i1", None, ("quente",), pos="a"),
@@ -566,7 +693,12 @@ def test_sense_antonym_is_stored_and_derived_to_concept_level() -> None:
 def test_sense_link_with_an_unresolved_end_is_dropped() -> None:
     entries = [
         SynsetEntry(
-            "en", "en-1", "i1", "of high temperature", ("hot",), pos="a",
+            "en",
+            "en-1",
+            "i1",
+            "of high temperature",
+            ("hot",),
+            pos="a",
             sense_links=(
                 SenseLink("hot", "antonym", "en-missing", "cold"),  # no such synset
                 SenseLink("hot", "antonym", "en-2", "chilly"),  # not a member there
@@ -582,7 +714,12 @@ def test_sense_link_with_an_unresolved_end_is_dropped() -> None:
 def test_domain_topics_gather_per_concept() -> None:
     entries = [
         SynsetEntry(
-            "en", "en-1", "i1", "a football move", ("tackle",), pos="n",
+            "en",
+            "en-1",
+            "i1",
+            "a football move",
+            ("tackle",),
+            pos="n",
             domain_topics=("football",),
         ),
         SynsetEntry("pt", "pt-1", "i1", None, ("placagem",), pos="n"),
@@ -665,9 +802,7 @@ def test_variant_spellings_of_one_meaning_fold_together() -> None:
         SynsetEntry("en", "n5", "i5", "a hair bun", ("bun",), pos="n"),
         SynsetEntry("es", "en5", "i5", "", ("moño",), pos="n"),
     ]
-    texts = {
-        (lemma.language, lemma.text) for lemma in group_to_records(entries).lemmas
-    }
+    texts = {(lemma.language, lemma.text) for lemma in group_to_records(entries).lemmas}
     assert ("es", "percepcion") not in texts
     assert ("es", "percepción") in texts
     assert {("pt", "blasfémia"), ("pt", "blasfêmia")} <= texts
@@ -702,8 +837,13 @@ def test_member_counts_attach_to_the_right_sense() -> None:
     # is the only point the join can happen.
     entries = [
         SynsetEntry(
-            "en", "s1", "i1", "a financial institution", ("bank", "depository"),
-            member_counts=(30, 2), pos="n",
+            "en",
+            "s1",
+            "i1",
+            "a financial institution",
+            ("bank", "depository"),
+            member_counts=(30, 2),
+            pos="n",
         ),
     ]
     grouped = group_to_records(entries)
@@ -720,10 +860,9 @@ def test_untagged_english_concept_counts_zero_and_non_english_is_absent() -> Non
         SynsetEntry("pt", "s2", "i2", "sem membro ingles", ("beta",), pos="n"),
     ]
     grouped = group_to_records(entries)
+
     def _concept_with(gloss: str) -> str:
-        return next(
-            c.id for c in grouped.concepts if gloss in c.definitions.values()
-        )
+        return next(c.id for c in grouped.concepts if gloss in c.definitions.values())
 
     english = _concept_with("an untagged concept")
     portuguese = _concept_with("sem membro ingles")
@@ -735,12 +874,22 @@ def test_counts_follow_a_form_that_merges_into_an_existing_lemma() -> None:
     # Two synsets naming the same form: one lemma, two senses, counts kept apart.
     entries = [
         SynsetEntry(
-            "en", "s1", "i1", "a financial institution", ("bank",),
-            member_counts=(30,), pos="n",
+            "en",
+            "s1",
+            "i1",
+            "a financial institution",
+            ("bank",),
+            member_counts=(30,),
+            pos="n",
         ),
         SynsetEntry(
-            "en", "s2", "i2", "sloping land", ("bank",),
-            member_counts=(10,), pos="n",
+            "en",
+            "s2",
+            "i2",
+            "sloping land",
+            ("bank",),
+            member_counts=(10,),
+            pos="n",
         ),
     ]
     grouped = group_to_records(entries)
@@ -751,8 +900,13 @@ def test_counts_follow_a_form_that_merges_into_an_existing_lemma() -> None:
 def test_counts_of_a_dropped_malformed_form_are_dropped_with_it() -> None:
     entries = [
         SynsetEntry(
-            "en", "s1", "i1", "with a placeholder", ("real", "GAP!"),
-            member_counts=(7, 5), pos="n",
+            "en",
+            "s1",
+            "i1",
+            "with a placeholder",
+            ("real", "GAP!"),
+            member_counts=(7, 5),
+            pos="n",
         ),
     ]
     grouped = group_to_records(entries)
@@ -766,8 +920,13 @@ def test_counts_of_a_dropped_malformed_form_are_dropped_with_it() -> None:
 def test_misaligned_member_counts_are_rejected_not_truncated() -> None:
     # Zip-truncating would silently move counts onto the wrong words.
     entry = SynsetEntry(
-        "en", "s1", "i1", "two members, one count", ("alpha", "beta"),
-        member_counts=(3,), pos="n",
+        "en",
+        "s1",
+        "i1",
+        "two members, one count",
+        ("alpha", "beta"),
+        member_counts=(3,),
+        pos="n",
     )
     with pytest.raises(MemberCountMismatchError):
         group_to_records([entry])

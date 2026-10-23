@@ -65,8 +65,10 @@ def per_table_timings(data_fol) -> None:  # noqa: ANN001
     (whole-corpus) path pays all at once.
     """
     log("\n== per-table stage timings (frugal: one table at a time) ==")
-    log(f"  {'table':<18}{'rows':>9}  {'read':>8}  {'validate':>9}  {'dump':>8}  "
-          f"{'us/row(v)':>10}")
+    log(
+        f"  {'table':<18}{'rows':>9}  {'read':>8}  {'validate':>9}  {'dump':>8}  "
+        f"{'us/row(v)':>10}"
+    )
     for name in TABLES:
         # Stage 1: pyarrow read -> list[dict]
         t0 = time.perf_counter()
@@ -90,8 +92,10 @@ def per_table_timings(data_fol) -> None:  # noqa: ANN001
         t_dump = time.perf_counter() - t0
 
         us_per_row = (t_validate / n * 1e6) if n else 0.0
-        log(f"  {name:<18}{n:>9,}  {t_read:>7.2f}s  {t_validate:>8.2f}s  "
-              f"{t_dump:>7.2f}s  {us_per_row:>9.1f}")
+        log(
+            f"  {name:<18}{n:>9,}  {t_read:>7.2f}s  {t_validate:>8.2f}s  "
+            f"{t_dump:>7.2f}s  {us_per_row:>9.1f}"
+        )
         models.clear()
         del models
         gc.collect()
@@ -148,8 +152,10 @@ def end_to_end(data_fol) -> None:  # noqa: ANN001
     log("\n== end to end (the REAL load path; may OOM) ==")
     t0 = time.perf_counter()
     store = LexiconStore.from_data_fol(data_fol)
-    log(f"  from_data_fol: {time.perf_counter() - t0:.2f}s   "
-          f"(peak RSS {_max_rss_mb():.0f} MB)")
+    log(
+        f"  from_data_fol: {time.perf_counter() - t0:.2f}s   "
+        f"(peak RSS {_max_rss_mb():.0f} MB)"
+    )
     t0 = time.perf_counter()
     concepts = store.get_all_concepts()
     log(f"  get_all_concepts() [{len(concepts):,}]: {time.perf_counter() - t0:.2f}s")

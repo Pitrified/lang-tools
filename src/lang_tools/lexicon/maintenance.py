@@ -197,8 +197,7 @@ def _enrich_hit(
 ) -> ThinGloss:
     """Attach the concept-level prompt context to one worklist hit."""
     lexfile, en_def = con.execute(
-        f"SELECT lexfile, definitions['en'] FROM {t['concepts']} "
-        "WHERE id = ?",
+        f"SELECT lexfile, definitions['en'] FROM {t['concepts']} WHERE id = ?",
         [cid],
     ).fetchone()
     en_members = [

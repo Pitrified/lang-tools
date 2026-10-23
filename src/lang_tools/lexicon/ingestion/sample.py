@@ -40,6 +40,7 @@ def _languages_per_concept(tables: TaggedTables) -> dict[str, set[str]]:
             per_concept.setdefault(sense.concept_id, set()).add(language)
     return per_concept
 
+
 def _edges_within(
     edges: Sequence[Any],
     sources: Sequence[str],

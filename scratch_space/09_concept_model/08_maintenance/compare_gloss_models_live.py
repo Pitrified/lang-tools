@@ -30,7 +30,11 @@ class NoReasoningConfig(ChatOpenAIConfig):
 
 
 MODEL = "gpt-6-luna"
-PRICES = {"input_per_m": 0.10, "cached_per_m": 0.01, "output_per_m": 0.50}  # standard tier
+PRICES = {
+    "input_per_m": 0.10,
+    "cached_per_m": 0.01,
+    "output_per_m": 0.50,
+}  # standard tier
 
 data_fol = get_lang_tools_params().paths.data_fol
 root = data_fol / "_raw" / "lexicon" / "maintenance" / "gloss_compare"
@@ -42,7 +46,9 @@ by_key = {item.key: item for item in items}
 by_lang = collections.defaultdict(list)
 for key, chunk in chunk_items(items):
     by_lang[key.split(":")[0]].append((key, chunk))
-picked = [lang_chunks[len(lang_chunks) // 2] for _, lang_chunks in sorted(by_lang.items())]
+picked = [
+    lang_chunks[len(lang_chunks) // 2] for _, lang_chunks in sorted(by_lang.items())
+]
 print("chunks", [k for k, _ in picked])
 
 chain = build_gloss_translate_chain(NoReasoningConfig(model=MODEL), version=VERSION)
@@ -66,7 +72,10 @@ print(
 (root / TAG).mkdir(parents=True, exist_ok=True)
 (root / TAG / "glosses.json").write_text(
     json.dumps(
-        {r.language + ":" + r.concept_id.rsplit("__", 1)[1]: r.proposed_definition for r in rows},
+        {
+            r.language + ":" + r.concept_id.rsplit("__", 1)[1]: r.proposed_definition
+            for r in rows
+        },
         ensure_ascii=False,
         indent=1,
     ),

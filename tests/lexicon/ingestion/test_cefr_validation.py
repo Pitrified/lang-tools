@@ -73,9 +73,7 @@ def test_rank_correlation_is_near_one_when_the_ordering_matches() -> None:
 
 
 def test_rank_correlation_is_negative_when_the_ordering_is_reversed() -> None:
-    reversed_pairs = [
-        (-score, band) for score, band in _perfectly_ordered_pairs()
-    ]
+    reversed_pairs = [(-score, band) for score, band in _perfectly_ordered_pairs()]
     assert rank_correlation(reversed_pairs) < -0.9
 
 

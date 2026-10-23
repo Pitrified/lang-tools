@@ -44,8 +44,10 @@ def _timed(label: str, fn) -> object:  # noqa: ANN001 - scratch
     """Run fn, log elapsed + current peak RSS, return its result."""
     t0 = time.perf_counter()
     out = fn()
-    log(f"  {label:<46} {time.perf_counter() - t0:8.3f} s   "
-        f"(peak RSS {_max_rss_mb():7.0f} MB)")
+    log(
+        f"  {label:<46} {time.perf_counter() - t0:8.3f} s   "
+        f"(peak RSS {_max_rss_mb():7.0f} MB)"
+    )
     return out
 
 
@@ -63,25 +65,33 @@ def main() -> None:
     cache_db.unlink(missing_ok=True)
     sig.unlink(missing_ok=True)
     log("\n== cold: streaming build + persist ==")
-    store = _timed("cold from_data_fol (build + persist)",
-                   lambda: LexiconStore.from_data_fol(data_fol))
-    log(f"  cache file written: {cache_db.exists()}  ({cache_db.stat().st_size/1e6:.1f} MB)")
+    store = _timed(
+        "cold from_data_fol (build + persist)",
+        lambda: LexiconStore.from_data_fol(data_fol),
+    )
+    log(
+        f"  cache file written: {cache_db.exists()}  ({cache_db.stat().st_size / 1e6:.1f} MB)"
+    )
     n_concepts = len(store.get_all_concepts())
     n_lemmas = len(store.get_all_lemmas())
     log(f"  concepts={n_concepts:,}  lemmas={n_lemmas:,}")
 
     # 2. WARM: same call, served from the persisted cache (bare connect).
     log("\n== warm: cache hit (bare connect) ==")
-    warm = _timed("warm from_data_fol (cache hit)",
-                  lambda: LexiconStore.from_data_fol(data_fol))
+    warm = _timed(
+        "warm from_data_fol (cache hit)", lambda: LexiconStore.from_data_fol(data_fol)
+    )
     sample = warm.get_concept_by_id(warm.get_all_concepts()[0].id)
     log(f"  sanity: fetched a concept back -> {sample is not None}")
 
     # 3. VALIDATE: the slow model-validating path (no cache), for comparison.
     log("\n== validate=True: model-validating path (no cache) ==")
-    _timed("from_data_fol(validate=True, db_path=:memory:)",
-           lambda: LexiconStore.from_data_fol(
-               data_fol, db_path=":memory:", validate=True, use_cache=False))
+    _timed(
+        "from_data_fol(validate=True, db_path=:memory:)",
+        lambda: LexiconStore.from_data_fol(
+            data_fol, db_path=":memory:", validate=True, use_cache=False
+        ),
+    )
 
     log(f"\nfinal peak RSS {_max_rss_mb():.0f} MB")
 

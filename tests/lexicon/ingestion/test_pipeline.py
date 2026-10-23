@@ -26,8 +26,13 @@ def _omw_with_counts() -> list[SynsetEntry]:
     """Return the `_omw` shape, with SemCor counts on the English members."""
     return [
         SynsetEntry(
-            "en", "en-1", "i001", "a building for living", ("house",),
-            member_counts=(21,), pos="n",
+            "en",
+            "en-1",
+            "i001",
+            "a building for living",
+            ("house",),
+            member_counts=(21,),
+            pos="n",
         ),
         SynsetEntry("pt", "pt-1", "i001", "uma moradia", ("casa",), pos="n"),
         SynsetEntry("en", "en-2", "i002", "a flow of water", ("river",), pos="n"),
@@ -104,12 +109,24 @@ def test_relations_reach_disk_with_their_provenance(tmp_path: Path) -> None:
     # reach the corpus, the derived concept antonym tagged so it stays visible.
     entries = [
         SynsetEntry(
-            "en", "en-1", "i001", "of high temperature", ("hot",), pos="a",
+            "en",
+            "en-1",
+            "i001",
+            "of high temperature",
+            ("hot",),
+            pos="a",
             sense_links=(SenseLink("hot", "antonym", "en-2", "cold"),),
         ),
         SynsetEntry("en", "en-2", "i002", "of low temperature", ("cold",), pos="a"),
-        SynsetEntry("pt", "pt-3", "i003", "um animal", ("animal",), pos="n",
-                    relations={"hyponym": ("pt-4",)}),
+        SynsetEntry(
+            "pt",
+            "pt-3",
+            "i003",
+            "um animal",
+            ("animal",),
+            pos="n",
+            relations={"hyponym": ("pt-4",)},
+        ),
         SynsetEntry("pt", "pt-4", "i004", "um cao", ("cão",), pos="n"),
     ]
     summary = build_initial(["en", "pt"], data_fol=tmp_path, omw_entries=entries)
@@ -143,7 +160,12 @@ def test_topics_reach_disk_and_lemmas_through_the_store(tmp_path: Path) -> None:
     )
     entries = [
         SynsetEntry(
-            "en", "en-1", "i001", "a building for living", ("house",), pos="n",
+            "en",
+            "en-1",
+            "i001",
+            "a building for living",
+            ("house",),
+            pos="n",
             lexfile="noun.artifact",
         ),
         SynsetEntry("pt", "pt-1", "i001", None, ("casa",), pos="n"),

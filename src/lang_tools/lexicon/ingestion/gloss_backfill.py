@@ -248,10 +248,13 @@ def _screen(item: BackfillItem, text: str) -> str:
     if folded in {_fold(member) for member in item.target_members}:
         return "restates a member word"
     # Untranslated keeps accents: fr "Médiocre" for "mediocre" is a translation.
-    if normalize_gloss(text, "").casefold() == normalize_gloss(
-        item.english_definition,
-        "",
-    ).casefold():
+    if (
+        normalize_gloss(text, "").casefold()
+        == normalize_gloss(
+            item.english_definition,
+            "",
+        ).casefold()
+    ):
         return "untranslated"
     if len(text) > MAX_LENGTH_RATIO * max(len(item.english_definition), 20):
         return "runaway length"

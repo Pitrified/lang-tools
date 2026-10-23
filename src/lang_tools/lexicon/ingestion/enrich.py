@@ -366,9 +366,7 @@ def _enrich_lemma_senses(
             stats["with_frequency"] += 1
         # Measured only for an English single-word form on a sense SemCor tagged;
         # every other split borrows the English distribution or is composed.
-        measured = (
-            lemma.language == MEASURED_LANGUAGE and weight > 0 and not composed
-        )
+        measured = lemma.language == MEASURED_LANGUAGE and weight > 0 and not composed
         sense.frequency_is_estimated = not measured
         if sense.frequency_is_estimated:
             stats["estimated"] += 1

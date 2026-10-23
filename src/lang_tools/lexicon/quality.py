@@ -227,6 +227,7 @@ def _has_column(con: Any, source: str, column: str) -> bool:  # noqa: ANN401
 # Check registry: (name, title, description, sql builder over the source map).
 # --------------------------------------------------------------------------- #
 
+
 def _def_eq_sole_member_hits(t: dict[str, str]) -> str:
     """Return the shared CTE prefix selecting `definition == lemma` hits.
 
@@ -260,30 +261,35 @@ _CHECKS: list[tuple[str, str, str, Callable[[dict[str, str]], str]]] = [
         "row_counts",
         "Row counts",
         "Total rows per source-of-truth table.",
-        lambda t: f"""
+        lambda t: (
+            f"""
 SELECT 'concepts' AS tbl, count(*) AS n FROM {t["concepts"]}
 UNION ALL SELECT 'lemmas', count(*) FROM {t["lemmas"]}
 UNION ALL SELECT 'senses', count(*) FROM {t["senses"]}
 UNION ALL SELECT 'lookalikes', count(*) FROM {t["lookalikes"]}
 UNION ALL SELECT 'concept_relations', count(*) FROM {t["concept_relations"]}
 UNION ALL SELECT 'sense_relations', count(*) FROM {t["sense_relations"]}
-""",
+"""
+        ),
     ),
     (
         "lemmas_per_language",
         "Lemmas per language",
         "Lemma rows by language (OMW member forms).",
-        lambda t: f"""
+        lambda t: (
+            f"""
 SELECT language, count(*) AS n_lemmas FROM {t["lemmas"]}
 GROUP BY language ORDER BY n_lemmas DESC
-""",
+"""
+        ),
     ),
     (
         "edge_reconciliation",
         "Edge reconciliation (must be zero)",
         "Senses and relations must point at real rows and every lemma must have "
         "an edge; any nonzero is a transform bug.",
-        lambda t: f"""
+        lambda t: (
+            f"""
 SELECT 'sense->missing lemma' AS check, count(*) AS n
   FROM {t["senses"]} s LEFT JOIN {t["lemmas"]} l ON s.lemma_id = l.id
   WHERE l.id IS NULL
@@ -307,13 +313,15 @@ SELECT 'sense relation->missing sense', count(*)
   LEFT JOIN {t["senses"]} sa ON r.sense_id_a = sa.id
   LEFT JOIN {t["senses"]} sb ON r.sense_id_b = sb.id
   WHERE sa.id IS NULL OR sb.id IS NULL
-""",
+"""
+        ),
     ),
     (
         "cardinality_distributions",
         "Cardinality distributions",
         "Lemmas per concept and concepts per lemma (min/p50/p95/max/avg).",
-        lambda t: f"""
+        lambda t: (
+            f"""
 WITH per_concept AS (
   SELECT concept_id, count(*) n FROM {t["senses"]} GROUP BY concept_id
 ),
@@ -330,14 +338,16 @@ SELECT 'concepts_per_lemma',
        min(n), quantile_cont(n, 0.5), quantile_cont(n, 0.95), max(n),
        round(avg(n), 2)
 FROM per_lemma
-""",
+"""
+        ),
     ),
     (
         "degenerate_concepts",
         "Emptiness and degenerate cardinality",
         "Concepts with no gloss in any language, exactly one gloss, no member "
         "(orphan), or a single member.",
-        lambda t: f"""
+        lambda t: (
+            f"""
 WITH members AS (
   SELECT concept_id, count(*) n FROM {t["senses"]} GROUP BY concept_id
 ),
@@ -349,14 +359,16 @@ SELECT
      LEFT JOIN members m ON c.id = m.concept_id
      WHERE m.n IS NULL) AS concepts_orphan_no_member,
   (SELECT count(*) FROM members WHERE n = 1) AS concepts_single_member
-""",
+"""
+        ),
     ),
     (
         "language_span",
         "Single- vs multi-language concepts",
         "Concepts whose members span one vs several languages; multi-language is "
         "the cross-lingual grouping the design exists for.",
-        lambda t: f"""
+        lambda t: (
+            f"""
 WITH langs AS (
   SELECT s.concept_id, count(DISTINCT l.language) nl
   FROM {t["senses"]} s JOIN {t["lemmas"]} l ON s.lemma_id = l.id
@@ -366,14 +378,16 @@ SELECT count(*) FILTER (WHERE nl = 1) AS single_language,
        count(*) FILTER (WHERE nl > 1) AS multi_language,
        round(100.0 * count(*) FILTER (WHERE nl > 1) / count(*), 1) AS pct_multi
 FROM langs
-""",
+"""
+        ),
     ),
     (
         "gloss_coverage",
         "Gloss coverage per language",
         "Of the concepts that have a lemma in language L, how many carry an L "
         "gloss (post-cleanup: real OMW coverage, no kaikki inflation).",
-        lambda t: f"""
+        lambda t: (
+            f"""
 WITH cl AS (
   SELECT DISTINCT s.concept_id, l.language
   FROM {t["senses"]} s JOIN {t["lemmas"]} l ON s.lemma_id = l.id
@@ -388,35 +402,40 @@ SELECT cl.language,
        ) / count(*), 1) AS pct_gloss
 FROM cl JOIN {t["concepts"]} c ON c.id = cl.concept_id
 GROUP BY cl.language ORDER BY concepts_touched DESC
-""",
+"""
+        ),
     ),
     (
         "concept_example_coverage",
         "Concept example coverage",
         "Concepts carrying at least one example sentence, per example language "
         "(examples are OMW synset examples, concept-level per 5.5 Step 4).",
-        lambda t: f"""
+        lambda t: (
+            f"""
 WITH per_lang AS (
   SELECT unnest(map_keys(examples)) AS language FROM {t["concepts"]}
   WHERE len(map_keys(examples)) > 0
 )
 SELECT language, count(*) AS concepts_with_examples
 FROM per_lang GROUP BY language ORDER BY concepts_with_examples DESC
-""",
+"""
+        ),
     ),
     (
         "lexfile_coverage",
         "Lexfile coverage",
         "Concepts carrying the WordNet lexicographer file label "
         "(concept-level per 5.5 Step 4).",
-        lambda t: f"""
+        lambda t: (
+            f"""
 SELECT count(*) AS concepts,
        count(*) FILTER (
          WHERE lexfile IS NOT NULL AND lexfile <> ''
        ) AS with_lexfile,
        count(DISTINCT lexfile) AS distinct_lexfiles
 FROM {t["concepts"]}
-""",
+"""
+        ),
     ),
     (
         "relation_types",
@@ -426,60 +445,69 @@ FROM {t["concepts"]}
         "the links a lexicon states only as `hyponym`, and `mero_*` the `holo_*` "
         "ones. Concept `antonym` edges are derived from English sense antonymy. "
         "A type that disappears between builds is a lost source, not a cleanup.",
-        lambda t: f"""
+        lambda t: (
+            f"""
 SELECT 'concept_relations' AS tbl, relation_type, count(*) AS n
 FROM {t["concept_relations"]} GROUP BY relation_type
 UNION ALL
 SELECT 'sense_relations', relation_type, count(*)
 FROM {t["sense_relations"]} GROUP BY relation_type
 ORDER BY tbl, n DESC
-""",
+"""
+        ),
     ),
     (
         "pos_distribution",
         "Part-of-speech distribution",
         "Mapped part-of-speech counts; a `<null>` bucket would flag OMW codes "
         "outside our map.",
-        lambda t: f"""
+        lambda t: (
+            f"""
 SELECT coalesce(part_of_speech, '<null>') AS pos, count(*) AS n
 FROM {t["lemmas"]} GROUP BY 1 ORDER BY n DESC
-""",
+"""
+        ),
     ),
     (
         "kaikki_tagged_lemmas",
         "kaikki-tagged lemmas (must be zero)",
         "Lemmas whose `sources` list still includes kaikki; the 5.5 Step-1 "
         "cleanup removed the writer, so any hit means a stale corpus.",
-        lambda t: f"""
+        lambda t: (
+            f"""
 SELECT language,
        count(*) AS n_lemmas,
        count(*) FILTER (WHERE list_contains(sources, 'kaikki')) AS kaikki_tagged
 FROM {t["lemmas"]} GROUP BY language ORDER BY n_lemmas DESC
-""",
+"""
+        ),
     ),
     (
         "slug_collisions_top",
         "Top shared concept slugs",
         "Most-collided `c__{slug}__{hash}` slugs - a legibility issue (ids stay "
         "unique via the hash); routed to phase 8.",
-        lambda t: f"""
+        lambda t: (
+            f"""
 WITH s AS (SELECT split_part(id, '__', 2) AS slug FROM {t["concepts"]})
 SELECT slug, count(*) AS n_concepts FROM s GROUP BY slug
 HAVING count(*) > 1 ORDER BY n_concepts DESC, slug LIMIT 20
-""",
+"""
+        ),
     ),
     (
         "slug_collision_totals",
         "Slug collision totals",
-        "Distinct slugs vs total concepts, and the generic `concept` fallback "
-        "count.",
-        lambda t: f"""
+        "Distinct slugs vs total concepts, and the generic `concept` fallback count.",
+        lambda t: (
+            f"""
 WITH s AS (SELECT split_part(id, '__', 2) AS slug FROM {t["concepts"]})
 SELECT count(*) AS concepts,
        count(DISTINCT slug) AS distinct_slugs,
        count(*) FILTER (WHERE slug = 'concept') AS generic_concept_slug
 FROM s
-""",
+"""
+        ),
     ),
     (
         "definition_equals_lemma",
@@ -488,22 +516,26 @@ FROM s
         "member form in that language - a genuinely thin gloss (5.55 Q3 scope; "
         "gloss-equals-other-member coincidences are valid and excluded). The "
         "residual count is the 5.55 gloss-repair worklist.",
-        lambda t: _def_eq_sole_member_hits(t)
-        + """
+        lambda t: (
+            _def_eq_sole_member_hits(t)
+            + """
 SELECT (SELECT count(*) FROM hits) AS definition_equals_lemma_rows,
        (SELECT count(DISTINCT concept_id) FROM hits) AS concepts_affected
-""",
+"""
+        ),
     ),
     (
         "definition_equals_lemma_samples",
         "definition == lemma samples",
         "A sample of offending (concept, language, definition, lemma) rows "
         "under the 5.55 Q3 sole-member scope.",
-        lambda t: _def_eq_sole_member_hits(t)
-        + """
+        lambda t: (
+            _def_eq_sole_member_hits(t)
+            + """
 SELECT concept_id, lang, definition, lemma FROM hits
 ORDER BY concept_id, lang LIMIT 25
-""",
+"""
+        ),
     ),
     (
         "frequency_coverage",
@@ -511,7 +543,8 @@ ORDER BY concept_id, lang LIMIT 25
         "Senses carrying a token frequency, per language. The gap is forms "
         "`wordfreq` does not know: they store NULL, never 0.0, because its 0.0 "
         "cannot be told apart from a form measured as never occurring.",
-        lambda t: f"""
+        lambda t: (
+            f"""
 SELECT l.language,
        count(*) AS n_senses,
        count(s.token_frequency) AS with_frequency,
@@ -520,7 +553,8 @@ SELECT l.language,
        round(avg(s.token_frequency), 2) AS mean_zipf
 FROM {t["senses"]} s JOIN {t["lemmas"]} l ON l.id = s.lemma_id
 GROUP BY l.language ORDER BY l.language
-""",
+"""
+        ),
     ),
     (
         "cefr_distribution",
@@ -528,7 +562,8 @@ GROUP BY l.language ORDER BY l.language
         "Estimated difficulty bands. Every band is estimated - Kelly is "
         "CC-BY-NC-SA and validation-only, so no graded list is ever merged - "
         "which is why there is no measured column to compare against here.",
-        lambda t: f"""
+        lambda t: (
+            f"""
 SELECT l.language,
        count(*) FILTER (WHERE s.cefr_level = 'A1') AS a1,
        count(*) FILTER (WHERE s.cefr_level = 'A2') AS a2,
@@ -539,7 +574,8 @@ SELECT l.language,
        count(*) FILTER (WHERE s.cefr_level IS NULL) AS unbanded
 FROM {t["senses"]} s JOIN {t["lemmas"]} l ON l.id = s.lemma_id
 GROUP BY l.language ORDER BY l.language
-""",
+"""
+        ),
     ),
     (
         "commonness_coverage",
@@ -547,26 +583,30 @@ GROUP BY l.language ORDER BY l.language
         "SemCor-derived concept commonness. NULL means the concept has no "
         "English member to count; 0 means it has one SemCor never tagged. The "
         "two are deliberately distinct.",
-        lambda t: f"""
+        lambda t: (
+            f"""
 SELECT count(*) AS n_concepts,
        count(commonness) AS with_commonness,
        count(*) FILTER (WHERE commonness = 0) AS counted_zero,
        count(*) FILTER (WHERE commonness > 0) AS counted_positive,
        round(max(commonness), 2) AS max_commonness
 FROM {t["concepts"]}
-""",
+"""
+        ),
     ),
     (
         "suspicious_lemmas",
         "Suspicious lemmas",
         "Multi-word, digit-bearing, or very long member forms a cleanup pass "
         "might drop/flag.",
-        lambda t: f"""
+        lambda t: (
+            f"""
 SELECT count(*) FILTER (WHERE text LIKE '% %') AS multiword,
        count(*) FILTER (WHERE regexp_matches(text, '[0-9]')) AS has_digit,
        count(*) FILTER (WHERE length(text) > 30) AS very_long
 FROM {t["lemmas"]}
-""",
+"""
+        ),
     ),
 ]
 
@@ -579,8 +619,7 @@ def _provenance_check(con: Any, t: dict[str, str]) -> CheckResult:  # noqa: ANN4
     assumed.
     """
     parts = [
-        f"SELECT '{name}' AS tbl, source, count(*) AS n "
-        f"FROM {t[name]} GROUP BY source"
+        f"SELECT '{name}' AS tbl, source, count(*) AS n FROM {t[name]} GROUP BY source"
         for name in ("concepts", "lemmas", "senses", "concept_relations")
         if _has_column(con, t[name], "source")
     ]
@@ -751,8 +790,7 @@ def _evaluate_invariants(
     """
     kaikki_lemmas = _scalar(
         con,
-        f"SELECT count(*) FROM {t['lemmas']} "
-        f"WHERE list_contains(sources, 'kaikki')",
+        f"SELECT count(*) FROM {t['lemmas']} WHERE list_contains(sources, 'kaikki')",
     )
     kaikki_disk = sum(
         _scalar(

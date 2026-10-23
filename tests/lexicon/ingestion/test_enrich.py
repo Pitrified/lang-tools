@@ -33,12 +33,22 @@ def _tables_two_senses() -> tuple[TaggedTables, str, str]:
     """One English lemma on two concepts, with SemCor counts 30 / 10."""
     entries = [
         SynsetEntry(
-            "en", "en-1", "i001", "a financial institution", ("bank",),
-            member_counts=(30,), pos="n",
+            "en",
+            "en-1",
+            "i001",
+            "a financial institution",
+            ("bank",),
+            member_counts=(30,),
+            pos="n",
         ),
         SynsetEntry(
-            "en", "en-2", "i002", "sloping land beside water", ("bank",),
-            member_counts=(10,), pos="n",
+            "en",
+            "en-2",
+            "i002",
+            "sloping land beside water",
+            ("bank",),
+            member_counts=(10,),
+            pos="n",
         ),
     ]
     tables = transform(entries)
@@ -74,8 +84,13 @@ def test_sense_frequency_splits_in_linear_space_not_log_space() -> None:
 def test_smoothing_keeps_an_untagged_sense_above_zero() -> None:
     entries = [
         SynsetEntry(
-            "en", "en-1", "i001", "a tagged meaning", ("word",),
-            member_counts=(50,), pos="n",
+            "en",
+            "en-1",
+            "i001",
+            "a tagged meaning",
+            ("word",),
+            member_counts=(50,),
+            pos="n",
         ),
         SynsetEntry("en", "en-2", "i002", "an untagged meaning", ("word",), pos="n"),
     ]
@@ -110,8 +125,13 @@ def test_english_tagged_single_word_sense_is_measured_not_estimated() -> None:
 def test_non_english_sense_is_always_estimated() -> None:
     entries = [
         SynsetEntry(
-            "en", "en-1", "i001", "a building", ("house",),
-            member_counts=(12,), pos="n",
+            "en",
+            "en-1",
+            "i001",
+            "a building",
+            ("house",),
+            member_counts=(12,),
+            pos="n",
         ),
         SynsetEntry("pt", "pt-1", "i001", "uma moradia", ("casa",), pos="n"),
     ]
@@ -132,8 +152,13 @@ def test_non_english_sense_is_always_estimated() -> None:
 def test_multiword_form_is_estimated_because_wordfreq_composes_it() -> None:
     entries = [
         SynsetEntry(
-            "en", "en-1", "i001", "the top officer", ("chief executive officer",),
-            member_counts=(5,), pos="n",
+            "en",
+            "en-1",
+            "i001",
+            "the top officer",
+            ("chief executive officer",),
+            member_counts=(5,),
+            pos="n",
         ),
     ]
     tables = transform(entries)
@@ -146,8 +171,13 @@ def test_multiword_form_is_estimated_because_wordfreq_composes_it() -> None:
 def test_commonness_is_set_from_semcor_and_distinguishes_zero_from_absent() -> None:
     entries = [
         SynsetEntry(
-            "en", "en-1", "i001", "a tagged concept", ("alpha",),
-            member_counts=(99,), pos="n",
+            "en",
+            "en-1",
+            "i001",
+            "a tagged concept",
+            ("alpha",),
+            member_counts=(99,),
+            pos="n",
         ),
         # English member, never tagged -> counted zero, not absent.
         SynsetEntry("en", "en-2", "i002", "an untagged concept", ("beta",), pos="n"),
@@ -227,10 +257,14 @@ def test_difficulty_rises_as_a_word_gets_rarer() -> None:
 def test_difficulty_rises_with_depth_and_falls_with_commonness() -> None:
     base = {"zipf": 4.0, "length": 6}
     assert difficulty_score(commonness=2.0, depth=15, **base) > difficulty_score(
-        commonness=2.0, depth=1, **base,
+        commonness=2.0,
+        depth=1,
+        **base,
     )
     assert difficulty_score(commonness=0.0, depth=5, **base) > difficulty_score(
-        commonness=3.0, depth=5, **base,
+        commonness=3.0,
+        depth=5,
+        **base,
     )
 
 

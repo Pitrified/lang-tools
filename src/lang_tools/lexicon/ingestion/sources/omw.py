@@ -151,8 +151,7 @@ class UnknownOmwLanguageError(KeyError):
             language: The ISO 639-1 code with no mapped OMW lexicon.
         """
         super().__init__(
-            f"No OMW lexicon known for {language!r} "
-            f"(known: {sorted(OMW_LEXICONS)}).",
+            f"No OMW lexicon known for {language!r} (known: {sorted(OMW_LEXICONS)}).",
         )
         self.language = language
 

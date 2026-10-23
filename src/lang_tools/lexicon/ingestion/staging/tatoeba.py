@@ -249,8 +249,7 @@ def download_tatoeba_sentences(
         raw = _download_bytes(src)
         lines = bz2.decompress(raw).decode("utf-8").splitlines()
         rows = [
-            {"sentence_id": sid, "text": text}
-            for sid, text in parse_tatoeba_tsv(lines)
+            {"sentence_id": sid, "text": text} for sid, text in parse_tatoeba_tsv(lines)
         ]
         out = out_dir / f"{lang}.parquet"
         count = write_rows_parquet(rows, out, columns=SENTENCE_COLUMNS)

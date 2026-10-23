@@ -92,14 +92,42 @@ def test_base_of_drops_the_lexfile_suffix() -> None:
 
 def _hot_entries() -> list[SynsetEntry]:
     return [
-        SynsetEntry("en", "en-1", "i1", "having a high temperature", ("hot",),
-                    pos="a", lexfile="adj.all"),
-        SynsetEntry("en", "en-2", "i2", "recently stolen or smuggled", ("hot",),
-                    pos="a", lexfile="adj.all"),
-        SynsetEntry("en", "en-3", "i3", "wanted by the police", ("hot",),
-                    pos="a", lexfile="adj.all"),
-        SynsetEntry("en", "en-4", "i4", "a warm place", ("hot",), pos="n",
-                    lexfile="noun.location"),
+        SynsetEntry(
+            "en",
+            "en-1",
+            "i1",
+            "having a high temperature",
+            ("hot",),
+            pos="a",
+            lexfile="adj.all",
+        ),
+        SynsetEntry(
+            "en",
+            "en-2",
+            "i2",
+            "recently stolen or smuggled",
+            ("hot",),
+            pos="a",
+            lexfile="adj.all",
+        ),
+        SynsetEntry(
+            "en",
+            "en-3",
+            "i3",
+            "wanted by the police",
+            ("hot",),
+            pos="a",
+            lexfile="adj.all",
+        ),
+        SynsetEntry(
+            "en",
+            "en-4",
+            "i4",
+            "a warm place",
+            ("hot",),
+            pos="n",
+            lexfile="noun.location",
+        ),
     ]
 
 
@@ -129,8 +157,15 @@ def test_tier2_falls_back_when_a_qualified_slug_is_taken() -> None:
     # "hot-stolen", so both move to the longer tier1-qualifier form.
     entries = [
         *_hot_entries(),
-        SynsetEntry("en", "en-5", "i5", "a stolen place", ("hot",), pos="n",
-                    lexfile="noun.location"),
+        SynsetEntry(
+            "en",
+            "en-5",
+            "i5",
+            "a stolen place",
+            ("hot",),
+            pos="n",
+            lexfile="noun.location",
+        ),
     ]
     qualifiers = {
         source_key_hash("ili::i2"): "stolen",

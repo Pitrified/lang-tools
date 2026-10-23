@@ -129,10 +129,6 @@ def import_table(name: str, path: Path, *, data_fol: Path) -> int:
     # Validate the class exists up front (clear error on a bad table name).
     model_class(name)
     with path.open("r", encoding="utf-8") as fh:
-        models = [
-            model_from_row(name, json.loads(line))
-            for line in fh
-            if line.strip()
-        ]
+        models = [model_from_row(name, json.loads(line)) for line in fh if line.strip()]
     _dump_table(name, models, data_fol=data_fol)
     return len(models)

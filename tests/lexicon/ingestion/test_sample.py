@@ -56,7 +56,12 @@ def test_carve_prefers_richer_concepts_over_alphabetical_order() -> None:
     entries = [
         SynsetEntry("en", "s1", "i001", "def aaa", ("aaa",), pos="n"),
         SynsetEntry(
-            "en", "s2", "i002", "def zzz", ("zzz",), pos="n",
+            "en",
+            "s2",
+            "i002",
+            "def zzz",
+            ("zzz",),
+            pos="n",
             examples=("a zzz",),
         ),
         SynsetEntry("pt", "s2p", "i002", "def zzz pt", ("zzzpt",), pos="n"),

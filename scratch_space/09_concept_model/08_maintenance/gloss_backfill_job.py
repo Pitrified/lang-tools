@@ -61,7 +61,10 @@ from lang_tools.params.lang_tools_params import get_lang_tools_params
 MODEL = "gpt-6-luna"
 PROMPT_VERSION = "3"
 EXTRA_BODY = {"reasoning_effort": "none"}
-JOB_TAG = {"job": "lang-tools-gloss-backfill", "prompt": f"gloss_translate/v{PROMPT_VERSION}"}
+JOB_TAG = {
+    "job": "lang-tools-gloss-backfill",
+    "prompt": f"gloss_translate/v{PROMPT_VERSION}",
+}
 #: Batch prices per 1M tokens (developers.openai.com/api/docs/pricing, 2026-10-21).
 PRICES = {"input_per_m": 0.05, "cached_per_m": 0.005, "output_per_m": 0.25}
 #: Measured on the 100-gloss comparison (gpt-6-luna + v3): tokens per gloss.
@@ -74,7 +77,9 @@ REVIEW = HERE / "gloss_backfill_review_sample.md"
 data_fol = get_lang_tools_params().paths.data_fol
 work = data_fol / "_raw" / "lexicon" / "maintenance" / "gloss_backfill_batch"
 checkpoint = work / "run.jsonl"
-chain = build_gloss_translate_chain(ChatOpenAIConfig(model=MODEL), version=PROMPT_VERSION)
+chain = build_gloss_translate_chain(
+    ChatOpenAIConfig(model=MODEL), version=PROMPT_VERSION
+)
 
 
 def _git_commit() -> str:
@@ -107,11 +112,17 @@ step = sys.argv[1] if len(sys.argv) > 1 else "plan"
 if step == "plan":
     tokens_in = MEASURED_PER_GLOSS["input"] * len(items)
     tokens_out = MEASURED_PER_GLOSS["output"] * len(items)
-    cost = (tokens_in * PRICES["input_per_m"] + tokens_out * PRICES["output_per_m"]) / 1e6
-    print(f"model {MODEL}, prompt v{PROMPT_VERSION} ({prompt_sha(chain)}), reasoning none")
+    cost = (
+        tokens_in * PRICES["input_per_m"] + tokens_out * PRICES["output_per_m"]
+    ) / 1e6
+    print(
+        f"model {MODEL}, prompt v{PROMPT_VERSION} ({prompt_sha(chain)}), reasoning none"
+    )
     print(f"glosses {len(items)} {dict(per_lang)}; requests {len(chunks)} (one batch)")
-    print(f"estimated from the measured sample: {tokens_in / 1e6:.1f}M in, "
-          f"{tokens_out / 1e6:.1f}M out, ~${cost:.2f} at batch prices")
+    print(
+        f"estimated from the measured sample: {tokens_in / 1e6:.1f}M in, "
+        f"{tokens_out / 1e6:.1f}M out, ~${cost:.2f} at batch prices"
+    )
     print("nothing submitted. To run: ... gloss_backfill_job.py submit --yes")
 
 elif step == "submit":
@@ -162,12 +173,16 @@ elif step == "collect":
         proposals += check_glosses(found, output)
     write_jsonl(proposals, curated_path(data_fol, GLOSS_BACKFILL_FILE))
     totals = summarize_usage(read_records(checkpoint))
-    print(f"chunks {len(outputs)}/{len(chunks)}, glosses {len(proposals)} "
-          f"({unmatched} returned under a mistyped key; "
-          f"{len(items) - len(proposals)} still missing), "
-          f"{collections.Counter(p.status for p in proposals)}")
-    print(f"usage: {totals.input_tokens} in, {totals.output_tokens} out, "
-          f"{totals.reasoning_tokens} reasoning; cost ${totals.cost(**PRICES):.2f}")
+    print(
+        f"chunks {len(outputs)}/{len(chunks)}, glosses {len(proposals)} "
+        f"({unmatched} returned under a mistyped key; "
+        f"{len(items) - len(proposals)} still missing), "
+        f"{collections.Counter(p.status for p in proposals)}"
+    )
+    print(
+        f"usage: {totals.input_tokens} in, {totals.output_tokens} out, "
+        f"{totals.reasoning_tokens} reasoning; cost ${totals.cost(**PRICES):.2f}"
+    )
     lines = [
         "# Gloss backfill - review sample (50 per language)",
         "",
@@ -177,9 +192,13 @@ elif step == "collect":
     ]
     for p in review_sample(proposals, per_language=50):
         item = by_key[f"{p.language}:{p.concept_id.rsplit('__', 1)[1]}"]
-        lines.append(f"- [{p.language}] **{item.english_definition}** -> {p.proposed_definition}")
+        lines.append(
+            f"- [{p.language}] **{item.english_definition}** -> {p.proposed_definition}"
+        )
     REVIEW.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"wrote {curated_path(data_fol, GLOSS_BACKFILL_FILE)} and {REVIEW} - commit both")
+    print(
+        f"wrote {curated_path(data_fol, GLOSS_BACKFILL_FILE)} and {REVIEW} - commit both"
+    )
 
 else:
     sys.exit(f"unknown step {step!r}: plan | submit --yes | status | collect")

@@ -20,12 +20,14 @@ _DEFINITION = "artéria que irriga o coração"
 
 def _entries() -> list[SynsetEntry]:
     return [
-        SynsetEntry("en", "en-1", "i1", "an artery of the heart", ("coronary",),
-                    pos="n"),
+        SynsetEntry(
+            "en", "en-1", "i1", "an artery of the heart", ("coronary",), pos="n"
+        ),
         SynsetEntry("pt", "pt-1", "i1", None, (_DEFINITION, "coronária"), pos="n"),
         SynsetEntry("en", "en-2", "i2", "a national park", ("Yosemite",), pos="n"),
-        SynsetEntry("pt", "pt-2", "i2", None,
-                    ("Parque Nacional de Yosemite agora",), pos="n"),
+        SynsetEntry(
+            "pt", "pt-2", "i2", None, ("Parque Nacional de Yosemite agora",), pos="n"
+        ),
     ]
 
 
