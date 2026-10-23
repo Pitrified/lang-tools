@@ -546,6 +546,15 @@ and the open gold disagreements fit the same two:
    *Candidate rule:* a plural or feminine form takes the label of its base form unless it
    has an everyday meaning of its own, which the note then names.
 
+**Both rules adopted (2026-10-23).** The guide states them, and the build enforces the
+first: `drop_rare_traps` removes any `full` / `partial` row whose known word is under Zipf
+3.3 (`MIN_TRAP_KNOWN_ZIPF`); the manifest counts it under `lookalikes.rare_traps_dropped`.
+The 34 rows of the 16 conflicting families were re-checked as `r0004` (gold 4/5): *empresa*
+and *empresas* are now both `f` against *empress*; *bonito*/*bonita*, *quarto*/*quarta*,
+*cantor*/*cantora* against their rare en words are `u`; *costas* and *secretaria* keep a
+label of their own. The rebuild has 2,801 edges (2,462 cognate, 177 partial, 162 full),
+71 rare-word traps dropped, 6 stale.
+
 Smaller patterns, no rule proposed: shared-root pairs across parts of speech (*propaganda*
 / it *propagandare*, *trânsito* / it *transitare*, *negócio* / it *negoziare*), labelled `c`
 or `p` inconsistently but rarely misleading; and register-dependent BR/PT words

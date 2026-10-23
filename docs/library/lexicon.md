@@ -757,7 +757,12 @@ stages:
    reviewed twice).
 3. **Build.** `build_initial` turns the accepted rows into edges
    (`apply_lookalikes`), skipping stale ones. It tags each edge `manual` (the
-   gold set), `agent` (a reviewed batch) or `llm`.
+   gold set), `agent` (a reviewed batch) or `llm`. Only the latest row of a pair
+   counts (`load_lookalikes`), so a re-check or a newer `manual` row overrides an
+   older label, and a later `unrelated` row retracts the edge. Before that,
+   `drop_rare_traps` removes every false friend whose known word is under Zipf 3.3
+   (`MIN_TRAP_KNOWN_ZIPF`): a learner is unlikely to know en *palaver* or *bonito*,
+   so the pair misleads nobody.
 
 The gate's `invalid_lookalike_edge` invariant checks every edge: both endpoints
 exist, the endpoints are in two languages, the pair is in canonical order and not
