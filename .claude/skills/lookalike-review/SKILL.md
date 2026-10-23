@@ -5,7 +5,7 @@ description: Review one batch of look-alike word pairs (pt vs en/it) for the lan
 
 # Look-alike review: one batch
 
-You label one batch of about 100 Portuguese / English-or-Italian look-alike pairs and record the
+You label one batch (100 or 200 items) of Portuguese / English-or-Italian look-alike pairs and record the
 labels. The work is pure judgement: do not explore the codebase, do not open other files than the
 ones named here, and keep your final report to a few lines.
 

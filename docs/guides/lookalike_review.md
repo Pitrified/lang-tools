@@ -34,6 +34,13 @@ resemblance help them, mislead them, or not register at all?
 - **Same root, drifted meaning:** `f` when the shared root no longer carries the meaning
   (pt *envio*, a shipment / en *envoy*). It is `u` when the forms differ enough that no one
   maps one onto the other.
+- **Grammatical words are `u`.** A preposition, conjunction, article, pronoun or other function
+  word is `u` against a content word it happens to resemble, because nobody reads one as the
+  other (pt *com* / en *come*, pt *mas* / en *mass*, pt *sem* / it *seme*, pt *para* / en *par*).
+  It is `f` or `p` only when the two share a root whose meaning drifted.
+- **The known language's own cognate wins.** When the known language has a direct cognate of the
+  pt word, a near-identical but different known word does not mislead, so it is `u`
+  (pt *caso* / it *casa*: it has *caso*; pt *casa* / it *cassa*: it has *casa*).
 - **Partial versus cognate:** ask whether the learner is misled *most of the time*. A shared but
   rare sense does not rescue a pair: pt *privada* (BR: toilet) / en *privacy* is `f`.
 - **The sense lists are hints.** They miss everyday meanings (*regalo* shows only "muff") and

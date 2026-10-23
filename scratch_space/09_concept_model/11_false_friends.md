@@ -392,7 +392,8 @@ parallel, one 100-pair batch each (`a0001`-`a0010`):
   near-identical rule turns them into false friends a learner is never fooled by: *com*
   / *come*, *mas* / *mass*, *sem* / it *seme*, *para* / *par*, *tal* / *tall*.
   Reviewers also called pairs like *caso* / it *casa* false friends, although Italian has
-  its own *caso*. Two refinements are proposed, pending the user's decision:
+  its own *caso*. Both refinements were adopted in the guide on 2026-10-23, from batch `a0011` on; the
+  first 1,000 agent rows were not re-labelled:
   1. A grammatical word (preposition, conjunction, article, pronoun) is `u` unless its
      meaning has drifted from a shared root.
   2. When the known language has its own direct cognate of the pt word, a near-identical
