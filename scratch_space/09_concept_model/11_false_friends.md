@@ -402,6 +402,23 @@ parallel, one 100-pair batch each (`a0001`-`a0010`):
   Laotian coin, *dela* the pig genus. These are homograph senses leaking into function
   words, worth a later data-quality pass.
 
+**Second calibration: two 200-pair batches under the refined rules (2026-10-23).** Two
+subagents, `a0011` and `a0012`, 200 tier-A pairs plus 5 hidden gold each:
+
+- **Cost:** 84k and 85k tokens, 6 tool calls, 80 to 100 seconds each. That is about 420
+  tokens per pair against about 720 at 100 per batch: the fixed overhead (about 60k) now
+  spreads over twice the pairs. The remaining 62.9k worklist items would take about 26M
+  tokens at this size, about 315 subagents.
+- **Agreement:** 10 of 10 gold pairs agreed (59 of 60 across all 12 batches).
+- **Results:** 140 cognate, 245 unrelated, 12 full and 3 partial false friends, 14 edge
+  cases. The false-friend rate dropped from 8% to 4% as the two rules turned look-alikes
+  such as *ali* / *alike*, *carro* / it *caro* and *visto* / *vista* into `u`, and as the
+  tier moves away from the most common words.
+- **Worth a second look:** *amo* / it *amo* was labelled `f`, but both languages use *amo*
+  for "I love", so it is at least `p`; *copa* / en *cope* is a near-identical `f` nobody
+  would confuse.
+
+
 ## Out of scope
 
 - Fixing OMW coverage holes (*embarazada*, *parents*): new-lemma mapping, in the backlog.
