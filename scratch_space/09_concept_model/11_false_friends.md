@@ -494,7 +494,11 @@ real traps: *precisa*, *cara* / it *caro*, *empresa* / *empress*, *era*, *time* 
 
 Besides tiers B to E, in priority order:
 
-1. **Function-word translations.** Rare homograph senses win the best-sense pick for very
+1. **Function-word translations.** Done 2026-10-23: `ingestion.closed_class` drops every
+   sense of a pt/es/fr/it closed-class word (231 senses, 118 lemmas). Six cognate edges
+   went stale with their lemmas (*quando* / it *quando*, *qual* / it *quale*, ...).
+   Still open: inflected verb forms with a junk best sense (*é* "e", *são* "healthy",
+   *seja* "are", the unit), and *brasil* "brazilwood". Original note: Rare homograph senses win the best-sense pick for very
    common words, so lang-tutor shows *para* as "for example", *com* as "aft", *como* as
    "east" (also *seja* "are", *cada* a Laotian coin, *dela* the pig genus). A learner meets
    these on the first cards. Fix: a curated override for the top function words, or a rule

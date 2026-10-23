@@ -484,6 +484,17 @@ proposed and reviewed (153 dropped, 8 kept: real names the model read as
 definitions, and two pairs joined by "et" / "ou" that want splitting); 174,315
 glosses backfilled across fr, pt, es and it.
 
+One drop is a rule, not a reviewed file. WordNet has no concept for a preposition,
+article, conjunction, pronoun or contraction, yet the pt, es, fr and it wordnets attach
+some of them to content concepts as fragments of a longer phrase (pt *com* is "with
+success", *para* "toward the east"). `ingestion.closed_class` holds a closed-class word
+list per language, and the build drops every sense of a lemma on it (and the lemma, left
+without a sense) right after the member-form drops, through the same
+`apply_form_drops`. Words that are also common content words are left off the lists (es
+*bajo*, fr *son*, *ton*, *or*, *vers*, it *verso*, *sopra*, *sotto*, pt *caso*), and
+English is exempt. The 2026-10 build dropped 231 senses and 118 lemmas this way; the
+manifest records it under `closed_class`.
+
 ## Ingestion
 
 `lang_tools.lexicon.ingestion` exposes two per-file loaders, both yielding thin

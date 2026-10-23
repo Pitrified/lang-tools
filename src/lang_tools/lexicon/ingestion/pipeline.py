@@ -25,6 +25,7 @@ from loguru import logger as lg
 from lang_tools.lexicon.codec import LEXICON_SUBDIR
 from lang_tools.lexicon.codec import _dump_table
 from lang_tools.lexicon.ingestion.acquire import write_manifest
+from lang_tools.lexicon.ingestion.closed_class import closed_class_drops
 from lang_tools.lexicon.ingestion.enrich import enrich
 from lang_tools.lexicon.ingestion.form_review import apply_form_drops
 from lang_tools.lexicon.ingestion.form_review import load_form_drops
@@ -269,6 +270,11 @@ def build_initial(
     tables = transform(omw_entries, cili_glosses, load_slug_qualifiers(data_fol))
     # Reviewed member-form drops go first, so nothing downstream sees them.
     forms_dropped, _lemmas_removed = apply_form_drops(tables, load_form_drops(data_fol))
+    # Closed-class words (prepositions, articles, pronouns...) have no WordNet
+    # concept; the senses the non-en wordnets give them are phrase fragments.
+    closed_dropped, closed_removed = apply_form_drops(
+        tables, closed_class_drops(tables)
+    )
     # Curated gloss repairs are re-applied here so a rebuild reproduces them; a
     # post-hoc Parquet edit would be silently reverted by this very build (05.58).
     applied, stale = apply_gloss_overrides(
@@ -329,6 +335,10 @@ def build_initial(
         "topics": {"concepts_tagged": topics_tagged},
         "slug_qualifiers": {"applied": tables.qualifiers_applied},
         "member_form_drops": {"senses_dropped": forms_dropped},
+        "closed_class": {
+            "senses_dropped": closed_dropped,
+            "lemmas_removed": closed_removed,
+        },
         "gloss_backfill": {"filled": backfilled},
         "example_sentences": {"added": examples_added},
         "lookalikes": {
