@@ -102,3 +102,24 @@ they ran.
 - Open rule questions: identical spelling versus own cognate (pt *branca* / it *branca*, agent
   `f!`); swapped letters; `p` versus `f` when only a minor sense is shared.
 - Tier A stands at 4,600/5,499 after 28 batches.
+
+## Round 4: tier A finish, five batches under the settled rules (a0029 to a0033)
+
+Meter 74% to 86% (+12 points); weekly meter 48% to 50% (+2 points). No `/compact` before the
+round; five agents were launched in one turn, and the main session made three commits while they
+ran.
+
+| Part | Tokens (harness) |
+| --- | ---: |
+| Subagents a0029 to a0032 (200 pairs each) | 84.6k, 86.1k, 83.6k, 82.9k |
+| Subagent a0033 (99 pairs) | 73.7k |
+| **Total** | **410.9k subagents** |
+
+- Rough rate: 899 pairs for 12 points, about 75 pairs per point. The small last batch costs
+  nearly as much as a full one, since most of each subagent's tokens go to reading the guide and
+  the skill, not to the pairs.
+- Weekly: 899 pairs for 2 points, about 450 pairs per point.
+- Quality: gold 23/25 this round, 153/165 overall; 30 edge cases in 899 pairs. Misses: pt
+  *torcer* / en *torque* (gold `c`, agent `u`; the gold row looks wrong) and pt *salá* / it
+  *sala* (gold `f`, agent `u` because pt *salá* is rare).
+- Tier A is complete: 5,499/5,499 after 33 batches.
