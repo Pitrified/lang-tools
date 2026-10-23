@@ -41,6 +41,10 @@ resemblance help them, mislead them, or not register at all?
 - **The known language's own cognate wins.** When the known language has a direct cognate of the
   pt word, a near-identical but different known word does not mislead, so it is `u`
   (pt *caso* / it *casa*: it has *caso*; pt *casa* / it *cassa*: it has *casa*).
+- **Inflected forms count by their most frequent reading.** When a word is both a lemma and a
+  common inflected form of another word, judge the reading a learner meets most often and mention
+  the other in the note. pt *era* ("was") / en *era* is `f`; pt *amo* (mostly "I love", also
+  "master") / it *amo* ("I love", also "hook") is `p`, because the frequent reading is shared.
 - **Partial versus cognate:** ask whether the learner is misled *most of the time*. A shared but
   rare sense does not rescue a pair: pt *privada* (BR: toilet) / en *privacy* is `f`.
 - **The sense lists are hints.** They miss everyday meanings (*regalo* shows only "muff") and
