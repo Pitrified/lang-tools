@@ -444,8 +444,8 @@ now answers them:
   `p` (pt *guardar* / it *guardare*, pt *brigar* / it *briga*, both gold `p`). Overlapping main
   meanings are `p`, not `c` (pt *andar* / it *andare*, gold `p`).
 
-Under the new rules the gold row pt *busto* / it *busta* (`full`) is wrong and should be
-`unrelated`; it is left as it is pending a decision. Rows from a0021 to a0028 were not
+Under the new rules the gold row pt *busto* / it *busta* was wrong; it is relabelled from
+`full` to `noise` (unrelated). Rows from a0021 to a0028 were not
 re-labelled; they carry the old `prompt_sha`.
 
 ## Out of scope
