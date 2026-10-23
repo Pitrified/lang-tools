@@ -30,12 +30,14 @@ from lang_tools.lexicon.ingestion.enrich import enrich
 from lang_tools.lexicon.ingestion.form_review import apply_form_drops
 from lang_tools.lexicon.ingestion.form_review import load_form_drops
 from lang_tools.lexicon.ingestion.lookalikes import apply_lookalikes
+from lang_tools.lexicon.ingestion.lookalikes import drop_rare_traps
 from lang_tools.lexicon.ingestion.lookalikes import load_lookalikes
 from lang_tools.lexicon.ingestion.sample import DEFAULT_SAMPLE_CONCEPTS
 from lang_tools.lexicon.ingestion.sample import carve_sample
 from lang_tools.lexicon.ingestion.slug_qualifiers import load_slug_qualifiers
 from lang_tools.lexicon.ingestion.sources.cili import load_cili_glosses
 from lang_tools.lexicon.ingestion.sources.frequency import lemma_zipf
+from lang_tools.lexicon.ingestion.sources.frequency import token_zipf
 from lang_tools.lexicon.ingestion.sources.frequency import wordfreq_version
 from lang_tools.lexicon.ingestion.sources.omw import wn_synset_entries
 from lang_tools.lexicon.ingestion.topics import assign_topics
@@ -309,9 +311,12 @@ def build_initial(
     # Reviewed look-alike edges (phase 11) are keyed on lemma ids, so they go in
     # once the lemma set is final (after the member-form drops); like every
     # curated input, a row naming a lemma this build lacks is skipped, not fatal.
+    # A trap whose known word is rare (en *palaver*) misleads nobody, so it is
+    # dropped here rather than left to each reviewer's judgement.
+    lookalike_rows, rare_traps = drop_rare_traps(load_lookalikes(data_fol), token_zipf)
     tables.lookalikes, tables.lookalike_sources, lookalikes_stale = apply_lookalikes(
         (lemma.id for lemma in tables.lemmas),
-        load_lookalikes(data_fol),
+        lookalike_rows,
     )
     counts = _write_tables(tables, data_fol)
 
@@ -344,6 +349,7 @@ def build_initial(
         "lookalikes": {
             "applied": len(tables.lookalikes),
             "stale": lookalikes_stale,
+            "rare_traps_dropped": rare_traps,
         },
         **(extra_manifest or {}),
     }

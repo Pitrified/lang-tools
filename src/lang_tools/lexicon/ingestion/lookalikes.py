@@ -49,6 +49,7 @@ from lang_tools.llm.lookalike_verify import LookalikeVerifyOutput
 from lang_tools.llm.lookalike_verify import PairSource
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from collections.abc import Iterable
     from collections.abc import Sequence
     from pathlib import Path
@@ -897,6 +898,45 @@ def load_lookalikes(data_fol: Path) -> list[LookalikeProposal]:
         latest.pop((row.target_id, row.known_id), None)
         latest[row.target_id, row.known_id] = row
     return [row for row in latest.values() if row.status == "accepted"]
+
+
+#: A trap (``full`` / ``partial``) needs its known word at least this frequent
+#: (Zipf); a learner is unlikely to know a rarer one (en *palaver*, *bonito*),
+#: so it misleads nobody.
+MIN_TRAP_KNOWN_ZIPF = 3.3
+
+
+def drop_rare_traps(
+    proposals: Iterable[LookalikeProposal],
+    zipf: Callable[[str, str], float],
+    min_zipf: float = MIN_TRAP_KNOWN_ZIPF,
+) -> tuple[list[LookalikeProposal], int]:
+    """Drop the traps whose known word is too rare to mislead a learner.
+
+    Cognate rows are kept whatever the frequency. Pass the latest row per pair
+    (`load_lookalikes`), so dropping a row never lets an older one through.
+
+    Args:
+        proposals: The rows to filter.
+        zipf: ``(text, language) -> Zipf frequency``, e.g.
+            `sources.frequency.token_zipf`.
+        min_zipf: Lowest Zipf frequency of a trap's known word.
+
+    Returns:
+        ``(kept rows, traps dropped)``.
+    """
+    kept: list[LookalikeProposal] = []
+    dropped = 0
+    for row in proposals:
+        if row.kind in {"full", "partial"} and (
+            zipf(row.known_text, row.known_language) < min_zipf
+        ):
+            dropped += 1
+            continue
+        kept.append(row)
+    if dropped:
+        lg.info("Look-alikes: {} trap(s) with a rare known word dropped", dropped)
+    return kept, dropped
 
 
 def apply_lookalikes(

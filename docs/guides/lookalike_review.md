@@ -56,6 +56,14 @@ resemblance help them, mislead them, or not register at all?
   common inflected form of another word, judge the reading a learner meets most often and mention
   the other in the note. pt *era* ("was") / en *era* is `f`; pt *amo* (mostly "I love", also
   "master") / it *amo* ("I love", also "hook") is `p`, because the frequent reading is shared.
+- **A rare known word never makes a trap.** When a learner is unlikely to know the known word
+  (en *palaver*, *bonito* the fish, *tardy*, *quart*, it *podere*), the pair misleads nobody:
+  `u`, identical spelling included. The build also drops any trap whose known word has a
+  Zipf frequency under 3.3, so label by the meaning a learner would actually know.
+- **Inflected forms follow their base.** A plural or feminine form takes the label of its base
+  form against the same known word (pt *empresas* / en *empress* is `f` like *empresa*; pt
+  *bonita* follows *bonito*). It differs only when the form has an everyday meaning of its own,
+  which the note then names (pt *costas* is the back, *privada* a toilet in BR).
 - **Partial versus cognate:** ask whether the learner is misled *most of the time*. When the
   main meanings only overlap, it is `p`, not `c` (pt *andar*, to walk / it *andare*, to go).
 - **Partial versus full:** a shared sense makes the pair `p` when it is in ordinary use in

@@ -24,6 +24,7 @@ from lang_tools.lexicon.ingestion.lookalikes import GoldPair
 from lang_tools.lexicon.ingestion.lookalikes import LookalikeCandidate
 from lang_tools.lexicon.ingestion.lookalikes import LookalikeProposal
 from lang_tools.lexicon.ingestion.lookalikes import apply_lookalikes
+from lang_tools.lexicon.ingestion.lookalikes import drop_rare_traps
 from lang_tools.lexicon.ingestion.lookalikes import load_lookalikes
 from lang_tools.lexicon.maintenance import curated_path
 from lang_tools.lexicon.maintenance import read_jsonl
@@ -261,3 +262,25 @@ def test_import_gold_is_idempotent(tmp_path: Path) -> None:
     rows = read_jsonl(LookalikeProposal, curated_path(tmp_path, LOOKALIKES_FILE))
     assert {row.model for row in rows} == {"manual"}
     assert sum(row.status == "accepted" for row in rows) == 1
+
+
+def test_drop_rare_traps_keeps_cognates_and_common_known_words() -> None:
+    def row(known: str, kind: str) -> LookalikeProposal:
+        return LookalikeProposal(
+            target_id="t",
+            target_text="x",
+            known_id=known,
+            known_text=known,
+            known_language="en",
+            kind=kind,  # pyright: ignore[reportArgumentType]
+            status="accepted",
+        )
+
+    zipf = {"palaver": 2.2, "door": 5.1}.__getitem__
+    rows = [row("palaver", "full"), row("palaver", "cognate"), row("door", "full")]
+    kept, dropped = drop_rare_traps(rows, lambda text, _lang: zipf(text))
+    assert dropped == 1
+    assert [(r.known_text, r.kind) for r in kept] == [
+        ("palaver", "cognate"),
+        ("door", "full"),
+    ]

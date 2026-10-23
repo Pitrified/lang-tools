@@ -116,6 +116,19 @@ def lemma_zipf(lemmas: Iterable[Lemma]) -> dict[tuple[str, str], float]:
     return scores
 
 
+def token_zipf(text: str, language: str) -> float:
+    """Return ``wordfreq``'s Zipf frequency of one form (0.0 when unseen).
+
+    Args:
+        text: The form.
+        language: Its ISO 639-1 code.
+
+    Returns:
+        The Zipf frequency.
+    """
+    return float(_require_wordfreq().zipf_frequency(text, language))
+
+
 def wordfreq_version() -> str:
     """Return the installed ``wordfreq`` distribution version (or ``"unknown"``).
 
