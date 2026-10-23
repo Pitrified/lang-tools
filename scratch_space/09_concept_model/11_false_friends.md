@@ -374,6 +374,33 @@ cached v6 draft and the 1000-pair experiment harness.
   which subagents with fresh contexts avoid. The 1,000-pair calibration batch (10
   subagents) is the real measurement: the user reads the limit meter before and after.
 
+**Calibration: the first 1,000 tier-A pairs (2026-10-23).** Ten subagents ran in
+parallel, one 100-pair batch each (`a0001`-`a0010`):
+
+- **Speed and size:** about one minute each, 4 to 5 tool calls, 70k to 73k tokens per
+  subagent (about 720k in all). Most of that is fixed overhead: the system prompt, the
+  skill and the guide. Batches of 200 would roughly halve the cost per pair.
+- **Agreement:** 49 of 50 hidden gold pairs agreed. The one miss is *bloco* / *bloc*,
+  gold cognate, reviewer partial; both are defensible.
+- **Results:** 52 full and 27 partial false friends, 248 cognates and 673 unrelated, with
+  51 edge cases. The gold set's 1000 pairs were imported as `manual` rows alongside.
+- **Good finds:** *legal* (BR cool), *equipe* / *equip*, *empresa* / *empress*,
+  *polícia* / *policy*, *maior* / *mayor*, *próprio* / *proper*, *fato* / *fate*,
+  *dados* / it *dado*. Inflected forms are a real trap: *precisa* (needs), *era* (was),
+  *fez* (did).
+- **Rule questions the reviewers raised.** Tier A is full of function words, and the
+  near-identical rule turns them into false friends a learner is never fooled by: *com*
+  / *come*, *mas* / *mass*, *sem* / it *seme*, *para* / *par*, *tal* / *tall*.
+  Reviewers also called pairs like *caso* / it *casa* false friends, although Italian has
+  its own *caso*. Two refinements are proposed, pending the user's decision:
+  1. A grammatical word (preposition, conjunction, article, pronoun) is `u` unless its
+     meaning has drifted from a shared root.
+  2. When the known language has its own direct cognate of the pt word, a near-identical
+     different known word does not mislead: `u`.
+- **Corpus sense errors found on the way:** *seja* shows the unit "are", *cada* a
+  Laotian coin, *dela* the pig genus. These are homograph senses leaking into function
+  words, worth a later data-quality pass.
+
 ## Out of scope
 
 - Fixing OMW coverage holes (*embarazada*, *parents*): new-lemma mapping, in the backlog.
