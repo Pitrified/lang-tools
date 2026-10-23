@@ -419,6 +419,15 @@ subagents, `a0011` and `a0012`, 200 tier-A pairs plus 5 hidden gold each:
   would confuse.
 
 
+## Near-identical rule tightened (2026-10-23, from `a0021` on)
+
+Batches `a0013` to `a0020` (1,600 pairs) labelled short near-identical pairs against common known
+words as `f!` (pt *dado* / en *dad*, *cabo* / *cab*, *belo* / *bell*), following the guide's old
+wording, though nobody would confuse them. Two agents raised it independently. The guide now
+asks for `f` only when a learner could plausibly read one word as the other; a short shared stem
+nobody maps across is `u`. Earlier rows were not re-labelled; they carry `!` and the older
+`prompt_sha`, so they are easy to find for a later pass.
+
 ## Out of scope
 
 - Fixing OMW coverage holes (*embarazada*, *parents*): new-lemma mapping, in the backlog.

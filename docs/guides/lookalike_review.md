@@ -21,7 +21,7 @@ resemblance help them, mislead them, or not register at all?
 | --- | --- | --- |
 | `c` | cognate | The main everyday meanings are the same, even if one word has extra senses or a different register (pt *felicidade* / en *felicity*). This includes the same root in another word form whose meaning carries over: an adjective and its noun, a person and the field, a verb and its noun (pt *monarca* / it *monarchia*, pt *notar* / it *nota*). |
 | `p` | partial false friend | They share a real meaning, but the main everyday meaning of one of them is something else (pt *balada* is a ballad, but mostly a night out in BR; pt *gota* is a drop, it *gotta* only gout). |
-| `f` | full false friend | No everyday meaning in common, and the resemblance misleads: the same root with a drifted meaning (pt *procurar* is to search; it *procurare* to procure), or a near-identical spelling of a common known word (pt *deserto* / en *dessert*, pt *babá* / en *baby*). |
+| `f` | full false friend | No everyday meaning in common, and the resemblance misleads: the same root with a drifted meaning (pt *procurar* is to search; it *procurare* to procure), or a near-identical spelling of a common known word that a learner could mistake it for (pt *deserto* / en *dessert*, pt *babá* / en *baby*). |
 | `u` | unrelated | A coincidence nobody would fall for. Either the letters really differ (pt *mangual* / en *manual*), or the known word is rare or technical (pt *fraca* / it *frac*, pt *bola* / it *bolo*), or the words are related but their meanings are plainly distinct and do not get mixed up (pt *general* / en *generality*, pt *cappuccino* / en *capuchin*). |
 
 ## Rules for the hard cases
@@ -30,7 +30,11 @@ resemblance help them, mislead them, or not register at all?
   meanings are `f` or `p`, whatever their origin (pt *malga*, a bowl / it *malga*, an alpine hut).
 - **Near-identical means apart only by an accent, a doubled letter or a final vowel.** A
   different consonant is a real difference (pt *casa* / en *cast*). Near-identical pairs whose
-  meanings differ are `f` when the known word is common, and `u` when it is rare.
+  meanings differ are `f` only when a learner could plausibly read one as the other: the known
+  word is common and the pt word looks like a form of it (pt *deserto* / en *dessert*, pt
+  *pretende* / en *pretend*). A short word that merely shares a stem nobody maps across is `u`
+  (pt *dado* / en *dad*, pt *cabo* / en *cab*, pt *belo* / en *bell*), and so is any pair
+  whose known word is rare.
 - **Same root, drifted meaning:** `f` when the shared root no longer carries the meaning
   (pt *envio*, a shipment / en *envoy*). It is `u` when the forms differ enough that no one
   maps one onto the other.
