@@ -54,8 +54,9 @@ Meter 35% to 45% (+10 points); weekly meter 43% to 44% (+1 point). The run began
 ## 2026-10-23: second lean round, four 200-pair batches (a0017 to a0020)
 
 Meter 45% to 52% (+7 points); weekly meter 44% to 45% (+1 point). No `/compact` before or during
-the round, so this is the cleanest data point so far. The user also saw a 344k token figure in
-the UI, close to the four subagents' sum below plus the short orchestration turns.
+the round, so this is the cleanest data point so far. The web UI also showed "thinking 5s ..
+344k tokens" next to a reasoning step of the main session. That counter moves with each reasoning
+step, so it tracks the running turn, not the meter; it is recorded here only as a reference.
 
 | Part | Calls | Processed input | Tokens (harness) |
 | --- | ---: | ---: | ---: |
