@@ -31,11 +31,21 @@ cd lang-tools
 git lfs pull
 ```
 
-Verify the content is real and not a pointer stub:
+Verify the committed sample seed is readable text (it lives in normal git, not
+LFS):
 
 ```bash
-head -1 data/bootstrap/pt.csv   # should be the CSV header, not "version https://git-lfs..."
+head -1 data/bootstrap/lemmas.jsonl   # should be a JSON object, one lemma per line
 ```
+
+The runtime store reads a **Parquet corpus** under `data/lexicon/` (LFS-tracked;
+gitignored until the ingestion phase ships it - see
+[frozen_api.md](../library/frozen_api.md#when-and-how-the-parquet-reaches-github)
+for why the Parquet is not on GitHub yet and how to publish it). It is not
+bundled. For a quick local corpus, build one from the committed seed with
+`notebooks/lexicon_corpus/parquetize_seed.ipynb` (it writes to
+`data/bootstrap/lexicon/`); point the store there, or pull/build the full corpus
+under `data/lexicon/`, otherwise the read APIs raise `CorpusNotFoundError`.
 
 ## 3. Install dependencies (including the webapp extra)
 
@@ -43,7 +53,7 @@ The service depends on `fastapi-tools`, declared as the `webapp` optional
 dependency:
 
 ```bash
-uv sync --all-extras --group dev
+uv sync --all-extras --all-groups
 ```
 
 ## 4. Run the service
@@ -62,7 +72,7 @@ Check it is up:
 
 ```bash
 curl -s http://127.0.0.1:8010/health
-curl -s "http://127.0.0.1:8010/api/v1/words?language=pt"
+curl -s "http://127.0.0.1:8010/api/v1/lemmas?language=pt"
 ```
 
 !!! note "Trusted hosts"
@@ -73,21 +83,30 @@ curl -s "http://127.0.0.1:8010/api/v1/words?language=pt"
 
 ## Read API
 
-All endpoints are public and return JSON `Word` objects (the same model
-`lang-tutor` imports), including the computed fields `id`, `has_accent`,
-`accented_chars`, and `length`.
+All endpoints are public and return JSON models `lang-tutor` imports: `Lemma`
+(including the computed fields `id`, `has_accent`, `accented_chars`, and
+`length`), `Concept`, the relation edges, and the `LemmaCard` drill view (see
+the lexicon page).
 
 | Method | Path | Description |
 | ------ | ---- | ----------- |
-| `GET` | `/api/v1/words` | List words. Optional query params `language` (ISO 639-1) and `topic`. |
-| `GET` | `/api/v1/words/{word_id}` | Fetch one word by its deterministic id. `404` when absent. |
+| `GET` | `/api/v1/lemmas` | One page of lemmas, ordered by the folded form. Optional query params `language` (ISO 639-1), `topic`, `q` (prefix of the folded form), `limit` (default 100, max 500) and `offset`. The total match count is in the `X-Total-Count` header. |
+| `GET` | `/api/v1/lemmas/{lemma_id}` | Fetch one lemma by its deterministic id. `404` when absent. |
+| `GET` | `/api/v1/lemmas/{lemma_id}/false-friends` | The lemma's false friends (look-alike edges of kind `full` / `partial`). |
+| `GET` | `/api/v1/lemmas/{lemma_id}/lookalikes` | Every look-alike of the lemma, false friends and cognates. Optional repeated `languages` and `kinds`. |
+| `GET` | `/api/v1/concepts/{concept_id}` | Fetch one concept. `404` when absent. |
+| `GET` | `/api/v1/concepts/{concept_id}/relations` | The concept's typed relation edges. |
+| `GET` | `/api/v1/cards` | A bounded sample of `LemmaCard` drill cards. The query string is a `CardQuery`, for example `language=pt&max_cefr=B1&single_word=true&limit=20`. List fields repeat the key (`translation_languages=en&translation_languages=it`). With `known_languages`, each card lists its look-alikes in them, and `lookalike=trap|cognate|none` filters on them. |
+| `GET` | `/api/v1/cards/{lemma_id}` | One lemma's card. Optional `gloss_language`, and repeated `translation_languages` and `known_languages`. `404` when absent. |
+| `GET` | `/api/v1/cards/{lemma_id}/senses` | One card per sense of the lemma, best first (same parameters). Empty for an unknown lemma. |
 | `GET` | `/health` | Liveness/health probe (from fastapi-tools). |
 
 Example:
 
 ```bash
-curl -s "http://127.0.0.1:8010/api/v1/words?language=pt&topic=basics"
-curl -s "http://127.0.0.1:8010/api/v1/words/bf1c1f94e4bca388"
+curl -s "http://127.0.0.1:8010/api/v1/lemmas?language=pt&topic=basics"
+curl -s "http://127.0.0.1:8010/api/v1/lemmas/bf1c1f94e4bca388"
+curl -s "http://127.0.0.1:8010/api/v1/cards?language=pt&max_cefr=A2&single_word=true&limit=5"
 ```
 
 `lang-tutor` points at this service with `LANG_TOOLS_BASE_URL`; see its

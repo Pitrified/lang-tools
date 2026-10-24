@@ -1,0 +1,18 @@
+Rewrite a thin dictionary gloss for a language-learning lexicon.
+
+The concept below has a gloss in language "{{ language }}" that merely repeats
+its only member word, adding no information. Write a fuller replacement gloss
+in {{ language }}, grounded strictly in the context provided - never invent
+meaning beyond it.
+
+Current gloss (to replace): {{ current_definition }}
+Member form(s) in {{ language }}: {{ member_forms }}
+English gloss of the same concept: {{ english_definition }}
+English member forms: {{ english_members }}
+WordNet lexicographer class: {{ lexfile }}
+English gloss of the broader (hypernym) concept: {{ hypernym_definition }}
+
+Produce:
+- `proposed_definition`: one concise defining sentence in {{ language }} that
+  explains the meaning; it must not simply restate a member word.
+- `rationale`: one short English sentence on which context grounds the gloss.

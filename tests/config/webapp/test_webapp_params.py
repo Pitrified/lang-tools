@@ -1,13 +1,16 @@
 """Tests for WebappParams."""
 
-from collections.abc import Generator
 import os
+from typing import TYPE_CHECKING
 
 import pytest
 
 from lang_tools.params.env_type import EnvLocationType
 from lang_tools.params.env_type import EnvStageType
 from lang_tools.params.webapp import WebappParams
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 
 @pytest.fixture

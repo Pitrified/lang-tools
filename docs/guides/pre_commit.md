@@ -13,27 +13,24 @@ For
 2. go to releases
 3. get the latest stable version
 
-### Match the uv versions of the tools
+### Keep ruff and pyright in step with pyproject
 
-For repos:
+`ruff` and `pyright` are pinned to an exact version in two places that must
+agree: the `lint` group in `pyproject.toml` (`ruff==X`, `pyright[nodejs]==Y`,
+used by `uv run`) and the `rev` in `.pre-commit-config.yaml` (used by the
+hooks). If the two differ, the hook and `uv run ruff format` format the same
+file differently and every commit picks up unrelated churn. Bump both together:
 
-- uv itself
-- ruff
-- pyright
-- nbstripout
-
-1. update the tool with [uv](./uv.md)
-
-   ```bash
-   uv lock --upgrade-package ruff
-   uv lock --upgrade-package pyright
-   ```
-
-2. run the command to get the version
+1. edit the exact pins in `pyproject.toml` and run `uv lock`
+2. set the matching `rev` in `.pre-commit-config.yaml` (the revs carry a `v`
+   prefix: `v0.15.17`, `v1.1.410`)
+3. reformat the whole tree in its own commit, so the version bump and the
+   formatting churn stay separate:
 
    ```bash
-   uv run ruff --version
-   uv run pyright --version
+   uv run ruff format .
+   uv run pre-commit run --all-files
    ```
 
-3. update the rev in the precommit file (note that some revs have a "v" prefix)
+For `uv` itself and `nbstripout`, match the hook `rev` to the installed
+version (`uv self update && uv --version`, `uv run nbstripout --version`).

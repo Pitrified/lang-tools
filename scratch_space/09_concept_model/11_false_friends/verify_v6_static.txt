@@ -1,0 +1,83 @@
+You help a language learner who is studying a target language and already speaks a known
+language. Each item is a target-language word and a known-language word that look alike.
+For EACH item, decide how the learner should treat the resemblance. Judge by how the words
+are used today in the standard language (Brazilian Portuguese for Portuguese), not by
+etymology: what matters is whether a learner reading the target word would think of the
+known one, and whether that thought helps or misleads.
+
+Work through each item in this order, and write the fields in this order:
+
+1. `target_meaning`: the target word's MAIN everyday meaning, in 1 to 5 English words (the
+   meaning a dictionary lists first and a native speaker thinks of).
+2. `known_meaning`: the known word's main everyday meaning, in 1 to 5 English words.
+3. `same_root`: true when the two words come from the same root (inherited or borrowed from
+   a common ancestor word), false when the resemblance is a coincidence.
+4. `kind`, from the two meanings you just wrote:
+   - "cognate": the main meanings are the same, even if one word has extra senses or is a
+     different word form of the same root whose meaning carries over (an adjective and its
+     noun, a person and the field).
+   - "partial": the words share a real meaning, but the MAIN everyday meaning of one of
+     them is something else, so the learner is misled most of the time.
+   - "full": no everyday meaning in common, AND the resemblance misleads: the same root
+     whose meaning has drifted, or a near-identical spelling of a common known word.
+   - "unrelated": a coincidence a learner would not fall for: different letters in the
+     middle of the word, a rare or technical known word, or related words whose meanings
+     are plainly different and would not be mixed up.
+5. `note`: for "full" and "partial" only, one short English line saying what each word
+   means, naming the target word for the known meaning when there is one, for example:
+   pt "parentes" means relatives; en "parents" is "pais". Leave it empty otherwise.
+
+Rules that decide the hard cases:
+- Spelling alone never makes a cognate: two common words spelled alike with different main
+  meanings are "full" or "partial".
+- A different consonant is a real difference: two words that differ by more than an accent,
+  a doubled letter or a final vowel are "unrelated" unless they share a meaning or a root.
+- The senses listed with each word are hints from a dictionary. They can be incomplete or
+  wrong (a sense list often misses the everyday meaning), and your knowledge of the words
+  wins.
+- Do not call an item "full" or "partial" just because the sense lists differ: first check
+  whether the everyday meanings really differ.
+
+Worked examples (Portuguese target words):
+
+English known words:
+- parentes | parents: relatives / mother and father; same_root true; full; pt "parentes" means relatives; en "parents" is "pais".
+- magazine | magazine: department store / periodical; same_root true; full; pt "magazine" is a department store; en "magazine" is "revista".
+- estrangeiro | stranger: foreigner / unknown person; same_root true; full; pt "estrangeiro" means foreigner; en "stranger" is "estranho".
+- patrão | patron: boss, employer / sponsor, customer; same_root true; full; pt "patrão" means boss; en "patron" is "patrocinador" or "cliente".
+- suportar | support: to bear, tolerate / to hold up, back; same_root true; partial; pt "suportar" mostly means to put up with; en "support" is mostly "apoiar".
+- turno | turn: work shift / rotation, a go; same_root true; partial; pt "turno" is mostly a work shift; en "turn" is mostly "vez" or "volta".
+- rápido | rapid: fast / fast; same_root true; cognate.
+- governo | government: government / government; same_root true; cognate.
+- liberdade | liberty: freedom / freedom; same_root true; cognate.
+- resiliente | resilience: resilient / resilience; same_root true; cognate (an adjective and its noun).
+- elefante | elephant: elephant / elephant; same_root true; cognate.
+- bota | boat: boot / boat; same_root false; unrelated.
+- peito | pet: chest / pet animal; same_root false; unrelated.
+- sapo | sap: toad / tree juice; same_root false; unrelated.
+- músico | musicology: musician / study of music; same_root true; unrelated (plainly different, not mixed up).
+
+Italian known words:
+- palestra | palestra: lecture, talk / gym; same_root true; full; pt "palestra" is a lecture; it "palestra" is a gym ("academia").
+- subir | subire: to go up / to undergo; same_root true; full; pt "subir" means to go up; it "subire" is to undergo ("sofrer").
+- calo | calo: callus / drop, decline; same_root false; full; pt "calo" is a callus; it "calo" is a drop or decline ("queda").
+- mole | mole: soft / mass, bulk; same_root false; full; pt "mole" means soft; it "mole" is a mass or bulk.
+- tasca | tasca: tavern / pocket; same_root false; full; pt "tasca" is a tavern; it "tasca" is a pocket ("bolso").
+- presunto | presunto: ham / alleged; same_root false; full; pt "presunto" is ham; it "presunto" means alleged ("presumido").
+- aperto | aperto: squeeze, tight spot / open; same_root false; full; pt "aperto" is a squeeze or a tight spot; it "aperto" means open ("aberto").
+- pasto | pasto: pasture / meal; same_root true; full; pt "pasto" is pasture; it "pasto" is a meal ("refeição").
+- esperar | sperare: to wait, to hope / to hope; same_root true; partial; pt "esperar" is mostly to wait; it "sperare" is only to hope.
+- levar | levare: to take, carry / to remove, lift; same_root true; partial; pt "levar" means to take or carry; it "levare" is to remove ("tirar").
+- seguro | sicuro: insurance, safe / safe, sure; same_root true; partial; pt "seguro" is often insurance; it "sicuro" is safe or sure.
+- grosso | grosso: thick, rude / big, thick; same_root true; partial; pt "grosso" also means rude; it "grosso" is big or thick.
+- cavalo | cavallo: horse / horse; same_root true; cognate.
+- escola | scuola: school / school; same_root true; cognate.
+- sempre | sempre: always / always; same_root true; cognate.
+- pintor | pittura: painter / painting; same_root true; cognate (a person and the field).
+- tapete | tappeto: rug / rug; same_root true; cognate.
+- folha | foglia: leaf / leaf; same_root true; cognate.
+- lixo | liscio: garbage / smooth; same_root false; unrelated.
+- ovo | ovvio: egg / obvious; same_root false; unrelated.
+
+Return `verdicts`: one entry per item, each with its `key` exactly as given, and the fields
+`target_meaning`, `known_meaning`, `same_root`, `kind` and `note`, in that order.

@@ -1,0 +1,397 @@
+"""Tests for the SQLite-backed lexical store (`lang_tools.lexicon.lemma_store`)."""
+
+import pytest
+
+from lang_tools.lexicon.codec import _dump_table
+from lang_tools.lexicon.concept import Concept
+from lang_tools.lexicon.hydration import NotHydratedError
+from lang_tools.lexicon.hydration import SenseNotHydratedError
+from lang_tools.lexicon.lemma import Lemma
+from lang_tools.lexicon.lemma_store import CorpusNotFoundError
+from lang_tools.lexicon.lemma_store import LexiconStore
+from lang_tools.lexicon.relations import ConceptRelation
+from lang_tools.lexicon.relations import LookalikeRelation
+from lang_tools.lexicon.relations import SenseRelation
+from lang_tools.lexicon.sense import Sense
+
+C_BANK = "c__bank-money__0011aabbccdd"
+C_BENCH = "c__bench-seat__0022bbccddee"
+C_TRAIN = "c__railway-train__0033ccddeeff"
+
+
+def _build_store() -> LexiconStore:
+    """Build a small fixture graph: 'banco' (pt) polysemous; 'bank' (en) cognate."""
+    banco = Lemma(text="banco", language="pt", topics=["money"])
+    bank = Lemma(text="bank", language="en")
+    bench = Lemma(text="bench", language="en")
+    lemmas = [banco, bank, bench]
+
+    concepts = [
+        Concept(
+            id=C_BANK,
+            definitions={"en": "money"},
+            lexfile="noun.possession",
+            examples={"en": ["she went to the bank"]},
+        ),
+        Concept(id=C_BENCH, definitions={"en": "a seat"}),
+    ]
+    senses = [
+        Sense(lemma_id=banco.id, concept_id=C_BANK),
+        Sense(lemma_id=banco.id, concept_id=C_BENCH),
+        Sense(lemma_id=bank.id, concept_id=C_BANK),
+        Sense(lemma_id=bench.id, concept_id=C_BENCH),
+    ]
+    lookalikes = [
+        LookalikeRelation(lemma_id_a=banco.id, lemma_id_b=bank.id),
+    ]
+    concept_relations = [
+        ConceptRelation(
+            concept_id_a=C_BANK,
+            concept_id_b=C_BENCH,
+            relation_type="similar",
+        ),
+        ConceptRelation(
+            concept_id_a=C_TRAIN,
+            concept_id_b=C_BANK,
+            relation_type="hypernym",
+        ),
+    ]
+    sense_relations = [
+        SenseRelation(
+            sense_id_a=senses[2].id,
+            sense_id_b=senses[3].id,
+            relation_type="antonym",
+        ),
+    ]
+    return LexiconStore.from_models(
+        lemmas=lemmas,
+        concepts=concepts,
+        senses=senses,
+        lookalikes=lookalikes,
+        concept_relations=concept_relations,
+        sense_relations=sense_relations,
+    )
+
+
+def _lemma_id(store: LexiconStore, text: str, language: str) -> str:
+    return next(
+        lem.id
+        for lem in store.get_all_lemmas()
+        if lem.text == text and lem.language == language
+    )
+
+
+def test_point_lookups() -> None:
+    store = _build_store()
+    bid = _lemma_id(store, "banco", "pt")
+    lemma = store.get_lemma_by_id(bid)
+    concept = store.get_concept_by_id(C_BANK)
+    assert lemma is not None
+    assert concept is not None
+    assert lemma.text == "banco"
+    assert concept.definitions == {"en": "money"}
+
+
+def test_nested_columns_round_trip_through_sqlite() -> None:
+    store = _build_store()
+    bid = _lemma_id(store, "banco", "pt")
+    banco = store.get_lemma_by_id(bid)
+    assert banco is not None
+    assert banco.topics == ["money"]
+    # Concept-level lexfile (plain column) + examples (JSON column) survive SQLite.
+    concept = store.get_concept_by_id(C_BANK)
+    assert concept is not None
+    assert concept.lexfile == "noun.possession"
+    assert concept.examples == {"en": ["she went to the bank"]}
+
+
+def test_sense_adjacency_both_directions() -> None:
+    store = _build_store()
+    bid = _lemma_id(store, "banco", "pt")
+    # banco -> two concepts (polysemy)
+    assert {c.id for c in store.concepts_for_lemma(bid)} == {C_BANK, C_BENCH}
+    # bank concept <- banco (pt) + bank (en) (synonymy / cognate)
+    langs = {lem.language for lem in store.lemmas_for_concept(C_BANK)}
+    assert langs == {"pt", "en"}
+    assert len(store.senses_for_lemma(bid)) == 2
+    assert len(store.senses_for_concept(C_BANK)) == 2
+
+
+def test_lemmas_for_concept_language_filter() -> None:
+    store = _build_store()
+    en_only = store.lemmas_for_concept(C_BANK, language="en")
+    assert [lem.text for lem in en_only] == ["bank"]
+
+
+def test_false_friend_symmetry() -> None:
+    """One stored edge appears under both endpoints."""
+    store = _build_store()
+    banco = _lemma_id(store, "banco", "pt")
+    bank = _lemma_id(store, "bank", "en")
+    from_banco = store.get_false_friends_for_lemma(banco)
+    from_bank = store.get_false_friends_for_lemma(bank)
+    assert len(from_banco) == 1
+    assert len(from_bank) == 1
+    assert from_banco[0][0].text == "bank"
+    assert from_bank[0][0].text == "banco"
+
+
+def test_lookalikes_filter_by_kind_and_language() -> None:
+    """Cognates are look-alikes but not false friends; languages narrow the view."""
+    casa = Lemma(text="casa", language="pt")
+    house = Lemma(text="house", language="en")
+    casa_it = Lemma(text="casa", language="it")
+    cast = Lemma(text="cast", language="en")
+    store = LexiconStore.from_models(
+        lemmas=[casa, house, casa_it, cast],
+        concepts=[],
+        senses=[],
+        lookalikes=[
+            LookalikeRelation(
+                lemma_id_a=casa.id,
+                lemma_id_b=casa_it.id,
+                kind="cognate",
+                similarity_score=1.0,
+            ),
+            LookalikeRelation(
+                lemma_id_a=casa.id,
+                lemma_id_b=cast.id,
+                kind="full",
+                similarity_score=0.75,
+                explanation_notes={"en": "pt casa means house"},
+            ),
+        ],
+        concept_relations=[],
+        sense_relations=[],
+    )
+    every = store.get_lookalikes_for_lemma(casa.id)
+    assert [(o.text, o.language, e.kind) for o, e in every] == [
+        ("casa", "it", "cognate"),
+        ("cast", "en", "full"),
+    ]
+    assert [
+        o.language for o, _ in store.get_lookalikes_for_lemma(casa.id, languages=["en"])
+    ] == ["en"]
+    traps = store.get_false_friends_for_lemma(casa.id)
+    assert [(o.text, e.explanation_notes) for o, e in traps] == [
+        ("cast", {"en": "pt casa means house"}),
+    ]
+    assert traps[0][1].is_false_friend
+
+
+def test_concept_relations_directional_and_symmetric() -> None:
+    store = _build_store()
+    # C_BANK touches both a symmetric ('similar') and a directional ('hypernym') edge.
+    all_for_bank = store.concept_relations_for(C_BANK)
+    assert len(all_for_bank) == 2
+    # The directional hypernym edge is reachable from its target too.
+    hyper = store.concept_relations_for(C_BANK, relation_type="hypernym")
+    assert len(hyper) == 1
+    assert hyper[0].concept_id_a == C_TRAIN
+    # And from the source.
+    assert len(store.concept_relations_for(C_TRAIN, relation_type="hypernym")) == 1
+
+
+def test_lemma_topics_come_from_every_sense_concept() -> None:
+    # 'banco' realises both the money and the bench concept, so it carries both
+    # concepts' topics plus its own curated tag; 'bench' only the seat's.
+    lemmas = [
+        Lemma(text="banco", language="pt", topics=["curated"]),
+        Lemma(text="bench", language="en"),
+    ]
+    concepts = [
+        Concept(id=C_BANK, topics=["money"]),
+        Concept(id=C_BENCH, topics=["objects"]),
+    ]
+    senses = [
+        Sense(lemma_id=lemmas[0].id, concept_id=C_BANK),
+        Sense(lemma_id=lemmas[0].id, concept_id=C_BENCH),
+        Sense(lemma_id=lemmas[1].id, concept_id=C_BENCH),
+    ]
+    store = LexiconStore.from_models(
+        lemmas=lemmas,
+        concepts=concepts,
+        senses=senses,
+        lookalikes=[],
+        concept_relations=[],
+        sense_relations=[],
+    )
+    banco = store.get_lemma_by_id(lemmas[0].id)
+    assert banco is not None
+    assert banco.topics == ["curated", "money", "objects"]
+    assert [lem.text for lem in store.get_lemmas_by_topic("money")] == ["banco"]
+    assert {lem.text for lem in store.get_lemmas_by_topic("objects")} == {
+        "banco",
+        "bench",
+    }
+    assert [
+        lem.text for lem in store.get_lemmas_filtered(language="en", topic="objects")
+    ] == ["bench"]
+    assert store.get_lemmas_by_topic("missing") == []
+
+
+def test_sense_relations_reachable_from_either_endpoint() -> None:
+    store = _build_store()
+    bank = Lemma(text="bank", language="en")
+    bench = Lemma(text="bench", language="en")
+    bank_sense = Sense(lemma_id=bank.id, concept_id=C_BANK).id
+    bench_sense = Sense(lemma_id=bench.id, concept_id=C_BENCH).id
+    # Stored once, canonically ordered, so both ends see the same edge.
+    from_bank = store.sense_relations_for(bank_sense)
+    from_bench = store.sense_relations_for(bench_sense, relation_type="antonym")
+    assert len(from_bank) == 1
+    assert from_bank == from_bench
+    assert {from_bank[0].sense_id_a, from_bank[0].sense_id_b} == {
+        bank_sense,
+        bench_sense,
+    }
+    assert store.sense_relations_for(bank_sense, relation_type="derivation") == []
+
+
+def test_on_demand_hydration_resolves_backrefs() -> None:
+    store = _build_store()
+    bid = _lemma_id(store, "banco", "pt")
+    banco = store.get_lemma_by_id(bid)
+    assert banco is not None
+    # Un-hydrated by default: resolve_* raises.
+    with pytest.raises(NotHydratedError):
+        banco.resolve_senses()
+    # Opt-in hydration fills the back-references (bounded 1-2 hops).
+    store.hydrate_lemma(banco)
+    assert len(banco.resolve_senses()) == 2
+    assert {c.id for c in banco.resolve_concepts()} == {C_BANK, C_BENCH}
+    sense = banco.resolve_senses()[0]
+    assert sense.resolve_lemma() is banco
+    assert sense.resolve_concept().id == sense.concept_id
+    # concept hydration groups its lemmas by language.
+    bank_concept = store.get_concept_by_id(C_BANK)
+    assert bank_concept is not None
+    store.hydrate_concept(bank_concept)
+    grouped = bank_concept.resolve_lemmas()
+    assert {lem.text for lem in grouped["pt"]} == {"banco"}
+    assert {lem.text for lem in grouped["en"]} == {"bank"}
+
+
+def test_hydration_does_not_leak_into_model_dump() -> None:
+    store = _build_store()
+    bid = _lemma_id(store, "banco", "pt")
+    banco = store.get_lemma_by_id(bid)
+    assert banco is not None
+    store.hydrate_lemma(banco)
+    dumped = banco.model_dump()
+    assert "senses" not in dumped
+    assert "concepts" not in dumped
+
+
+def test_unhydrated_accessors_raise() -> None:
+    sense = Sense(lemma_id="x", concept_id=C_BANK)
+    with pytest.raises(SenseNotHydratedError):
+        sense.resolve_lemma()
+
+
+def test_missing_ids_return_empty_or_none() -> None:
+    store = _build_store()
+    assert store.get_lemma_by_id("missing") is None
+    assert store.get_concept_by_id("missing") is None
+    assert store.concepts_for_lemma("missing") == []
+    assert store.lemmas_for_concept("missing") == []
+    assert store.senses_for_lemma("missing") == []
+    assert store.get_false_friends_for_lemma("missing") == []
+    assert store.concept_relations_for("missing") == []
+    assert store.sense_relations_for("missing") == []
+
+
+def test_from_data_fol_loads_the_parquet_corpus(tmp_path) -> None:  # noqa: ANN001
+    """A store built from the Parquet corpus answers the query surface."""
+    casa = Lemma(text="casa", language="pt", topics=["home"])
+    cid = "c__house__cd9c39a2ce7a"
+    concept = Concept(id=cid, definitions={"en": "a house"})
+    _dump_table("lemmas", [casa], data_fol=tmp_path)
+    _dump_table("concepts", [concept], data_fol=tmp_path)
+    _dump_table("senses", [Sense(lemma_id=casa.id, concept_id=cid)], data_fol=tmp_path)
+
+    store = LexiconStore.from_data_fol(tmp_path)
+    assert [lem.text for lem in store.get_all_lemmas()] == ["casa"]
+    assert [c.id for c in store.concepts_for_lemma(casa.id)] == [cid]
+
+
+def test_sense_relations_round_trip_through_parquet(tmp_path) -> None:  # noqa: ANN001
+    """The sense_relations table survives Parquet on both load paths."""
+    _write_small_corpus(tmp_path)
+    edge = SenseRelation(
+        sense_id_a="00000000000000bb",
+        sense_id_b="00000000000000aa",
+        relation_type="antonym",
+    )
+    _dump_table("sense_relations", [edge], data_fol=tmp_path)
+    for validate in (False, True):
+        store = LexiconStore.from_data_fol(
+            tmp_path,
+            db_path=":memory:",
+            validate=validate,
+        )
+        assert store.sense_relations_for("00000000000000aa") == [edge]
+
+
+def test_from_data_fol_missing_corpus_raises(tmp_path) -> None:  # noqa: ANN001
+    """A data folder with no Parquet corpus raises CorpusNotFoundError."""
+    with pytest.raises(CorpusNotFoundError):
+        LexiconStore.from_data_fol(tmp_path)
+
+
+def _write_small_corpus(data_fol) -> str:  # noqa: ANN001
+    """Write a tiny corpus exercising a map column (definitions); return concept id."""
+    casa = Lemma(text="casa", language="pt", topics=["home"])
+    cid = "c__house__cd9c39a2ce7a"
+    concept = Concept(id=cid, definitions={"en": "a house", "pt": "uma casa"})
+    _dump_table("lemmas", [casa], data_fol=data_fol)
+    _dump_table("concepts", [concept], data_fol=data_fol)
+    _dump_table("senses", [Sense(lemma_id=casa.id, concept_id=cid)], data_fol=data_fol)
+    return cid
+
+
+def test_raw_load_matches_validated_load(tmp_path) -> None:  # noqa: ANN001
+    """The default streaming load yields the same models as the validate path."""
+    cid = _write_small_corpus(tmp_path)
+
+    raw = LexiconStore.from_data_fol(tmp_path, db_path=":memory:")
+    validated = LexiconStore.from_data_fol(tmp_path, db_path=":memory:", validate=True)
+
+    assert [lem.text for lem in raw.get_all_lemmas()] == ["casa"]
+    raw_concept = raw.get_concept_by_id(cid)
+    validated_concept = validated.get_concept_by_id(cid)
+    assert raw_concept is not None
+    assert validated_concept is not None
+    # Map column (definitions) round-trips identically through the raw path.
+    assert raw_concept.definitions == {"en": "a house", "pt": "uma casa"}
+    assert raw_concept.definitions == validated_concept.definitions
+
+
+def test_from_data_fol_persists_and_reuses_cache(tmp_path) -> None:  # noqa: ANN001
+    """The built SQLite is persisted beside the corpus and reused on reload."""
+    cid = _write_small_corpus(tmp_path)
+    cache_db = tmp_path / "lexicon" / "_store.sqlite"
+
+    LexiconStore.from_data_fol(tmp_path)
+    assert cache_db.exists()  # persisted beside the corpus
+    assert cache_db.with_suffix(".sqlite.sig").exists()
+
+    # A second load with the corpus unchanged hits the cache and still serves.
+    second = LexiconStore.from_data_fol(tmp_path)
+    assert second.get_concept_by_id(cid) is not None
+
+
+def test_cache_busts_when_corpus_changes(tmp_path) -> None:  # noqa: ANN001
+    """Editing the corpus rebuilds the store instead of serving a stale cache."""
+    _write_small_corpus(tmp_path)
+    first = LexiconStore.from_data_fol(tmp_path)
+    assert len(first.get_all_lemmas()) == 1
+
+    # Add a second lemma language file - the signature changes -> rebuild.
+    _dump_table(
+        "lemmas",
+        [Lemma(text="dog", language="en")],
+        data_fol=tmp_path,
+    )
+    second = LexiconStore.from_data_fol(tmp_path)
+    assert {lem.text for lem in second.get_all_lemmas()} == {"casa", "dog"}

@@ -1,0 +1,29 @@
+Write {{ language_name }} dictionary glosses for a language-learning lexicon.
+Variety: {{ variety }}
+
+Each concept below has an English gloss and the {{ language_name }} words that express
+it. For EACH concept, write the gloss in {{ language_name }}: a natural, idiomatic
+rendering of the English gloss in the register of a monolingual dictionary. Rephrase
+freely so it reads like native {{ language_name }}; it does not have to follow the English
+word for word.
+
+Say what the English gloss says, and only that. The gloss is the whole definition: even
+when you know more about the concept, do not add it. In particular, do NOT add:
+- facts the English gloss does not state, even true ones (atomic numbers, dates, places,
+  measurements, inventors, taxonomy);
+- what the thing is for, how it is used, or what it typically does, unless the English
+  gloss says so;
+- examples, synonyms, or lists of the member words;
+- the headword itself at the start ("word: ...").
+A short English gloss gets a short {{ language_name }} gloss.
+
+Also:
+- Do not just repeat a {{ language_name }} member word as the gloss; explain it.
+- Keep proper names, scientific names and quoted terms as they are.
+- One gloss per concept, without a leading article like "the word" or "a term for".
+
+Concepts (key: English gloss | English words | {{ language_name }} words):
+{% for concept in concepts %}- {{ concept.key }}: {{ concept.english_definition }} | {{ concept.english_members }} | {{ concept.target_members }}
+{% endfor %}
+Return `glosses`: one entry per concept above, each with its `key` exactly as given and
+its `definition` in {{ language_name }}.

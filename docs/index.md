@@ -16,12 +16,14 @@ The full design roadmap lives at
 
 ## Features
 
-- **Canonical data models** for words, languages, and accent maps.
-- **LLM services** layered on `llm-core` for translation, conversation
-  generation, topic suggestion, paragraph splitting, greetings, and word
-  generation.
-- **Word ingestion** from Wiktionary JSONL dumps, CSV files, and LLM output.
-- Modern Python 3.13+, managed with [uv](https://docs.astral.sh/uv/).
+- **Lexicon**: a concept-centric model (lemmas, concepts, senses, relation
+  edges including false friends and cognates) for en, pt, es, fr and it.
+- **Reproducible build** from Open Multilingual Wordnet, with LLM- and
+  agent-reviewed curated inputs re-applied on every rebuild.
+- **Drill cards and a public read API** that `lang-tutor` consumes.
+- **LLM chains** layered on `llm-core` for content generation and corpus
+  maintenance.
+- Python 3.14, managed with [uv](https://docs.astral.sh/uv/).
 - Pre-configured Ruff, Pyright, pytest, pre-commit, and MkDocs.
 
 ## Quick Start
@@ -30,10 +32,9 @@ The full design roadmap lives at
 git clone https://github.com/Pitrified/lang-tools.git
 cd lang-tools
 
-uv sync --all-extras --all-groups
-
-uv run pytest
-uv run mkdocs serve
+make sync
+make check
+make docs
 ```
 
 ## Project Structure
@@ -47,7 +48,8 @@ lang-tools/
 │   ├── llm/                # Content-producing StructuredLLMChain wrappers
 │   ├── metaclasses/        # Singleton metaclass
 │   ├── params/             # Env-aware params and paths
-│   └── words/              # Word model, ids, ingestion, word store
+│   ├── lexicon/            # Lexicon models, store, cards, ingestion
+│   └── webapp/             # Content read API
 ├── tests/                  # Test suite mirroring src/
 ├── docs/                   # MkDocs source (you are here)
 └── scratch_space/          # Experimental notebooks and vibes

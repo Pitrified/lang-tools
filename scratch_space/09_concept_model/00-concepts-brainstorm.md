@@ -86,6 +86,13 @@ class Lemma(BaseModel):
         return lemma_id(self.text, self.language)
 ```
 
+> **Decided (phase 2): `concept_ids` is dropped from `Lemma`.** The explicit
+> `Sense` edge (see "Modeling implication" below) is the single source of truth for
+> lemma <-> concept membership, so the persisted `Lemma` carries no `concept_ids`
+> list. Callers reach a lemma's meanings through the hydrated `lemma.senses` /
+> `lemma.concepts` representation view (phase 4). The `concept_ids` field shown
+> above is the original sketch; it is superseded.
+
 #### Naming: `Lemma`, not `Word`
 
 Decided (green-lit): the class is `Lemma`, not `Word`. The literature term for
@@ -131,6 +138,16 @@ class Concept(BaseModel):
 - A concept with `len(lemmas[lang]) > 1` is a synonym/dialect group in that
   language.
 - A concept with multiple language keys is an implicit cognate/translation set.
+
+> **Decided (phase 2): `lemmas` is dropped from the persisted `Concept`.** Once the
+> explicit `Sense` edge exists (see below), per-language membership is fully
+> derivable from the sense set (group a concept's senses, bucket by each lemma's
+> language). Persisting `lemmas` too would duplicate the edge and risk one-sided
+> drift - the same reason false friends are a decoupled edge. `Concept` is stored
+> as `id` + `definitions` only; `concept.lemmas` (and the synonym-group /
+> cognate-set reads above) return as a computed representation-layer view, hydrated
+> by the store in phase 4, not a stored field. See
+> [`02_core_models.md`](02_core_models.md), "Persistence vs representation".
 
 ### `FalseFriendRelation` (decoupled edge table)
 
@@ -294,9 +311,14 @@ class Sense(BaseModel):
 ```
 
 Token frequency can also be cached on `Lemma` as a convenience aggregate (the max
-across its senses), but the sense edge stays the source of truth. Whether to
-promote the edge now or keep the flat `concept_ids` list until frequency lands is
-an open question (see below).
+across its senses), but the sense edge stays the source of truth.
+
+> **Decided (phase 2): promote the explicit `Sense` edge now.** The richer
+> per-sense metadata (frequency, CEFR, later provenance/examples) earns the
+> dedicated object, and making `Sense` the canonical membership record lets both
+> `Lemma.concept_ids` and `Concept.lemmas` drop (their membership is derivable from
+> the sense set). `Sense` is the single place the lemma <-> concept relationship is
+> stored. See [`02_core_models.md`](02_core_models.md).
 
 ### Sources
 
@@ -380,6 +402,22 @@ def get_false_friends_for_lemma(lemma_id: str) -> list[tuple[Lemma, FalseFriendR
 Analogous concept indexes: `_CONCEPTS_BY_ID`, plus `concepts_for_lemma(lemma_id)`
 and `lemmas_for_concept(concept_id, language=None)`.
 
+> **Built (phase 4, refined in 4.1 / 4.2).** The store is now `LexiconStore`
+> (`lang_tools.lexicon.lemma_store`): a **single indexed SQLite engine** built
+> from the corpus on load, answering the full query surface above
+> (`concept_relations_for` / `senses_for_*` included) with `SELECT`s. There is no
+> resident/SQLite dual mode - the phase-4 resident dicts, eager `_hydrate()`,
+> `LexiconStoreMode`, and `SqliteModeNotImplementedError` were removed in 4.1;
+> back-refs are now filled **on demand** by `hydrate_lemma`/`hydrate_concept`/
+> `hydrate_sense` (bounded 1-2 hops, fresh instances) and read through `resolve_*`
+> accessors that raise `NotHydratedError` / `SenseNotHydratedError` when
+> unhydrated. The on-disk format sits behind a Parquet codec seam (`codec.py`);
+> `from_data_fol` has a **single load path** - it reads `data/lexicon/` Parquet
+> only and raises `CorpusNotFoundError` when absent (4.2). `pyarrow` is a base
+> dependency; `duckdb` (the `store` extra) backs the inspect/QA path alone. See
+> [`04_store_layer.md`](04_store_layer.md), [`04.1_sqlite_mode.md`](04.1_sqlite_mode.md),
+> [`04.2_seed_data.md`](04.2_seed_data.md).
+
 ### Storage format, git-LFS friendliness, and scaling
 
 The shipped dataset should stay **git-LFS friendly**: large, mostly-append-only
@@ -402,6 +440,34 @@ sub-plan) covering:
 Provisional lean: keep ingestion outputs as partitioned JSONL/CSV under LFS;
 revisit a SQLite build artifact only if query latency or memory become real
 problems. The analysis sub-plan confirms or overturns this.
+
+**Decision (phase 3, measured).** Experiments at the OMW 5-language scale (1M
+senses; see [`03_storage_indexing.md`](03_storage_indexing.md) "Decision memo")
+settle it on two separable axes:
+
+- **Ship Parquet+zstd, partitioned per table and per language** (`senses`/
+  `lemmas`) under git-LFS - ~8.6x smaller than JSONL (40.9 vs 350.3 MB total),
+  every per-table file < 25 MB, and directly DuckDB-queryable for build/QA. As
+  JSONL the `senses` table (227 MB) blows past GitHub's 100 MB hard limit, so the
+  big tables need LFS regardless and JSONL's diff benefit is lost there.
+- **Ship *all* tables as Parquet under LFS, including the small curated ones, for
+  uniformity** (one distribution path, no special cases): a 50k-row textual diff
+  is not meaningfully reviewable, and a model change rewrites every JSONL line, so
+  line-diffability is a false comfort. Human inspection/editing is an explicit
+  workflow over the Parquet (DuckDB SQL / a thin `inspect` CLI for reading;
+  `export_table`->edit JSONL->`import_table` with pydantic validation for edits),
+  not a committed line-oriented file; schema changes regenerate from ingestion.
+- **Runtime: in-memory dicts only for the tiny sample data; promote the hot
+  tables to SQLite indexed point lookups for the full corpus.** The full graph as
+  pydantic dicts is ~1.9 GB resident (infeasible on a 512 MB dyno); SQLite gives
+  ~30 us point lookups at ~0 resident. DuckDB is ~500x slower on point lookups
+  (16 ms) - a build/QA tool, not the hot path. Do not ship a `.duckdb`/`.sqlite`
+  as the canonical artifact; any runtime SQLite is built from the Parquet. Every
+  filter/adjacency access needs an explicit index (a raw scan is ~150 ms).
+  *(Superseded by 4.1/4.2: the runtime is **SQLite-only** for both sample and full
+  corpus - no in-memory dict mode - and the store reads Parquet only, so SQLite is
+  always built from `data/lexicon/`. DuckDB-as-build/QA-tool and the
+  Parquet-as-source-of-truth points stand.)*
 
 ### Why the edge table over embedded `false_friends`
 
@@ -505,6 +571,17 @@ translations; pull these to fill `definitions` and example fields. Caveats:
 - It is **lemma-centric with no shared concept ids**, so key it by lemma and join
   onto OMW synsets; do not treat it as the concept source.
 
+> **Decided after the first full build (2026-06-18): drop kaikki.** It was adopted mainly
+> because a wiktextract loader already existed, not for fit. The build shows the
+> lemma-level (sense-blind) join produces low-quality non-en glosses (bare English words,
+> `PSEUDOGAP!` junk, form-of notes; 7,220 `definition == lemma` rows) *and* drags CC-BY-SA
+> over ~53% of concept glosses. The dataset only needs **a good English gloss** (OMW ~100%,
+> ILI English gloss as fallback) and **good concept grouping** (OMW/ILI) - neither comes
+> from kaikki, and per-language glosses are not a priority - so dropping it costs nothing
+> we care about and removes the junk and the only viral license at once. Examples, if
+> wanted, come from Tatoeba (CC-BY). Full analysis:
+> [`05.4_data_quality.md`](05.4_data_quality.md), "emerging direction".
+
 ### LLM - mapping only, not a data source
 
 The hard part is mapping lemmas onto OMW synsets and collapsing WordNet's
@@ -536,6 +613,19 @@ the source mix:
   permissive regardless.
 - **`wordfreq` is MIT**; per-list frequency sources (SUBTLEX/OpenSubtitles) must
   be license-checked individually before shipping.
+
+> **How overlapping licenses interact (clarified 2026-06-18).** "Open" is three buckets
+> that combine differently: CC0/public-domain (Wikidata, no conditions), permissive/
+> attribution (Apache/MIT/CC-BY, most OMW lexicons - non-viral), and share-alike
+> (CC-BY-SA: Wiktionary/kaikki, ConceptNet - **viral**). A single CC-BY-SA *text* field
+> cannot be relicensed down, so one SA source caps the whole shipped corpus at CC-BY-SA.
+> The license rides on the copyrightable **text** (`definitions`/`examples`), not the
+> facts (edges/frequencies), and our per-row `source` column tracks it. Since kaikki is
+> the *only* SA source, **dropping it (see the enrichment note above) removes the only
+> viral constraint** and lets the dataset ship permissive + CC0 + CC-BY (attribution
+> only). Note: the brainstorm's "OMW is Apache-2.0" is too broad - OMW licenses are
+> per-lexicon, verify each. Full explanation: [`05.4_data_quality.md`](05.4_data_quality.md),
+> "emerging direction" (3).
 
 Ship a dataset card recording each source, its license, and required attribution.
 
@@ -614,19 +704,43 @@ canonical gloss.
 - **Concept granularity.** Resolved as a direction: start with WordNet synsets
   as-is, then merge closely related senses or add a "concept cluster" layer above
   synsets if too fine. Confirmed during the ingestion phase.
-- **Storage format / git-LFS.** Direction set (line-oriented files under LFS,
-  SQLite only if needed) but needs the dedicated analysis sub-plan. See "Storage
-  format, git-LFS friendliness, and scaling".
+- **Storage format / git-LFS.** Resolved (phase 3, refined 4.1/4.2): ship **all
+  tables as Parquet+zstd under git-LFS** (large tables partitioned per language),
+  no committed DB blob and no line-oriented files. The runtime is a **SQLite-only**
+  engine built from that Parquet; the store reads Parquet only (single load path,
+  `CorpusNotFoundError` when absent). DuckDB is build/QA only. See "Storage format,
+  git-LFS friendliness, and scaling" and [`03_storage_indexing.md`](03_storage_indexing.md).
+- **Promote the sense edge now, or later?** Resolved (phase 2): promote now. The
+  explicit `Sense` is the canonical membership record and hosts per-sense frequency
+  and CEFR; `Lemma.concept_ids` and `Concept.lemmas` both drop as derivable. See
+  "Modeling implication: an explicit sense edge".
+- **Persistence vs representation.** Resolved (phase 2): persisted models are thin,
+  id-only, drift-free records (the on-disk source of truth); convenience navigation
+  (`sense.lemma`, `sense.concept`, `lemma.senses`, computed `concept.lemmas`) is an
+  in-memory representation concern, hydrated by the store as serialization-excluded
+  fields in phase 4. See [`02_core_models.md`](02_core_models.md).
+- **Glosses on `Lemma` vs `Concept`.** Resolved (phase 2): glosses move entirely to
+  `Concept.definitions`; `Lemma` keeps none. Raw source glosses are not carried as
+  provenance now; if wanted they return in the ingestion phase (5) where they are
+  produced.
+- **Store layer, indexes, and hydration.** Resolved (phase 4, refined 4.1/4.2):
+  built `LexiconStore` with the full query surface over a Parquet codec seam. The
+  engine is a **single indexed SQLite database** (4.1 removed the resident dicts,
+  eager `_hydrate()`, and the `LexiconStoreMode`/`SqliteModeNotImplementedError`
+  seam); back-refs (`lemma.senses`/`concepts`, `concept.senses`/`lemmas`,
+  `sense.lemma`/`concept`) are `exclude=True` fields filled **on demand** by the
+  `hydrate_*` methods and read through `resolve_*` guards; circular refs resolved
+  via `model_rebuild()` in the store module. The `Lemma.concepts` back-ref is a
+  hydrated field (the phase-2 drift argument applies only to the *persisted*
+  shape). `from_data_fol` reads `data/lexicon/` Parquet only - one load path,
+  `CorpusNotFoundError` when absent (4.2). Webapp gained concept/relation read
+  endpoints; a `corpus.py` inspect/edit surface and a `notebooks/lexicon_corpus/`
+  driver (with a `parquetize_seed.ipynb` for the sample) replace the dropped
+  human-readable artifact. See [`04_store_layer.md`](04_store_layer.md),
+  [`04.1_sqlite_mode.md`](04.1_sqlite_mode.md), [`04.2_seed_data.md`](04.2_seed_data.md).
 
 ## Open questions
 
-- **Promote the sense edge now, or later?** Carrying lemma frequency *and* CEFR
-  complexity (both per-sense), plus per-sense provenance/examples, argues for an
-  explicit `Sense` model from day one; the simpler `Lemma.concept_ids: list[str]`
-  is lighter if those land later. Leaning toward the explicit `Sense` edge given
-  frequency and complexity are both in scope.
-- **Do glosses stay on `Lemma` too, or move entirely to `Concept`?** Leaning:
-  concept owns canonical glosses; lemma may keep raw source glosses as provenance.
 - **Enrichment license.** How to handle CC-BY-SA Wiktionary text so the shipped
   dataset stays cleanly open: isolated separately-licensed layer, accept CC-BY-SA
   for the whole dataset, or use Wiktionary only to guide freshly-written LLM

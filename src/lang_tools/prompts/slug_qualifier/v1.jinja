@@ -1,0 +1,19 @@
+Disambiguate same-named concepts in a lexicon by picking a short qualifier for each.
+
+The concepts below all share the readable id slug "{{ slug }}" (its base word is
+"{{ base }}"). Each has an English gloss. For EVERY concept, pick a qualifier of 1 to
+3 words that tells it apart from the others in this list.
+
+Hard rules:
+- Every word of a qualifier must appear in that concept's own gloss (you may change
+  case and drop punctuation, nothing else). Do not invent, translate, or paraphrase.
+- Qualifiers must be different from each other within this list.
+- Prefer the most distinctive content words (nouns, then verbs or adjectives); avoid
+  function words such as "of", "the", "or", "used", "very", "act".
+- Do not repeat the base word "{{ base }}" in the qualifier.
+
+Concepts (key: gloss | English member words):
+{% for concept in concepts %}- {{ concept.key }}: {{ concept.gloss }} | {{ concept.members }}
+{% endfor %}
+Return `qualifiers`: one entry per concept above, each with its `key` exactly as
+given and its `qualifier`.
