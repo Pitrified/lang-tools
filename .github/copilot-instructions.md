@@ -121,7 +121,8 @@ trailing colon. Module docstrings are narrative prose.
 - `tests/` mirrors `src/lang_tools/` and runs on the committed bootstrap seed, not the full corpus.
 - `notebooks/` holds the thin drivers for the build and the maintenance jobs.
 - `scratch_space/` holds the planning record and experiments: one numbered folder per initiative,
-  `tracking.md` first (current: `scratch_space/09_concept_model/`).
+  `tracking.md` first (current: `scratch_space/09_concept_model/`, and the look-alike review in
+  `scratch_space/11_lookalike_review/`).
 - `docs/` is the MkDocs site: `guides/` for tooling and procedures, `library/` for narrative notes
   on the code, `reference/` generated from docstrings (never write files there). Keep it current
   at the end of every task, updating statements in place rather than appending history.

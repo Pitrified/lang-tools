@@ -7,8 +7,9 @@ relation edge tables), plus an open-source multilingual dataset built on OMW.
 Full analysis and decisions in
 [`00-concepts-brainstorm.md`](00-concepts-brainstorm.md).
 
-Status (2026-10-22): phases 1-9 done; phase 11 (false friends and cognates) is next and runs
-**before** phase 10 (licensing), which stays last. Deferred work with no phase is
+Status (2026-10-24): phases 1-9 and 11 done; phase 10 (licensing) stays last. The
+look-alike review that phase 11 started continues in its own folder,
+[`11_lookalike_review`](../11_lookalike_review/tracking.md). Deferred work with no phase is
 listed under [Backlog](#backlog-deferred-no-phase-yet), so this file is the one
 place to look for what is planned and what is not.
 
@@ -71,7 +72,7 @@ place to look for what is planned and what is not.
 | 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | done | Finished the relation graph: ten synset types read from both names of each inverse pair and stored one way, `instance_hypernym` split out of `hypernym`, a `sense_relations` table for English antonymy and derived concept `antonym` edges so pt/es/fr/it reach opposites (pt `quente` -> `frio`); 97,666 -> 137,936 concept edges + 3,992 sense edges, two new gate invariants. The build disproved the plan's headline - the non-English wordnets carry no relations, `wn`'s expansion had projected English's - and showed the old hypernym edges already held instance links, so Decision 4 was revisited and depth walks both; CEFR bands and Kelly validation unchanged. |
 | 8  | Maintenance (LLM-based)       | [`08_maintenance.md`](08_maintenance.md)                 | done | Generalized 5.55's gloss loop into worklist -> proposer -> reviewable JSONL -> curated build input, with a resumable OpenAI runner (live + Batch, measured token usage on every record). Ran and landed: learner topics (80,856 concepts, 75-86% of lemmas per language, table reviewed), slug tier 2 (23,012 qualifiers; distinct slugs 103,965 -> 117,588), member-form review (153 drops), lemma text/POS settled on the majority, and the non-en gloss backfill (174,315 glosses, `gpt-6-luna` batch, $1.87 measured; fr/pt/es 0% and it 5.5% -> 100%). Total LLM spend ~$7-9; after an early overspend every paid run is sample-measured and approved first. Step 9 (2026-10-22): lemma identity keeps case and accents (avó/avô, Be/be are two lemmas), 16,601 noisy spellings folded, no frequency lent across case, `CEFR_CUTOFFS` re-fitted (it exact 19.5% -> 23.1%); lemmas 320,904 -> 324,336; `lang-tutor` must re-key per-user progress in phase 9. |
 | 9  | Sample data + consumer uplift | [`09_sample_and_consumer.md`](09_sample_and_consumer.md) | done | `lang-tutor` reconnected to the concept model on `feat/lexicon`. `lang-tools` serves a `LemmaCard` drill view (best sense's CEFR band, gloss, translations, examples; ties broken by concept commonness, since the SemCor split is English-only) through a bounded `CardQuery` (`/api/v1/cards`, 20-50 ms per 200-card window), plus paged lemma lists. `lang-tutor` draws every round from cards weighted by session progress. 10 hand-written pt/es/fr example sentences; pt teatro dropped from the dwelling concept. The end-to-end run over HTTP plays every exercise in pt/en/fr, after fixing never-committed page scripts and four front-end bugs. Suites green (356 / 140). |
-| 11 | False friends and cognates (runs before 10) | [`11_false_friends.md`](11_false_friends.md) | in progress | Pairwise look-alike edges between lemmas, with `kind` = full / partial false friend or cognate, in one `lookalikes` table (`FalseFriendRelation` -> `LookalikeRelation`). The per-learner view (trap / free / neither) is computed at read time over the learner's known languages, so adding es / fr later just adds edges. v1 covers pt-en and pt-it (a pt learner who knows en and it), over the full word range. The pipeline is a cognate-key generator (IPA only if needed), then a main-sense test and concept distance, then a sample-approved LLM verifier that writes en notes. The yardstick is a 200-pair hand-reviewed gold set. Measured so far: spelling alone is noise, and spelling plus a main-sense test catches 26 of 33 classic pairs. **Status 2026-10-24:** steps 1-8 built and tested (step 3, IPA, not needed). The paid verifier run is parked; candidates are reviewed by agents in 200-pair batches instead: tier A done (5,499), tier B 2,400/6,701, gold 224/245. Resume from "Resume here" in the plan. |
+| 11 | False friends and cognates (runs before 10) | [`11_false_friends.md`](11_false_friends.md) | done | Pairwise look-alike edges between lemmas, with `kind` = full / partial false friend or cognate, in one `lookalikes` table (`FalseFriendRelation` -> `LookalikeRelation`). The per-learner view (trap / free / neither) is computed at read time over the learner's known languages, so adding es / fr later just adds edges. v1 covers pt-en and pt-it (a pt learner who knows en and it), over the full word range. The pipeline is a cognate-key generator (IPA only if needed), then a main-sense test and concept distance, then a sample-approved LLM verifier that writes en notes. The yardstick is a 200-pair hand-reviewed gold set. Measured so far: spelling alone is noise, and spelling plus a main-sense test catches 26 of 33 classic pairs. **Status 2026-10-24:** done. Steps 1-8 built and tested (step 3, IPA, not needed). The paid verifier run is parked; the candidates are reviewed by agents in tiered batches instead, an effort spun off into [`11_lookalike_review`](../11_lookalike_review/tracking.md) (tier A done, tier B in progress). |
 | 10 | Licensing & packaging         | [`10_licensing_docs.md`](10_licensing_docs.md)           | draft  | Finalize open license, source attribution / dataset card, and docs.                                                    |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
@@ -132,10 +133,12 @@ promote an item to a numbered phase (and a sub-plan file) when it is picked up.
 
   See [`09_sample_and_consumer.md`](09_sample_and_consumer.md), Q1.
 
-- **Phase 11 open points.** Tier A of the look-alike review is done and tier B is at
-  2,400/6,701; the next steps are in [`11_false_friends.md`](11_false_friends.md), "Resume
-  here", and the older follow-ups (seed re-export, tier depth, end-to-end check, housekeeping)
-  in "Open points after tier A".
+- **Junk best senses on common inflected forms.** Left over from phase 11's function-word
+  fix (`ingestion.closed_class`): inflected verb forms whose best sense is a rare homograph
+  (pt *é* "e", *são* "healthy", *seja* "are", the unit), and *brasil* "brazilwood". A learner
+  meets them on the first cards. Fix: a curated override for the top forms, or a rule that a
+  sense with no frequency data cannot become the best sense of a common lemma. The look-alike
+  review's own follow-ups are in [`11_lookalike_review`](../11_lookalike_review/tracking.md).
 
 Dropped, not deferred: an LLM pass estimating CEFR bands for pt/es/fr (phase 8,
 finding 4: nothing to validate it against).
@@ -1284,3 +1287,4 @@ Append-only. Newest at the bottom.
 - 2026-10-22 : settled phase 11's decisions (en x pt x it; cognate key first; `kind` field; keep true cognates). Status draft -> planned.
 - 2026-10-22 : final pass on phase 11 after the learner-profile clarification (knows en + it, learns pt): pairs are target x known (pt-en, pt-it; en-it dropped), no CEFR bound, cognates join false friends in one `lookalikes` edge table with `kind`, the per-learner trap / free view is a read-time union over known languages, and the gold set is 200 hand-reviewed pairs. Plan rewritten as one coherent document.
 - 2026-10-22 : phase 11 steps 1-8 built. Gold set, generator (65,266 candidates; gold recall 93% full, 95% partial, 89% cognate), `LookalikeRelation` rename, verifier (sol v5 + root rule: 106/116 traps, 6 false alarms), build input and gate, per-learner cards, `lang-tutor` surface. The paid run is on hold pending the user's review.
+- 2026-10-24 : phase 11 closed as done. The look-alike review it started (tiered agent batches, tier A done, tier B in progress) was spun off into `scratch_space/11_lookalike_review/`, with its plan sections and usage log; the backlog's phase-11 bullet became the one item that is corpus quality (junk best senses on inflected forms). On main the same day: tier-A rebuild (2,801 edges, gate PASS) and the seed re-export.

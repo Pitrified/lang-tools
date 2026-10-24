@@ -12,4 +12,5 @@ content-producing LLM chains. The learner-facing concerns live in the sibling
 never import `lang-tutor`.
 
 Planning lives in `scratch_space/`, one numbered folder per initiative, `tracking.md`
-first (current: `scratch_space/09_concept_model/tracking.md`).
+first (current: `scratch_space/09_concept_model/tracking.md`, and the look-alike review in
+`scratch_space/11_lookalike_review/tracking.md`).
