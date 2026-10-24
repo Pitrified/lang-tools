@@ -132,7 +132,8 @@ The previous build had 984 edges. The sample corpus carries 8.
 
 ## Round 5: tier B start, twelve 200-pair batches in parallel (b0001 to b0012)
 
-Meter 60% at launch; the end reading is pending from the user. No `/compact` just before; the
+Meter 60% at launch; the session limit was reached during the round's wrap-up (100%, +40
+points or more, against the 30 planned). All twelve batches had applied by then. No `/compact` just before; the
 twelve batches were reserved up front with `serve --tier B --size 200`, then twelve agents were
 launched in one turn, sized for about 30 points at round 4's 2.4 points per agent.
 
@@ -144,3 +145,7 @@ launched in one turn, sized for about 30 points at round 4's 2.4 points per agen
 
 - Quality: gold 54/60 this round, 224/245 overall; 130 edge cases in 2,400 pairs.
 - Tier B stands at 2,400/6,701 after 12 batches.
+- Rate: 2,400 pairs for at least 40 points, at most 60 pairs per point, against 75 to 115 in
+  rounds 2 to 4. Twelve parallel agents plus a main session that committed after every few
+  hand-backs cost more per pair than expected; size the next round at about 3.3 points per
+  agent, and commit once at the end.
