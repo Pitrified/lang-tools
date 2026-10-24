@@ -27,7 +27,7 @@ Setup [`uv`](https://docs.astral.sh/uv/getting-started/installation/).
 Run the following command:
 
 ```bash
-uv sync --all-extras --all-groups
+make sync        # uv sync --all-extras --all-groups
 ```
 
 ## Docs
@@ -53,44 +53,17 @@ workspace [settings file](.vscode/settings.json):
 
 Note that the path to the `.env` file should be absolute.
 
-### Pre-commit
+### Development
 
-To install the pre-commit hooks, run the following command:
-
-```bash
-uv run pre-commit install
-```
-
-Run against all the files:
+Every command is a `make` target; `make help` lists them.
 
 ```bash
-uv run pre-commit run --all-files
+make hooks       # install the pre-commit hooks, once per clone
+make check       # lint, typecheck and test
+make format      # ruff format
+make docs        # serve the docs
 ```
 
-`ruff` and `pyright` are pinned exactly and match the hook revs; bump both
-together (see `docs/guides/pre_commit.md`).
-
-### Linting
-
-Use pyright for type checking:
-
-```bash
-uv run pyright
-```
-
-Use ruff for linting:
-
-```bash
-uv run ruff check --fix
-uv run ruff format
-```
-
-### Testing
-
-To run the tests, use the following command:
-
-```bash
-uv run pytest
-```
-
-or use the VSCode interface.
+Run project code through `make` or `uv run --no-sync`, never a bare `uv run`: see
+`docs/guides/makefile.md`. `ruff` and `pyright` are pinned exactly and match the hook revs; bump
+both together (see `docs/guides/pre_commit.md`).

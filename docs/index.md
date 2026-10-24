@@ -32,10 +32,9 @@ The full design roadmap lives at
 git clone https://github.com/Pitrified/lang-tools.git
 cd lang-tools
 
-uv sync --all-extras --all-groups
-
-uv run pytest
-uv run mkdocs serve
+make sync
+make check
+make docs
 ```
 
 ## Project Structure

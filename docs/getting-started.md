@@ -19,59 +19,32 @@ cd lang-tools
 ### 2. Install Dependencies
 
 ```bash
-# Install everything: all extras and all dependency groups
-uv sync --all-extras --all-groups
+make sync        # uv sync --all-extras --all-groups
+make hooks       # install the pre-commit hooks, once per clone
 ```
 
-Use this full form. A narrower `uv sync` removes what it was not asked for, so
-syncing a single group later drops the extras (`store`, `ingest`) and the
-tests that need `duckdb`, `wn` and `wordfreq` fail to collect.
+`make sync` is the full form on purpose. A narrower `uv sync` removes what it was not asked for, so
+syncing a single group later drops the extras and the tests that need them fail to collect.
 
 ### 3. Verify Installation
 
 ```bash
-# Run tests
-uv run pytest
-
-# Check code style
-uv run ruff check .
-
-# Type checking
-uv run pyright
+make check       # lint, typecheck and test
 ```
 
 ## Development Workflow
 
-### Running Tests
+`make help` lists every target. Run project code through `make` or `uv run --no-sync`, never a
+bare `uv run`; [Makefile](guides/makefile.md) explains why.
 
 ```bash
-uv run pytest
-uv run pytest -v              # Verbose output
-uv run pytest tests/config/   # Run specific test directory
+make check                            # before every commit
+make format                           # ruff format
+uv run --no-sync pytest tests/lexicon/   # one test directory
 ```
 
-### Code Quality
-
-```bash
-# Lint and format
-uv run ruff check .
-uv run ruff format .
-
-# Type checking
-uv run pyright
-```
-
-### Pre-commit Hooks
-
-Pre-commit hooks are configured to run automatically on each commit:
-
-```bash
-# Install hooks (first time only)
-uv run pre-commit install
-
-# Run manually on all files
-uv run pre-commit run --all-files
-```
+The pre-commit hooks run on each commit; run them all by hand with
+`uv run --no-sync pre-commit run --all-files`.
 
 ## Environment Configuration
 
@@ -83,9 +56,6 @@ The project expects environment variables to be stored in `~/cred/lang-tools/.en
 ## Building Documentation
 
 ```bash
-# Start local server with hot reload
-uv run mkdocs serve
-
-# Build static site
-uv run mkdocs build
+make docs        # local server with hot reload
+make docs-build  # strict build, as CI
 ```

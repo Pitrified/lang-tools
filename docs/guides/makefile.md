@@ -1,0 +1,89 @@
+# Makefile
+
+The `Makefile` is the task runner: one place to find every command, discoverable with `make help`.
+
+```bash
+make help        # list every target with its description
+make sync        # install all dependencies (extras and groups)
+make hooks       # install the pre-commit git hooks, once per clone
+make check       # lint, typecheck and test
+make docs        # serve the docs locally
+make nbstrip     # strip notebook outputs
+make serve       # serve the content read API on localhost:8010
+make dev-llm-core       # use a local llm-core checkout
+make dev-fastapi-tools  # use a local fastapi-tools checkout
+make undev       # revert a local editable override
+```
+
+`serve` is explained in [Running the content read service](run_service.md).
+
+## Adding a target
+
+The `##` comment after the target name is the help text - there is no separate list to maintain:
+
+```makefile
+my-target:  ## What this does, in one line
+	$(UV_RUN) python -m project_name.thing
+```
+
+Run project code through `$(UV_RUN)`, not a bare `uv run`. The reason is below.
+
+## Why `UV_RUN := uv run --no-sync`
+
+`uv run` syncs the environment against `uv.lock` before it runs anything. That is usually what you
+want, and it is exactly wrong when you have deliberately installed something else into the venv.
+
+Internal libraries are pinned by git tag:
+
+```toml
+dependencies = ["llm-core[openai] @ git+https://github.com/Pitrified/llm-core@v0.2.2"]
+```
+
+When you need to work on the library and its consumer at the same time, `make dev-llm-core` runs
+`uv pip install -e ../llm-core[openai]`. That install exists only in `.venv` - it is not in `uv.lock` -
+so the next plain `uv run` reinstalls the pinned tag over it, with no warning:
+
+| step                             | what resolves      |
+| -------------------------------- | ------------------ |
+| `uv sync`                        | the pinned tag     |
+| `uv pip install -e ../llm-core`  | the local checkout |
+| one plain `uv run` anything      | the pinned tag     |
+
+Passing `--no-sync` keeps the editable install in place, which is why every target that runs
+project code goes through `$(UV_RUN)`.
+
+`UV_FROZEN=1` / `--frozen` does **not** help: it only stops `uv.lock` from being updated, and the
+environment is still synced.
+
+## What this does not protect
+
+Only `make` targets pass `--no-sync`. These still revert an editable install:
+
+- a bare `uv run ...` in a terminal,
+- the editor's test runner or language server, if it invokes `uv run`,
+- any `uv sync`, including `make sync` and `make undev`.
+
+The pre-commit hooks are safe. Their only uv hook, `uv-lock`, runs `uv lock`, which rewrites
+`uv.lock` and never touches `.venv`; the editable install is not in the lock to begin with. The
+other hooks run in pre-commit's own environments, and pyright only reads `.venv`.
+
+So treat a local override as short-lived. `make undev` is the deliberate way back to the pinned
+versions, and re-running `make dev-<lib>` is cheap when something has clobbered it.
+
+If you want an override that cannot be reverted, run the command directly with an overlay instead:
+
+```bash
+uv run --with-editable ../llm-core pytest
+```
+
+That layers the local checkout on top for that one command. It never touches `.venv`, so there is
+nothing to revert - and nothing to forget, since every invocation needs the flag.
+
+## Alternatives that were rejected
+
+- **`[tool.uv.sources]` path override** in `pyproject.toml` works, but `pyproject.toml` is tracked
+  and the first run also rewrites `uv.lock`. Committing either makes installs non-reproducible for
+  everyone else.
+- **`uv.toml` with a `[sources]` table** is not possible: uv rejects it with
+  `the 'sources' field is not allowed in a 'uv.toml' file`. There is no untracked local-config
+  escape hatch.

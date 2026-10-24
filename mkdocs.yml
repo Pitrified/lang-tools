@@ -78,6 +78,7 @@ nav:
   - Guides:
       - UV Package Manager: guides/uv.md
       - Pre-commit Hooks: guides/pre_commit.md
+      - Makefile: guides/makefile.md
       - Params / Config Pattern: guides/params_config.md
       - Bootstrap sample seed: guides/bootstrap_data.md
       - Rebuilding the corpus: guides/rebuild_corpus.md

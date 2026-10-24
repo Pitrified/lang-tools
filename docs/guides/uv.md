@@ -10,11 +10,9 @@ uv add --group test pytest-cov
 
 ## Sync
 
-Always sync everything; a narrower sync removes what it was not asked for:
-
-```bash
-uv sync --all-extras --all-groups
-```
+Always sync everything with `make sync` (`uv sync --all-extras --all-groups`); a narrower sync
+removes what it was not asked for. Run project code through `make` or `uv run --no-sync`: a bare
+`uv run` syncs first and reverts a local editable install, see [Makefile](./makefile.md).
 
 ## Upgrade packages
 
