@@ -1,6 +1,9 @@
 """Tests for the built-in health endpoint exposed by the read API."""
 
-from fastapi.testclient import TestClient
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from fastapi.testclient import TestClient
 
 
 def test_health_ok(client: TestClient) -> None:

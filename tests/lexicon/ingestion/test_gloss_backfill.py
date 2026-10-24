@@ -1,6 +1,6 @@
 """Tests for the non-English gloss backfill (`ingestion.gloss_backfill`)."""
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from lang_tools.lexicon.concept import Concept
 from lang_tools.lexicon.ingestion.gloss_backfill import BackfillItem
@@ -21,6 +21,9 @@ from lang_tools.lexicon.maintenance import write_jsonl
 from lang_tools.lexicon.quality import run_quality_checks
 from lang_tools.llm.gloss_translate import GlossTranslateOutput
 from lang_tools.llm.gloss_translate import KeyedGloss
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _HOUSE = "c__house__0011aabbccdd"
 

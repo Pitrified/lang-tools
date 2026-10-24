@@ -5,7 +5,10 @@ produced in phase 5), so these assert the contract shape and the not-found /
 empty behaviour rather than populated payloads.
 """
 
-from fastapi.testclient import TestClient
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from fastapi.testclient import TestClient
 
 
 class TestReadConcept:

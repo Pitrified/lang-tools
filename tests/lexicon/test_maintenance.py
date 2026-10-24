@@ -1,6 +1,6 @@
 """Tests for the propose -> review -> apply loop (`lexicon.maintenance`)."""
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -23,6 +23,9 @@ from lang_tools.lexicon.maintenance import write_jsonl
 from lang_tools.lexicon.maintenance import write_proposals
 from lang_tools.lexicon.relations import ConceptRelation
 from lang_tools.lexicon.sense import Sense
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 C_MIND = "c__mind-noun-cognition__001122334455"
 C_PROCESS = "c__process__001122334466"

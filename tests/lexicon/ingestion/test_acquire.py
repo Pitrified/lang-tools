@@ -4,12 +4,15 @@ The network path (`download_omw`) is not exercised; only the manifest round-trip
 and the path helpers are unit-tested.
 """
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from lang_tools.lexicon.ingestion.acquire import manifest_path
 from lang_tools.lexicon.ingestion.acquire import raw_dir
 from lang_tools.lexicon.ingestion.acquire import read_manifest
 from lang_tools.lexicon.ingestion.acquire import write_manifest
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_raw_dir(tmp_path: Path) -> None:

@@ -29,6 +29,7 @@ from pathlib import Path
 import sys
 import threading
 import time
+from typing import TYPE_CHECKING
 from typing import Literal
 
 from jinja2 import Template
@@ -41,8 +42,10 @@ from lang_tools.lexicon.ingestion.lookalikes import LookalikeCandidate
 from lang_tools.lexicon.ingestion.lookalikes import is_trap
 from lang_tools.lexicon.ingestion.lookalikes import load_gold
 from lang_tools.lexicon.ingestion.lookalikes import verify_chunks
-from lang_tools.llm.lookalike_verify import LookalikeVerifyInput
 from lang_tools.params.lang_tools_params import get_lang_tools_params
+
+if TYPE_CHECKING:
+    from lang_tools.llm.lookalike_verify import LookalikeVerifyInput
 
 HERE = Path(__file__).parent
 REPO = HERE.parents[2]

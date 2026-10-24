@@ -5,9 +5,8 @@ fastapi-tools test pattern) so ``TestClient`` requests are not rejected by the
 trusted-host middleware.
 """
 
-from collections.abc import Generator
+from typing import TYPE_CHECKING
 
-from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from fastapi_tools import create_app
 from fastapi_tools.config.webapp_config import CORSConfig
@@ -26,6 +25,11 @@ from lang_tools.params.lang_tools_params import get_lang_tools_params
 from lang_tools.webapp.routers.cards_router import router as cards_router
 from lang_tools.webapp.routers.concepts_router import router as concepts_router
 from lang_tools.webapp.routers.lemmas_router import router as lemmas_router
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from fastapi import FastAPI
 
 
 @pytest.fixture(scope="session", autouse=True)

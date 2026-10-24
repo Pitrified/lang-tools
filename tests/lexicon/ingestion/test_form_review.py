@@ -1,6 +1,6 @@
 """Tests for the member-form review (`ingestion.form_review`)."""
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from lang_tools.lexicon.concept_id import concept_key
 from lang_tools.lexicon.ingestion.form_review import MEMBER_FORM_DROPS_FILE
@@ -14,6 +14,9 @@ from lang_tools.lexicon.lemma_id import lemma_id
 from lang_tools.lexicon.lemma_store import LexiconStore
 from lang_tools.lexicon.maintenance import curated_path
 from lang_tools.lexicon.maintenance import write_jsonl
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _DEFINITION = "artéria que irriga o coração"
 

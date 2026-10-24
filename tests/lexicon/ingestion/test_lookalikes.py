@@ -1,7 +1,7 @@
 """Tests for look-alike candidates (`ingestion.lookalikes`, phase 11)."""
 
 from collections import Counter
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -32,6 +32,9 @@ from lang_tools.lexicon.maintenance import write_jsonl
 from lang_tools.llm.lookalike_verify import KeyedVerdict
 from lang_tools.llm.lookalike_verify import LookalikeVerifyOutput
 from lang_tools.params.lang_tools_params import get_lang_tools_params
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @pytest.mark.parametrize(

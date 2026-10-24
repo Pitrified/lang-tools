@@ -1,6 +1,6 @@
 """Tests for the closed-class sense drop (`ingestion.closed_class`)."""
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from lang_tools.lexicon.ingestion.closed_class import CLOSED_CLASS
 from lang_tools.lexicon.ingestion.closed_class import closed_class_drops
@@ -10,6 +10,9 @@ from lang_tools.lexicon.ingestion.sources.omw import SynsetEntry
 from lang_tools.lexicon.ingestion.transform import transform
 from lang_tools.lexicon.lemma_id import lemma_id
 from lang_tools.lexicon.lemma_store import LexiconStore
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _entries() -> list[SynsetEntry]:

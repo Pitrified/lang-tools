@@ -5,7 +5,7 @@ confirms the source-of-truth Parquet loads back through `LexiconStore` and that
 provenance is written on disk but dropped on model load.
 """
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pyarrow.parquet as pq
 
@@ -20,6 +20,9 @@ from lang_tools.lexicon.lemma_store import LexiconStore
 from lang_tools.lexicon.maintenance import GlossProposal
 from lang_tools.lexicon.maintenance import gloss_overrides_path
 from lang_tools.lexicon.maintenance import write_proposals
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _omw_with_counts() -> list[SynsetEntry]:

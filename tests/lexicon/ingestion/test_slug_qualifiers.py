@@ -1,6 +1,6 @@
 """Tests for slug tier 2 (`ingestion.slug_qualifiers` + `sources.omw` tiers)."""
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from lang_tools.lexicon.concept_id import concept_key
 from lang_tools.lexicon.concept_id import source_key_hash
@@ -20,6 +20,9 @@ from lang_tools.lexicon.maintenance import write_jsonl
 from lang_tools.llm.slug_qualifier import KeyedQualifier
 from lang_tools.llm.slug_qualifier import QualifierCandidate
 from lang_tools.llm.slug_qualifier import SlugQualifierOutput
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _group() -> CollisionGroup:

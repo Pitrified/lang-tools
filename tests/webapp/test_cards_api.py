@@ -1,8 +1,11 @@
 """Tests for the public drill-card read API."""
 
-from fastapi.testclient import TestClient
+from typing import TYPE_CHECKING
 
 from lang_tools.lexicon.lemma_store import get_lemmas_filtered
+
+if TYPE_CHECKING:
+    from fastapi.testclient import TestClient
 
 
 class TestListCards:

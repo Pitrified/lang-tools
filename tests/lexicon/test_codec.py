@@ -1,6 +1,6 @@
 """Tests for the Parquet codec seam (`lang_tools.lexicon.codec`)."""
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pyarrow.parquet as pq
 import pytest
@@ -18,6 +18,9 @@ from lang_tools.lexicon.lemma import LemmaExample
 from lang_tools.lexicon.relations import ConceptRelation
 from lang_tools.lexicon.relations import LookalikeRelation
 from lang_tools.lexicon.sense import Sense
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _sample_lemma() -> Lemma:

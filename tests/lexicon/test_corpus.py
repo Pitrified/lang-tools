@@ -1,7 +1,7 @@
 """Tests for the inspect / edit tooling (`lang_tools.lexicon.corpus`)."""
 
 import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -12,6 +12,9 @@ from lang_tools.lexicon.concept import Concept
 from lang_tools.lexicon.corpus import export_table
 from lang_tools.lexicon.corpus import import_table
 from lang_tools.lexicon.corpus import inspect_table
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 C_ID = "c__library-building__0011aabbccdd"
 

@@ -2,7 +2,7 @@
 
 from datetime import UTC
 from datetime import datetime
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -21,6 +21,9 @@ from lang_tools.lexicon.relations import ConceptRelation
 from lang_tools.lexicon.relations import LookalikeRelation
 from lang_tools.lexicon.relations import SenseRelation
 from lang_tools.lexicon.sense import Sense
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 C_HOUSE = "c__house__0011aabbccdd"
 C_BUILDING = "c__building__0011aabbccee"

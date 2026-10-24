@@ -1,7 +1,7 @@
 """Tests for the resumable chain runner (`lang_tools.llm.runner`)."""
 
 import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from langchain_core.messages import AIMessage
 from llm_core.chains.structured_chain import StructuredLLMChain
@@ -20,6 +20,9 @@ from lang_tools.llm.runner import run_chain
 from lang_tools.llm.runner import strict_json_schema
 from lang_tools.llm.runner import submit_batch
 from lang_tools.llm.runner import summarize_usage
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class _In(BaseModelKwargs):

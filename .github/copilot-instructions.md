@@ -159,10 +159,10 @@ Rules:
 ## Linting notes
 
 - `ruff==0.15.17` and `pyright[nodejs]==1.1.410` are pinned exactly in the `lint` group and match the `rev`s in `.pre-commit-config.yaml`; bump both together (see `docs/guides/pre_commit.md`).
-- `pyproject.toml` sets `requires-python = "==3.14.*"` and `[tool.pyright] pythonVersion = "3.14"`. `ruff.toml` stays on `target-version = "py313"`: under py314's deferred annotations ruff wants many imports moved into `TYPE_CHECKING` blocks, which pydantic models need at runtime.
+- Python 3.14 everywhere: `requires-python = "==3.14.*"`, `[tool.pyright] pythonVersion = "3.14"`, `ruff.toml` `target-version = "py314"`. With deferred annotations, ruff moves imports used only in annotations into `if TYPE_CHECKING:` blocks; `src/lang_tools/webapp/**` is exempt from `TC001`-`TC003` because FastAPI reads route annotations at runtime, and a pydantic field type keeps a runtime import with a `# noqa: TC00x` and its reason.
 - `ruff.toml` uses `select = ["ALL"]`. Key ignores: `COM812`, `D104`, `D203`, `D213`, `D413`, `FIX002`, `RET504`, `TD002`, `TD003`.
 - Tests additionally allow `ARG001`, `INP001`, `PLR2004`, `S101`.
-- Notebooks (`*.ipynb`) additionally allow `ERA001`, `F401`, `T20`.
+- Notebooks (`*.ipynb`) additionally allow `ERA001`, `F401`, `T20`, `TC`.
 - `meta/*` additionally allows `INP001`, `T20`.
 - `max-args = 10` (pylint).
 
