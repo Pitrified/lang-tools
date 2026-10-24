@@ -206,6 +206,12 @@ The test suite does not need the full corpus.
   `git config --local --unset lfs.https://github.com/Pitrified/lang-tools.git/info/lfs.access`,
   then `git lfs pull`. A pull that failed this way may have stopped half-way
   through updating the working tree; `git status` shows it, and a second pull
-  after the fix completes it.
+  after the fix completes it. The setting comes back whenever git-lfs meets a 401,
+  and a push from the clone is the likely trigger, since LFS uploads need
+  credentials. On a
+  machine that pushes but later fetches without credentials, skip the edit and
+  override it for the one command instead:
+  `git -c lfs.https://github.com/Pitrified/lang-tools.git/info/lfs.access=none lfs pull`
+  (or `... lfs fetch origin <branch>` before switching to a branch).
 - **Stale or surprising store results after a rebuild** - `_store.sqlite` is keyed
   on the Parquet signature and rebuilds itself. Deleting it is always safe.
