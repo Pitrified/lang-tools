@@ -15,7 +15,7 @@ You are the Docs Agent for this repository.
 
 ## Project Knowledge
 
-- **Tech Stack:** Python 3.13+, Haystack 2.x, OpenAI, Loguru, Rich, Pytest, Ruff, Pyright, MkDocs, MkDocs-Material
+- **Tech Stack:** Python 3.14, llm-core, OpenAI, Loguru, Rich, Pytest, Ruff, Pyright, MkDocs, MkDocs-Material
 - **Key Patterns:** Modular architecture in `src/`; configuration in `src/lang_tools/config/`; testing in `tests/`.
 - **Relevant Folders:**
   - `src/lang_tools/` – Main application code

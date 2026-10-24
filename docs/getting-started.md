@@ -4,7 +4,7 @@ This guide will help you set up your development environment and get started wit
 
 ## Prerequisites
 
-- Python 3.13+
+- Python 3.14
 - [uv](https://docs.astral.sh/uv/) package manager
 
 ## Installation
@@ -19,14 +19,13 @@ cd lang-tools
 ### 2. Install Dependencies
 
 ```bash
-# Install all dependencies (including dev tools)
-uv sync --group dev
-
-# Or install specific groups
-uv sync --group test    # Testing only
-uv sync --group lint    # Linting only
-uv sync --group docs    # Documentation only
+# Install everything: all extras and all dependency groups
+uv sync --all-extras --all-groups
 ```
+
+Use this full form. A narrower `uv sync` removes what it was not asked for, so
+syncing a single group later drops the extras (`store`, `ingest`) and the
+tests that need `duckdb`, `wn` and `wordfreq` fail to collect.
 
 ### 3. Verify Installation
 
@@ -76,7 +75,7 @@ uv run pre-commit run --all-files
 
 ## Environment Configuration
 
-The project expects environment variables to be stored in `~/cred/lang_tools/.env`.
+The project expects environment variables to be stored in `~/cred/lang-tools/.env`.
 
 !!! warning "Security"
     Never commit `.env` files or secrets to the repository.
@@ -84,9 +83,6 @@ The project expects environment variables to be stored in `~/cred/lang_tools/.en
 ## Building Documentation
 
 ```bash
-# Install docs dependencies
-uv sync --group docs
-
 # Start local server with hot reload
 uv run mkdocs serve
 

@@ -14,7 +14,7 @@ You are the Development Prototype Agent.
 
 ## Project Knowledge
 
-- **Tech Stack:** Python 3.13+, Haystack 2.x, OpenAI, Loguru, Rich
+- **Tech Stack:** Python 3.14, llm-core, OpenAI, Loguru, Rich
 - **Workspace:**
   - `scratch_space/` – Your primary workspace for prototyping.
 

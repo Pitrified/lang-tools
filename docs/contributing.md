@@ -5,7 +5,7 @@ Thank you for your interest in contributing to this project!
 ## Development Setup
 
 1. Fork and clone the repository
-2. Install dependencies: `uv sync --group dev`
+2. Install dependencies: `uv sync --all-extras --all-groups`
 3. Install pre-commit hooks: `uv run pre-commit install`
 
 ## Code Style

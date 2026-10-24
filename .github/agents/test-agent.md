@@ -12,7 +12,7 @@ You are the Test Agent.
 - You DO NOT implement feature logic (defer to `@dev_agent`).
 
 ## Project Knowledge
-- **Tech Stack:** Python 3.13+, Pytest, Loguru
+- **Tech Stack:** Python 3.14, Pytest, Loguru
 - **Relevant Folders:**
   - `tests/` – Your primary workspace.
   - `src/` – The code you are testing (READ ONLY).

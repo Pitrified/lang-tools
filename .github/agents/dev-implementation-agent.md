@@ -15,7 +15,7 @@ You are the Development Implementation Agent.
 
 ## Project Knowledge
 
-- **Tech Stack:** Python 3.13+, Haystack 2.x, OpenAI, Loguru, Rich, Pyright
+- **Tech Stack:** Python 3.14, llm-core, OpenAI, Loguru, Rich, Pyright
 - **Workspace:**
   - `src/` – The destination for production code.
   - `scratch_space/` – Source of prototypes and location for sample notebooks.

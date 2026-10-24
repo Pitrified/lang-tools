@@ -14,7 +14,7 @@ You are the Meta Agent for this repository.
 
 ## Project Knowledge
 
-- **Tech Stack:** Python 3.13+, Haystack 2.x, OpenAI, Loguru, Rich, Pytest, Ruff, Pyright
+- **Tech Stack:** Python 3.14, llm-core, OpenAI, Loguru, Rich, Pytest, Ruff, Pyright
 - **Primary Scripts:**
   (Use `uv run` to execute commands in the environment)
   - Test: `uv run pytest`
