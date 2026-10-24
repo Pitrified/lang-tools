@@ -84,6 +84,13 @@ promote an item to a numbered phase (and a sub-plan file) when it is picked up.
 - **Data for tag installs.** A git-tag install of `lang-tools` has no `data/`, so lang-tutor's
   `in_process` mode needs `make dev-lang-tools`. Whether a tag install needs data, and if so how
   to ship it, is spun off to [`../10_data_for_tag_installs/00-start.md`](../10_data_for_tag_installs/00-start.md).
+- **`lang_tools.lexicon` needs fastapi-tools to import.** `lemma_store` imports
+  `get_lang_tools_params`, which imports `WebappParams`, which imports `fastapi_tools`; but
+  fastapi-tools is only in the `webapp` extra. Measured on a clean venv with
+  `lang-tools @ v0.2.0`: `from lang_tools.lexicon import LemmaCard` raises
+  `ModuleNotFoundError: fastapi_tools`, and works with `lang-tools[webapp]`. lang-tutor never hits
+  it because `make sync` installs every extra. Fix candidates: a lazy webapp-params import, or
+  fastapi-tools as a base dependency; either needs a patch release and a pin bump.
 - **Mapping new lemmas into the corpus.** Phase 8 built a generic
   worklist -> proposer -> reviewed JSONL -> curated build input loop, and new-lemma
   mapping was one of its intended uses: a word that is not in OMW (a learner's lookup, a
