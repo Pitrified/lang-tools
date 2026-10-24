@@ -2,124 +2,99 @@
 
 ## Project overview
 
-`lang-tools` is the **content + data** library of the language-learning ecosystem (Portuguese-focused but multi-language by design). It owns the vocabulary content - producing it, modelling it, and serving it - and is stateless with respect to any individual learner. The learner-facing concerns (exercises, per-user progress, the tutor chain, and the webapp) were extracted into the companion `lang-tutor` repo, which depends on `lang-tools` as a library. The dependency is strictly one-way: `lang-tools` must never import `lang-tutor`.
+`lang-tools` is the **content + data** half of a language-learning ecosystem (Portuguese-focused,
+multi-language by design). It produces, models and serves vocabulary content, and holds no
+per-learner state. Python 3.14, managed with **uv**. Package `lang_tools`.
 
-- **Lexicon** - the concept-centric model (`Lemma`, `Concept`, `Sense`, relation edges including look-alikes), the Parquet corpus with its `LexiconStore`, and `LemmaCard` drill cards.
-- **Ingestion** - the reproducible initial build from Open Multilingual Wordnet (`wn`, CILI, `wordfreq`) for en, pt, es, fr and it, plus CSV / static-list loaders. LLM and agent-reviewed inputs (gloss repairs, slug qualifiers, form drops, gloss backfill, look-alikes) are committed under `data/curated/` and re-applied by every build.
-- **Content-producing LLM chains** - thin wrappers over `llm-core` `StructuredLLMChain` (translation, conversation, topics, splitter, greeting, lemma generator, and the maintenance chains), run over worklists by `llm.runner`.
-- **Content read API** - a FastAPI service (`lang_tools.webapp`) serving lemmas, concepts and drill cards over HTTP to `lang-tutor`.
+- **Lexicon** - concept-centric model (`Lemma`, `Concept`, `Sense`, relation edges including
+  look-alikes: false friends and cognates) for en, pt, es, fr, it; Parquet corpus behind
+  `LexiconStore`; `LemmaCard` drill cards.
+- **Build** - reproducible `build_initial` from Open Multilingual Wordnet (`wn`, CILI, `wordfreq`),
+  re-applying the reviewed inputs under `data/curated/`.
+- **LLM chains** - `llm-core` `StructuredLLMChain` wrappers for content and corpus maintenance, run
+  over worklists by `llm.runner`.
+- **Read API** - public FastAPI service (`lang_tools.webapp`) serving lemmas, concepts and cards.
 
-Python 3.14, managed with **uv**. Package name is `lang_tools`. The split is tracked under `scratch_space/08_lang_tutor/`.
+## The lang-tutor boundary
 
-Long-form roadmap: `/home/pmn/ephem/linux-box-cloudflare/scratch_space/vibes/10-language-overview/`.
+The learner-facing app (exercises, progress, tutor chain, webapp) is the companion
+[`lang-tutor`](https://github.com/Pitrified/lang-tutor) repo. It depends on `lang-tools` by git tag
+and reads content over the read API, or in-process through the surface listed in
+`docs/library/frozen_api.md`. Keep that surface stable; a change to it needs a new tag and a pin
+bump in lang-tutor. `lang-tools` must never import `lang-tutor`.
 
 ## AI code development
 
-At the end of the overall task assigned by the user, instead of ending the conversation, always use the #askQuestions tool to ask the user if they want to add more details, features, or constraints to the task. This allows for iterative refinement and ensures that the final implementation closely matches the user's needs.
+At the end of the overall task assigned by the user, instead of ending the conversation, always use
+the #askQuestions tool to ask the user if they want to add more details, features, or constraints
+to the task.
 
 ## Running & tooling
 
+Use the Makefile; it exists so commands are discoverable and consistent.
+
 ```bash
-uv sync --all-extras --all-groups    # install; a narrower sync drops extras
-uv run pytest                        # run tests
-uv run ruff check .                  # lint (ruff, ALL rules enabled)
-uv run pyright                       # type-check (src/ and tests/ only)
-
-uv run mkdocs serve                  # MkDocs local docs server
+make help        # list every target
+make sync        # uv sync --all-extras --all-groups
+make hooks       # pre-commit install, once per clone
+make check       # lint + typecheck + test
+make docs        # mkdocs serve (make docs-build: strict, as CI)
+make serve       # content read API on localhost:8010
 ```
 
-Credentials live at `~/cred/lang-tools/.env` (loaded by `load_env()` in `src/lang_tools/params/load_env.py`).
+**The pre-commit hooks run on every commit**, so write to pass them: ruff check and format,
+pyright, stripped notebook outputs, no secrets, a single trailing newline. Never skip them with
+`--no-verify`; fix the finding. `ruff` and `pyright` are pinned exactly and match the hook revs;
+bump both together (`docs/guides/pre_commit.md`).
 
-## Architecture layers
+**Always run project code through `make`, or through `uv run --no-sync`.** A bare `uv run`
+re-syncs the environment from `uv.lock` first, which silently reverts a local editable install
+(`make dev-llm-core`, `make dev-fastapi-tools`). `make undev` is the deliberate way back. See
+`docs/guides/makefile.md`.
 
-| Layer        | Path                                               | Role                                                                     |
-| ------------ | -------------------------------------------------- | ------------------------------------------------------------------------ |
-| Params       | `src/lang_tools/params/lang_tools_params.py`       | Singleton `LangToolsParams`; aggregates paths, sample, webapp params     |
-| Paths        | `src/lang_tools/params/lang_tools_paths.py`        | `LangToolsPaths`; env-aware filesystem references                        |
-| Config       | `src/lang_tools/config/`                           | Pydantic `BaseModelKwargs` models for typed settings (sample)            |
-| Data models  | `src/lang_tools/data_models/basemodel_kwargs.py`   | `BaseModelKwargs` - Pydantic base with `to_kw()` kwargs flattening       |
-| Metaclasses  | `src/lang_tools/metaclasses/singleton.py`          | `Singleton` metaclass                                                    |
-| Env type     | `src/lang_tools/params/env_type.py`                | `EnvStageType` (dev/prod) and `EnvLocationType` (local/render) enums     |
+Credentials live in `~/cred/lang-tools/.env` (template `nokeys.env`). Only `SAMPLE_API_KEY` is
+required, with any value; `OPENAI_API_KEY` only to re-run an LLM job.
 
-Domain layers:
+## Architecture
 
-| Layer        | Path                              | Role                                                                |
-| ------------ | --------------------------------- | ------------------------------------------------------------------- |
-| Language     | `src/lang_tools/language/`        | `Language` config, accent / normalization maps, keyboard layouts    |
-| Lexicon      | `src/lang_tools/lexicon/`         | `Lemma` / `Concept` / `Sense` models, relation edges, `LexiconStore`, `LemmaCard`, quality gate, maintenance loop |
-| Ingestion    | `src/lang_tools/lexicon/ingestion/` | `build_initial` pipeline, OMW / CILI / frequency sources, curated-input appliers, look-alike candidates and review CLI |
-| LLM          | `src/lang_tools/llm/`             | Content-producing `StructuredLLMChain` wrappers and the checkpointed `runner` |
-| Webapp       | `src/lang_tools/webapp/`          | `build_app()`: public read API (lemmas, concepts, cards routers) |
+| Layer     | Path                                  | Role                                                              |
+| --------- | ------------------------------------- | ----------------------------------------------------------------- |
+| Lexicon   | `src/lang_tools/lexicon/`             | models, edges, `LexiconStore`, cards, quality gate, maintenance   |
+| Ingestion | `src/lang_tools/lexicon/ingestion/`   | `build_initial`, sources, curated-input appliers, look-alike review |
+| LLM       | `src/lang_tools/llm/`                 | chains and the checkpointed `runner`                              |
+| Webapp    | `src/lang_tools/webapp/`              | `build_app()`, the read API routers                               |
+| Language  | `src/lang_tools/language/`            | `Language` presets, normalisation, keyboard layouts               |
+| Params    | `src/lang_tools/params/`, `config/`   | `get_lang_tools_params()`; env-aware params, pydantic config shapes |
 
-The learner-facing exercises, progress, tutor chain and app live in `lang-tutor`. The corpus and curated inputs live under `data/` (git LFS); see `docs/guides/rebuild_corpus.md`, `docs/guides/run_service.md` and `docs/library/lexicon.md`.
+The narrative for each layer is in `docs/library/`. Params follow the config / params split in
+`docs/guides/params_config.md`.
 
-## Key patterns
+## Data rules
 
-**`LangToolsParams` singleton**  
-Access project-wide config via `get_lang_tools_params()` from `src/lang_tools/params/lang_tools_params.py`. It aggregates `LangToolsPaths`, `SampleParams`, and `WebappParams`. Environment is controlled by `ENV_STAGE_TYPE` (`dev`/`prod`) and `ENV_LOCATION_TYPE` (`local`/`render`) env vars.
-
-```python
-from lang_tools.params.lang_tools_params import get_lang_tools_params
-
-params = get_lang_tools_params()
-paths = params.paths          # LangToolsPaths
-webapp = params.webapp        # WebappParams
-```
-
-**`BaseModelKwargs`**  
-Extend `BaseModelKwargs` (not plain `BaseModel`) for any config that needs to be forwarded as `**kwargs` to a third-party constructor. `to_kw(exclude_none=True)` flattens a nested `kwargs` dict at the top level.
-
-```python
-class SampleConfig(BaseModelKwargs):
-    some_int: int
-    nested_model: NestedModel
-    kwargs: dict = Field(default_factory=dict)
-
-cfg = SampleConfig(some_int=1, nested_model=NestedModel(some_str="hi"), kwargs={"extra": True})
-cfg.to_kw(exclude_none=True)  # {"some_int": 1, "nested_model": ..., "extra": True}
-```
-
-**Config / Params separation**
-
-- `src/lang_tools/config/` holds Pydantic `BaseModelKwargs` models that define the _shape_ of settings. Use `SecretStr` for every sensitive field. Never read env vars inside config models.
-- `src/lang_tools/params/` holds plain classes that load _actual values_ and instantiate config models. Non-secret values are written as Python literals; env-switching is achieved via `match` on `env_type.stage` / `env_type.location`. Secrets are the only values loaded from `os.environ[VAR]` (raises `KeyError` naturally when missing).
-- Every Params class accepts `env_type: EnvType | None = None` as its sole constructor argument. `__init__` only stores it and calls `_load_params()`. Loading is orchestrated via `_load_common_params()` then stage/location dispatch.
-- Expose the assembled settings through `to_config()` returning the corresponding Pydantic model. Always mask secret fields in `__str__` using `[REDACTED]`.
-- See `docs/guides/params_config.md` for the full reference with examples and common mistakes.
-
-The canonical reference implementations are `src/lang_tools/config/sample_config.py` and `src/lang_tools/params/sample_params.py`.
-
-**Content read API**  
-`build_app()` in `src/lang_tools/webapp/main.py` calls `fastapi-tools`' `create_app(config=...)` with the lemmas, concepts and cards routers; entry point `lang_tools.webapp.app:app`. `WebappParams` (`src/lang_tools/params/webapp/`) builds its `WebappConfig`. The API is public and read-only; see `docs/guides/run_service.md`.
-
-**Env-aware paths**  
-`LangToolsPaths.load_config()` dispatches on `EnvLocationType` (`LOCAL` / `RENDER`) to set environment-specific paths. Common paths (`root_fol`, `cache_fol`, `data_fol`, `static_fol`, `templates_fol`) are always set in `load_common_config_pre()`.
-
-**`Singleton` metaclass**  
-Use `metaclass=Singleton` for any class that must have exactly one instance per process (e.g., `LangToolsParams`). Reset in tests by clearing `Singleton._instances`.
+- **Curated inputs, never hand edits.** Every LLM or agent job writes reviewed rows to a JSONL under
+  `data/curated/`, and the build re-applies them, so a rebuild reproduces the corpus. Rebuild with
+  `docs/guides/rebuild_corpus.md`.
+- **`data/` is gitignored and stored through git LFS.** The seed (`bootstrap/`), the curated inputs
+  and the review batches are committed with `git add -f`; the built corpus (`lexicon/`) stays local.
+- **Latest row wins** for look-alikes: only the newest row per pair counts, and a later `unrelated`
+  row retracts an edge. Reviews follow `.claude/skills/lookalike-review/` and the rulebook
+  `docs/guides/lookalike_review.md`, whose hash is stored on every row: change it deliberately.
+- **Paid LLM runs**: measure a small sample, report its cost, and get explicit approval before the
+  full run (the notebooks gate this with `RUN_PAID`).
 
 ## Style rules
 
-- Never use em dashes (`--` or `---` or Unicode `—`). Use a hyphen `-` or rewrite the sentence.
+- Never use em dashes (`--`, `---`, or Unicode `—`). Use a hyphen `-` or rewrite the sentence.
 - Use `loguru` (`from loguru import logger as lg`) for all logging.
-- Raise descriptive custom exceptions (e.g., `UnknownEnvLocationError`) rather than bare `ValueError`/`RuntimeError`.
+- Raise descriptive named exceptions rather than bare `ValueError` / `RuntimeError`.
+- Ruff runs with `select = ["ALL"]` and `target-version = "py314"`. Fix findings rather than adding
+  `noqa`. Imports used only in annotations go under `if TYPE_CHECKING:`; the webapp is exempt
+  because FastAPI reads route annotations at runtime, and a pydantic field type keeps its runtime
+  import with `# noqa: TC00x` and the reason.
 
-## Documentation
+## Docstring style
 
-Always keep the `docs/` folder updated at the end of a task.
-
-### Docs folder
-
-- `docs/` holds MkDocs source. `mkdocs.yml` configures the site with the Material theme, mkdocstrings for API reference.
-- `docs/guides/` holds narrative guides related to tooling, setup, and project conventions. These are not part of the API reference and should not be written in docstring style.
-- `docs/library/` holds description of the core library code. This is not an API reference; write in narrative style with custom headings as needed. Can create subfolders for different domains.
-- `docs/reference/` is a virtual folder generated by `mkdocstrings` from docstrings in the source code. Do not write any files here; write docstrings in the source code instead. To reference a file inside this section, link using this structure: [`<some class/function name>`](,,/../reference/lang_tools/config/sample_config/) which would link to `src/lang_tools/config/sample_config.py`'s API reference page.
-
-### Docstring style
-
-Use **Google style** throughout. mkdocstrings is configured with `docstring_style: "google"`.
-
-Standard sections use a label followed by a colon, with content indented by 4 spaces:
+**Google style** throughout, matching the rest of the fleet:
 
 ```python
 def example(value: int) -> str:
@@ -135,43 +110,18 @@ def example(value: int) -> str:
 
     Raises:
         KeyError: If the key is missing.
-
-    Example:
-        Brief usage example::
-
-            result = example(42)
     """
 ```
 
-**Never use NumPy / Sphinx RST underline-style headers** (`Args\n----`, `Returns\n-------`, `Attributes\n----------`, etc.).
+Never use NumPy / Sphinx RST underline headers (`Args\n----`). Section labels always take a
+trailing colon. Module docstrings are narrative prose.
 
-Rules:
-- Section labels: `Args:`, `Returns:`, `Raises:`, `Attributes:`, `Note:`, `Warning:`, `See Also:`, `Example:`, `Examples:` - always with a trailing colon, never with an underline.
-- `Attributes:` in class docstrings uses two levels of indentation: the attribute name at +4 spaces, its description at +8 spaces.
-- Module docstrings are narrative prose. Custom topic headings (e.g., "Pattern rules") are written as plain labelled paragraphs (`Pattern rules:`) - no underline, no RST heading markup.
-- `See Also:` lists items as bare lines indented under the section label, not as `*` bullets.
+## Layout
 
-## Testing & scratch space
-
-- Tests live in `tests/` mirroring `src/lang_tools/` structure.
-- `scratch_space/` holds numbered exploratory notebooks and scripts. Not part of the package; ruff ignores `ERA001`/`F401`/`T20` there.
-
-## Linting notes
-
-- `ruff==0.15.17` and `pyright[nodejs]==1.1.410` are pinned exactly in the `lint` group and match the `rev`s in `.pre-commit-config.yaml`; bump both together (see `docs/guides/pre_commit.md`).
-- Python 3.14 everywhere: `requires-python = "==3.14.*"`, `[tool.pyright] pythonVersion = "3.14"`, `ruff.toml` `target-version = "py314"`. With deferred annotations, ruff moves imports used only in annotations into `if TYPE_CHECKING:` blocks; `src/lang_tools/webapp/**` is exempt from `TC001`-`TC003` because FastAPI reads route annotations at runtime, and a pydantic field type keeps a runtime import with a `# noqa: TC00x` and its reason.
-- `ruff.toml` uses `select = ["ALL"]`. Key ignores: `COM812`, `D104`, `D203`, `D213`, `D413`, `FIX002`, `RET504`, `TD002`, `TD003`.
-- Tests additionally allow `ARG001`, `INP001`, `PLR2004`, `S101`.
-- Notebooks (`*.ipynb`) additionally allow `ERA001`, `F401`, `T20`, `TC`.
-- `meta/*` additionally allows `INP001`, `T20`.
-- `max-args = 10` (pylint).
-
-## End-of-task verification
-
-After every code change, run the full verification suite before considering the task done:
-
-```bash
-uv run pytest && uv run ruff check . && uv run pyright
-```
-
-Then update the docs.
+- `tests/` mirrors `src/lang_tools/` and runs on the committed bootstrap seed, not the full corpus.
+- `notebooks/` holds the thin drivers for the build and the maintenance jobs.
+- `scratch_space/` holds the planning record and experiments: one numbered folder per initiative,
+  `tracking.md` first (current: `scratch_space/09_concept_model/`).
+- `docs/` is the MkDocs site: `guides/` for tooling and procedures, `library/` for narrative notes
+  on the code, `reference/` generated from docstrings (never write files there). Keep it current
+  at the end of every task, updating statements in place rather than appending history.
