@@ -28,9 +28,9 @@ file differently and every commit picks up unrelated churn. Bump both together:
    formatting churn stay separate:
 
    ```bash
-   uv run ruff format .
-   uv run pre-commit run --all-files
+   make format
+   uv run --no-sync pre-commit run --all-files
    ```
 
 For `uv` itself and `nbstripout`, match the hook `rev` to the installed
-version (`uv self update && uv --version`, `uv run nbstripout --version`).
+version (`uv self update && uv --version`, `uv run --no-sync nbstripout --version`).
