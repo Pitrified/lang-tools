@@ -42,7 +42,7 @@ A session that runs many batches keeps its own context small by handing each bat
 - Pick ids by tier and sequence (`a0001`, `a0002`, ... for tier A). `CLI status` shows the progress
   per tier, the pending batches and the gold agreement so far.
 - Start each subagent with a prompt like: "Follow `.claude/skills/lookalike-review/SKILL.md` in
-  `/home/user/lang-tools` for batch `a0003`, then report." Run a handful at a time; reservations are
+  `/home/pmn/repos/lang-tools` for batch `a0003`, then report." Run a handful at a time; reservations are
   locked, so parallel subagents never get the same items.
 - After the batches, run `CLI status`, look at the gold misses in
   `data/curated/lookalike_review_log.jsonl`, then commit `data/curated/lookalikes.jsonl` and the log

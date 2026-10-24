@@ -186,13 +186,26 @@ The test suite does not need the full corpus.
   [Environment](#environment).
 - **`OptionalDependencyMissingError`** - an extra is missing. Run
   `uv sync --all-extras --all-groups`.
-- **`git status` lists the seed files as modified straight after cloning**, and
-  checkout refuses to switch branches ("files that should have been pointers") -
-  the checked-out branch stores them as plain blobs while `.gitattributes` routes
-  `data/**` through LFS. The content is identical. Check with
-  `cmp <(git show HEAD:<path>) <path>`, then stash them, or switch with the LFS
-  filter bypassed for that one command:
-  `git -c filter.lfs.process= -c filter.lfs.clean=cat -c filter.lfs.smudge=cat checkout <branch>`
-  followed by `git lfs pull`.
+- **`git status` lists files under `data/` as modified on a clean checkout**, and
+  `git pull` or `git checkout` refuses ("Your local changes ... would be
+  overwritten", "files that should have been pointers") - the checked-out commit
+  stores them as plain blobs while `.gitattributes` routes `data/**` through LFS.
+  This happens on a clone older than the move to LFS (the old
+  `data/bootstrap/*.csv`). Check that the content is identical with
+  `cmp <(git show HEAD:<path>) <path>`, delete those files, then pull or check out
+  again: a file missing from the working tree never blocks git, and the target
+  commit writes its own version. Two things that look like fixes do not work:
+  `git stash` restores the same plain blobs, so they show as modified again, and
+  `git -c filter.lfs.process= ...` fails with "clean filter 'lfs' failed",
+  because an empty `process` makes git try to run an empty command.
+- **LFS asks for a password** ("could not read Password for
+  'https://...@github.com'", "Git credentials ... not found") although the repo
+  is public - git-lfs cached a `lfs.<url>.access=basic` setting in `.git/config`
+  after an earlier 401, and now always demands credentials. Check with
+  `git config --local --get-regexp 'lfs\..*\.access'`, remove it with
+  `git config --local --unset lfs.https://github.com/Pitrified/lang-tools.git/info/lfs.access`,
+  then `git lfs pull`. A pull that failed this way may have stopped half-way
+  through updating the working tree; `git status` shows it, and a second pull
+  after the fix completes it.
 - **Stale or surprising store results after a rebuild** - `_store.sqlite` is keyed
   on the Parquet signature and rebuilds itself. Deleting it is always safe.

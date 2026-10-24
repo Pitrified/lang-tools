@@ -22,6 +22,9 @@ cd lang-tools
 git lfs pull   # only needed if you cloned before installing git LFS
 ```
 
+An older clone, from before `data/` moved to LFS, may refuse to pull or ask for a password on
+the public repo; [Rebuild the corpus](guides/rebuild_corpus.md#troubleshooting) has both fixes.
+
 The tests run on the seed, and the corpus build re-applies the curated inputs. The built corpus
 itself is not committed; [Rebuild the corpus](guides/rebuild_corpus.md) builds it.
 
