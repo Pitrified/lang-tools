@@ -81,6 +81,9 @@ Status values: draft / planned / in progress / done / superseded / discarded.
 Work a phase explicitly put off, with where it was decided. Nothing here is scheduled;
 promote an item to a numbered phase (and a sub-plan file) when it is picked up.
 
+- **Data for tag installs.** A git-tag install of `lang-tools` has no `data/`, so lang-tutor's
+  `in_process` mode needs `make dev-lang-tools`. Whether a tag install needs data, and if so how
+  to ship it, is spun off to [`../10_data_for_tag_installs/00-start.md`](../10_data_for_tag_installs/00-start.md).
 - **Mapping new lemmas into the corpus.** Phase 8 built a generic
   worklist -> proposer -> reviewed JSONL -> curated build input loop, and new-lemma
   mapping was one of its intended uses: a word that is not in OMW (a learner's lookup, a
