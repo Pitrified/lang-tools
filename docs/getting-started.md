@@ -6,15 +6,27 @@ This guide will help you set up your development environment and get started wit
 
 - Python 3.14
 - [uv](https://docs.astral.sh/uv/) package manager
+- [git LFS](https://git-lfs.com/)
 
 ## Installation
 
 ### 1. Clone the Repository
 
+Register git LFS **before** cloning, so the committed seed (`data/bootstrap/`) and the curated
+inputs (`data/curated/`) arrive as real content rather than pointer stubs:
+
 ```bash
+git lfs install
 git clone https://github.com/Pitrified/lang-tools.git
 cd lang-tools
+git lfs pull   # only needed if you cloned before installing git LFS
 ```
+
+An older clone, from before `data/` moved to LFS, may refuse to pull or ask for a password on
+the public repo; [Rebuild the corpus](guides/rebuild_corpus.md#troubleshooting) has both fixes.
+
+The tests run on the seed, and the corpus build re-applies the curated inputs. The built corpus
+itself is not committed; [Rebuild the corpus](guides/rebuild_corpus.md) builds it.
 
 ### 2. Install Dependencies
 
