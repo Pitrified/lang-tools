@@ -560,25 +560,6 @@ Smaller patterns, no rule proposed: shared-root pairs across parts of speech (*p
 or `p` inconsistently but rarely misleading; and register-dependent BR/PT words
 (*equipa*, *legal*, *vila*).
 
-## Out of scope
-
-- Fixing OMW coverage holes (*embarazada*, *parents*): new-lemma mapping, in the backlog.
-- es and fr pairs: the next run of the same pipeline.
-- en-it pairs, which are not useful to a learner who knows both.
-- Multi-word lemmas.
-- Shipping any CC-BY-SA pronunciation data.
-- New `lang-tutor` exercise types beyond the warning, the distractor and the weighting.
-
-## Done when
-
-- The gold set (200 pairs) is committed, and the chosen generator's recall and precision
-  on it are reported.
-- An approved verifier run has landed in `data/curated/lookalikes.jsonl` for pt-en and
-  pt-it.
-- The rebuilt corpus has a populated `lookalikes` table, and the gate passes.
-- A pt card read with `known_languages=["en", "it"]` shows its traps and cognates, and the
-  `lang-tutor` lemma page displays them.
-
 ## Tier B, first round (b0001 to b0012)
 
 Twelve 200-pair batches, one subagent each, under guide `6d74e34f`. Tier B stands at 2,400/6,701.
@@ -598,3 +579,34 @@ Twelve 200-pair batches, one subagent each, under guide `6d74e34f`. Tier B stand
     `f!`);
   - near-identical pairs against moderately common known words stay the main source of `!`
     (*lazer* / *laser*, *genro* / *genre*, *funda* / *fund*, *faca* / *fake*).
+
+### Resume here
+
+1. **Rebuild the corpus** so the 2,400 tier B rows become edges (`docs/guides/rebuild_corpus.md`,
+   no agents, about 4 minutes), and note the edge counts here.
+2. **Settle the rule questions above** in `docs/guides/lookalike_review.md` before more batches, or
+   accept that later rows carry a newer `prompt_sha`.
+3. **Next round:** `b0013` onward, 4,301 tier B pairs left (about 22 batches). Reserve the ids up
+   front (`serve --batch b0013 --size 200 --tier B`), launch one subagent per id with the skill,
+   commit once at the end. Size it at about 3.3 session points per agent
+   ([`usage_log.md`](11_false_friends/usage_log.md), round 5): about 9 agents for 30 points.
+
+
+## Out of scope
+
+- Fixing OMW coverage holes (*embarazada*, *parents*): new-lemma mapping, in the backlog.
+- es and fr pairs: the next run of the same pipeline.
+- en-it pairs, which are not useful to a learner who knows both.
+- Multi-word lemmas.
+- Shipping any CC-BY-SA pronunciation data.
+- New `lang-tutor` exercise types beyond the warning, the distractor and the weighting.
+
+## Done when
+
+- The gold set (200 pairs) is committed, and the chosen generator's recall and precision
+  on it are reported.
+- An approved verifier run has landed in `data/curated/lookalikes.jsonl` for pt-en and
+  pt-it.
+- The rebuilt corpus has a populated `lookalikes` table, and the gate passes.
+- A pt card read with `known_languages=["en", "it"]` shows its traps and cognates, and the
+  `lang-tutor` lemma page displays them.
