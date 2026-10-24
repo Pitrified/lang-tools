@@ -165,7 +165,9 @@ class QualityReport(BaseModel):
     """The full outcome of a quality pass over one corpus.
 
     Attributes:
-        corpus: The corpus directory the checks ran against.
+        corpus: The corpus directory the checks ran against, relative to the
+            folder holding the data folder (``data/lexicon``), so the
+            committed report does not change from machine to machine.
         generated_at: UTC timestamp of the run.
         invariants: The evaluated regression invariants (report leads with these).
         results: Every executed check, in execution order.
@@ -1054,7 +1056,7 @@ def run_quality_checks(
     finally:
         con.close()
     return QualityReport(
-        corpus=str(corpus_dir),
+        corpus=str(corpus_dir.relative_to(data_fol.parent)),
         generated_at=datetime.now(tz=UTC),
         invariants=invariants,
         results=results,

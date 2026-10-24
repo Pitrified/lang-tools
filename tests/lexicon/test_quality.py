@@ -109,6 +109,8 @@ def test_run_quality_checks_clean_corpus_passes(tmp_path: Path) -> None:
     # gloss over the 0 default baseline; allow it explicitly here.
     report = run_quality_checks(tmp_path, definition_equals_lemma_baseline=1)
     assert report.passed
+    # Relative to the data folder's parent, so the report is machine-independent.
+    assert report.corpus == f"{tmp_path.name}/lexicon"
     by_name = {inv.name: inv for inv in report.invariants}
     assert by_name["kaikki_tagged_rows"].value == 0
     assert by_name["dangling_edges"].value == 0
