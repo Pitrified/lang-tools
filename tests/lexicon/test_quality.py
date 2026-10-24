@@ -200,6 +200,9 @@ def test_render_report_leads_with_invariants(tmp_path: Path) -> None:
     # Every check section renders.
     for result in report.results:
         assert f"## {result.title}" in text
+    # A single trailing newline, as the end-of-file pre-commit hook requires.
+    assert text.endswith("\n")
+    assert not text.endswith("\n\n")
 
 
 def test_render_report_escapes_pipes() -> None:

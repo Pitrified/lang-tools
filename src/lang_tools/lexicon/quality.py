@@ -1110,7 +1110,7 @@ def render_report(report: QualityReport) -> str:
     for result in report.results:
         lines += [f"## {result.title}", "", result.description, ""]
         lines += [_md_table(result.columns, result.rows), ""]
-    return "\n".join(lines) + "\n"
+    return "\n".join(lines).rstrip("\n") + "\n"
 
 
 def write_report(report: QualityReport, path: Path) -> Path:
