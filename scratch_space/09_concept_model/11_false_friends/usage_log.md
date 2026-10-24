@@ -129,3 +129,18 @@ ran.
 `build_initial` (five languages, about 4 minutes) applied the 6,499 reviewed rows: 2,946
 look-alike edges (2,468 cognate, 266 full, 212 partial), 0 stale; unrelated rows give no edge.
 The previous build had 984 edges. The sample corpus carries 8.
+
+## Round 5: tier B start, twelve 200-pair batches in parallel (b0001 to b0012)
+
+Meter 60% at launch; the end reading is pending from the user. No `/compact` just before; the
+twelve batches were reserved up front with `serve --tier B --size 200`, then twelve agents were
+launched in one turn, sized for about 30 points at round 4's 2.4 points per agent.
+
+| Part | Tokens (harness) |
+| --- | ---: |
+| Subagents b0001 to b0006 | 82.5k, 85.4k, 88.2k, 87.7k, 86.9k, 84.4k |
+| Subagents b0007 to b0012 | 84.9k, 84.9k, 82.8k, 84.2k, 84.0k, 83.7k |
+| **Total** | **1,019.6k subagents** |
+
+- Quality: gold 54/60 this round, 224/245 overall; 130 edge cases in 2,400 pairs.
+- Tier B stands at 2,400/6,701 after 12 batches.

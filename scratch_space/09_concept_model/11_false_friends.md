@@ -578,3 +578,23 @@ or `p` inconsistently but rarely misleading; and register-dependent BR/PT words
 - The rebuilt corpus has a populated `lookalikes` table, and the gate passes.
 - A pt card read with `known_languages=["en", "it"]` shows its traps and cognates, and the
   `lang-tutor` lemma page displays them.
+
+## Tier B, first round (b0001 to b0012)
+
+Twelve 200-pair batches, one subagent each, under guide `6d74e34f`. Tier B stands at 2,400/6,701.
+
+- **Results:** 179 full and 103 partial false friends, 800 cognates, 1,318 unrelated; 130 edge
+  cases. Traps are 12% of the pairs against 4% in late tier A, as the tier's ordering intends.
+- **Gold:** 54/60 (224/245 overall). Misses: *rato* / it *rata* (gold `f`, agent `u` because
+  it *ratto* is as close), *bisel* / *bezel* (gold `c`, agent took *bezel* as rare), *forca* /
+  it *forca* (gold `p`; the pt senses mix *força* and *forca*), *conto* / it *conto* (gold `p`,
+  agent `f`), *sair* / it *salire* (gold `f`, agent `u`), *pupila* / *pupil* (gold `p`, agent
+  `c`).
+- **Rule questions raised:**
+  - a person noun against a thing noun (*fotógrafo* / *photograph*, labelled `f`);
+  - a verb against a noun of the same root (*albergar* / it *albergo*, *manifestar* / it
+    *manifesto*, labelled `c`);
+  - one pair labelled twice in a batch with different marks (*cercar* / it *cercare*, `f` and
+    `f!`);
+  - near-identical pairs against moderately common known words stay the main source of `!`
+    (*lazer* / *laser*, *genro* / *genre*, *funda* / *fund*, *faca* / *fake*).
