@@ -132,9 +132,8 @@ connect:
   in common), a `partial` one (only a minor sense shared) or a `cognate` (the main
   sense shared). Endpoints are held in canonical order
   (`lemma_id_a < lemma_id_b`) so each pair is stored once and dedups naturally.
-  Until phase 11 this was `FalseFriendRelation` in a `false_friends` table; one
-  `lookalikes` table now holds all three kinds, because a learner's view of a word
-  (a trap, free, or neither) needs them together.
+  One `lookalikes` table holds all three kinds, because a learner's view of a
+  word (a trap, free, or neither) needs them together.
 - `ConceptRelation` is a typed concept-to-concept edge. Directional types keep
   their source/target order; symmetric types reuse the canonical-ordering trick.
 - `SenseRelation` is a typed sense-to-sense edge, keyed on `Sense.id`. It holds
@@ -744,9 +743,12 @@ stages:
    - **Agent review**, the current path (`ingestion.lookalike_review`). The
      candidates are ordered into a worklist by usefulness, in tiers: very
      common target words first, then likely traps, then the rest by frequency.
-     Agents label them in batches of 100 against the rulebook in
+     Agents label them in batches of 100 to 200 against the rulebook in
      [Reviewing look-alike pairs](../guides/lookalike_review.md). Hidden gold
-     pairs in every batch measure their agreement.
+     pairs in every batch measure their agreement. Every row stores the
+     rulebook's hash (`prompt_sha`), so after a rule change `recheck` serves
+     chosen older rows again under the current rules. Tier A (5,499 pairs, the
+     very common target words) is reviewed; tiers B to E are not.
    - **LLM verifier**, parked. The `llm.lookalike_verify` chain classifies each
      candidate and writes the note. `is_trap` keeps a false-friend verdict only
      when the words share a root or are spelled nearly the same, and a sampled
@@ -756,8 +758,9 @@ stages:
    note), a `cognate`, or `unrelated` (kept as a rejected row so it is never
    reviewed twice).
 3. **Build.** `build_initial` turns the accepted rows into edges
-   (`apply_lookalikes`), skipping stale ones. It tags each edge `manual` (the
-   gold set), `agent` (a reviewed batch) or `llm`. Only the latest row of a pair
+   (`apply_lookalikes`), skipping stale ones (an endpoint lemma the build no
+   longer has). It tags each edge `manual` (the gold set), `agent` (a reviewed
+   batch) or `llm`. Only the latest row of a pair
    counts (`load_lookalikes`), so a re-check or a newer `manual` row overrides an
    older label, and a later `unrelated` row retracts the edge. Before that,
    `drop_rare_traps` removes every false friend whose known word is under Zipf 3.3

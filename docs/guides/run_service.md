@@ -53,7 +53,7 @@ The service depends on `fastapi-tools`, declared as the `webapp` optional
 dependency:
 
 ```bash
-uv sync --all-extras --group dev
+uv sync --all-extras --all-groups
 ```
 
 ## 4. Run the service

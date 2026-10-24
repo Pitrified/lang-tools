@@ -4,11 +4,12 @@
 
 `lang-tools` is the **content + data** library of the language-learning ecosystem (Portuguese-focused but multi-language by design). It owns the vocabulary content - producing it, modelling it, and serving it - and is stateless with respect to any individual learner. The learner-facing concerns (exercises, per-user progress, the tutor chain, and the webapp) were extracted into the companion `lang-tutor` repo, which depends on `lang-tools` as a library. The dependency is strictly one-way: `lang-tools` must never import `lang-tutor`.
 
-- **Canonical language data models** - `Word`, `Language`, accent / normalization maps.
-- **Content-producing LLM service layer** - thin wrappers over `llm-core` `StructuredLLMChain` for translation, conversation generation, topic suggestion, paragraph splitting, greetings, and word generation.
-- **Word ingestion** - pipelines for Wiktionary JSONL dumps, CSV imports, and LLM-generated content.
+- **Lexicon** - the concept-centric model (`Lemma`, `Concept`, `Sense`, relation edges including look-alikes), the Parquet corpus with its `LexiconStore`, and `LemmaCard` drill cards.
+- **Ingestion** - the reproducible initial build from Open Multilingual Wordnet (`wn`, CILI, `wordfreq`) for en, pt, es, fr and it, plus CSV / static-list loaders. LLM and agent-reviewed inputs (gloss repairs, slug qualifiers, form drops, gloss backfill, look-alikes) are committed under `data/curated/` and re-applied by every build.
+- **Content-producing LLM chains** - thin wrappers over `llm-core` `StructuredLLMChain` (translation, conversation, topics, splitter, greeting, lemma generator, and the maintenance chains), run over worklists by `llm.runner`.
+- **Content read API** - a FastAPI service (`lang_tools.webapp`) serving lemmas, concepts and drill cards over HTTP to `lang-tutor`.
 
-Python 3.13, managed with **uv**. Package name is `lang_tools`. The split is tracked under `scratch_space/08_lang_tutor/`.
+Python 3.14, managed with **uv**. Package name is `lang_tools`. The split is tracked under `scratch_space/08_lang_tutor/`.
 
 Long-form roadmap: `/home/pmn/ephem/linux-box-cloudflare/scratch_space/vibes/10-language-overview/`.
 
@@ -19,6 +20,7 @@ At the end of the overall task assigned by the user, instead of ending the conve
 ## Running & tooling
 
 ```bash
+uv sync --all-extras --all-groups    # install; a narrower sync drops extras
 uv run pytest                        # run tests
 uv run ruff check .                  # lint (ruff, ALL rules enabled)
 uv run pyright                       # type-check (src/ and tests/ only)
@@ -44,10 +46,12 @@ Domain layers:
 | Layer        | Path                              | Role                                                                |
 | ------------ | --------------------------------- | ------------------------------------------------------------------- |
 | Language     | `src/lang_tools/language/`        | `Language` config, accent / normalization maps, keyboard layouts    |
-| Words        | `src/lang_tools/words/`           | Canonical `Word` model, ingestion (Wiktionary, CSV, LLM), word store |
-| LLM          | `src/lang_tools/llm/`             | Content-producing `StructuredLLMChain` wrappers (translation, conversation, topics, splitter, greeting, word generator) |
+| Lexicon      | `src/lang_tools/lexicon/`         | `Lemma` / `Concept` / `Sense` models, relation edges, `LexiconStore`, `LemmaCard`, quality gate, maintenance loop |
+| Ingestion    | `src/lang_tools/lexicon/ingestion/` | `build_initial` pipeline, OMW / CILI / frequency sources, curated-input appliers, look-alike candidates and review CLI |
+| LLM          | `src/lang_tools/llm/`             | Content-producing `StructuredLLMChain` wrappers and the checkpointed `runner` |
+| Webapp       | `src/lang_tools/webapp/`          | `build_app()`: public read API (lemmas, concepts, cards routers) |
 
-The `exercises/`, `progress/`, `llm/tutor.py`, and `webapp/` layers were extracted to `lang-tutor` (see `scratch_space/08_lang_tutor/02_tutor_extract.md`). `WebappParams` scaffolding (`params/webapp/`) is retained for the planned phase-3 HTTP read API.
+The learner-facing exercises, progress, tutor chain and app live in `lang-tutor`. The corpus and curated inputs live under `data/` (git LFS); see `docs/guides/rebuild_corpus.md`, `docs/guides/run_service.md` and `docs/library/lexicon.md`.
 
 ## Key patterns
 
@@ -85,8 +89,8 @@ cfg.to_kw(exclude_none=True)  # {"some_int": 1, "nested_model": ..., "extra": Tr
 
 The canonical reference implementations are `src/lang_tools/config/sample_config.py` and `src/lang_tools/params/sample_params.py`.
 
-**Webapp params (no app yet)**  
-The FastAPI webapp moved to `lang-tutor`. `lang-tools` retains only `WebappParams` (`src/lang_tools/params/webapp/`), which builds a `WebappConfig` from `fastapi-tools`, kept for the planned phase-3 HTTP read API. There is no `lang_tools.webapp` app factory in this repo anymore.
+**Content read API**  
+`build_app()` in `src/lang_tools/webapp/main.py` calls `fastapi-tools`' `create_app(config=...)` with the lemmas, concepts and cards routers; entry point `lang_tools.webapp.app:app`. `WebappParams` (`src/lang_tools/params/webapp/`) builds its `WebappConfig`. The API is public and read-only; see `docs/guides/run_service.md`.
 
 **Env-aware paths**  
 `LangToolsPaths.load_config()` dispatches on `EnvLocationType` (`LOCAL` / `RENDER`) to set environment-specific paths. Common paths (`root_fol`, `cache_fol`, `data_fol`, `static_fol`, `templates_fol`) are always set in `load_common_config_pre()`.
@@ -154,7 +158,9 @@ Rules:
 
 ## Linting notes
 
-- `ruff.toml` targets Python 3.13 with `select = ["ALL"]`. Key ignores: `COM812`, `D104`, `D203`, `D213`, `D413`, `FIX002`, `RET504`, `TD002`, `TD003`.
+- `ruff==0.15.17` and `pyright[nodejs]==1.1.410` are pinned exactly in the `lint` group and match the `rev`s in `.pre-commit-config.yaml`; bump both together (see `docs/guides/pre_commit.md`).
+- `pyproject.toml` sets `requires-python = "==3.14.*"` and `[tool.pyright] pythonVersion = "3.14"`. `ruff.toml` stays on `target-version = "py313"`: under py314's deferred annotations ruff wants many imports moved into `TYPE_CHECKING` blocks, which pydantic models need at runtime.
+- `ruff.toml` uses `select = ["ALL"]`. Key ignores: `COM812`, `D104`, `D203`, `D213`, `D413`, `FIX002`, `RET504`, `TD002`, `TD003`.
 - Tests additionally allow `ARG001`, `INP001`, `PLR2004`, `S101`.
 - Notebooks (`*.ipynb`) additionally allow `ERA001`, `F401`, `T20`.
 - `meta/*` additionally allows `INP001`, `T20`.

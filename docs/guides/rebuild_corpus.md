@@ -45,10 +45,10 @@ repaired glosses.
 
 The build needs the `ingest` extra (`wn`, `wordfreq`), the quality gate needs
 `store` (DuckDB), and the exploration staging needs `enrich` (`xlrd`, `pandas`,
-`matplotlib`). The simplest is all of them:
+`matplotlib`). Install all of them with every dependency group:
 
 ```bash
-uv sync --all-extras
+uv sync --all-extras --all-groups
 ```
 
 ### Environment
@@ -99,11 +99,16 @@ Run `notebooks/lexicon_ingest/02_transform.ipynb`
 in the same kernel.
 
 The build cell calls `pipeline.build_initial`, which transforms the OMW cache,
-re-applies the curated gloss overrides, adds the phase-6 frequency and CEFR
-estimates, writes `data/lexicon/`, and carves the sample into
-`data/bootstrap/lexicon/`. Expect it to take about four minutes. The logged summary should
-match the row counts in the committed quality report (next step); a healthy run
-logs the curated overrides as applied with zero stale.
+drops the reviewed member forms and the closed-class words, re-applies every
+curated input under `data/curated/` (gloss overrides, slug qualifiers, gloss
+backfill, example sentences, look-alikes, with rare-word traps filtered out),
+adds the phase-6 frequency and CEFR estimates, writes `data/lexicon/`, and
+carves the sample into `data/bootstrap/lexicon/`. Expect it to take about four
+minutes. The logged summary should match the row counts in the committed quality
+report (next step). `_build.json` records what each curated input applied, and
+for the gloss overrides and look-alikes how many rows were stale (naming a
+concept or lemma the build no longer has). Zero stale overrides and a handful of
+stale look-alikes is healthy; a jump means the build drifted.
 
 The notebook does not pass `extra_manifest` to `build_initial`. To pin the source
 versions in `_build.json`, as its markdown recommends, change the call to:
@@ -180,7 +185,7 @@ The test suite does not need the full corpus.
 - **`KeyError: 'SAMPLE_API_KEY'`** on import - the cred file is missing. See
   [Environment](#environment).
 - **`OptionalDependencyMissingError`** - an extra is missing. Run
-  `uv sync --all-extras`.
+  `uv sync --all-extras --all-groups`.
 - **`git status` lists the seed files as modified straight after cloning**, and
   checkout refuses to switch branches ("files that should have been pointers") -
   the checked-out branch stores them as plain blobs while `.gitattributes` routes

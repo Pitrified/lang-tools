@@ -1,13 +1,11 @@
 # Frozen library API
 
 This page is the **contract** that `lang-tutor` codes against. It fixes the
-importable surface of `lang-tools` and the on-disk content layout *in place*
-(still one repo, before any extraction). Phase 2 (the repo split) and phase 3
-(the HTTP read API) both build on what is frozen here.
+importable surface of `lang-tools` and the on-disk content layout. Both the
+in-process content mode and the HTTP read API serve what is frozen here.
 
-The freeze is a façade, not a behaviour change: the names below are promoted to
-a stable public surface, and everything else is internal and may move when the
-tutor concerns are extracted.
+The names below are the stable public surface; everything else is internal and
+may move.
 
 ## Public surface `lang-tutor` may import
 
@@ -27,8 +25,9 @@ Shared language primitives, needed by both repos.
 ### `lang_tools.lexicon`
 
 The canonical content model plus the read/query helpers over the on-disk lemma
-store. These read helpers are the in-process content surface phase 2 consumes
-(phase 3 replaces them with HTTP calls).
+store. These read helpers are the in-process content surface: `lang-tutor` calls
+them in its `in_process` content mode, and the read API serves the same data
+over HTTP in its default `http` mode.
 
 - `Lemma` (thin token) and `LemmaExample`. `Lemma.topics` as read from the store
   is derived from the lemma's senses (phase 8), so a tutor filtering by topic sees
@@ -37,10 +36,9 @@ store. These read helpers are the in-process content surface phase 2 consumes
   lemma <-> concept edge hosting per-sense frequency / CEFR).
 - `LookalikeRelation` (with `kind` = `full` / `partial` / `cognate` and
   `FALSE_FRIEND_KINDS`), `ConceptRelation`, `SenseRelation` - decoupled relation
-  edge tables. Phase 11 renamed `FalseFriendRelation` / `false_friends` to
-  `LookalikeRelation` / `lookalikes`; `get_lookalikes_for_lemma` returns every
-  kind (filterable by language and kind), and `get_false_friends_for_lemma` keeps
-  returning only the false friends.
+  edge tables. `get_lookalikes_for_lemma` returns every kind (filterable by
+  language and kind); `get_false_friends_for_lemma` returns only the false
+  friends.
 - `lemma_id`, `concept_id`, `sense_id` - deterministic id constructors.
   `lemma_id` keeps case and accents since phase 8 step 9 (pt `avó` and `avô`, en
   `Be` and `be` are different lemmas). That changed, once, the id of every lemma
@@ -86,13 +84,14 @@ output model, and a `build_*_chain(chat_config, base_prompt_fol=...)` factory.
   `TopicSuggestionOutput`.
 - `build_greeting_chain` + `GreetingInput` / `GreetingOutput`.
 
-## Tutor-side concerns (extracted to `lang-tutor` in phase 2)
+## Tutor-side concerns (in `lang-tutor`)
 
-These were learner-facing / stateful and have been **moved out of `lang-tools`**
-into `lang-tutor`. They are no longer importable from `lang_tools`; `lang-tutor`
-owns them and depends on the frozen surface above for content.
+These are learner-facing and stateful, so they live in `lang-tutor`, not in
+`lang-tools`. `lang-tutor` owns them and depends on the frozen surface above for
+content.
 
-- `lang_tutor.progress` - `UserLemmaProgress`, `compute_weight`, `select_lemmas`.
+- `lang_tutor.progress` - `UserLemmaProgress`, `compute_weight`, `select_lemmas`,
+  `draw_cards`.
 - `lang_tutor.exercises` - the five exercise mechanics.
 - `lang_tutor.llm.tutor` - `build_tutor_chain` and the `TutorInput` /
   `TutorOutput` / `CorrectionBlock` / `ConversationBlock` / `ErrorDetail`
@@ -140,14 +139,15 @@ data/** filter=lfs diff=lfs merge=lfs -text
 
 Operators must `git lfs install` **before** cloning, or the working tree holds
 pointer stubs instead of real content. The content is public, so no auth is
-involved. This is the one-line operator setup that phase 3's HTTP service
-depends on.
+involved. This is the one-line operator setup the HTTP read service
+depends on (see [Running the content read service](../guides/run_service.md)).
 
 ### When (and how) the Parquet reaches GitHub
 
 > Beginner note. Short version: **the Parquet is not on GitHub yet.** It is a
-> local build artifact. Today only the JSONL seed under `data/bootstrap/` is
-> committed; everything you build under `data/lexicon/` (and
+> local build artifact. Only the JSONL seed under `data/bootstrap/`, the curated
+> build inputs under `data/curated/` and the look-alike review batches under
+> `data/work/lookalike_review/` are committed; everything you build under `data/lexicon/` (and
 > `data/bootstrap/lexicon/`) stays on your machine.
 
 This is intentional, not a bug. Two rules are in play and they look like they
@@ -158,10 +158,9 @@ disagree:
 - `.gitattributes` has `data/** filter=lfs`, so anything that *does* get staged
   under `data/` is stored through git LFS rather than inline.
 
-So the seed JSONL is committed because it was force-added past the ignore (`git
-add -f`); it then rode the LFS filter. The built Parquet has simply never been
-force-added, so it has never been uploaded. `run_service.md` describes this
-interim state ("LFS-tracked; gitignored until the ingestion phase ships it").
+So the seed JSONL and the curated inputs are committed because they were
+force-added past the ignore (`git add -f`); they then rode the LFS filter. The built Parquet has simply never been
+force-added, so it has never been uploaded.
 
 **To see what *is* on GitHub:** open `data/bootstrap/lemmas.jsonl` in the GitHub
 web UI. Because it is an LFS object you will see a "Stored with Git LFS" banner
