@@ -53,9 +53,9 @@ Twelve 200-pair batches, one subagent each, under guide `6d74e34f`. Tier B stand
 
 ### Resume here
 
-1. **Rebuild the corpus** so the 2,400 tier B rows become edges (`docs/guides/rebuild_corpus.md`,
-   no agents, about 4 minutes), and note the edge counts here. The
-   tier B rows exist only on this folder's branch, so the rebuild runs here.
+1. **Corpus rebuilt** on 2026-10-29 with the round 1 rows: 3,883 edges (3,262 cognate,
+   280 partial, 341 full), 71 rare-word traps dropped, 6 stale, gate PASS. The seed gained four
+   tier B edges.
 2. **Rule questions settled** on 2026-10-29 ([`00_start.md`](00_start.md) Q1 to Q4): the
    word-form rule is in the rulebook, so round 2 runs under a new `prompt_sha`. The stale `c`
    rows it leaves behind are Q5.

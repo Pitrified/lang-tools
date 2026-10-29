@@ -67,3 +67,6 @@ Append-only. Newest at the bottom. The entries up to the spin-off are reconstruc
   serving bug. Q5 raised for the `c` rows the new rule makes stale.
 - 2026-10-29 : Q5 answered: the stale verb / noun `c` rows are mined and re-checked at the end of
   tier B, in one `r` batch with the Q4 edge-case mining; added to `02_tier_b.md`.
+- 2026-10-29 : rebuild with tier B round 1 on this branch: 3,883 edges (3,262 cognate,
+  280 partial, 341 full; +1,082 against tier A, every round 1 `c`, `p` and `f`), 71 rare-word
+  traps dropped, 6 stale, gate PASS; the seed re-export gained four edges.
