@@ -77,3 +77,5 @@ Append-only. Newest at the bottom. The entries up to the spin-off are reconstruc
 - 2026-10-29 : Q6 settled (a): the word-form rule applies only to close spellings and yields to
   the own-cognate rule; guide now `debd21395107`. Round 2 usage recorded in `00.1_usage_log.md`
   (27 session points, 3 weekly, about 69k tokens per agent).
+- 2026-10-29 : rebuild with tier B round 2: 4,792 edges (4,034 cognate, 347 partial, 411 full),
+  104 rare-word traps dropped, 6 stale, gate PASS; seed unchanged.

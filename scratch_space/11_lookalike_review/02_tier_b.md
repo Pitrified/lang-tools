@@ -71,6 +71,8 @@ Tier B stands at 4,200/6,701.
     it *valentia*.
   These went into `00_start.md` Q6, settled the same day: the word-form rule now needs close
   spellings and yields to the own-cognate rule.
+- **Rebuild:** 4,792 edges (4,034 cognate, 347 partial, 411 full), 104 rare-word traps dropped
+  (33 more than after round 1), 6 stale, gate PASS; the seed is unchanged.
 
 ### Resume here
 
