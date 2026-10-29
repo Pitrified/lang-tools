@@ -120,7 +120,8 @@ later rows carry the newer `prompt_sha`.
   - c. `p`.
   - Recommended: b, because the guide's test is whether the learner is misled, and the person
     / thing split is the misreading; state it next to the person-and-field example.
-  - NEW_ANS:
+  - ANS: b. Folded into the rulebook as the word-form rule: a person against the thing they
+    make is `f`; a person and the field stay `c`.
 - Q2: A verb against a noun of the same root (pt *albergar* / it *albergo*, pt *manifestar* /
   it *manifesto*) was labelled `c`. The guide already lists "a verb and its noun" as a cognate
   when the meaning carries over.
@@ -128,18 +129,31 @@ later rows carry the newer `prompt_sha`.
   - b. `u` when the noun names a thing the verb does not (a hotel against "to shelter").
   - Recommended: a, because the rule exists and the agents applied it; the examples remove the
     doubt.
-  - NEW_ANS:
+  - ANS: b, against the recommendation. Folded into the same rule: a verb against a noun that
+    names something the verb does not is `u` (*albergar* / it *albergo*). The rows already
+    labelled `c` under the old reading are Q5.
 - Q3: One pair was labelled twice in one batch with different marks (*cercar* / it *cercare*,
   `f` and `f!`). Either the batch served a duplicate or the reviewer repeated an item.
   - a. Check `serve` for duplicate keys in a batch and fix it there.
   - b. Accept it: the latest row wins, and the labels agree on the letter.
   - Recommended: a, because a duplicate wastes review and hides a serving bug; it is a quick
     check of the batch file.
-  - NEW_ANS:
+  - ANS: a. Checked on 2026-10-29: not a duplicate. The two `b0002` rows are different known
+    words, it *cerca* (`f!`) and it *cercare* (`f`), so `serve` is fine and nothing changes.
 - Q4: Near-identical pairs against moderately common known words remain the main source of `!`
   (pt *lazer* / *laser*, *genro* / *genre*, *funda* / *fund*, *faca* / *fake*).
   - a. Leave them as `!` and decide in a later edge-case mining pass, as in tier A.
   - b. Set a Zipf band for the known word in the guide now (above 3.3, below some cut-off).
   - Recommended: a, because tier A's mining found its rules from about 250 flagged rows, and
     tier B has 130 so far.
-  - NEW_ANS:
+  - ANS: a. No rule change; the flags wait for the tier B mining pass.
+- Q5: Rows labelled `c` under the old reading of Q2 (a verb against a noun naming something
+  else) are now stale. The two known ones are *albergar* / it *albergo* and *manifestar* / it
+  *manifesto*; there are likely more in tiers A and B.
+  - a. Re-check only the two known pairs, in the next `r` batch.
+  - b. Mine the `c` rows for verb / noun pairs first, then re-check them all as one `r` batch.
+  - c. Leave them; they stay `c` until a later staleness audit.
+  - Recommended: b at the end of tier B, as one recheck together with the Q4 mining pass, so
+    there is a single recheck round instead of two.
+  - ANS: b, at the end of tier B. Added to `02_tier_b.md` as its closing step, with the Q4
+    mining.

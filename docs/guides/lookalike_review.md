@@ -19,7 +19,7 @@ resemblance help them, mislead them, or not register at all?
 
 | Letter | Kind | When |
 | --- | --- | --- |
-| `c` | cognate | The main everyday meanings are the same, even if one word has extra senses or a different register (pt *felicidade* / en *felicity*). This includes the same root in another word form whose meaning carries over: an adjective and its noun, a person and the field, a verb and its noun (pt *monarca* / it *monarchia*, pt *notar* / it *nota*). |
+| `c` | cognate | The main everyday meanings are the same, even if one word has extra senses or a different register (pt *felicidade* / en *felicity*). This includes the same root in another word form whose meaning carries over: an adjective and its noun, a person and the field, a verb and its noun (pt *monarca* / it *monarchia*, pt *notar* / it *nota*); see the word-form rule below for when it does not. |
 | `p` | partial false friend | They share a real meaning, but the main everyday meaning of one of them is something else (pt *balada* is a ballad, but mostly a night out in BR; pt *gota* is a drop, it *gotta* only gout). |
 | `f` | full false friend | No everyday meaning in common, and the resemblance misleads: the same root with a drifted meaning (pt *procurar* is to search; it *procurare* to procure), or a near-identical spelling of a common known word that a learner could mistake it for (pt *deserto* / en *dessert*, pt *babá* / en *baby*). |
 | `u` | unrelated | A coincidence nobody would fall for. Either the letters really differ (pt *mangual* / en *manual*), or the known word is rare or technical (pt *fraca* / it *frac*, pt *bola* / it *bolo*), or the words are related but their meanings are plainly distinct and do not get mixed up (pt *general* / en *generality*, pt *cappuccino* / en *capuchin*). |
@@ -39,6 +39,11 @@ resemblance help them, mislead them, or not register at all?
 - **Same root, drifted meaning:** `f` when the shared root no longer carries the meaning
   (pt *envio*, a shipment / en *envoy*). It is `u` when the forms differ enough that no one
   maps one onto the other.
+- **Another word form of the same root is `c` only when the meaning carries over.** A person
+  and the field stay `c` (pt *fotógrafo* / en *photography*), but a person against the thing
+  they make is `f`, because a learner reads one as the other (pt *fotógrafo*, a photographer /
+  en *photograph*). A verb against a noun that names something the verb does not is `u` (pt
+  *albergar*, to shelter / it *albergo*, a hotel).
 - **Grammatical words are `u`.** A preposition, conjunction, article, pronoun or other function
   word is `u` against a content word it happens to resemble, because nobody reads one as the
   other (pt *com* / en *come*, pt *mas* / en *mass*, pt *sem* / it *seme*, pt *para* / en *par*).

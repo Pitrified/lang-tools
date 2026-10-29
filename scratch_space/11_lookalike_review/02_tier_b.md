@@ -18,10 +18,15 @@ comes before the frequency tiers C to E. Context: [`00_start.md`](00_start.md), 
 - Rounds of 200-pair batches, ids reserved up front, one subagent per id, one commit per round.
 - Rebuild the corpus after each round and note the edge counts here. The
    tier B rows exist only on this folder's branch, so the rebuild runs here.
+- After the last round, one recheck pass ([`00_start.md`](00_start.md) Q4 and Q5): mine the
+  tier B `!` rows for rules, as in tier A; mine the tier A and B `c` rows for a verb against a
+  noun naming something else, which the word-form rule now makes `u`; re-check both sets as one
+  `r` batch and rebuild.
 
 ## Done when
 
 - Every tier-B pair has a reviewed row (2,400 / 6,701 so far).
+- The recheck pass is applied.
 - The rebuilt corpus applies them and the gate passes.
 
 ## Record
@@ -51,9 +56,9 @@ Twelve 200-pair batches, one subagent each, under guide `6d74e34f`. Tier B stand
 1. **Rebuild the corpus** so the 2,400 tier B rows become edges (`docs/guides/rebuild_corpus.md`,
    no agents, about 4 minutes), and note the edge counts here. The
    tier B rows exist only on this folder's branch, so the rebuild runs here.
-2. **Settle the rule questions above** ([`00_start.md`](00_start.md) Q1 to Q4) in
-   `docs/guides/lookalike_review.md` before more batches, or
-   accept that later rows carry a newer `prompt_sha`.
+2. **Rule questions settled** on 2026-10-29 ([`00_start.md`](00_start.md) Q1 to Q4): the
+   word-form rule is in the rulebook, so round 2 runs under a new `prompt_sha`. The stale `c`
+   rows it leaves behind are Q5.
 3. **Next round:** `b0013` onward, 4,301 tier B pairs left (about 22 batches). Reserve the ids up
    front (`serve --batch b0013 --size 200 --tier B`), launch one subagent per id with the skill,
    commit once at the end. Size it at about 3.3 session points per agent

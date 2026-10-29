@@ -61,3 +61,9 @@ Append-only. Newest at the bottom. The entries up to the spin-off are reconstruc
   into phases 3 to 5, and the tier B rule questions became `00_start.md` Q1 to Q4. Phase 11
   closed as done. Branch `feat/lookalike-review` renamed `feat/11_lookalike_review`. On main
   the same day: rebuild of the tier-A rows (2,801 edges, gate PASS) and the seed re-export.
+- 2026-10-29 : tier B rule questions settled (`00_start.md` Q1 to Q4). The rulebook gains the
+  word-form rule: a person against the thing they make is `f`, and a verb against a noun naming
+  something else is `u`. The *cercar* double label was two different known words, not a
+  serving bug. Q5 raised for the `c` rows the new rule makes stale.
+- 2026-10-29 : Q5 answered: the stale verb / noun `c` rows are mined and re-checked at the end of
+  tier B, in one `r` batch with the Q4 edge-case mining; added to `02_tier_b.md`.
