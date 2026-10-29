@@ -20,8 +20,9 @@ comes before the frequency tiers C to E. Context: [`00_start.md`](00_start.md), 
    tier B rows exist only on this folder's branch, so the rebuild runs here.
 - After the last round, one recheck pass ([`00_start.md`](00_start.md) Q4 and Q5): mine the
   tier B `!` rows for rules, as in tier A; mine the tier A and B `c` rows for a verb against a
-  noun naming something else, which the word-form rule now makes `u`; re-check both sets as one
-  `r` batch and rebuild.
+  noun naming something else, which the word-form rule now makes `u`; add the round 2 rows the
+  bounded rule changes (*relatório* / it *relatore*, *microscópico* / it *microscopio*, Q6) and
+  any like them; re-check all of it as one `r` batch and rebuild.
 
 ## Done when
 
@@ -68,7 +69,8 @@ Tier B stands at 4,200/6,701.
     (en *reign*), *cassino* / it *cassino* (it *casinò*), both `f!`;
   - identical spellings against a rare known word, `u!`: *castor* / en *castor*, *valentia* /
     it *valentia*.
-  These go into `00_start.md` Q6.
+  These went into `00_start.md` Q6, settled the same day: the word-form rule now needs close
+  spellings and yields to the own-cognate rule.
 
 ### Resume here
 

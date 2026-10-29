@@ -74,3 +74,6 @@ Append-only. Newest at the bottom. The entries up to the spin-off are reconstruc
   (9% of pairs), gold 43/45, 86 edge cases. Every batch applied on the first try. The new
   word-form rule produced one gold miss (*relatório* / it *relatore*); its scope is
   `00_start.md` Q6. Tier B at 4,200/6,701.
+- 2026-10-29 : Q6 settled (a): the word-form rule applies only to close spellings and yields to
+  the own-cognate rule; guide now `debd21395107`. Round 2 usage recorded in `00.1_usage_log.md`
+  (27 session points, 3 weekly, about 69k tokens per agent).

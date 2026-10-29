@@ -165,4 +165,5 @@ later rows carry the newer `prompt_sha`.
   - b. Leave the rule, and settle these in the end-of-tier mining pass with the Q4 flags.
   - Recommended: a, because it restates the two existing tests rather than adding one, and it
     stops the drift before 2,500 more pairs; the two pairs then go to the Q5 recheck.
-  - NEW_ANS:
+  - ANS: a. Folded into the word-form rule with both pairs as its examples; the two rows join
+    the end-of-tier recheck in `02_tier_b.md`.

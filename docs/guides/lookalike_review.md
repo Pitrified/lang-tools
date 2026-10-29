@@ -43,7 +43,10 @@ resemblance help them, mislead them, or not register at all?
   and the field stay `c` (pt *fotógrafo* / en *photography*), but a person against the thing
   they make is `f`, because a learner reads one as the other (pt *fotógrafo*, a photographer /
   en *photograph*). A verb against a noun that names something the verb does not is `u` (pt
-  *albergar*, to shelter / it *albergo*, a hotel).
+  *albergar*, to shelter / it *albergo*, a hotel). The rule applies only when the two forms are
+  close enough to read one as the other (pt *relatório*, a report / it *relatore*, a speaker, is
+  `u`), and the known language's own cognate still wins when it is at least as close (pt
+  *microscópico* / it *microscopio* is `u`: it has *microscopico*).
 - **Grammatical words are `u`.** A preposition, conjunction, article, pronoun or other function
   word is `u` against a content word it happens to resemble, because nobody reads one as the
   other (pt *com* / en *come*, pt *mas* / en *mass*, pt *sem* / it *seme*, pt *para* / en *par*).
