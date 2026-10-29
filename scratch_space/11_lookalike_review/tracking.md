@@ -70,3 +70,7 @@ Append-only. Newest at the bottom. The entries up to the spin-off are reconstruc
 - 2026-10-29 : rebuild with tier B round 1 on this branch: 3,883 edges (3,262 cognate,
   280 partial, 341 full; +1,082 against tier A, every round 1 `c`, `p` and `f`), 71 rare-word
   traps dropped, 6 stale, gate PASS; the seed re-export gained four edges.
+- 2026-10-29 : tier B round 2, `b0013` to `b0021` (1,800 pairs, guide `bfa5d0c848d2`): 170 traps
+  (9% of pairs), gold 43/45, 86 edge cases. Every batch applied on the first try. The new
+  word-form rule produced one gold miss (*relatório* / it *relatore*); its scope is
+  `00_start.md` Q6. Tier B at 4,200/6,701.

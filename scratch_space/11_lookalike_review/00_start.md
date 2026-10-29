@@ -157,3 +157,12 @@ later rows carry the newer `prompt_sha`.
     there is a single recheck round instead of two.
   - ANS: b, at the end of tier B. Added to `02_tier_b.md` as its closing step, with the Q4
     mining.
+- Q6: Round 2 showed the word-form rule (Q1, Q2) has no spelling bound and does not say how it
+  meets the own-cognate rule. *relatório* / it *relatore* went `f!` as a person against the thing
+  (gold `u`), and *microscópico* / it *microscopio* went `c` although it has *microscopico*.
+  - a. Bound it: the word-form rule applies only when the forms are close enough to read one as
+    the other, and the known language's own cognate still wins when it is at least as close.
+  - b. Leave the rule, and settle these in the end-of-tier mining pass with the Q4 flags.
+  - Recommended: a, because it restates the two existing tests rather than adding one, and it
+    stops the drift before 2,500 more pairs; the two pairs then go to the Q5 recheck.
+  - NEW_ANS:

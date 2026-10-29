@@ -51,6 +51,25 @@ Twelve 200-pair batches, one subagent each, under guide `6d74e34f`. Tier B stand
   - near-identical pairs against moderately common known words stay the main source of `!`
     (*lazer* / *laser*, *genro* / *genre*, *funda* / *fund*, *faca* / *fake*).
 
+## Tier B, second round (b0013 to b0021)
+
+Nine 200-pair batches, one subagent each, under guide `bfa5d0c848d2` (the word-form rule).
+Tier B stands at 4,200/6,701.
+
+- **Results:** 87 full and 83 partial false friends, 772 cognates, 858 unrelated; 86 edge cases.
+  Traps are 9% of the pairs against 12% in round 1, as the ordering moves to less common words.
+- **Gold:** 43/45 (267/290 overall). Misses: *cava* / it *cava* (gold `c`, agent `p`, reading
+  the pt armhole and ditch senses), *relatório* / it *relatore* (gold `u`, agent `f!`, applying
+  the new person-against-thing rule to a pair whose spellings differ).
+- **Points raised by the reviewers:**
+  - the word-form rule against the own-cognate rule: *microscópico* / it *microscopio*,
+    where it has *microscopico*, labelled `c` by the word-form rule;
+  - the own-cognate rule when the cognate is the less close spelling: *reinar* / en *rein*
+    (en *reign*), *cassino* / it *cassino* (it *casinò*), both `f!`;
+  - identical spellings against a rare known word, `u!`: *castor* / en *castor*, *valentia* /
+    it *valentia*.
+  These go into `00_start.md` Q6.
+
 ### Resume here
 
 1. **Corpus rebuilt** on 2026-10-29 with the round 1 rows: 3,883 edges (3,262 cognate,
@@ -59,7 +78,7 @@ Twelve 200-pair batches, one subagent each, under guide `6d74e34f`. Tier B stand
 2. **Rule questions settled** on 2026-10-29 ([`00_start.md`](00_start.md) Q1 to Q4): the
    word-form rule is in the rulebook, so round 2 runs under a new `prompt_sha`. The stale `c`
    rows it leaves behind are Q5.
-3. **Next round:** `b0013` onward, 4,301 tier B pairs left (about 22 batches). Reserve the ids up
+3. **Next round:** `b0022` onward, 2,501 tier B pairs left (13 batches, the last one 101 pairs). Reserve the ids up
    front (`serve --batch b0013 --size 200 --tier B`), launch one subagent per id with the skill,
    commit once at the end. Size it at about 3.3 session points per agent
    ([`00.1_usage_log.md`](00.1_usage_log.md), round 5): about 9 agents for 30 points.
