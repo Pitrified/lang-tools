@@ -180,15 +180,17 @@ later rows carry the newer `prompt_sha`.
   - ANS: a. Clause dropped, *microscópico* / it *microscopio* is now a `c` example, and the
     own-cognate rule says it covers only a look-alike whose meaning differs. Guide
     `8c251b3ed4b0`.
-- Q8: How far down the worklist to go (`03_tier_depth.md`, findings). Random 200-pair samples
-  give kept traps of 2.5% in tier C, 1% in D, 0 in E. Filtering a tier to known words of Zipf
-  3.3 or more loses no kept trap and leaves 8,336 (C), 7,700 (D), 7,968 (E) pairs, about 13 to
-  14 weekly points each.
+- Q8: How far down the worklist to go (`03_tier_depth.md`, findings). Random 1,000-pair samples
+  give kept traps of 3.2% in tier C, 1.2% in D, 0.7% in E. Filtering a tier to known words of
+  Zipf 3.3 or more loses no kept trap and leaves about 7,650 (C), 7,260 (D), 7,600 (E) pairs to
+  review, about 13 weekly points each, for about 360, 200 and 140 kept traps.
   - a. Review C (filtered) by agents; stop at D and E, leaving them "neither" for the learner.
   - b. Review C and D (filtered) by agents; stop at E.
-  - c. C by agents; D through the parked cheap-model verifier, agents checking only its traps;
-    stop at E.
-  - d. Stop after tier B.
-  - Recommended: a, because C gives about 22 kept traps per weekly point and D about 13, from a
-    sample of only two traps; E gave none. D can be reopened with a larger sample later.
+  - c. Review C, D and E (filtered) by agents.
+  - d. C by agents; D and E through the parked cheap-model verifier, agents checking only its
+    traps.
+  - e. Stop after tier B.
+  - Recommended: b, because C and D give 28 and 17 kept traps per weekly point against 11 for
+    E, and the D rate is now measured (1.2% ± 0.7) rather than read off two traps; E can follow
+    later if budget is left.
   - NEW_ANS:

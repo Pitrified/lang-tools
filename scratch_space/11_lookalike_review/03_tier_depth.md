@@ -57,9 +57,24 @@ The three random samples, applied on 2026-10-31 under guide `8c251b3ed4b0` (gold
   pairs whose known word is Zipf 3.3 or more before review, at no loss of traps; the cognates
   it skips are on words a learner does not know. That cuts C by a third and D and E by more
   than half.
-- At about 600 pairs per weekly point (round 6), the filtered tiers cost about 14 (C), 13 (D)
-  and 13 (E) weekly points. Expected kept traps: about 300 in C, about 175 in D, none seen in
-  E. With 200 pairs per sample the rates are rough: 5 in 200 spans about 1% to 6%.
 - Sampling note: `recheck` mixes gold pairs in without excluding the batch's own keys, so a
   sampled pair that is also in the gold set is served twice (*derelito* / *decrepit* in
   `e0001`); only one row is written, so nothing is double counted.
+
+### Samples extended to 1,000 pairs per tier
+
+On the user's request the samples grew to 1,000 random pairs per tier (800 more each, seeded
+`tier-C-2` and so on, appended to the same key files; `c0002` to `c0005`, `d0002` to `d0005`,
+`e0002` to `e0005`). Gold 68/75. Rates with a 95% interval:
+
+| Tier | Traps | Kept by the build | Kept rate | Pairs with known Zipf 3.3+ in the sample | Kept rate among them | Pairs left after the filter | Expected kept traps |
+| ---- | ----: | ----: | ----: | ----: | ----: | ----: | ----: |
+| C | 40 | 32 | 3.2% ± 1.1 | 681 | 4.7% ± 1.6 | about 7,650 | about 360 |
+| D | 17 | 12 | 1.2% ± 0.7 | 436 | 2.8% ± 1.5 | about 7,260 | about 200 |
+| E | 14 | 7  | 0.7% ± 0.5 | 370 | 1.9% ± 1.4 | about 7,600 | about 140 |
+
+- "Pairs left" is the filtered tier minus the sampled pairs that passed the filter.
+- At about 600 pairs per weekly point, each filtered tier costs about 13 weekly points:
+  about 28 kept traps per weekly point in C, 17 in D, 11 in E.
+- The 200-pair samples had read C at 2.5% and E at 0; the larger samples put C higher and
+  show E is not empty, but it stays the lowest.

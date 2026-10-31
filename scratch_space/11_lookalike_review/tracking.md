@@ -97,3 +97,6 @@ Append-only. Newest at the bottom. The entries up to the spin-off are reconstruc
 - 2026-10-31 : phase 3 samples `c0001`, `d0001`, `e0001` applied (random 200 each, gold 14/15):
   kept traps 2.5% (C), 1% (D), 0 (E). Filtering a tier to known words of Zipf 3.3 or more loses
   no kept trap and cuts C by a third, D and E by half. Depth question raised as `00_start.md` Q8.
+- 2026-10-31 : phase 3 samples extended to 1,000 random pairs per tier (`c0002` to `e0005`,
+  gold 68/75): kept traps 3.2% (C), 1.2% (D), 0.7% (E), or 4.7%, 2.8%, 1.9% among the pairs a
+  known-word filter keeps. Q8 updated with the new numbers; recommendation moved to C and D.
