@@ -91,6 +91,24 @@ Thirteen batches (twelve of 200 pairs, one of 101), one subagent each, under gui
   while b0022 and b0025 labelled them `c` (*pediatra* / it *pediatria*, *oncologia* / it
   *oncologo*). Raised as `00_start.md` Q7.
 
+## Closing recheck (r0005 to r0010)
+
+1,034 of the 1,035 mined keys re-checked in six batches under guide `8c251b3ed4b0` (the
+word-form rule without the own-cognate clause, Q7); *relatório* / it *relatore* was skipped,
+being a gold pair whose gold row is already `u`.
+
+- **Changed:** 261 labels. 126 `u` to `c` (the round 3 word-form drift undone), 42 `f` to `u`,
+  19 `u` to `f`, 14 `c` to `p`, 13 `p` to `u`, 12 `f` to `p`, 11 `c` to `u`, 10 `p` to `c`,
+  8 `p` to `f`, 3 `u` to `p`, 2 `c` to `f`, 1 `f` to `c`. The Q5 verb / noun `c` rows mostly
+  held: 11 went `u`.
+- **Gold:** 23/30. The misses are meaning calls, not rule drift: *compromisso* / *compromise*,
+  *pasta* / it *pasta*, *cantina* / it *cantina*, *palimpsesto* / it *palinsesto*, *logo* / it
+  *logo*, *compositor* / *compositor*, *tenda* / it *tenda*.
+- **Edge cases:** 85, 45 of them in `r0006`, the batch that held most of the old `!` rows.
+- **Left for a later look:** the person-against-thing rule took *perfume* / *perfumer* and
+  *depósito* / *depositor* to `f`; near-identical pairs against a moderately common known word
+  still split between `f` and `u` (*lepra* / it *lepre* `f`, *balde* / *bald* `u`).
+
 ### Resume here
 
 1. **Corpus rebuilt** on 2026-10-29 with the round 1 rows: 3,883 edges (3,262 cognate,
@@ -107,4 +125,4 @@ Thirteen batches (twelve of 200 pairs, one of 101), one subagent each, under gui
    - Q6: *relatório* / it *relatore*, *microscópico* / it *microscopio*, 2;
    - Q7: latest row `u` under guide `debd21395107` whose two spellings, accents removed, share a
      prefix of 6 letters or more that covers all but at most 4 letters of the shorter one, 282.
-   Served as `r0005` onward under guide `8c251b3ed4b0`, then rebuild.
+   Re-checked as `r0005` to `r0010` (above). Next: rebuild, then close the phase.

@@ -83,3 +83,7 @@ Append-only. Newest at the bottom. The entries up to the spin-off are reconstruc
   (6% of pairs), gold 61/65, 108 edge cases. Tier B complete, 6,701/6,701. The Q6 own-cognate
   clause clashed with the guide's `c` examples and the gold set, and reviewers split on it;
   raised as `00_start.md` Q7.
+- 2026-10-31 : Q7 settled (a): the own-cognate clause dropped from the word-form rule, guide
+  `8c251b3ed4b0`. Closing tier B recheck mined (1,035 keys: Q4 flags, Q5 verb / noun `c` rows,
+  Q6 pairs, Q7 round 3 word-form `u` rows) and re-checked as `r0005` to `r0010`: 261 labels
+  changed, 126 of them `u` to `c`; gold 23/30, 85 edge cases.
