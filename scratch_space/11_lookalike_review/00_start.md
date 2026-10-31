@@ -177,4 +177,6 @@ later rows carry the newer `prompt_sha`.
   - b. Keep the clause, and change the *monarca* and *notar* examples and the gold rows to `u`.
   - Recommended: a, because the meaning carries over, so a learner is helped, not misled; it
     matches the gold set and the original rule, and only the round 3 rows need a recheck.
-  - NEW_ANS:
+  - ANS: a. Clause dropped, *microscópico* / it *microscopio* is now a `c` example, and the
+    own-cognate rule says it covers only a look-alike whose meaning differs. Guide
+    `8c251b3ed4b0`.

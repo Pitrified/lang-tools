@@ -45,8 +45,9 @@ resemblance help them, mislead them, or not register at all?
   en *photograph*). A verb against a noun that names something the verb does not is `u` (pt
   *albergar*, to shelter / it *albergo*, a hotel). The rule applies only when the two forms are
   close enough to read one as the other (pt *relatório*, a report / it *relatore*, a speaker, is
-  `u`), and the known language's own cognate still wins when it is at least as close (pt
-  *microscópico* / it *microscopio* is `u`: it has *microscopico*).
+  `u`). It holds even when the known language also has the pt word's own form: pt
+  *microscópico* / it *microscopio* is `c` though it has *microscopico*, as *monarca* / it
+  *monarchia* is `c` though it has *monarca*.
 - **Grammatical words are `u`.** A preposition, conjunction, article, pronoun or other function
   word is `u` against a content word it happens to resemble, because nobody reads one as the
   other (pt *com* / en *come*, pt *mas* / en *mass*, pt *sem* / it *seme*, pt *para* / en *par*).
@@ -59,7 +60,8 @@ resemblance help them, mislead them, or not register at all?
   judged on meaning (pt *sopa* / en *soap* is `f`, since *soup* is further off; pt *branca* /
   it *branca*, a paw, is `f` though it has *bianca*). A known word that is merely spelled like
   the pt word but means something else is not its cognate (pt *seta*, an arrow: it *seta* is
-  silk, so pt *seta* / it *setta* is still `f`).
+  silk, so pt *seta* / it *setta* is still `f`). This rule is about a look-alike whose meaning
+  differs; a related word form whose meaning carries over follows the word-form rule above.
 - **Inflected forms count by their most frequent reading.** When a word is both a lemma and a
   common inflected form of another word, judge the reading a learner meets most often and mention
   the other in the note. pt *era* ("was") / en *era* is `f`; pt *amo* (mostly "I love", also

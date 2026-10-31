@@ -99,5 +99,12 @@ Thirteen batches (twelve of 200 pairs, one of 101), one subagent each, under gui
 2. **Rule questions settled** on 2026-10-29 ([`00_start.md`](00_start.md) Q1 to Q4): the
    word-form rule is in the rulebook, so round 2 runs under a new `prompt_sha`. The stale `c`
    rows it leaves behind are Q5.
-3. **All rounds done.** Settle `00_start.md` Q7, then rebuild and run the closing recheck pass in
-   the Plan (Q4 flags, Q5 verb / noun rows, Q6 rows, and the round 3 word-form rows Q7 changes).
+3. **All rounds done; Q7 settled.** The closing recheck keys are in
+   `data/work/lookalike_review/recheck_tier_b.txt`, 1,035 pairs, mined on 2026-10-31:
+   - Q4: every tier B row flagged `!`, 324;
+   - Q5: latest row `c` with one side a verb and the other a noun (part of speech from the
+     corpus), any tier, 447;
+   - Q6: *relatório* / it *relatore*, *microscópico* / it *microscopio*, 2;
+   - Q7: latest row `u` under guide `debd21395107` whose two spellings, accents removed, share a
+     prefix of 6 letters or more that covers all but at most 4 letters of the shorter one, 282.
+   Served as `r0005` onward under guide `8c251b3ed4b0`, then rebuild.
