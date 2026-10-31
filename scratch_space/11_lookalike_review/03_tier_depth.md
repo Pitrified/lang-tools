@@ -1,5 +1,5 @@
 ---
-status: in progress
+status: done
 ---
 
 # Phase 3 - tier depth
@@ -78,3 +78,13 @@ On the user's request the samples grew to 1,000 random pairs per tier (800 more 
   about 28 kept traps per weekly point in C, 17 in D, 11 in E.
 - The 200-pair samples had read C at 2.5% and E at 0; the larger samples put C higher and
   show E is not empty, but it stays the lowest.
+
+### Decision
+
+`00_start.md` Q8, answered b on 2026-10-31:
+
+- **C:** agents, filtered to known words of Zipf 3.3 or more (about 28 kept traps per weekly
+  point).
+- **D:** agents, same filter (about 17 per point).
+- **E:** stopped, left as "neither" for the learner (about 11 per point); it can be reopened.
+- The parked cheap-model verifier stays parked: the agent cost of C and D fits the budget.

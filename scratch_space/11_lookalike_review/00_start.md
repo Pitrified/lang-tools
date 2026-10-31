@@ -193,4 +193,5 @@ later rows carry the newer `prompt_sha`.
   - Recommended: b, because C and D give 28 and 17 kept traps per weekly point against 11 for
     E, and the D rate is now measured (1.2% ± 0.7) rather than read off two traps; E can follow
     later if budget is left.
-  - NEW_ANS:
+  - ANS: b. Phase 4 reviews tiers C and D, filtered to known words of Zipf 3.3 or more, by
+    agents; tier E stops here and can be reopened later.

@@ -22,8 +22,8 @@ decisions in [`00_start.md`](00_start.md).
 | -- | ------------- | -------------------------------------------- | ----------- |
 | 1  | Tier A        | [`01_tier_a.md`](01_tier_a.md)               | done        |
 | 2  | Tier B        | [`02_tier_b.md`](02_tier_b.md)               | done        |
-| 3  | Tier depth    | [`03_tier_depth.md`](03_tier_depth.md)       | in progress |
-| 4  | Tiers C to E  | [`04_tiers_c_to_e.md`](04_tiers_c_to_e.md)   | draft       |
+| 3  | Tier depth    | [`03_tier_depth.md`](03_tier_depth.md)       | done        |
+| 4  | Tiers C to E  | [`04_tiers_c_to_e.md`](04_tiers_c_to_e.md)   | planned     |
 | 5  | Close-out     | [`05_closeout.md`](05_closeout.md)           | draft       |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
@@ -100,3 +100,6 @@ Append-only. Newest at the bottom. The entries up to the spin-off are reconstruc
 - 2026-10-31 : phase 3 samples extended to 1,000 random pairs per tier (`c0002` to `e0005`,
   gold 68/75): kept traps 3.2% (C), 1.2% (D), 0.7% (E), or 4.7%, 2.8%, 1.9% among the pairs a
   known-word filter keeps. Q8 updated with the new numbers; recommendation moved to C and D.
+- 2026-10-31 : Q8 answered b: tiers C and D reviewed by agents, filtered to known words of Zipf
+  3.3 or more; tier E stops. Phase 3 closed; phase 4 planned (filtered key lists served through
+  `recheck`, C first).
