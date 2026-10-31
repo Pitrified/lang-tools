@@ -22,7 +22,7 @@ decisions in [`00_start.md`](00_start.md).
 | -- | ------------- | -------------------------------------------- | ----------- |
 | 1  | Tier A        | [`01_tier_a.md`](01_tier_a.md)               | done        |
 | 2  | Tier B        | [`02_tier_b.md`](02_tier_b.md)               | done        |
-| 3  | Tier depth    | [`03_tier_depth.md`](03_tier_depth.md)       | draft       |
+| 3  | Tier depth    | [`03_tier_depth.md`](03_tier_depth.md)       | in progress |
 | 4  | Tiers C to E  | [`04_tiers_c_to_e.md`](04_tiers_c_to_e.md)   | draft       |
 | 5  | Close-out     | [`05_closeout.md`](05_closeout.md)           | draft       |
 
@@ -92,3 +92,8 @@ Append-only. Newest at the bottom. The entries up to the spin-off are reconstruc
   under Zipf 3.3), 6 stale, gate PASS, seed unchanged, `make check` green. Phase 2 closed:
   every tier B pair reviewed and the closing recheck applied. Round 3 moved the weekly meter
   42% to 47%; its 5-hour reading was lost to the window reset.
+- 2026-10-31 : phase 3 started. Plan review: `serve` takes a tier's most common words first, so
+  the yield samples are drawn at random per tier and served through `recheck` instead.
+- 2026-10-31 : phase 3 samples `c0001`, `d0001`, `e0001` applied (random 200 each, gold 14/15):
+  kept traps 2.5% (C), 1% (D), 0 (E). Filtering a tier to known words of Zipf 3.3 or more loses
+  no kept trap and cuts C by a third, D and E by half. Depth question raised as `00_start.md` Q8.
