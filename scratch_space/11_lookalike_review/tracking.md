@@ -79,3 +79,7 @@ Append-only. Newest at the bottom. The entries up to the spin-off are reconstruc
   (27 session points, 3 weekly, about 69k tokens per agent).
 - 2026-10-29 : rebuild with tier B round 2: 4,792 edges (4,034 cognate, 347 partial, 411 full),
   104 rare-word traps dropped, 6 stale, gate PASS; seed unchanged.
+- 2026-10-31 : tier B round 3, `b0022` to `b0034` (2,501 pairs, guide `debd21395107`): 158 traps
+  (6% of pairs), gold 61/65, 108 edge cases. Tier B complete, 6,701/6,701. The Q6 own-cognate
+  clause clashed with the guide's `c` examples and the gold set, and reviewers split on it;
+  raised as `00_start.md` Q7.

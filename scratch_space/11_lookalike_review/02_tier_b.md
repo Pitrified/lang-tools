@@ -26,7 +26,7 @@ comes before the frequency tiers C to E. Context: [`00_start.md`](00_start.md), 
 
 ## Done when
 
-- Every tier-B pair has a reviewed row (2,400 / 6,701 so far).
+- Every tier-B pair has a reviewed row (6,701 / 6,701, done 2026-10-31).
 - The recheck pass is applied.
 - The rebuilt corpus applies them and the gate passes.
 
@@ -74,6 +74,23 @@ Tier B stands at 4,200/6,701.
 - **Rebuild:** 4,792 edges (4,034 cognate, 347 partial, 411 full), 104 rare-word traps dropped
   (33 more than after round 1), 6 stale, gate PASS; the seed is unchanged.
 
+## Tier B, third round (b0022 to b0034)
+
+Thirteen batches (twelve of 200 pairs, one of 101), one subagent each, under guide
+`debd21395107` (the word-form rule bounded by Q6). Tier B is complete: 6,701/6,701.
+
+- **Results:** 88 full and 70 partial false friends, 624 cognates, 1,719 unrelated; 108 edge
+  cases. Traps are 6% of the pairs, down from 9% in round 2.
+- **Gold:** 61/65 (328/355 overall). Misses: *fundamentalismo* / *fundamentalist* and
+  *estruturalismo* / it *strutturale* (b0033), *abusar* / it *abuso* (b0032), all gold `c` and
+  agent `u` by the own-cognate clause; *lâmpada* / *lamp* (gold `p`, agent `c`).
+- **Rule clash:** the Q6 clause "the known language's own cognate still wins" contradicts the
+  guide's own `c` examples (*monarca* / it *monarchia*, *notar* / it *nota*) and the gold set.
+  Reviewers split on it: b0024, b0026, b0028, b0031, b0032 and b0033 labelled word-form pairs
+  `u` (*ideologia* / it *ideologo*, *semântica* / it *semantico*, *zoologia* / it *zoologo*),
+  while b0022 and b0025 labelled them `c` (*pediatra* / it *pediatria*, *oncologia* / it
+  *oncologo*). Raised as `00_start.md` Q7.
+
 ### Resume here
 
 1. **Corpus rebuilt** on 2026-10-29 with the round 1 rows: 3,883 edges (3,262 cognate,
@@ -82,7 +99,5 @@ Tier B stands at 4,200/6,701.
 2. **Rule questions settled** on 2026-10-29 ([`00_start.md`](00_start.md) Q1 to Q4): the
    word-form rule is in the rulebook, so round 2 runs under a new `prompt_sha`. The stale `c`
    rows it leaves behind are Q5.
-3. **Next round:** `b0022` onward, 2,501 tier B pairs left (13 batches, the last one 101 pairs). Reserve the ids up
-   front (`serve --batch b0013 --size 200 --tier B`), launch one subagent per id with the skill,
-   commit once at the end. Size it at about 3.3 session points per agent
-   ([`00.1_usage_log.md`](00.1_usage_log.md), round 5): about 9 agents for 30 points.
+3. **All rounds done.** Settle `00_start.md` Q7, then rebuild and run the closing recheck pass in
+   the Plan (Q4 flags, Q5 verb / noun rows, Q6 rows, and the round 3 word-form rows Q7 changes).

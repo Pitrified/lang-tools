@@ -167,3 +167,14 @@ later rows carry the newer `prompt_sha`.
     stops the drift before 2,500 more pairs; the two pairs then go to the Q5 recheck.
   - ANS: a. Folded into the word-form rule with both pairs as its examples; the two rows join
     the end-of-tier recheck in `02_tier_b.md`.
+- Q7: The Q6 clause "the known language's own cognate still wins when it is at least as close"
+  contradicts the guide's own `c` examples (*monarca* / it *monarchia*, though it has *monarca*;
+  *notar* / it *nota*, though it has *notare*) and the gold set, which marks *fundamentalismo* /
+  *fundamentalist*, *estruturalismo* / it *strutturale*, *abusar* / it *abuso* as `c`. In round 3,
+  six batches applied the clause (word-form pairs `u`) and two did not (`c`).
+  - a. Drop the clause from the word-form rule; keep the spelling bound. *microscópico* / it
+    *microscopio* becomes a `c` example. Re-check the round 3 word-form `u` rows.
+  - b. Keep the clause, and change the *monarca* and *notar* examples and the gold rows to `u`.
+  - Recommended: a, because the meaning carries over, so a learner is helped, not misled; it
+    matches the gold set and the original rule, and only the round 3 rows need a recheck.
+  - NEW_ANS:
