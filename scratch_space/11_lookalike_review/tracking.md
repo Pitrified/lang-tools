@@ -21,7 +21,7 @@ decisions in [`00_start.md`](00_start.md).
 | #  | Phase         | Plan                                         | Status      |
 | -- | ------------- | -------------------------------------------- | ----------- |
 | 1  | Tier A        | [`01_tier_a.md`](01_tier_a.md)               | done        |
-| 2  | Tier B        | [`02_tier_b.md`](02_tier_b.md)               | in progress |
+| 2  | Tier B        | [`02_tier_b.md`](02_tier_b.md)               | done        |
 | 3  | Tier depth    | [`03_tier_depth.md`](03_tier_depth.md)       | draft       |
 | 4  | Tiers C to E  | [`04_tiers_c_to_e.md`](04_tiers_c_to_e.md)   | draft       |
 | 5  | Close-out     | [`05_closeout.md`](05_closeout.md)           | draft       |
@@ -87,3 +87,8 @@ Append-only. Newest at the bottom. The entries up to the spin-off are reconstruc
   `8c251b3ed4b0`. Closing tier B recheck mined (1,035 keys: Q4 flags, Q5 verb / noun `c` rows,
   Q6 pairs, Q7 round 3 word-form `u` rows) and re-checked as `r0005` to `r0010`: 261 labels
   changed, 126 of them `u` to `c`; gold 23/30, 85 edge cases.
+- 2026-10-31 : final tier B rebuild: 5,523 edges (4,768 cognate, 356 partial, 399 full),
+  237 rare-word traps dropped (133 more than before: many tier B traps sit on known words
+  under Zipf 3.3), 6 stale, gate PASS, seed unchanged, `make check` green. Phase 2 closed:
+  every tier B pair reviewed and the closing recheck applied. Round 3 moved the weekly meter
+  42% to 47%; its 5-hour reading was lost to the window reset.

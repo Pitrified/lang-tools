@@ -1,5 +1,5 @@
 ---
-status: in progress
+status: done
 ---
 
 # Phase 2 - tier B
@@ -125,4 +125,7 @@ being a gold pair whose gold row is already `u`.
    - Q6: *relatório* / it *relatore*, *microscópico* / it *microscopio*, 2;
    - Q7: latest row `u` under guide `debd21395107` whose two spellings, accents removed, share a
      prefix of 6 letters or more that covers all but at most 4 letters of the shorter one, 282.
-   Re-checked as `r0005` to `r0010` (above). Next: rebuild, then close the phase.
+   Re-checked as `r0005` to `r0010` (above).
+4. **Final rebuild** on 2026-10-31: 5,523 edges (4,768 cognate, 356 partial, 399 full),
+   237 rare-word traps dropped, 6 stale, gate PASS, seed unchanged. Phase closed; next is
+   [`03_tier_depth.md`](03_tier_depth.md).
