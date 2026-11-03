@@ -14,6 +14,13 @@ it skips only cognates on words a learner does not know. Tier E is not reviewed.
 
 ## Plan
 
+- First, one `r` batch for the terse trap notes (lang-tutor's `03_ui_followups/00_start.md` Q9,
+  answered b on 2026-11-03): 139 of the 755 served full and partial traps have a note in the old
+  terse style (`pt: pull`) that does not say what the tapped word means. The current rulebook's
+  Notes section already asks for both sides, and those rows predate it, so `recheck` serves them
+  with no guide change. Mine the keys into `data/work/lookalike_review/recheck_notes.txt`
+  (latest row `f` or `p` whose note does not start with `pt "`), serve them as `r0011`, apply,
+  and rebuild with the first C round.
 - Write the key lists `data/work/lookalike_review/filtered_tier_c.txt` and `filtered_tier_d.txt`:
   every pair of the tier with known Zipf 3.3 or more and no reviewed row yet, in worklist
   order (most common pt word first), so an early stop keeps the most useful part.

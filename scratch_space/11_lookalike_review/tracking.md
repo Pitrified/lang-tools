@@ -103,3 +103,10 @@ Append-only. Newest at the bottom. The entries up to the spin-off are reconstruc
 - 2026-10-31 : Q8 answered b: tiers C and D reviewed by agents, filtered to known words of Zipf
   3.3 or more; tier E stops. Phase 3 closed; phase 4 planned (filtered key lists served through
   `recheck`, C first).
+- 2026-11-03 : two items from lang-tutor's `03_ui_followups` phase 1, which played the drills on the
+  2026-10-31 corpus. The phase 3 samples (3,000 rows) had been committed after that build and
+  were not in the corpus; rebuilt on the user's answer (lang-tutor Q10 a). The 139 terse trap
+  notes get a re-check as `r0011` before the first C round (lang-tutor Q9 b), added to
+  `04_tiers_c_to_e.md`.
+- 2026-11-03 : rebuild with the phase 3 samples: 6,852 edges (6,046 cognate, 388 partial,
+  418 full; +1,329), 257 rare-word traps dropped, 6 stale, gate PASS, seed unchanged.
