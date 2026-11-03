@@ -66,8 +66,11 @@ class LemmaCard(BaseModel):
         sense_frequency: Frequency of the best sense (Zipf-like scale).
         gloss: Definition of the best concept in the query's gloss language.
         translations: Language -> lemma texts realising the same concept, most
-            frequent first. The card's own lemma is never listed; the lemma's
-            own language, when requested, holds its synonyms.
+            frequent first, except that a word comes before a symbol (a digit,
+            one letter, a Roman numeral) and a single word before a phrase
+            that is less common than it: pt *dez* lists *ten* before *x*. The
+            card's own lemma is never listed; the lemma's own language, when
+            requested, holds its synonyms.
         examples: Example sentences of the best concept in the lemma's language.
         lookalikes: The lemma's look-alikes in the query's known languages
             (phase 11): false friends first, then cognates. Empty when the
@@ -97,7 +100,9 @@ class LemmaCard(BaseModel):
 class CardQuery(BaseModel):
     """Filter for a bounded list of `LemmaCard`s.
 
-    Every filter is optional; ``language`` is the one a drill always sets.
+    Every filter is optional; ``language`` is the one a drill always sets. A
+    one-letter lemma (a letter name, a unit symbol) is never a card, whatever
+    the filters; `LexiconStore.lemma_card` still reads it by id.
 
     Attributes:
         language: ISO 639-1 code of the drilled lemmas.
@@ -115,8 +120,8 @@ class CardQuery(BaseModel):
         topic: Topic tag (the lemma's own or a sense concept's).
         part_of_speech: Lemma part of speech (``"noun"``, ``"verb"``, ...).
         length: Exact character length of the lemma text.
-        min_length: Minimum character length (drops one- and two-letter
-            tokens such as letter names from a drill).
+        min_length: Minimum character length (drops two-letter tokens such as
+            unit symbols from a drill; one-letter lemmas are never cards).
         accented_only: Keep only lemmas whose text carries a diacritic.
         single_word: Keep only one lowercase alphabetic token (no spaces,
             hyphens, digits, apostrophes, or capitals - so no proper nouns).

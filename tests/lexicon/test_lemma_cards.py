@@ -132,6 +132,109 @@ def test_frequency_tie_goes_to_the_more_common_concept() -> None:
     assert card.concept_id == common
 
 
+def _number_store() -> LexiconStore:
+    """Build pt *dez*, *quatro* and the letter *d*, whose en ranks symbols first."""
+    dez = Lemma(text="dez", language="pt")
+    letter = Lemma(text="d", language="pt")
+    ten = "c__ten-number__0077aabbccdd"
+    four = "c__four-number__0088aabbccdd"
+    d_letter = "c__d-letter__0099aabbccdd"
+    quatro = Lemma(text="quatro", language="pt")
+    en = {
+        text: Lemma(text=text, language="en")
+        for text in ("x", "10", "ten", "4", "Little Joe", "four", "d")
+    }
+    senses = [
+        Sense(lemma_id=dez.id, concept_id=ten, sense_frequency=5.0),
+        Sense(lemma_id=quatro.id, concept_id=four, sense_frequency=5.0),
+        Sense(lemma_id=letter.id, concept_id=d_letter, sense_frequency=5.0),
+        # Frequency alone would list x, 10, ten and 4, Little Joe, four.
+        Sense(lemma_id=en["x"].id, concept_id=ten, sense_frequency=6.0),
+        Sense(lemma_id=en["10"].id, concept_id=ten, sense_frequency=5.5),
+        Sense(
+            lemma_id=en["ten"].id,
+            concept_id=ten,
+            sense_frequency=5.0,
+            token_frequency=5.4,
+        ),
+        Sense(lemma_id=en["4"].id, concept_id=four, sense_frequency=6.0),
+        Sense(lemma_id=en["Little Joe"].id, concept_id=four, sense_frequency=5.5),
+        Sense(
+            lemma_id=en["four"].id,
+            concept_id=four,
+            sense_frequency=5.0,
+            token_frequency=5.5,
+        ),
+        Sense(lemma_id=en["d"].id, concept_id=d_letter, sense_frequency=5.0),
+    ]
+    return LexiconStore.from_models(
+        lemmas=[dez, quatro, letter, *en.values()],
+        concepts=[
+            Concept(id=ten, definitions={"en": "the number ten"}),
+            Concept(id=four, definitions={"en": "the number four"}),
+            Concept(id=d_letter, definitions={"en": "the 4th letter"}),
+        ],
+        senses=senses,
+        lookalikes=[],
+        concept_relations=[],
+        sense_relations=[],
+    )
+
+
+def test_one_letter_lemma_is_never_a_card() -> None:
+    store = _number_store()
+    assert _texts(store.lemma_cards(CardQuery(language="pt"))) == ["dez", "quatro"]
+    # The lemma itself stays readable by id.
+    assert store.lemma_card(Lemma(text="d", language="pt").id) is not None
+
+
+def test_translations_put_words_before_phrases_and_symbols() -> None:
+    store = _number_store()
+    dez = store.lemma_card(Lemma(text="dez", language="pt").id)
+    quatro = store.lemma_card(Lemma(text="quatro", language="pt").id)
+    letter = store.lemma_card(Lemma(text="d", language="pt").id)
+    assert dez is not None
+    assert quatro is not None
+    assert letter is not None
+    assert dez.translations["en"] == ["ten", "x", "10"]
+    assert quatro.translations["en"] == ["four", "Little Joe", "4"]
+    # A list of symbols only keeps its order.
+    assert letter.translations["en"] == ["d"]
+
+
+def test_phrase_keeps_its_place_over_a_rare_word() -> None:
+    """A phrase yields only to a more common single word (*blackamoor* is rarer)."""
+    negra = Lemma(text="negra", language="pt")
+    phrase = Lemma(text="Black person", language="en")
+    rare = Lemma(text="blackamoor", language="en")
+    concept = "c__black-person__00aaaabbccdd"
+    store = LexiconStore.from_models(
+        lemmas=[negra, phrase, rare],
+        concepts=[Concept(id=concept, definitions={"en": "a person with dark skin"})],
+        senses=[
+            Sense(lemma_id=negra.id, concept_id=concept, sense_frequency=4.0),
+            Sense(
+                lemma_id=phrase.id,
+                concept_id=concept,
+                sense_frequency=3.0,
+                token_frequency=3.0,
+            ),
+            Sense(
+                lemma_id=rare.id,
+                concept_id=concept,
+                sense_frequency=1.4,
+                token_frequency=1.4,
+            ),
+        ],
+        lookalikes=[],
+        concept_relations=[],
+        sense_relations=[],
+    )
+    card = store.lemma_card(negra.id)
+    assert card is not None
+    assert card.translations["en"] == ["Black person", "blackamoor"]
+
+
 def test_card_gloss_language() -> None:
     store = _store()
     card = store.lemma_card(Lemma(text="casa", language="pt").id, gloss_language="pt")

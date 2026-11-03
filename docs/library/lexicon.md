@@ -226,8 +226,13 @@ never persisted:
   That is the highest `sense_frequency`, ties going to the more common concept
   (`Concept.commonness`), then the easier band.
 - `gloss`: the best concept's definition in the requested gloss language.
-- `translations`: language -> the concept's other lemmas, most frequent first.
-  The lemma's own language lists its synonyms.
+- `translations`: language -> the concept's other lemmas, most frequent first,
+  except that a word comes before a symbol (a digit, one letter, or a Roman
+  numeral on a number concept), and a single word before a phrase when the word
+  is the more common of the two. wordfreq ranks *x*, *2* and *i* above *ten*,
+  *two* and *one*, so without it pt *dez* would show "x" and *quatro* "Little
+  Joe"; the frequency test keeps "in love" ahead of *potty* and "Black person"
+  ahead of *blackamoor*. The lemma's own language lists its synonyms.
 - `examples`: the concept's example sentences in the lemma's language.
 
 The commonness tie-break matters outside English. The SemCor prior that splits a
@@ -235,7 +240,9 @@ lemma's frequency across its senses is English-only, so every sense of a pt lemm
 ties on frequency. Without the tie-break, pt *casa* picks "apartment" over
 "house", and *falar* picks "deal" over "say".
 
-`lemma_cards(CardQuery)` returns a bounded list (at most 500, default 50). The
+`lemma_cards(CardQuery)` returns a bounded list (at most 500, default 50). A
+one-letter lemma is never in it: as a card it teaches a letter name or a unit
+symbol (pt *d*, *c* "one hundred"); `lemma_card` still reads it by id. The
 filters are:
 
 - language;

@@ -46,6 +46,7 @@ from collections import defaultdict
 import hashlib
 import json
 from pathlib import Path
+import re
 import sqlite3
 from typing import TYPE_CHECKING
 
@@ -338,6 +339,53 @@ def _is_single_word(text: str) -> bool:
     return text.isalpha() and text == text.lower()
 
 
+#: A Roman numeral (``iv``, ``x``, ``mmxx``), matched case-insensitively.
+_ROMAN = re.compile(
+    r"m{0,4}(cm|cd|d?c{0,3})(xc|xl|l?x{0,3})(ix|iv|v?i{0,3})",
+    re.IGNORECASE,
+)
+
+
+def _rank_translations(
+    rows: list[tuple[str, str, float | None]],
+) -> list[tuple[str, str]]:
+    """Order a concept's ``(lemma_id, text, zipf)`` translations for a card.
+
+    Keeps the frequency order, with two exceptions. A symbol moves after the
+    words: wordfreq ranks *x*, *2* and *i* above *ten*, *two* and *one*. A
+    symbol is all digits, one character, or, when the list also holds a digit
+    (so the concept is a number), a Roman numeral; the digit guard keeps a word
+    such as *mix* in place. And a phrase moves after a single word that is more
+    common than the phrase itself (by the surface frequency): "Little Joe" (4.7)
+    after *four* (5.5) and "at present" after *now*, while "in love" (5.8)
+    stays ahead of *potty* and "Black person" ahead of *blackamoor*.
+
+    Returns:
+        The ``(lemma_id, text)`` pairs in card order.
+    """
+    is_number = any(text.isdigit() for _, text, _ in rows)
+
+    def is_symbol(text: str) -> bool:
+        return (
+            text.isdigit()
+            or len(text) == 1
+            or (is_number and _ROMAN.fullmatch(text) is not None)
+        )
+
+    words = [row for row in rows if not is_symbol(row[1])]
+    symbols = [row for row in rows if is_symbol(row[1])]
+    moved = True
+    while moved:
+        moved = False
+        for i in range(len(words) - 1):
+            (_, text, zipf), (_, next_text, next_zipf) = words[i], words[i + 1]
+            phrase_first = " " in text and " " not in next_text
+            if phrase_first and (next_zipf or 0.0) > (zipf or 0.0):
+                words[i], words[i + 1] = words[i + 1], words[i]
+                moved = True
+    return [(lemma_id, text) for lemma_id, text, _ in [*words, *symbols]]
+
+
 def _card_rank(seed: int, lemma_id: str) -> int:
     """Return a deterministic pseudo-random sort key for a seeded sample."""
     digest = hashlib.blake2b(f"{seed}:{lemma_id}".encode(), digest_size=8).digest()
@@ -347,7 +395,9 @@ def _card_rank(seed: int, lemma_id: str) -> int:
 def _card_where(query: CardQuery) -> tuple[list[str], list[object]]:
     """Return the card SELECT's WHERE clauses and their parameters.
 
-    Every column is read from ``lemma_drill`` (alias ``d``).
+    Every column is read from ``lemma_drill`` (alias ``d``). A one-letter lemma
+    is always left out: as a card it teaches a letter name or a unit symbol (pt
+    *d*, *c* "one hundred"), never a word.
     """
     valued: list[tuple[object, str]] = [
         (query.language, "d.language = ?"),
@@ -361,7 +411,8 @@ def _card_where(query: CardQuery) -> tuple[list[str], list[object]]:
         (query.length, "d.char_len = ?"),
         (query.min_length, "d.char_len >= ?"),
     ]
-    clauses = [clause for value, clause in valued if value is not None]
+    clauses = ["d.char_len > 1"]
+    clauses += [clause for value, clause in valued if value is not None]
     params: list[object] = [value for value, _ in valued if value is not None]
     if query.accented_only:
         clauses.append("d.accented = 1")
@@ -995,13 +1046,18 @@ class LexiconStore:
         concept_ids: Sequence[str],
         languages: Sequence[str],
     ) -> dict[tuple[str, str], list[tuple[str, str]]]:
-        """Return ``(concept_id, language) -> [(lemma_id, text)]``, by frequency."""
+        """Return ``(concept_id, language) -> [(lemma_id, text)]`` for cards.
+
+        Ordered by frequency, then words before phrases and symbols
+        (`_rank_translations`).
+        """
         if not concept_ids or not languages:
             return {}
         c_marks = ", ".join("?" for _ in concept_ids)
         l_marks = ", ".join("?" for _ in languages)
         rows = self._conn.execute(
-            "SELECT s.concept_id, l.language, l.id, l.text FROM senses s"  # noqa: S608
+            "SELECT s.concept_id, l.language, l.id, l.text, s.token_frequency"  # noqa: S608
+            " FROM senses s"
             # CROSS JOIN pins the join order: drive from the concept index on
             # senses, not from the (far less selective) lemma language index.
             " CROSS JOIN lemmas l ON l.id = s.lemma_id"
@@ -1010,10 +1066,14 @@ class LexiconStore:
             " ORDER BY s.sense_frequency DESC NULLS LAST, l.text",
             (*concept_ids, *languages),
         ).fetchall()
-        out: dict[tuple[str, str], list[tuple[str, str]]] = defaultdict(list)
+        out: dict[tuple[str, str], list[tuple[str, str, float | None]]] = defaultdict(
+            list
+        )
         for row in rows:
-            out[row["concept_id"], row["language"]].append((row["id"], row["text"]))
-        return out
+            out[row["concept_id"], row["language"]].append(
+                (row["id"], row["text"], row["token_frequency"]),
+            )
+        return {key: _rank_translations(group) for key, group in out.items()}
 
     # --- Concept reads ---------------------------------------------------
 
