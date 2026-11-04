@@ -33,7 +33,10 @@ over HTTP in its default `http` mode.
   is derived from the lemma's senses (phase 8), so a tutor filtering by topic sees
   every meaning's topics.
 - `Concept` (language-independent synset) and `Sense` (the explicit
-  lemma <-> concept edge hosting per-sense frequency / CEFR).
+  lemma <-> concept edge hosting per-sense frequency / CEFR). `Sense.is_best`
+  (default `False`) marks a reviewed best-sense pin, which the card's best-sense
+  pick takes first; the field is new, so a reader of an older corpus sees it
+  unset.
 - `LookalikeRelation` (with `kind` = `full` / `partial` / `cognate` and
   `FALSE_FRIEND_KINDS`), `ConceptRelation`, `SenseRelation` - decoupled relation
   edge tables. `get_lookalikes_for_lemma` returns every kind (filterable by

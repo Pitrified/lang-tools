@@ -47,6 +47,9 @@ class Sense(BaseModel):
             Populated in phase 6.
         cefr_is_estimated: True when `cefr_level` is estimated rather than taken
             from a graded list.
+        is_best: True when a review pinned this sense as the lemma's best one
+            (`ingestion.best_senses`); the card's best-sense pick takes it
+            before frequency. At most one sense per lemma carries it.
         lemma: Resolved lemma endpoint. Store-hydrated, never persisted
             (``exclude=True``); ``None`` until hydration. Read via
             `resolve_lemma` to fail loud when unhydrated.
@@ -60,6 +63,7 @@ class Sense(BaseModel):
     frequency_is_estimated: bool = False
     cefr_level: str | None = None
     cefr_is_estimated: bool = False
+    is_best: bool = False
 
     # Representation-layer back-references; populated by the store at hydration,
     # excluded from serialization so the persisted shape stays thin and stable.

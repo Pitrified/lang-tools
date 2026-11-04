@@ -25,6 +25,8 @@ from loguru import logger as lg
 from lang_tools.lexicon.codec import LEXICON_SUBDIR
 from lang_tools.lexicon.codec import _dump_table
 from lang_tools.lexicon.ingestion.acquire import write_manifest
+from lang_tools.lexicon.ingestion.best_senses import apply_best_senses
+from lang_tools.lexicon.ingestion.best_senses import load_best_senses
 from lang_tools.lexicon.ingestion.closed_class import closed_class_drops
 from lang_tools.lexicon.ingestion.enrich import enrich
 from lang_tools.lexicon.ingestion.form_review import apply_form_drops
@@ -88,6 +90,10 @@ class BuildSummary:
             built from the reviewed curated input (phase 11).
         lookalikes_stale: Reviewed look-alike rows naming a lemma this build
             lacks; skipped, never fatal.
+        best_senses_applied: Senses pinned as their lemma's best by the
+            reviewed curated input.
+        best_senses_stale: Pinning rows naming a sense this build lacks;
+            skipped, never fatal.
     """
 
     languages: list[str]
@@ -104,6 +110,8 @@ class BuildSummary:
     examples_added: int = 0
     lookalikes_applied: int = 0
     lookalikes_stale: int = 0
+    best_senses_applied: int = 0
+    best_senses_stale: int = 0
 
 
 def _clean_corpus_tables(data_fol: Path) -> None:
@@ -318,6 +326,12 @@ def build_initial(
         (lemma.id for lemma in tables.lemmas),
         lookalike_rows,
     )
+    # Reviewed best senses pin the meaning a card shows; they key on the final
+    # sense set, so they go in after every drop.
+    best_applied, best_stale = apply_best_senses(
+        tables.senses,
+        load_best_senses(data_fol),
+    )
     counts = _write_tables(tables, data_fol)
 
     sample = carve_sample(tables, max_concepts=max_sample_concepts)
@@ -351,6 +365,7 @@ def build_initial(
             "stale": lookalikes_stale,
             "rare_traps_dropped": rare_traps,
         },
+        "best_senses": {"applied": best_applied, "stale": best_stale},
         **(extra_manifest or {}),
     }
     path = write_manifest(data_fol, manifest)
@@ -371,4 +386,6 @@ def build_initial(
         examples_added=examples_added,
         lookalikes_applied=len(tables.lookalikes),
         lookalikes_stale=lookalikes_stale,
+        best_senses_applied=best_applied,
+        best_senses_stale=best_stale,
     )

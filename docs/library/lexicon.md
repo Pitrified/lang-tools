@@ -108,9 +108,10 @@ patched into the Parquet post hoc, which is why every curated input keys on
 A `Sense` is the explicit `lemma_id <-> concept_id` edge and the canonical
 membership record. It also hosts the per-sense signals that must not live on the
 token - `token_frequency`, `sense_frequency`, and `cefr_level` (with their
-`*_is_estimated` flags). The "bank" polysemy trap is the rationale: one lemma's
-two meanings differ in frequency and difficulty, so those values belong on the
-sense. The id is computed from the endpoint pair.
+`*_is_estimated` flags) - and `is_best`, set when a review pinned this sense as
+the lemma's best one (see the curated inputs below). The "bank" polysemy trap is
+the rationale: one lemma's two meanings differ in frequency and difficulty, so
+those values belong on the sense. The id is computed from the endpoint pair.
 
 ```python
 from lang_tools.lexicon.sense import Sense
@@ -223,7 +224,8 @@ never persisted:
 
 - `lemma`: the thin token, unchanged.
 - `concept_id`, `cefr_level`, `sense_frequency`: the lemma's **best sense**.
-  That is the highest `sense_frequency`, ties going to the more common concept
+  That is the sense a review pinned (`Sense.is_best`), else the highest
+  `sense_frequency`, ties going to the more common concept
   (`Concept.commonness`), then the easier band.
 - `gloss`: the best concept's definition in the requested gloss language.
 - `translations`: language -> the concept's other lemmas, most frequent first,
@@ -477,6 +479,7 @@ cause. `maintenance` holds the shared pieces (`ReviewStatus`, `write_jsonl` /
 | `slug_qualifiers.jsonl` | `slug_qualifier` chain | `check_qualifiers` (mechanical) | `sources.omw._tiered_slugs` |
 | `member_form_drops.jsonl` | `form_review` chain | human | `apply_form_drops` |
 | `gloss_backfill.jsonl` | `gloss_translate` chain | sampled human review | `apply_gloss_backfill` |
+| `best_senses.jsonl` | agent review | the reviewing agent, under a rulebook | `apply_best_senses` |
 
 Each job has a thin notebook under `notebooks/lexicon_maintain/` (`gloss_repair`,
 `slug_qualifiers`, `form_review`, `gloss_backfill`). The jobs run through
@@ -500,6 +503,14 @@ without a sense) right after the member-form drops, through the same
 *bajo*, fr *son*, *ton*, *or*, *vers*, it *verso*, *sopra*, *sotto*, pt *caso*), and
 English is exempt. The 2026-10 build dropped 231 senses and 118 lemmas this way; the
 manifest records it under `closed_class`.
+
+The best-sense pins (`ingestion.best_senses`) fix the other way a card shows the wrong
+meaning. Outside English every sense of a lemma ties on frequency, so concept commonness
+picks, and a common concept the lemma reaches only through a rare reading wins (pt
+*homens* "work force", *bem* "kind of"). A `BestSense` row names the lemma and the
+`concept_key` of the right sense; only the latest row of a lemma counts, and a row with
+no concept retracts an earlier pin. The build sets `Sense.is_best` after every drop,
+and the manifest records the pins applied and the stale rows under `best_senses`.
 
 ## Ingestion
 

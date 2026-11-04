@@ -132,6 +132,34 @@ def test_frequency_tie_goes_to_the_more_common_concept() -> None:
     assert card.concept_id == common
 
 
+def test_pinned_sense_beats_frequency() -> None:
+    """A reviewed pin (`Sense.is_best`) leads the pick and the sense list."""
+    casa = Lemma(text="casa", language="pt")
+    store = LexiconStore.from_models(
+        lemmas=[casa],
+        concepts=[
+            Concept(id=C_HOUSE, definitions={"en": "a building to live in"}),
+            Concept(id=C_HOME, definitions={"en": "where one lives"}),
+        ],
+        senses=[
+            Sense(lemma_id=casa.id, concept_id=C_HOUSE, sense_frequency=5.0),
+            Sense(
+                lemma_id=casa.id,
+                concept_id=C_HOME,
+                sense_frequency=3.0,
+                is_best=True,
+            ),
+        ],
+        lookalikes=[],
+        concept_relations=[],
+        sense_relations=[],
+    )
+    card = store.lemma_card(casa.id)
+    assert card is not None
+    assert card.concept_id == C_HOME
+    assert [c.concept_id for c in store.lemma_sense_cards(casa.id)] == [C_HOME, C_HOUSE]
+
+
 def _number_store() -> LexiconStore:
     """Build pt *dez*, *quatro* and the letter *d*, whose en ranks symbols first."""
     dez = Lemma(text="dez", language="pt")

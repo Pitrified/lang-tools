@@ -18,7 +18,7 @@ and open questions in [`00_start.md`](00_start.md).
 | #  | Phase                    | Plan                                             | Status  |
 | -- | ------------------------ | ------------------------------------------------ | ------- |
 | 1  | Build rules              | [`01_build_rules.md`](01_build_rules.md)         | done |
-| 2  | Override input           | [`02_override_input.md`](02_override_input.md)   | planned |
+| 2  | Override input           | [`02_override_input.md`](02_override_input.md)   | done |
 | 3  | Review harness           | [`03_review_harness.md`](03_review_harness.md)   | planned |
 | 4  | Review run               | [`04_review_run.md`](04_review_run.md)           | planned |
 
@@ -37,3 +37,8 @@ Append-only. Newest at the bottom.
   measured and dropped: about a dozen regressions such as *negra* "blackamoor"). On the top 500
   of pt, es and fr: no one-letter card left, 91 first translations changed, about four arguably
   worse. `make check` green (407).
+- 2026-11-04 : phase 2 done. `Sense.is_best` added (Parquet column, cache version 9), the
+  curated `best_senses.jsonl` with its loader and applier (latest row per lemma, keyed on
+  `concept_key`, stale counted), and the pin ordered first in the card pick and the sense list.
+  No rebuild yet (no pins). The next transform run adds `is_best` to every row of the committed
+  seed. `make check` green (412), docs build clean.

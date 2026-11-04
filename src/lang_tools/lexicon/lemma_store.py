@@ -89,7 +89,8 @@ if TYPE_CHECKING:
 #: v6: concepts gained ``definition_sources`` (per-gloss provenance, phase 8).
 #: v7: the derived ``lemma_drill`` table behind `LemmaCard` (phase 9).
 #: v8: ``false_friends`` became ``lookalikes`` with a ``kind`` column (phase 11).
-CACHE_VERSION = 8
+#: v9: ``senses.is_best``, the reviewed best-sense pin, ordered first by the cards.
+CACHE_VERSION = 9
 
 #: Filename of the persisted SQLite cache built inside a corpus directory. It is
 #: rebuilt from the Parquet whenever the corpus signature changes; never committed
@@ -276,9 +277,10 @@ def _derive_drill_table(conn: sqlite3.Connection) -> None:
     diacritic). The flags are computed in Python because SQLite's ``lower()``
     is ASCII-only.
 
-    The best sense is the highest ``sense_frequency``; ties go to the more
-    common concept (`Concept.commonness`), then the easier CEFR band, then the
-    concept id so the pick is deterministic. The commonness tie-break matters
+    The best sense is the one a review pinned (`Sense.is_best`), else the highest
+    ``sense_frequency``; ties go to the more common concept
+    (`Concept.commonness`), then the easier CEFR band, then the concept id so
+    the pick is deterministic. The commonness tie-break matters
     outside English: the SemCor prior that splits a lemma's frequency across
     its senses is English-only, so every sense of a pt lemma ties on
     frequency, and without it pt ``casa`` would pick "apartment" over "house".
@@ -318,7 +320,8 @@ CREATE TABLE lemma_drill AS
         SELECT s.lemma_id, s.concept_id, s.cefr_level, s.sense_frequency,
                row_number() OVER (
                  PARTITION BY s.lemma_id
-                 ORDER BY s.sense_frequency DESC NULLS LAST,
+                 ORDER BY coalesce(s.is_best, 0) DESC,
+                          s.sense_frequency DESC NULLS LAST,
                           c.commonness DESC NULLS LAST,
                           s.cefr_level ASC NULLS LAST,
                           s.concept_id
@@ -874,8 +877,8 @@ class LexiconStore:
         The same shape as `lemma_card`, but for every meaning: each card names
         its sense's concept, band, and frequency, with that concept's gloss,
         translations, and examples. Senses are ordered like the best-sense pick
-        (frequency, then commonness, then the easier band), so the first card
-        equals `lemma_card`.
+        (a reviewed pin, then frequency, then commonness, then the easier band),
+        so the first card equals `lemma_card`.
 
         Args:
             lemma_id: The lemma's deterministic id.
@@ -891,7 +894,8 @@ class LexiconStore:
             "SELECT s.lemma_id, s.concept_id, s.cefr_level, s.sense_frequency"
             " FROM senses s JOIN concepts c ON c.id = s.concept_id"
             " WHERE s.lemma_id = ?"
-            " ORDER BY s.sense_frequency DESC NULLS LAST,"
+            " ORDER BY coalesce(s.is_best, 0) DESC,"
+            " s.sense_frequency DESC NULLS LAST,"
             " c.commonness DESC NULLS LAST, s.cefr_level ASC NULLS LAST,"
             " s.concept_id",
             (lemma_id,),
