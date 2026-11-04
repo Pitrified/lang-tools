@@ -1,0 +1,721 @@
+"""Review the most frequent drill cards in batches through the agent harness.
+
+A card shows its lemma's best sense, and for the most frequent words that pick
+is often wrong in one of two ways a rule cannot see: the lemma is linked to a
+concept it never means (pt *seja* "are", the unit: a form of *ser*), or the
+right sense exists and loses the pick (pt *tarde* "night"). A reviewing agent
+(a Claude Code session or one of its subagents, following
+``.claude/skills/sense-review/``) reads each card with all its senses, against
+the rules in ``docs/guides/sense_review.md``, and keeps the card, pins another
+sense, or drops the wrong links.
+
+Worklist:
+    `build_worklist` takes the most frequent single-word cards of a language,
+    in the cards' own frequency order, leaving the gold lemmas out.
+
+Batches:
+    `serve_batch` reserves the next unreviewed lemmas and mixes in a few hidden
+    gold lemmas. `apply_batch` validates the labels and records them as curated
+    inputs the build re-applies:
+
+    - every reviewed lemma gets a `BestSense` row in
+      ``data/curated/best_senses.jsonl`` (the pinned sense, or no concept to
+      keep the frequency pick), which also marks the lemma as reviewed;
+    - every dropped sense gets a `FormDrop` row (kind `DROP_KIND`) in
+      ``data/curated/member_form_drops.jsonl``; a lemma left without a sense
+      leaves the corpus.
+
+    The batch's numbers go to ``data/curated/sense_review_log.jsonl``.
+
+Label format:
+    One line per item. Senses are numbered in the card's pick order, so sense 1
+    is the current card. ``k`` keeps it; ``pK`` pins sense K; ``dK,L`` drops
+    senses K and L (the card falls to the best sense left); ``x`` drops every
+    link. ``p`` and ``d`` combine; ``k`` and ``x`` stand alone. A drop needs a
+    reason after the actions. A ``!`` right after an action marks an edge case::
+
+        1 k
+        2 p3
+        3 d1 a form of ser; "are" is the unit
+        4 p2 d1! pt "tarde" is never the night
+        5 x a form of ter; "ringworm" is a rare homograph
+"""
+
+from __future__ import annotations
+
+from collections import Counter
+import random
+import re
+from typing import TYPE_CHECKING
+
+from loguru import logger as lg
+from pydantic import BaseModel
+from pydantic import Field
+
+from lang_tools.lexicon.card import MAX_CARD_LIMIT
+from lang_tools.lexicon.card import CardQuery
+from lang_tools.lexicon.concept_id import concept_key
+from lang_tools.lexicon.ingestion.best_senses import BEST_SENSES_FILE
+from lang_tools.lexicon.ingestion.best_senses import BestSense
+from lang_tools.lexicon.ingestion.form_review import MEMBER_FORM_DROPS_FILE
+from lang_tools.lexicon.ingestion.form_review import FormDrop
+from lang_tools.lexicon.ingestion.lookalikes import REVIEW_MODEL
+from lang_tools.lexicon.ingestion.review_batches import LabelError
+from lang_tools.lexicon.ingestion.review_batches import append_rows
+from lang_tools.lexicon.ingestion.review_batches import guide_sha
+from lang_tools.lexicon.ingestion.review_batches import locked
+from lang_tools.lexicon.ingestion.review_batches import work_dir
+from lang_tools.lexicon.maintenance import curated_path
+from lang_tools.lexicon.maintenance import read_jsonl
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from collections.abc import Sequence
+    from pathlib import Path
+
+    from lang_tools.lexicon.lemma_store import LexiconStore
+
+#: The committed, ordered worklist, under ``data/curated/``.
+WORKLIST_FILE = "sense_worklist.jsonl"
+#: The hand-checked gold lemmas, under ``data/curated/``.
+GOLD_FILE = "sense_review_gold.jsonl"
+#: One row per applied batch, under ``data/curated/``.
+REVIEW_LOG_FILE = "sense_review_log.jsonl"
+#: Served, not yet applied batches live here, under the data folder (not committed).
+WORK_SUBDIR = "work/sense_review"
+#: Cards per worklist, items per batch, and hidden gold lemmas mixed into each.
+DEFAULT_WORKLIST_SIZE = 1000
+DEFAULT_BATCH_SIZE = 200
+DEFAULT_GOLD_PER_BATCH = 2
+#: The `FormDrop.kind` of a reviewed wrong link.
+DROP_KIND = "wrong link"
+#: Characters of gloss and translations shown per sense.
+_GLOSS_SHOWN = 80
+_TRANSLATIONS_SHOWN = 4
+
+_ACTION_RE = re.compile(r"^(k|x|p\d+|d\d+(?:,\d+)*)(!?)$")
+
+
+class SenseWorkItem(BaseModel):
+    """One card of the ordered worklist.
+
+    Attributes:
+        rank: Position in the worklist (0 is reviewed first).
+        lemma_id: The card's lemma.
+        lemma_text: Its form.
+        language: Its language.
+        sense_frequency: The card's frequency, which orders the worklist.
+    """
+
+    rank: int
+    lemma_id: str
+    lemma_text: str
+    language: str
+    sense_frequency: float | None = None
+
+
+class SenseGold(BaseModel):
+    """One hand-checked lemma of the gold set (a JSONL line).
+
+    Attributes:
+        lemma_id: The lemma.
+        lemma_text: Its form.
+        language: Its language.
+        best: The concept keys a right card may show; empty when every link of
+            the lemma is wrong.
+        reason: Why, for the human reading a miss.
+    """
+
+    lemma_id: str
+    lemma_text: str
+    language: str
+    best: list[str] = Field(default_factory=list)
+    reason: str = ""
+
+
+class SenseOption(BaseModel):
+    """One sense of a served item, as the reviewer sees it.
+
+    Attributes:
+        concept_key: The sense's concept (`concept_key`).
+        gloss: The concept's English gloss.
+        translations: Its top English translations.
+    """
+
+    concept_key: str
+    gloss: str = ""
+    translations: list[str] = Field(default_factory=list)
+
+
+class SenseBatchItem(BaseModel):
+    """One item of a served batch.
+
+    Attributes:
+        n: The item's number in the batch, as the reviewer sees it.
+        lemma_id: The lemma.
+        lemma_text: Its form.
+        language: Its language.
+        part_of_speech: The lemma's part of speech.
+        senses: Every sense, in the card's pick order (sense 1 is the card).
+        rank: Worklist rank, or None for a hidden gold item.
+        gold_best: The gold concept keys of a hidden gold item; None for a
+            worklist item.
+    """
+
+    n: int
+    lemma_id: str
+    lemma_text: str
+    language: str
+    part_of_speech: str | None = None
+    senses: list[SenseOption] = Field(default_factory=list)
+    rank: int | None = None
+    gold_best: list[str] | None = None
+
+
+class SenseLabel(BaseModel):
+    """One parsed label line.
+
+    Attributes:
+        pin: The pinned sense number, if any.
+        drops: The dropped sense numbers.
+        drop_all: Every link is wrong.
+        reason: Why the senses are dropped.
+        edge_case: Flagged with ``!``.
+    """
+
+    pin: int | None = None
+    drops: list[int] = Field(default_factory=list)
+    drop_all: bool = False
+    reason: str = ""
+    edge_case: bool = False
+
+    def card(self, senses: Sequence[SenseOption]) -> str | None:
+        """Return the concept key the card shows after the label (None: no card)."""
+        if self.drop_all:
+            return None
+        if self.pin is not None:
+            return senses[self.pin - 1].concept_key
+        left = [s for i, s in enumerate(senses, 1) if i not in self.drops]
+        return left[0].concept_key if left else None
+
+
+class SenseReviewLogRow(BaseModel):
+    """The numbers of one applied batch (a line of the review log).
+
+    Attributes:
+        batch: The batch id.
+        language: The batch's language.
+        items: Worklist items labelled.
+        kept: Items whose card was right.
+        pinned: Items with a pinned sense.
+        dropped_senses: Senses dropped, over all items.
+        dropped_lemmas: Items with every link dropped.
+        edge_cases: Worklist items flagged as edge cases.
+        gold_keys: The hidden gold lemmas' ids.
+        gold_agree: Hidden gold items whose card the reviewer got right.
+        gold_misses: ``"lemma: gold -> card"`` for each disagreement.
+        guide_sha: Hash of the review guide the batch was labelled against.
+    """
+
+    batch: str
+    language: str
+    items: int
+    kept: int = 0
+    pinned: int = 0
+    dropped_senses: int = 0
+    dropped_lemmas: int = 0
+    edge_cases: int = 0
+    gold_keys: list[str] = Field(default_factory=list)
+    gold_agree: int = 0
+    gold_misses: list[str] = Field(default_factory=list)
+    guide_sha: str = ""
+
+
+class SenseReviewStatus(BaseModel):
+    """Progress of the review.
+
+    Attributes:
+        languages: Language -> ``(reviewed, total)`` worklist items.
+        pending: Served batch ids not yet applied.
+        batches: Applied batches.
+        gold_agree: Hidden gold items labelled right, over all batches.
+        gold_total: Hidden gold items served in applied batches.
+        edge_cases: Worklist items flagged as edge cases.
+    """
+
+    languages: dict[str, tuple[int, int]]
+    pending: list[str]
+    batches: int
+    gold_agree: int
+    gold_total: int
+    edge_cases: int
+
+
+def build_worklist(
+    store: LexiconStore,
+    language: str,
+    *,
+    size: int = DEFAULT_WORKLIST_SIZE,
+    skip: Sequence[str] = (),
+) -> list[SenseWorkItem]:
+    """Return the most frequent single-word cards of a language, ranked from 0.
+
+    The cards come in pages of `MAX_CARD_LIMIT`, each excluding the lemmas
+    already taken, so the order is the cards' own frequency order.
+
+    Args:
+        store: The lexicon store.
+        language: The cards' language.
+        size: Cards to take.
+        skip: Lemma ids to leave out (the gold lemmas, already labelled).
+
+    Returns:
+        The worklist.
+    """
+    taken = list(skip)
+    items: list[SenseWorkItem] = []
+    while len(items) < size:
+        query = CardQuery(
+            language=language,
+            single_word=True,
+            order="frequency",
+            exclude_ids=taken,
+            limit=min(MAX_CARD_LIMIT, size - len(items)),
+        )
+        page = store.lemma_cards(query)
+        if not page:
+            break
+        for card in page:
+            taken.append(card.lemma.id)
+            items.append(
+                SenseWorkItem(
+                    rank=len(items),
+                    lemma_id=card.lemma.id,
+                    lemma_text=card.lemma.text,
+                    language=language,
+                    sense_frequency=card.sense_frequency,
+                )
+            )
+    return items
+
+
+def load_worklist(data_fol: Path) -> list[SenseWorkItem]:
+    """Read the committed worklist (empty when it does not exist)."""
+    path = curated_path(data_fol, WORKLIST_FILE)
+    return read_jsonl(SenseWorkItem, path) if path.exists() else []
+
+
+def load_gold(data_fol: Path) -> list[SenseGold]:
+    """Read the committed gold set (empty when it does not exist)."""
+    path = curated_path(data_fol, GOLD_FILE)
+    return read_jsonl(SenseGold, path) if path.exists() else []
+
+
+def parse_labels(
+    batch: str, text: str, sense_counts: Mapping[int, int]
+) -> dict[int, SenseLabel]:
+    """Parse and validate a batch's label lines.
+
+    Args:
+        batch: The batch id (for the error message).
+        text: The label lines (see the module docstring); blank lines and ``#``
+            comments are ignored.
+        sense_counts: Item number -> how many senses it showed.
+
+    Returns:
+        Item number -> label.
+
+    Raises:
+        LabelError: Listing every unparseable line, unknown or repeated
+            number, sense out of range, conflicting action, drop without a
+            reason, and missing item.
+    """
+    labels: dict[int, SenseLabel] = {}
+    problems: list[str] = []
+    for line in text.splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        n, label, line_problems = _parse_line(line, sense_counts)
+        problems += line_problems
+        if n is None or label is None:
+            continue
+        if n in labels:
+            problems.append(f"item {n} is labelled twice")
+        labels[n] = label
+    missing = sorted(set(sense_counts) - set(labels))
+    if missing:
+        problems.append(f"missing item(s) {', '.join(map(str, missing))}")
+    if problems:
+        raise LabelError(batch, problems)
+    return labels
+
+
+def _parse_line(
+    line: str, sense_counts: Mapping[int, int]
+) -> tuple[int | None, SenseLabel | None, list[str]]:
+    """Parse one label line into its item number, label and problems."""
+    words = line.split()
+    if not words[0].isdigit():
+        return None, None, [f"unparseable line {line.strip()!r}"]
+    n = int(words[0])
+    if n not in sense_counts:
+        return None, None, [f"item {n} is not in the batch"]
+    actions: list[str] = []
+    edge_case = False
+    rest = words[1:]
+    while rest and (match := _ACTION_RE.match(rest[0])):
+        actions.append(match[1])
+        edge_case |= bool(match[2])
+        rest = rest[1:]
+    if not actions:
+        return None, None, [f"item {n} has no action in {line.strip()!r}"]
+    letters = [action[0] for action in actions]
+    label = SenseLabel(
+        drop_all=letters == ["x"], reason=" ".join(rest), edge_case=edge_case
+    )
+    for action in actions:
+        if action[0] == "p":
+            label.pin = int(action[1:])
+        elif action[0] == "d":
+            label.drops = sorted({int(k) for k in action[1:].split(",")})
+    return n, label, _label_problems(n, label, letters, sense_counts[n])
+
+
+def _label_problems(
+    n: int, label: SenseLabel, letters: Sequence[str], count: int
+) -> list[str]:
+    """Return what is wrong with one parsed label (empty when it is valid)."""
+    problems: list[str] = []
+    if ("k" in letters or "x" in letters) and len(letters) > 1:
+        problems.append(f"item {n}: k and x stand alone")
+    if letters.count("p") > 1 or letters.count("d") > 1:
+        problems.append(f"item {n}: at most one p and one d")
+    numbers = [*label.drops, *([label.pin] if label.pin is not None else [])]
+    if any(not 1 <= k <= count for k in numbers):
+        problems.append(f"item {n}: a sense outside 1-{count}")
+    if label.pin is not None and label.pin in label.drops:
+        problems.append(f"item {n}: sense {label.pin} is both pinned and dropped")
+    if len(label.drops) == count:
+        problems.append(f"item {n}: every sense dropped, use x")
+    if (label.drops or label.drop_all) and not label.reason:
+        problems.append(f"item {n}: a drop needs a reason")
+    return problems
+
+
+def _reviewed_ids(data_fol: Path) -> set[str]:
+    path = curated_path(data_fol, BEST_SENSES_FILE)
+    rows = read_jsonl(BestSense, path) if path.exists() else []
+    return {row.lemma_id for row in rows}
+
+
+def _log_rows(data_fol: Path) -> list[SenseReviewLogRow]:
+    path = curated_path(data_fol, REVIEW_LOG_FILE)
+    return read_jsonl(SenseReviewLogRow, path) if path.exists() else []
+
+
+def _pending(data_fol: Path) -> dict[str, list[SenseBatchItem]]:
+    return {
+        path.stem: read_jsonl(SenseBatchItem, path)
+        for path in sorted(work_dir(data_fol, WORK_SUBDIR).glob("*.jsonl"))
+    }
+
+
+def _options(store: LexiconStore, lemma_id: str) -> list[SenseOption]:
+    """Return a lemma's senses in the card's pick order."""
+    return [
+        SenseOption(
+            concept_key=concept_key(card.concept_id),
+            gloss=(card.gloss or "")[:_GLOSS_SHOWN],
+            translations=card.translations.get("en", [])[:_TRANSLATIONS_SHOWN],
+        )
+        for card in store.lemma_sense_cards(lemma_id)
+        if card.concept_id is not None
+    ]
+
+
+def _pick_gold(
+    data_fol: Path,
+    rng: random.Random,
+    *,
+    language: str,
+    busy: set[str],
+    count: int,
+) -> list[SenseGold]:
+    """Pick gold lemmas, the least served first (the pool is small)."""
+    served = Counter(key for row in _log_rows(data_fol) for key in row.gold_keys)
+    pool = [
+        gold
+        for gold in load_gold(data_fol)
+        if gold.language == language and gold.lemma_id not in busy
+    ]
+    rng.shuffle(pool)
+    pool.sort(key=lambda gold: served[gold.lemma_id])
+    return pool[:count]
+
+
+def serve_batch(
+    data_fol: Path,
+    store: LexiconStore,
+    *,
+    batch: str,
+    size: int = DEFAULT_BATCH_SIZE,
+    language: str | None = None,
+    gold_per_batch: int = DEFAULT_GOLD_PER_BATCH,
+) -> list[SenseBatchItem]:
+    """Reserve the next unreviewed worklist cards as a batch, with hidden gold.
+
+    The batch is written under the work folder, so concurrent reviewers never
+    get the same lemmas, and `apply_batch` can check the labels against the
+    senses it showed. Serving an id that is already pending returns that batch
+    unchanged.
+
+    Args:
+        data_fol: Project data folder.
+        store: The lexicon store, for the senses.
+        batch: The batch id (e.g. ``s0001``).
+        size: Worklist cards to reserve.
+        language: Only draw from this language (default: the first with work
+            left).
+        gold_per_batch: Hidden gold lemmas to mix in.
+
+    Returns:
+        The batch items, in the order the reviewer sees them (empty when the
+        worklist, or the language, is done).
+
+    Raises:
+        ValueError: When the batch id was already applied.
+    """
+    with locked(data_fol, WORK_SUBDIR):
+        pending = _pending(data_fol)
+        if batch in pending:
+            return pending[batch]
+        if any(row.batch == batch for row in _log_rows(data_fol)):
+            msg = f"batch {batch} was already applied"
+            raise ValueError(msg)
+        busy = {item.lemma_id for items in pending.values() for item in items}
+        taken = _reviewed_ids(data_fol) | busy
+        todo = [item for item in load_worklist(data_fol) if item.lemma_id not in taken]
+        if language is None and todo:
+            language = todo[0].language
+        picked = [item for item in todo if item.language == language][:size]
+        if not picked or language is None:
+            return []
+        rng = random.Random(batch)  # noqa: S311 - a reproducible shuffle, not crypto
+        gold = _pick_gold(
+            data_fol, rng, language=language, busy=busy, count=gold_per_batch
+        )
+        entries: list[tuple[str, str, int | None, list[str] | None]] = [
+            (item.lemma_id, item.lemma_text, item.rank, None) for item in picked
+        ]
+        entries += [(g.lemma_id, g.lemma_text, None, g.best) for g in gold]
+        rng.shuffle(entries)
+        items = []
+        for n, (lemma_id, text, rank, gold_best) in enumerate(entries, start=1):
+            lemma = store.get_lemma_by_id(lemma_id)
+            items.append(
+                SenseBatchItem(
+                    n=n,
+                    lemma_id=lemma_id,
+                    lemma_text=text,
+                    language=language,
+                    part_of_speech=lemma.part_of_speech if lemma else None,
+                    senses=_options(store, lemma_id),
+                    rank=rank,
+                    gold_best=gold_best,
+                )
+            )
+        append_rows(work_dir(data_fol, WORK_SUBDIR) / f"{batch}.jsonl", items)
+        lg.info(
+            "Served batch {}: {} {} card(s) + {} gold",
+            batch,
+            len(picked),
+            language,
+            len(gold),
+        )
+        return items
+
+
+def render_batch(items: Sequence[SenseBatchItem]) -> str:
+    """Return the batch as the lines a reviewer reads (gold looks the same)."""
+    lines: list[str] = []
+    for item in items:
+        pos = f" ({item.part_of_speech})" if item.part_of_speech else ""
+        lines.append(f"{item.n} {item.language} {item.lemma_text}{pos}")
+        lines += [
+            f"  {k} {sense.gloss} [{', '.join(sense.translations)}]"
+            for k, sense in enumerate(item.senses, start=1)
+        ]
+    return "\n".join(lines)
+
+
+def apply_batch(
+    data_fol: Path,
+    batch: str,
+    labels_text: str,
+    *,
+    guide_path: Path,
+) -> SenseReviewLogRow:
+    """Validate a batch's labels and record them.
+
+    Worklist items become one accepted `BestSense` row each, and one accepted
+    `FormDrop` row per dropped sense; hidden gold items only count toward the
+    agreement. Nothing is written when a label is invalid.
+
+    Args:
+        data_fol: Project data folder.
+        batch: The served batch id.
+        labels_text: The reviewer's label lines.
+        guide_path: The review guide, hashed into every row.
+
+    Returns:
+        The batch's log row (also appended to the review log).
+
+    Raises:
+        LabelError: When the labels do not validate.
+        FileNotFoundError: When no such batch is pending.
+    """
+    with locked(data_fol, WORK_SUBDIR):
+        path = work_dir(data_fol, WORK_SUBDIR) / f"{batch}.jsonl"
+        if not path.exists():
+            msg = f"no pending batch {batch} under {path.parent}"
+            raise FileNotFoundError(msg)
+        items = read_jsonl(SenseBatchItem, path)
+        labels = parse_labels(
+            batch, labels_text, {item.n: len(item.senses) for item in items}
+        )
+        sha = guide_sha(guide_path)
+        pins: list[BestSense] = []
+        drops: list[FormDrop] = []
+        log = SenseReviewLogRow(batch=batch, language=items[0].language, items=0)
+        log.guide_sha = sha
+        for item in items:
+            label = labels[item.n]
+            card = label.card(item.senses)
+            if item.gold_best is not None:
+                log.gold_keys.append(item.lemma_id)
+                agree = card in item.gold_best if item.gold_best else card is None
+                if agree:
+                    log.gold_agree += 1
+                else:
+                    gold = ",".join(item.gold_best) or "no card"
+                    log.gold_misses.append(
+                        f"{item.lemma_text}: {gold} -> {card or 'no card'}"
+                    )
+                continue
+            dropped = (
+                list(range(1, len(item.senses) + 1)) if label.drop_all else label.drops
+            )
+            pinned = item.senses[label.pin - 1] if label.pin is not None else None
+            log.items += 1
+            log.kept += not dropped and pinned is None
+            log.pinned += pinned is not None
+            log.dropped_senses += len(dropped)
+            log.dropped_lemmas += label.drop_all
+            log.edge_cases += label.edge_case
+            pins.append(
+                BestSense(
+                    lemma_id=item.lemma_id,
+                    concept_key=pinned.concept_key if pinned else None,
+                    lemma_text=item.lemma_text,
+                    language=item.language,
+                    status="accepted",
+                    model=REVIEW_MODEL,
+                    prompt_sha=sha,
+                    batch=batch,
+                    edge_case=label.edge_case,
+                )
+            )
+            drops += [
+                FormDrop(
+                    lemma_id=item.lemma_id,
+                    concept_key=item.senses[k - 1].concept_key,
+                    language=item.language,
+                    form=item.lemma_text,
+                    kind=DROP_KIND,
+                    drop=True,
+                    reason=label.reason,
+                    status="accepted",
+                    model=REVIEW_MODEL,
+                    prompt_sha=sha,
+                    batch=batch,
+                )
+                for k in dropped
+            ]
+        append_rows(curated_path(data_fol, BEST_SENSES_FILE), pins)
+        append_rows(curated_path(data_fol, MEMBER_FORM_DROPS_FILE), drops)
+        append_rows(curated_path(data_fol, REVIEW_LOG_FILE), [log])
+        path.unlink()
+        lg.info(
+            "Applied batch {}: {} lemma(s), {} pin(s), {} drop(s), gold {}/{}",
+            batch,
+            log.items,
+            log.pinned,
+            log.dropped_senses,
+            log.gold_agree,
+            len(log.gold_keys),
+        )
+        return log
+
+
+def import_gold(data_fol: Path, store: LexiconStore) -> int:
+    """Record the gold lemmas not yet reviewed as reviewed rows; return how many.
+
+    A gold lemma with right senses pins the first of them; one without drops
+    every sense the store holds for it.
+    """
+    with locked(data_fol, WORK_SUBDIR):
+        reviewed = _reviewed_ids(data_fol)
+        pins: list[BestSense] = []
+        drops: list[FormDrop] = []
+        for gold in load_gold(data_fol):
+            if gold.lemma_id in reviewed:
+                continue
+            pins.append(
+                BestSense(
+                    lemma_id=gold.lemma_id,
+                    concept_key=gold.best[0] if gold.best else None,
+                    lemma_text=gold.lemma_text,
+                    language=gold.language,
+                    status="accepted",
+                    model="manual",
+                    batch="gold",
+                )
+            )
+            if not gold.best:
+                drops += [
+                    FormDrop(
+                        lemma_id=gold.lemma_id,
+                        concept_key=sense.concept_key,
+                        language=gold.language,
+                        form=gold.lemma_text,
+                        kind=DROP_KIND,
+                        drop=True,
+                        reason=gold.reason,
+                        status="accepted",
+                        model="manual",
+                        batch="gold",
+                    )
+                    for sense in _options(store, gold.lemma_id)
+                ]
+        append_rows(curated_path(data_fol, BEST_SENSES_FILE), pins)
+        append_rows(curated_path(data_fol, MEMBER_FORM_DROPS_FILE), drops)
+        return len(pins)
+
+
+def review_status(data_fol: Path) -> SenseReviewStatus:
+    """Return how far the review has come, per language."""
+    reviewed = _reviewed_ids(data_fol)
+    totals: Counter[str] = Counter()
+    done: Counter[str] = Counter()
+    for item in load_worklist(data_fol):
+        totals[item.language] += 1
+        done[item.language] += item.lemma_id in reviewed
+    log = _log_rows(data_fol)
+    return SenseReviewStatus(
+        languages={lang: (done[lang], totals[lang]) for lang in sorted(totals)},
+        pending=sorted(_pending(data_fol)),
+        batches=len(log),
+        gold_agree=sum(row.gold_agree for row in log),
+        gold_total=sum(len(row.gold_keys) for row in log),
+        edge_cases=sum(row.edge_cases for row in log),
+    )

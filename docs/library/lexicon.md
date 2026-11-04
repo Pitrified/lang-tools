@@ -477,9 +477,9 @@ cause. `maintenance` holds the shared pieces (`ReviewStatus`, `write_jsonl` /
 | `gloss_overrides.jsonl` | gloss repair (05.55) | human | `apply_gloss_overrides` |
 | `topics.json` | hand-written table | human | `assign_topics` |
 | `slug_qualifiers.jsonl` | `slug_qualifier` chain | `check_qualifiers` (mechanical) | `sources.omw._tiered_slugs` |
-| `member_form_drops.jsonl` | `form_review` chain | human | `apply_form_drops` |
+| `member_form_drops.jsonl` | `form_review` chain; card-sense review | human; the reviewing agent, under a rulebook | `apply_form_drops` |
 | `gloss_backfill.jsonl` | `gloss_translate` chain | sampled human review | `apply_gloss_backfill` |
-| `best_senses.jsonl` | agent review | the reviewing agent, under a rulebook | `apply_best_senses` |
+| `best_senses.jsonl` | card-sense review | the reviewing agent, under a rulebook | `apply_best_senses` |
 
 Each job has a thin notebook under `notebooks/lexicon_maintain/` (`gloss_repair`,
 `slug_qualifiers`, `form_review`, `gloss_backfill`). The jobs run through
@@ -507,10 +507,24 @@ manifest records it under `closed_class`.
 The best-sense pins (`ingestion.best_senses`) fix the other way a card shows the wrong
 meaning. Outside English every sense of a lemma ties on frequency, so concept commonness
 picks, and a common concept the lemma reaches only through a rare reading wins (pt
-*homens* "work force", *bem* "kind of"). A `BestSense` row names the lemma and the
+*tarde* "night", *um* "a bit"). A `BestSense` row names the lemma and the
 `concept_key` of the right sense; only the latest row of a lemma counts, and a row with
 no concept retracts an earlier pin. The build sets `Sense.is_best` after every drop,
 and the manifest records the pins applied and the stale rows under `best_senses`.
+
+The pins and the wrong links of the most frequent cards come from the card-sense review
+(`ingestion.sense_review`, command line `sense_review_cli`), run by agents through the
+same batch harness as the look-alike review (`ingestion.review_batches`: the work-folder
+lock, the row append, the rulebook hash). The worklist is the top 1,000 single-word cards
+of a language in the cards' frequency order. Each served item shows a word with every
+sense in the card's pick order, and the reviewer keeps the card, pins another sense, drops
+the links the word never means (pt *seja* "are", the unit: a form of *ser*), or drops
+them all, which removes the lemma. Every reviewed lemma gets a `BestSense` row (no concept
+when the card stays), and every dropped sense a `FormDrop` row of kind `wrong link`, so
+both reach the build as curated inputs. Hidden gold lemmas score the card each label
+leads to. The rules are in [Reviewing card senses](../guides/sense_review.md). A drop
+row cannot be retracted by a later one yet: `apply_form_drops` applies every accepted
+drop.
 
 ## Ingestion
 

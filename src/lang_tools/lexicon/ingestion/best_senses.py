@@ -53,6 +53,7 @@ class BestSense(BaseModel):
         model: The reviewer (an agent tag or a model name).
         prompt_sha: Hash of the rulebook the reviewer followed.
         batch: The review batch that wrote the row.
+        edge_case: The reviewer flagged the item as a judgement call.
     """
 
     lemma_id: str
@@ -63,6 +64,7 @@ class BestSense(BaseModel):
     model: str = ""
     prompt_sha: str = ""
     batch: str = ""
+    edge_case: bool = False
 
 
 def load_best_senses(data_fol: Path) -> list[BestSense]:

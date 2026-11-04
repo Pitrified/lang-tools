@@ -101,3 +101,15 @@ fourth are counted by script.
   - b. The lemma, at build, like a closed-class word.
   - Recommended: a, because a letter is a real lemma, just not a drill.
   - ANS: a. Only the card: the drill table skips a one-character lemma, the lemma stays.
+- Q5: Whether a real but rare homograph of a frequent form is dropped. pt *tinha* is ringworm
+  in a medical text, but a learner meets it as "had" (a form of *ter*, which the corpus does not
+  hold as a lemma). Its card ranks among the top 100 because the frequency comes from the verb.
+  The rulebook (`docs/guides/sense_review.md`) currently says `x`: the lemma leaves the corpus,
+  with its lemma page and look-alikes.
+  - a. Drop it, as the rulebook says: the card is the harm, and a rare noun is no loss.
+  - b. Keep the lemma and only remove its card (a new label and a new curated flag), so the
+    word stays readable on its page.
+  - c. Keep it: a real meaning is never dropped; the card stays.
+  - Recommended: a, because b adds a second mechanism for a few dozen words, and c leaves the
+    worst cards in place.
+  - ANS: a. A rare homograph of a frequent form is `x`, as the rulebook says.

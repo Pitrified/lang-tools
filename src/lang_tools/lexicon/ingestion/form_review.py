@@ -64,6 +64,7 @@ class FormDrop(BaseModel):
         status: ``proposed`` until a human accepts or rejects the drop.
         model: The model that produced the verdict.
         prompt_sha: Hash of the prompt template that produced it.
+        batch: The review batch that wrote the row (agent reviews).
     """
 
     lemma_id: str
@@ -76,6 +77,7 @@ class FormDrop(BaseModel):
     status: ReviewStatus = "proposed"
     model: str = ""
     prompt_sha: str = ""
+    batch: str = ""
 
     @property
     def key(self) -> str:

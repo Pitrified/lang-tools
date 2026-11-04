@@ -149,8 +149,8 @@ depends on (see [Running the content read service](../guides/run_service.md)).
 
 > Beginner note. Short version: **the Parquet is not on GitHub yet.** It is a
 > local build artifact. Only the JSONL seed under `data/bootstrap/`, the curated
-> build inputs under `data/curated/` and the look-alike review batches under
-> `data/work/lookalike_review/` are committed; everything you build under `data/lexicon/` (and
+> build inputs under `data/curated/` and the review labels under
+> `data/work/lookalike_review/` and `data/work/sense_review/` are committed; everything you build under `data/lexicon/` (and
 > `data/bootstrap/lexicon/`) stays on your machine.
 
 This is intentional, not a bug. Two rules are in play and they look like they

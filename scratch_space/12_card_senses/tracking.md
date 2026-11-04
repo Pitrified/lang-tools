@@ -19,7 +19,7 @@ and open questions in [`00_start.md`](00_start.md).
 | -- | ------------------------ | ------------------------------------------------ | ------- |
 | 1  | Build rules              | [`01_build_rules.md`](01_build_rules.md)         | done |
 | 2  | Override input           | [`02_override_input.md`](02_override_input.md)   | done |
-| 3  | Review harness           | [`03_review_harness.md`](03_review_harness.md)   | planned |
+| 3  | Review harness           | [`03_review_harness.md`](03_review_harness.md)   | done    |
 | 4  | Review run               | [`04_review_run.md`](04_review_run.md)           | planned |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
@@ -42,3 +42,15 @@ Append-only. Newest at the bottom.
   `concept_key`, stale counted), and the pin ordered first in the card pick and the sense list.
   No rebuild yet (no pins). The next transform run adds `is_best` to every row of the committed
   seed. `make check` green (412), docs build clean.
+- 2026-11-04 : phase 3 reviewed before coding: `CardQuery.limit` stops at 500, so the worklist
+  pages with `exclude_ids`; *homens* has no right sense (gold is every link wrong, not a pin);
+  *bem* left out of the gold (its "rather" sense is real). Plan corrected in place.
+- 2026-11-04 : phase 3 done. `ingestion.review_batches` (lock, append, rulebook hash, label
+  error) shared with the look-alike review; `ingestion.sense_review` and `sense_review_cli`
+  (worklist, import-gold, serve, apply, status); labels `k`, `pK`, `dK,L`, `x`, with `!`;
+  every reviewed lemma gets a `BestSense` row, every drop a `FormDrop` of kind `wrong link`
+  (`FormDrop.batch` and `BestSense.edge_case` added). Rulebook `docs/guides/sense_review.md`,
+  skill `.claude/skills/sense-review/`, 7 gold lemmas in `data/curated/sense_review_gold.jsonl`.
+  End-to-end test (serve, apply, rebuild); a dry run on the real corpus in a scratch folder
+  served 200 cards in about 35k characters. Q5 raised. `make check` green (417).
+- 2026-11-04 : Q5 answered a: the rare-homograph rule stands (`x`, the lemma leaves the corpus).
