@@ -20,7 +20,7 @@ and open questions in [`00_start.md`](00_start.md).
 | 1  | Build rules              | [`01_build_rules.md`](01_build_rules.md)         | done |
 | 2  | Override input           | [`02_override_input.md`](02_override_input.md)   | done |
 | 3  | Review harness           | [`03_review_harness.md`](03_review_harness.md)   | done    |
-| 4  | Review run               | [`04_review_run.md`](04_review_run.md)           | planned |
+| 4  | Review run               | [`04_review_run.md`](04_review_run.md)           | in progress |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
 
@@ -54,3 +54,14 @@ Append-only. Newest at the bottom.
   End-to-end test (serve, apply, rebuild); a dry run on the real corpus in a scratch folder
   served 200 cards in about 35k characters. Q5 raised. `make check` green (417).
 - 2026-11-04 : Q5 answered a: the rare-homograph rule stands (`x`, the lemma leaves the corpus).
+- 2026-11-04 : phase 4 started: pt worklist written (1,000 cards), 7 gold lemmas imported. Measured
+  batch `s0001` by one subagent: 200 cards in 126 s and about 66k tokens, labels valid on the
+  first apply, gold 2/2. 174 kept, 10 pinned, 16 senses and 12 lemmas dropped (verb forms and
+  plurals, plus *alguma*, *inclusive*, *brasil* as edge cases), 12 edge cases. Not committed.
+- 2026-11-05 : pt round done: `s0002` to `s0005` by four parallel subagents, each about 70k tokens
+  and under two minutes, every apply valid on the first run. Over the 1,000 cards: 806 kept,
+  102 pinned, 106 senses and 61 lemmas dropped, 64 edge cases, gold 9/9 (seven gold lemmas
+  ran short for four parallel batches). Doubtful drops for a human look: *vinte* (only link the
+  twenty-dollar bill), *mano* (only link a slur), *moderna*, *cura*, *campeonato*, *destaque*,
+  *terras*, *brasil*, *pernambuco*. Missing senses noted: *sede* "headquarters", *sentido*
+  "direction".
