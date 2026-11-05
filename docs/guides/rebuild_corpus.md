@@ -101,13 +101,14 @@ in the same kernel.
 The build cell calls `pipeline.build_initial`, which transforms the OMW cache,
 drops the reviewed member forms and the closed-class words, re-applies every
 curated input under `data/curated/` (gloss overrides, slug qualifiers, gloss
-backfill, example sentences, look-alikes, with rare-word traps filtered out),
+backfill, example sentences, look-alikes, with rare-word traps filtered out,
+best-sense pins),
 adds the phase-6 frequency and CEFR estimates, writes `data/lexicon/`, and
 carves the sample into `data/bootstrap/lexicon/`. Expect it to take about four
 minutes. The logged summary should match the row counts in the committed quality
 report (next step). `_build.json` records what each curated input applied, and
-for the gloss overrides and look-alikes how many rows were stale (naming a
-concept or lemma the build no longer has). Zero stale overrides and a handful of
+for the gloss overrides, look-alikes and best-sense pins how many rows were stale
+(naming a concept or lemma the build no longer has). Zero stale overrides and a handful of
 stale look-alikes is healthy; a jump means the build drifted.
 
 The notebook does not pass `extra_manifest` to `build_initial`. To pin the source
@@ -135,8 +136,8 @@ Then:
 Run `scratch_space/09_concept_model/05.4_data_quality/05.4_data_quality_checks.ipynb`.
 
 It runs `quality.run_quality_checks` over `data/lexicon/` and rewrites the
-committed `report.md` beside it. The report leads with eight invariants that must
-all read PASS. Because the report is tracked, `git diff` on it is the regression
+committed `report.md` beside it. The report leads with the regression invariants,
+which must all read PASS. Because the report is tracked, `git diff` on it is the regression
 check: on an unchanged pipeline, only the `Generated:` timestamp should change.
 Any other diff is a real change in the corpus. Either explain it or revert the
 report.

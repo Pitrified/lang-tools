@@ -33,7 +33,10 @@ over HTTP in its default `http` mode.
   is derived from the lemma's senses (phase 8), so a tutor filtering by topic sees
   every meaning's topics.
 - `Concept` (language-independent synset) and `Sense` (the explicit
-  lemma <-> concept edge hosting per-sense frequency / CEFR).
+  lemma <-> concept edge hosting per-sense frequency / CEFR). `Sense.is_best`
+  (default `False`) marks a reviewed best-sense pin, which the card's best-sense
+  pick takes first; the field is new, so a reader of an older corpus sees it
+  unset.
 - `LookalikeRelation` (with `kind` = `full` / `partial` / `cognate` and
   `FALSE_FRIEND_KINDS`), `ConceptRelation`, `SenseRelation` - decoupled relation
   edge tables. `get_lookalikes_for_lemma` returns every kind (filterable by
@@ -67,7 +70,8 @@ over HTTP in its default `http` mode.
   back-reference accessors before the store hydrates an object.
 
 The default store loads the Parquet corpus from disk lazily on first use (see the
-content layout below); importing `lang_tools.lexicon` never touches disk.
+content layout below); importing `lang_tools.lexicon` never touches disk, and it
+needs no `webapp` extra: the webapp params load on first use only.
 
 ### `lang_tools.llm` (content-producing chains)
 
@@ -146,9 +150,10 @@ depends on (see [Running the content read service](../guides/run_service.md)).
 
 > Beginner note. Short version: **the Parquet is not on GitHub yet.** It is a
 > local build artifact. Only the JSONL seed under `data/bootstrap/`, the curated
-> build inputs under `data/curated/` and the look-alike review batches under
-> `data/work/lookalike_review/` are committed; everything you build under `data/lexicon/` (and
-> `data/bootstrap/lexicon/`) stays on your machine.
+> build inputs under `data/curated/` and the review labels under
+> `data/work/lookalike_review/` and `data/work/sense_review/` are committed;
+> everything you build under `data/lexicon/` (and `data/bootstrap/lexicon/`) stays
+> on your machine.
 
 This is intentional, not a bug. Two rules are in play and they look like they
 disagree:
@@ -159,8 +164,8 @@ disagree:
   under `data/` is stored through git LFS rather than inline.
 
 So the seed JSONL and the curated inputs are committed because they were
-force-added past the ignore (`git add -f`); they then rode the LFS filter. The built Parquet has simply never been
-force-added, so it has never been uploaded.
+force-added past the ignore (`git add -f`); they then rode the LFS filter. The
+built Parquet has simply never been force-added, so it has never been uploaded.
 
 **To see what *is* on GitHub:** open `data/bootstrap/lemmas.jsonl` in the GitHub
 web UI. Because it is an LFS object you will see a "Stored with Git LFS" banner

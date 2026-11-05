@@ -44,9 +44,6 @@ Label format:
 from __future__ import annotations
 
 from collections import Counter
-from contextlib import contextmanager
-import fcntl
-import hashlib
 import random
 import re
 from typing import TYPE_CHECKING
@@ -62,6 +59,11 @@ from lang_tools.lexicon.ingestion.lookalikes import REVIEW_MODEL
 from lang_tools.lexicon.ingestion.lookalikes import LookalikeProposal
 from lang_tools.lexicon.ingestion.lookalikes import load_gold
 from lang_tools.lexicon.ingestion.lookalikes import sense_summary
+from lang_tools.lexicon.ingestion.review_batches import LabelError
+from lang_tools.lexicon.ingestion.review_batches import append_rows
+from lang_tools.lexicon.ingestion.review_batches import guide_sha
+from lang_tools.lexicon.ingestion.review_batches import locked
+from lang_tools.lexicon.ingestion.review_batches import work_dir
 from lang_tools.lexicon.lemma_store import CorpusNotFoundError
 from lang_tools.lexicon.maintenance import curated_path
 from lang_tools.lexicon.maintenance import read_jsonl
@@ -72,7 +74,6 @@ from lang_tools.lexicon.relations import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
     from collections.abc import Mapping
     from collections.abc import Sequence
     from pathlib import Path
@@ -310,18 +311,6 @@ class ReviewLogRow(BaseModel):
     guide_sha: str = ""
 
 
-class LabelError(ValueError):
-    """The reviewer's labels for a batch do not validate."""
-
-    def __init__(self, batch: str, problems: Sequence[str]) -> None:
-        """Keep the problems, and list them in the message."""
-        self.problems = list(problems)
-        super().__init__(
-            f"batch {batch}: {len(self.problems)} problem(s): "
-            + "; ".join(self.problems)
-        )
-
-
 class Label(BaseModel):
     """One parsed label line.
 
@@ -388,32 +377,6 @@ def parse_labels(batch: str, text: str, numbers: Sequence[int]) -> dict[int, Lab
     return labels
 
 
-def guide_sha(guide_path: Path) -> str:
-    """Return a short hash of the review guide, for provenance."""
-    return (
-        hashlib.sha256(guide_path.read_bytes()).hexdigest()[:12]
-        if guide_path.exists()
-        else ""
-    )
-
-
-def _work_dir(data_fol: Path) -> Path:
-    path = data_fol / WORK_SUBDIR
-    path.mkdir(parents=True, exist_ok=True)
-    return path
-
-
-@contextmanager
-def _locked(data_fol: Path) -> Iterator[None]:
-    """Serialize reservations and applies across concurrent reviewers."""
-    with (_work_dir(data_fol) / ".lock").open("w") as handle:
-        fcntl.flock(handle, fcntl.LOCK_EX)
-        try:
-            yield
-        finally:
-            fcntl.flock(handle, fcntl.LOCK_UN)
-
-
 def _reviewed_keys(data_fol: Path) -> set[str]:
     path = curated_path(data_fol, LOOKALIKES_FILE)
     rows = read_jsonl(LookalikeProposal, path) if path.exists() else []
@@ -428,14 +391,8 @@ def _log_rows(data_fol: Path) -> list[ReviewLogRow]:
 def _pending(data_fol: Path) -> dict[str, list[BatchItem]]:
     return {
         path.stem: read_jsonl(BatchItem, path)
-        for path in sorted(_work_dir(data_fol).glob("*.jsonl"))
+        for path in sorted(work_dir(data_fol, WORK_SUBDIR).glob("*.jsonl"))
     }
-
-
-def _append(path: Path, rows: Sequence[BaseModel]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as handle:
-        handle.writelines(row.model_dump_json() + "\n" for row in rows)
 
 
 def _write_batch(
@@ -448,7 +405,7 @@ def _write_batch(
 ) -> list[BatchItem]:
     """Mix hidden gold into ``picked``, shuffle, and write the batch file.
 
-    Must run under `_locked`.
+    Must run under `review_batches.locked`.
     """
     pending = _pending(data_fol)
     rng = random.Random(batch)  # noqa: S311 - a reproducible shuffle, not crypto
@@ -494,7 +451,7 @@ def _write_batch(
                 similarity=similarity,
             )
         )
-    _append(_work_dir(data_fol) / f"{batch}.jsonl", items)
+    append_rows(work_dir(data_fol, WORK_SUBDIR) / f"{batch}.jsonl", items)
     return items
 
 
@@ -527,7 +484,7 @@ def recheck_batch(
     Returns:
         The batch items (empty when every key is re-checked or pending).
     """
-    with _locked(data_fol):
+    with locked(data_fol, WORK_SUBDIR):
         pending = _pending(data_fol)
         if batch in pending:
             return pending[batch]
@@ -583,7 +540,7 @@ def serve_batch(
         The batch items, in the order the reviewer sees them (empty when the
         worklist, or the tier, is done).
     """
-    with _locked(data_fol):
+    with locked(data_fol, WORK_SUBDIR):
         pending = _pending(data_fol)
         if batch in pending:
             return pending[batch]
@@ -647,8 +604,8 @@ def apply_batch(
         LabelError: When the labels do not validate.
         FileNotFoundError: When no such batch is pending.
     """
-    with _locked(data_fol):
-        path = _work_dir(data_fol) / f"{batch}.jsonl"
+    with locked(data_fol, WORK_SUBDIR):
+        path = work_dir(data_fol, WORK_SUBDIR) / f"{batch}.jsonl"
         if not path.exists():
             msg = f"no pending batch {batch} under {path.parent}"
             raise FileNotFoundError(msg)
@@ -707,8 +664,8 @@ def apply_batch(
             gold_misses=misses,
             guide_sha=sha,
         )
-        _append(curated_path(data_fol, LOOKALIKES_FILE), rows)
-        _append(curated_path(data_fol, REVIEW_LOG_FILE), [log])
+        append_rows(curated_path(data_fol, LOOKALIKES_FILE), rows)
+        append_rows(curated_path(data_fol, REVIEW_LOG_FILE), [log])
         path.unlink()
         lg.info(
             "Applied batch {}: {} row(s), gold {}/{}",
@@ -741,14 +698,14 @@ def gold_proposals(gold: Sequence[GoldPair]) -> list[LookalikeProposal]:
 
 def import_gold(data_fol: Path) -> int:
     """Append the gold pairs not yet in ``lookalikes.jsonl``; return how many."""
-    with _locked(data_fol):
+    with locked(data_fol, WORK_SUBDIR):
         present = _reviewed_keys(data_fol)
         rows = [
             row
             for row in gold_proposals(load_gold(data_fol))
             if f"{row.target_id}:{row.known_id}" not in present
         ]
-        _append(curated_path(data_fol, LOOKALIKES_FILE), rows)
+        append_rows(curated_path(data_fol, LOOKALIKES_FILE), rows)
         return len(rows)
 
 

@@ -110,3 +110,8 @@ Append-only. Newest at the bottom. The entries up to the spin-off are reconstruc
   `04_tiers_c_to_e.md`.
 - 2026-11-03 : rebuild with the phase 3 samples: 6,852 edges (6,046 cognate, 388 partial,
   418 full; +1,329), 257 rare-word traps dropped, 6 stale, gate PASS, seed unchanged.
+- 2026-11-05 : one hand correction, from lang-tutor `03_ui_followups/00_start.md` Q12 (a):
+  pt *era* / en *era* relabelled `partial` (a `manual` row, batch `correction`, the note of
+  batch `a0001`), since `12_card_senses` pinned the *era* card to the noun "era" and a `full`
+  label made en *era* its own pair-matching decoy. Recheck `r0001` had moved it to `full` on
+  the frequent reading "was". Rebuilt, gate PASS.

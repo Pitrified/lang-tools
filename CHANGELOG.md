@@ -7,6 +7,33 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.3.0] - 2026-11-05
+
+Drill cards teach the right meaning of the most frequent pt words.
+
+### Added
+
+- `Sense.is_best` (default `False`): a reviewed best-sense pin, which the card's best-sense pick
+  takes first. The pins come from the curated `data/curated/best_senses.jsonl`.
+- The card-sense review: `lang_tools.lexicon.ingestion.sense_review` and its command line
+  `sense_review_cli` (`worklist`, `import-gold`, `serve`, `apply`, `status`, and the hand
+  corrections `restore` and `pin`), the rulebook `docs/guides/sense_review.md` and the
+  `sense-review` skill.
+- `lang_tools.lexicon.ingestion.review_batches`: the work-folder lock, row append and rulebook
+  hash shared by the look-alike and card-sense reviews.
+
+### Changed
+
+- A one-letter lemma is no longer a drill card (`lemma_card` still reads it by id).
+- Card translations put a word before a digit, a single letter or a Roman numeral, and a single
+  word before a rarer phrase (pt *dez* shows "ten", not "x").
+- `member_form_drops.jsonl`: only the latest row of a sense counts, so a later `drop: false` row
+  retracts a drop.
+- `lang_tools.lexicon` imports without the `webapp` extra: `LangToolsParams.webapp` loads on
+  first use.
+- Curated data: the look-alike review of tiers A and B (pt against en and it), and the
+  card-sense review of the 1,000 most frequent pt cards.
+
 ## [0.2.0] - 2026-10-24
 
 First tagged release, for `lang-tutor` to pin.

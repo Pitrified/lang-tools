@@ -108,9 +108,10 @@ patched into the Parquet post hoc, which is why every curated input keys on
 A `Sense` is the explicit `lemma_id <-> concept_id` edge and the canonical
 membership record. It also hosts the per-sense signals that must not live on the
 token - `token_frequency`, `sense_frequency`, and `cefr_level` (with their
-`*_is_estimated` flags). The "bank" polysemy trap is the rationale: one lemma's
-two meanings differ in frequency and difficulty, so those values belong on the
-sense. The id is computed from the endpoint pair.
+`*_is_estimated` flags) - and `is_best`, set when a review pinned this sense as
+the lemma's best one (see the curated inputs below). The "bank" polysemy trap is
+the rationale: one lemma's two meanings differ in frequency and difficulty, so
+those values belong on the sense. The id is computed from the endpoint pair.
 
 ```python
 from lang_tools.lexicon.sense import Sense
@@ -223,11 +224,17 @@ never persisted:
 
 - `lemma`: the thin token, unchanged.
 - `concept_id`, `cefr_level`, `sense_frequency`: the lemma's **best sense**.
-  That is the highest `sense_frequency`, ties going to the more common concept
+  That is the sense a review pinned (`Sense.is_best`), else the highest
+  `sense_frequency`, ties going to the more common concept
   (`Concept.commonness`), then the easier band.
 - `gloss`: the best concept's definition in the requested gloss language.
-- `translations`: language -> the concept's other lemmas, most frequent first.
-  The lemma's own language lists its synonyms.
+- `translations`: language -> the concept's other lemmas, most frequent first,
+  except that a word comes before a symbol (a digit, one letter, or a Roman
+  numeral on a number concept), and a single word before a phrase when the word
+  is the more common of the two. wordfreq ranks *x*, *2* and *i* above *ten*,
+  *two* and *one*, so without it pt *dez* would show "x" and *quatro* "Little
+  Joe"; the frequency test keeps "in love" ahead of *potty* and "Black person"
+  ahead of *blackamoor*. The lemma's own language lists its synonyms.
 - `examples`: the concept's example sentences in the lemma's language.
 
 The commonness tie-break matters outside English. The SemCor prior that splits a
@@ -235,7 +242,9 @@ lemma's frequency across its senses is English-only, so every sense of a pt lemm
 ties on frequency. Without the tie-break, pt *casa* picks "apartment" over
 "house", and *falar* picks "deal" over "say".
 
-`lemma_cards(CardQuery)` returns a bounded list (at most 500, default 50). The
+`lemma_cards(CardQuery)` returns a bounded list (at most 500, default 50). A
+one-letter lemma is never in it: as a card it teaches a letter name or a unit
+symbol (pt *d*, *c* "one hundred"); `lemma_card` still reads it by id. The
 filters are:
 
 - language;
@@ -269,9 +278,11 @@ relative to the known languages. Adding a language to the learner's list is just
 one more list item, since the edges are pairwise and the view is computed at read
 time.
 
-Known limit: WordNet has no function words, so a few very frequent forms map to
-an odd best sense (en *a* -> angstrom, fr *sans* -> lilac). A drill that wants
-content words can filter on `part_of_speech`.
+Known limit: the best sense of a frequent form can still be a rare reading. The
+closed-class drops and the one-letter rule remove the function words and letters, and
+the card-sense review (below) has checked the 1,000 most frequent pt cards; es, fr
+and it are not reviewed, so their top cards still hold such picks (fr *comment*
+"yak", es *china* "pebble").
 
 ### Hydration and the guard
 
@@ -355,7 +366,7 @@ one source of truth. `run_quality_checks(data_fol)` executes a registry of named
 DuckDB checks (row counts, edge reconciliation, gloss/example/lexfile coverage,
 slug collisions, `definition == lemma`, provenance snapshot, ...) and returns a
 typed `QualityReport`; `render_report` / `write_report` turn it into a markdown
-report that leads with eleven regression invariants. Four are 05.56's:
+report that leads with twelve regression invariants. Four are 05.56's:
 
 - kaikki-tagged rows are 0 (the 5.5 cleanup holds on disk);
 - dangling sense / relation endpoints are 0;
@@ -395,7 +406,8 @@ the report diff.
 Phase 8 added the eleventh: every concept topic is in the reviewed vocabulary of
 `data/curated/topics.json` (a topic with no reviewed table at all counts as
 unreviewed), with topic coverage per language and concepts per topic reported
-beside it.
+beside it. Phase 11 added the twelfth: every look-alike edge is well formed (see
+[Look-alikes](#look-alikes-false-friends-and-cognates-phase-11)).
 
 The notebook under `scratch_space/09_concept_model/05.4_data_quality/` is a thin
 caller that regenerates `report.md` wholesale on every run - the report is
@@ -428,19 +440,10 @@ driven by the thin notebook `notebooks/lexicon_maintain/gloss_repair.ipynb`:
 - **Gate**: re-run `run_quality_checks`; the `definition == lemma` invariant
   converges to 0.
 
-Run on the real corpus on 2026-09-01:
-one worklist entry (`c__mind-noun-cognition__93923c10626c`, the it gloss "attenzione"),
-one accepted proposal, one concepts row rewritten and re-tagged `llm`,
-invariant 1 -> 0, baseline lowered to 0.
-The gloss was authored by the reviewer rather than drafted by the chain
-(no LLM API key in the cred file), so `build_gloss_repair_chain` is still unexercised
-against a live model - phase 8 is its first real run.
-
 **Curated overrides - what makes a repair survive a rebuild (phase 05.58).**
 `apply_gloss_proposals` edits `concepts.parquet`, and a full rebuild regenerates that file
 from OMW, so on its own an applied gloss repair is silently reverted by the next
-`build_initial` run - phase 05.57 hit exactly this, and the gate is what caught it.
-Accepted proposals therefore also live in `data/curated/gloss_overrides.jsonl`, committed
+`build_initial` run. Accepted proposals therefore also live in `data/curated/gloss_overrides.jsonl`, committed
 to git (force-added, since `data/` is gitignored wholesale - the same treatment the
 `data/bootstrap/*.jsonl` seed gets). `build_initial` calls `load_gloss_overrides` /
 `apply_gloss_overrides` right after `transform`, setting each override's gloss and
@@ -468,8 +471,9 @@ cause. `maintenance` holds the shared pieces (`ReviewStatus`, `write_jsonl` /
 | `gloss_overrides.jsonl` | gloss repair (05.55) | human | `apply_gloss_overrides` |
 | `topics.json` | hand-written table | human | `assign_topics` |
 | `slug_qualifiers.jsonl` | `slug_qualifier` chain | `check_qualifiers` (mechanical) | `sources.omw._tiered_slugs` |
-| `member_form_drops.jsonl` | `form_review` chain | human | `apply_form_drops` |
+| `member_form_drops.jsonl` | `form_review` chain; card-sense review | human; the reviewing agent, under a rulebook | `apply_form_drops` |
 | `gloss_backfill.jsonl` | `gloss_translate` chain | sampled human review | `apply_gloss_backfill` |
+| `best_senses.jsonl` | card-sense review | the reviewing agent, under a rulebook | `apply_best_senses` |
 
 Each job has a thin notebook under `notebooks/lexicon_maintain/` (`gloss_repair`,
 `slug_qualifiers`, `form_review`, `gloss_backfill`). The jobs run through
@@ -493,6 +497,30 @@ without a sense) right after the member-form drops, through the same
 *bajo*, fr *son*, *ton*, *or*, *vers*, it *verso*, *sopra*, *sotto*, pt *caso*), and
 English is exempt. The 2026-10 build dropped 231 senses and 118 lemmas this way; the
 manifest records it under `closed_class`.
+
+The best-sense pins (`ingestion.best_senses`) fix the other way a card shows the wrong
+meaning. Outside English every sense of a lemma ties on frequency, so concept commonness
+picks, and a common concept the lemma reaches only through a rare reading wins (pt
+*tarde* "night", *um* "a bit"). A `BestSense` row names the lemma and the
+`concept_key` of the right sense; only the latest row of a lemma counts, and a row with
+no concept retracts an earlier pin. The build sets `Sense.is_best` after every drop,
+and the manifest records the pins applied and the stale rows under `best_senses`.
+
+The pins and the wrong links of the most frequent cards come from the card-sense review
+(`ingestion.sense_review`, command line `sense_review_cli`), run by agents through the
+same batch harness as the look-alike review (`ingestion.review_batches`: the work-folder
+lock, the row append, the rulebook hash). The worklist is the top 1,000 single-word cards
+of a language in the cards' frequency order. Each served item shows a word with every
+sense in the card's pick order, and the reviewer keeps the card, pins another sense, drops
+the links the word never means (pt *seja* "are", the unit: a form of *ser*), or drops
+them all, which removes the lemma. Every reviewed lemma gets a `BestSense` row (no concept
+when the card stays), and every dropped sense a `FormDrop` row of kind `wrong link`, so
+both reach the build as curated inputs. Hidden gold lemmas score the card each label
+leads to. The rules are in [Reviewing card senses](../guides/sense_review.md). A wrong
+verdict is corrected by hand with a later row, since only the latest row of a sense
+counts in `member_form_drops.jsonl` (`load_form_drops`) and the latest of a lemma in
+`best_senses.jsonl`: `sense_review_cli restore` writes a `drop: false` row that brings a
+dropped sense back, with its lemma, and `sense_review_cli pin` pins another sense.
 
 ## Ingestion
 
@@ -573,10 +601,12 @@ sources (OMW via wn, CILI gloss map, wordfreq)
   for exploration.
 - **`enrich`** is the pure phase-6 core; see
   [Frequency and complexity](#frequency-and-complexity-phase-6).
-- **`build_initial`** wires it together: transform, apply the curated gloss
-  overrides, enrich, write each table through the codec with its tags, write the
-  manifest, then carve and (optionally) write a sample slice. Thin notebooks
-  under `notebooks/lexicon_ingest/` drive it.
+- **`build_initial`** wires it together: transform (with the slug qualifiers),
+  apply the member-form and closed-class drops, the gloss overrides, the gloss
+  backfill and the example sentences, enrich, tag the topics, apply the
+  look-alikes and the best-sense pins, write each table through the codec with its
+  tags, write the manifest, then carve and (optionally) write a sample slice. Thin
+  notebooks under `notebooks/lexicon_ingest/` drive it.
 - **`carve_sample`** picks the slice. It **ranks** rather than taking the first N
   by id (phase 05.59): most languages first, then having an example, then id
   ascending. Id order was stable but arbitrary, and on the real corpus it yielded
@@ -725,9 +755,7 @@ OMW glosses every concept in English but almost none in fr, pt or es, and only
   dashes and typographic apostrophes. The committed rows stay as generated.
 
 The first run (2026-10-21, `gpt-6-luna` with prompt `gloss_translate/v3`, one
-OpenAI batch, about $1.87) accepted 174,315 glosses across the four languages. The
-model choice and the quality review are recorded under
-`scratch_space/09_concept_model/08_maintenance/`.
+OpenAI batch, about $1.87) accepted 174,315 glosses across the four languages.
 
 #### Look-alikes: false friends and cognates (phase 11)
 
@@ -747,8 +775,8 @@ stages:
      [Reviewing look-alike pairs](../guides/lookalike_review.md). Hidden gold
      pairs in every batch measure their agreement. Every row stores the
      rulebook's hash (`prompt_sha`), so after a rule change `recheck` serves
-     chosen older rows again under the current rules. Tier A (5,499 pairs, the
-     very common target words) is reviewed; tiers B to E are not.
+     chosen older rows again under the current rules. Tiers A and B (5,499
+     and 6,701 pairs) are reviewed; tiers C to E are not.
    - **LLM verifier**, parked. The `llm.lookalike_verify` chain classifies each
      candidate and writes the note. `is_trap` keeps a false-friend verdict only
      when the words share a root or are spelled nearly the same, and a sampled
@@ -774,8 +802,7 @@ duplicated, the kind is known, and every false friend has an English note.
 The yardstick is a 1000-pair hand-reviewed gold set,
 `data/curated/lookalike_gold.jsonl`: 200 curated pairs (known traps, cognates and
 coincidences) and 800 drawn from the selected candidates (`GoldPair.origin`).
-`score_against_gold` measures against it. The plan and the measurements are in
-`scratch_space/09_concept_model/11_false_friends.md`.
+`score_against_gold` measures against it.
 
 #### Example sentences (phase 9)
 

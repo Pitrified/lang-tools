@@ -76,9 +76,11 @@ The narrative for each layer is in `docs/library/`. Params follow the config / p
   `docs/guides/rebuild_corpus.md`.
 - **`data/` is gitignored and stored through git LFS.** The seed (`bootstrap/`), the curated inputs
   and the review batches are committed with `git add -f`; the built corpus (`lexicon/`) stays local.
-- **Latest row wins** for look-alikes: only the newest row per pair counts, and a later `unrelated`
-  row retracts an edge. Reviews follow `.claude/skills/lookalike-review/` and the rulebook
-  `docs/guides/lookalike_review.md`, whose hash is stored on every row: change it deliberately.
+- **Latest row wins** for look-alikes (per pair; a later `unrelated` row retracts an edge), for
+  sense drops (per sense; a later `drop: false` row restores it) and for best-sense pins (per
+  lemma). Reviews follow `.claude/skills/lookalike-review/` and `.claude/skills/sense-review/`,
+  with the rulebooks `docs/guides/lookalike_review.md` and `docs/guides/sense_review.md`, whose
+  hash is stored on every row: change them deliberately.
 - **Paid LLM runs**: measure a small sample, report its cost, and get explicit approval before the
   full run (the notebooks gate this with `RUN_PAID`).
 
@@ -121,8 +123,8 @@ trailing colon. Module docstrings are narrative prose.
 - `tests/` mirrors `src/lang_tools/` and runs on the committed bootstrap seed, not the full corpus.
 - `notebooks/` holds the thin drivers for the build and the maintenance jobs.
 - `scratch_space/` holds the planning record and experiments: one numbered folder per initiative,
-  `tracking.md` first (current: `scratch_space/09_concept_model/`, and the look-alike review in
-  `scratch_space/11_lookalike_review/`).
+  `tracking.md` first (current: `scratch_space/09_concept_model/`, the look-alike review in
+  `scratch_space/11_lookalike_review/`, and the card senses in `scratch_space/12_card_senses/`).
 - `docs/` is the MkDocs site: `guides/` for tooling and procedures, `library/` for narrative notes
   on the code, `reference/` generated from docstrings (never write files there). Keep it current
   at the end of every task, updating statements in place rather than appending history.

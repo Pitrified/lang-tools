@@ -10,7 +10,10 @@ from typing import TYPE_CHECKING
 import pyarrow.parquet as pq
 
 from lang_tools.lexicon.codec import PROVENANCE_COL
+from lang_tools.lexicon.concept_id import concept_key
 from lang_tools.lexicon.ingestion.acquire import read_manifest
+from lang_tools.lexicon.ingestion.best_senses import BEST_SENSES_FILE
+from lang_tools.lexicon.ingestion.best_senses import BestSense
 from lang_tools.lexicon.ingestion.enrich import CEFR_BANDS
 from lang_tools.lexicon.ingestion.pipeline import build_initial
 from lang_tools.lexicon.ingestion.sources.omw import SenseLink
@@ -18,7 +21,9 @@ from lang_tools.lexicon.ingestion.sources.omw import SynsetEntry
 from lang_tools.lexicon.lemma_id import lemma_id
 from lang_tools.lexicon.lemma_store import LexiconStore
 from lang_tools.lexicon.maintenance import GlossProposal
+from lang_tools.lexicon.maintenance import curated_path
 from lang_tools.lexicon.maintenance import gloss_overrides_path
+from lang_tools.lexicon.maintenance import write_jsonl
 from lang_tools.lexicon.maintenance import write_proposals
 
 if TYPE_CHECKING:
@@ -185,6 +190,45 @@ def test_topics_reach_disk_and_lemmas_through_the_store(tmp_path: Path) -> None:
         "house",
         "casa",
     }
+
+
+def test_reviewed_best_sense_pins_the_card(tmp_path: Path) -> None:
+    """A curated pin overrides the frequency pick, and a stale row is counted."""
+    entries = [
+        SynsetEntry("en", "en-1", "i001", "a sleeve of a shirt", ("sleeve",), pos="n"),
+        SynsetEntry("pt", "pt-1", "i001", None, ("manga",), pos="n"),
+        SynsetEntry("en", "en-2", "i002", "a tropical fruit", ("mango",), pos="n"),
+        SynsetEntry("pt", "pt-2", "i002", None, ("manga",), pos="n"),
+    ]
+    manga = lemma_id("manga", "pt")
+    build_initial(["en", "pt"], data_fol=tmp_path, omw_entries=entries)
+    store = LexiconStore.from_data_fol(tmp_path)
+    picked = store.lemma_card(manga)
+    assert picked is not None
+    other = next(
+        card.concept_id
+        for card in store.lemma_sense_cards(manga)
+        if card.concept_id != picked.concept_id
+    )
+    assert other is not None
+    write_jsonl(
+        [
+            BestSense(
+                lemma_id=manga, concept_key=concept_key(other), status="accepted"
+            ),
+            # A lemma this build does not have.
+            BestSense(lemma_id="gone", concept_key="0099aabbccdd", status="accepted"),
+        ],
+        curated_path(tmp_path, BEST_SENSES_FILE),
+    )
+    summary = build_initial(["en", "pt"], data_fol=tmp_path, omw_entries=entries)
+    assert (summary.best_senses_applied, summary.best_senses_stale) == (1, 1)
+    manifest = read_manifest(tmp_path)
+    assert manifest is not None
+    assert manifest["best_senses"] == {"applied": 1, "stale": 1}
+    card = LexiconStore.from_data_fol(tmp_path).lemma_card(manga)
+    assert card is not None
+    assert card.concept_id == other
 
 
 def test_sample_carved_to_separate_corpus(tmp_path: Path) -> None:
