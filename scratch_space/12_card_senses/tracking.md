@@ -12,6 +12,9 @@ and open questions in [`00_start.md`](00_start.md).
   a one-letter lemma loses only its card (Q4).
 - The code changes reach lang-tutor through one lang-tools release, lang-tutor's
   `03_ui_followups` phase 5.
+- pt only for now (Q6). Drops are retractable, latest row wins (Q7). Senses the corpus lacks
+  are added by the sibling folder `13_missing_senses` (Q8), which also brings back the lemmas
+  whose only link was dropped.
 
 ## Phases
 
@@ -20,7 +23,8 @@ and open questions in [`00_start.md`](00_start.md).
 | 1  | Build rules              | [`01_build_rules.md`](01_build_rules.md)         | done |
 | 2  | Override input           | [`02_override_input.md`](02_override_input.md)   | done |
 | 3  | Review harness           | [`03_review_harness.md`](03_review_harness.md)   | done    |
-| 4  | Review run               | [`04_review_run.md`](04_review_run.md)           | in progress |
+| 4  | Review run               | [`04_review_run.md`](04_review_run.md)           | done |
+| 5  | Corrections              | [`05_corrections.md`](05_corrections.md)         | planned |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
 
@@ -68,3 +72,12 @@ Append-only. Newest at the bottom.
 - 2026-11-05 : rebuilt (105 pins applied, 0 stale), gate PASS, seed gains `is_best` only.
   Re-listed the pt top 500: about 16 doubtful cards left (against about 98), most with no right
   sense in the corpus; listed in `04_review_run.md`. Not committed.
+- 2026-11-05 : committed the rebuild (`3c54dea`), restarted the read API on 8010 (serves
+  *tarde* "afternoon", no *seja*). Answers in `00_start.md`: es and fr not now (Q6), so phase 4
+  closes on pt; drops become retractable (Q7), phase 5 planned; the missing senses go to a
+  sibling folder (Q8). Raised Q9 (which drops to undo) and Q10 (the correction commands).
+- 2026-11-05 : Q9 a (restore *moderna* only, re-pin *copa*), Q10 a (`restore` and `pin`
+  commands) folded into `05_corrections.md`. The missing senses get folder 13,
+  `13_missing_senses`, on `feat/13_missing_senses`.
+- 2026-11-05 : correction to the line above: `13_missing_senses` is created on this branch
+  (`feat/12_card_senses`), not on a branch of its own, at the user's choice.

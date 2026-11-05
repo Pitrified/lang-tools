@@ -113,3 +113,35 @@ fourth are counted by script.
   - Recommended: a, because b adds a second mechanism for a few dozen words, and c leaves the
     worst cards in place.
   - ANS: a. A rare homograph of a frequent form is `x`, as the rulebook says.
+- Q6: Whether es and fr follow the pt round now (Q2, b). The pt round went well: 16 doubtful
+  cards left in the top 500, gold 9/9, about 345k tokens. es and fr would cost about 700k more.
+  - ANS: no, not now. The worklist and harness stay ready for them; phase 4 closes on pt.
+- Q7: Whether a later row may retract a drop. `apply_form_drops` applies every accepted drop,
+  so a wrong drop (or a lemma lost by `x`) cannot be undone; the upgrade is latest-row-wins on
+  `member_form_drops.jsonl`, as for the look-alikes.
+  - ANS: yes. Phase 5.
+- Q8: Whether the senses the corpus is missing (*sede* "headquarters", *sentido* "direction",
+  *natal* "Christmas", ...) are added in this folder.
+  - ANS: yes, in the sibling folder `13_missing_senses`, created on this branch:
+    adding concept links is a different job than this review.
+- Q9: Which reviewed drops phase 5 undoes. Of the nine lemmas lost to a doubtful drop, eight
+  follow the rulebook: the linked sense is wrong or a rare homograph, and the right one is
+  missing from the corpus (*vinte* "twenty-dollar bill", *cura* "parish priest", *campeonato*
+  "being champion", *brasil* and *pernambuco* "brazilwood", *mano* the slur, *destaque* "light
+  area in a picture", *terras* "cattle ranch"). Restoring them brings the wrong card back. The
+  missing-senses folder (Q8) adds the right link, and that brings the lemma back by itself,
+  since a drop removes one (lemma, concept) link only. *moderna* "contemporaneous" is a real
+  meaning, dropped by mistake.
+  - a. Restore *moderna* only, and re-pin *copa* to "a drinking glass"; the other eight wait
+    for the missing-senses folder.
+  - b. Restore all nine, and accept their wrong cards until the missing senses land.
+  - Recommended: a, because the other eight drops are right under the rulebook.
+  - ANS: a. Restore *moderna* only, and re-pin *copa*; the other eight wait for `13_missing_senses`.
+- Q10: How a correction is written.
+  - a. Two CLI commands keyed on word and language: `restore` writes a `drop: false` row for
+    each of the lemma's dropped senses (or the keys given), `pin` writes a new `BestSense` row
+    for a sense key. Both `model="human"`, with a reason; the latest row wins in both files.
+  - b. A correction batch in the label format, served for named words. It cannot show a
+    restore, since a dropped sense is no longer in the corpus to serve.
+  - Recommended: a, because it covers both cases with two small commands.
+  - ANS: a. The two commands, `restore` and `pin`.

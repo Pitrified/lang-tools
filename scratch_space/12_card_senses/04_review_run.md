@@ -1,5 +1,5 @@
 ---
-status: in progress
+status: done
 ---
 
 # Phase 4 - review run
@@ -42,3 +42,5 @@ re-listing. Context: [`00_start.md`](00_start.md).
 - **Drops worth a human look** (the lemma left the corpus): *vinte*, *mano*, *moderna*,
   *cura*, *campeonato*, *destaque*, *terras*, *brasil*, *pernambuco*. A drop row cannot be
   retracted yet (phase 3, out of scope).
+- **es and fr not run** (`00_start.md` Q6): the phase closes on pt. The drop retraction and
+  the *copa* repin are phase 5; the missing senses a sibling folder (Q8).
