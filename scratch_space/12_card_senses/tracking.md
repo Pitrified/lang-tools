@@ -65,3 +65,6 @@ Append-only. Newest at the bottom.
   twenty-dollar bill), *mano* (only link a slur), *moderna*, *cura*, *campeonato*, *destaque*,
   *terras*, *brasil*, *pernambuco*. Missing senses noted: *sede* "headquarters", *sentido*
   "direction".
+- 2026-11-05 : rebuilt (105 pins applied, 0 stale), gate PASS, seed gains `is_best` only.
+  Re-listed the pt top 500: about 16 doubtful cards left (against about 98), most with no right
+  sense in the corpus; listed in `04_review_run.md`. Not committed.
