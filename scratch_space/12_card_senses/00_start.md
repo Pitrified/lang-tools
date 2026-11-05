@@ -1,5 +1,5 @@
 ---
-status: in progress
+status: done
 priority: 0
 description: |
   Make the most frequent drill cards teach the right meaning: two build rules (no card for a

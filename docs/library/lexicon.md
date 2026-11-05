@@ -522,9 +522,11 @@ the links the word never means (pt *seja* "are", the unit: a form of *ser*), or 
 them all, which removes the lemma. Every reviewed lemma gets a `BestSense` row (no concept
 when the card stays), and every dropped sense a `FormDrop` row of kind `wrong link`, so
 both reach the build as curated inputs. Hidden gold lemmas score the card each label
-leads to. The rules are in [Reviewing card senses](../guides/sense_review.md). A drop
-row cannot be retracted by a later one yet: `apply_form_drops` applies every accepted
-drop.
+leads to. The rules are in [Reviewing card senses](../guides/sense_review.md). A wrong
+verdict is corrected by hand with a later row, since only the latest row of a sense
+counts in `member_form_drops.jsonl` (`load_form_drops`) and the latest of a lemma in
+`best_senses.jsonl`: `sense_review_cli restore` writes a `drop: false` row that brings a
+dropped sense back, with its lemma, and `sense_review_cli pin` pins another sense.
 
 ## Ingestion
 

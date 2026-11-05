@@ -24,7 +24,7 @@ and open questions in [`00_start.md`](00_start.md).
 | 2  | Override input           | [`02_override_input.md`](02_override_input.md)   | done |
 | 3  | Review harness           | [`03_review_harness.md`](03_review_harness.md)   | done    |
 | 4  | Review run               | [`04_review_run.md`](04_review_run.md)           | done |
-| 5  | Corrections              | [`05_corrections.md`](05_corrections.md)         | planned |
+| 5  | Corrections              | [`05_corrections.md`](05_corrections.md)         | done |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
 
@@ -81,3 +81,8 @@ Append-only. Newest at the bottom.
   `13_missing_senses`, on `feat/13_missing_senses`.
 - 2026-11-05 : correction to the line above: `13_missing_senses` is created on this branch
   (`feat/12_card_senses`), not on a branch of its own, at the user's choice.
+- 2026-11-05 : phase 5 done. Plan review moved latest-row-wins to `load_form_drops` and the
+  hand tag to `manual`. Added `restore_drops` and `pin_sense` with the CLI `restore` and `pin`,
+  2 tests; restored *moderna*, pinned *copa* to "a drinking glass"; rebuild (264 dropped, 106
+  pins, 0 stale), gate PASS, both cards checked on the read API. Every phase is done, so the
+  folder is done; lang-tutor's `03_ui_followups` phase 3 can re-list the cards.

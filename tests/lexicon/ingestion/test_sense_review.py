@@ -14,12 +14,15 @@ from lang_tools.lexicon.ingestion.review_batches import LabelError
 from lang_tools.lexicon.ingestion.sense_review import DROP_KIND
 from lang_tools.lexicon.ingestion.sense_review import GOLD_FILE
 from lang_tools.lexicon.ingestion.sense_review import WORKLIST_FILE
+from lang_tools.lexicon.ingestion.sense_review import CorrectionError
 from lang_tools.lexicon.ingestion.sense_review import SenseGold
 from lang_tools.lexicon.ingestion.sense_review import apply_batch
 from lang_tools.lexicon.ingestion.sense_review import build_worklist
 from lang_tools.lexicon.ingestion.sense_review import import_gold
 from lang_tools.lexicon.ingestion.sense_review import parse_labels
+from lang_tools.lexicon.ingestion.sense_review import pin_sense
 from lang_tools.lexicon.ingestion.sense_review import render_batch
+from lang_tools.lexicon.ingestion.sense_review import restore_drops
 from lang_tools.lexicon.ingestion.sense_review import review_status
 from lang_tools.lexicon.ingestion.sense_review import serve_batch
 from lang_tools.lexicon.ingestion.sources.omw import SynsetEntry
@@ -169,3 +172,37 @@ def test_imported_gold_drops_a_wrong_lemma(tmp_path: Path) -> None:
     assert import_gold(tmp_path, store) == 1
     assert import_gold(tmp_path, store) == 0
     assert _build(tmp_path).get_lemma_by_id(SEJA) is None
+
+
+def test_restore_retracts_a_drop(tmp_path: Path) -> None:
+    """A later drop: false row brings the sense, and its lemma, back."""
+    store = _build(tmp_path)
+    write_jsonl(
+        [SenseGold(lemma_id=SEJA, lemma_text="seja", language="pt", reason="ser")],
+        curated_path(tmp_path, GOLD_FILE),
+    )
+    import_gold(tmp_path, store)
+    assert _build(tmp_path).get_lemma_by_id(SEJA) is None
+    with pytest.raises(CorrectionError, match="no applied drop"):
+        restore_drops(tmp_path, "seja", "pt", reason="x", keys=["000000000000"])
+    rows = restore_drops(tmp_path, "seja", "pt", reason="a real noun after all")
+    assert [(row.drop, row.batch) for row in rows] == [(False, "correction")]
+    assert _build(tmp_path).get_lemma_by_id(SEJA) is not None
+    with pytest.raises(CorrectionError, match="no applied drop"):
+        restore_drops(tmp_path, "seja", "pt", reason="again")
+
+
+def test_pin_moves_the_card(tmp_path: Path) -> None:
+    store = _build(tmp_path)
+    keys = [
+        concept_key(card.concept_id)
+        for card in store.lemma_sense_cards(MANGA)
+        if card.concept_id is not None
+    ]
+    with pytest.raises(CorrectionError, match="no sense"):
+        pin_sense(tmp_path, store, "manga", "pt", "000000000000")
+    pin_sense(tmp_path, store, "manga", "pt", keys[1])
+    card = _build(tmp_path).lemma_card(MANGA)
+    assert card is not None
+    assert card.concept_id is not None
+    assert concept_key(card.concept_id) == keys[1]

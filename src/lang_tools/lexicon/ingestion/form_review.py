@@ -17,7 +17,8 @@ rule:
 - the accepted rows of the committed ``data/curated/member_form_drops.jsonl`` are
   applied by `apply_form_drops` as a build stage, so a drop survives a rebuild
   like every other curated input. Rows key on ``lemma_id`` and `concept_key`,
-  both of which are stable across rebuilds and re-slugs.
+  both of which are stable across rebuilds and re-slugs, and only the latest row
+  of a key counts, so a later ``drop: false`` row retracts a drop.
 """
 
 from __future__ import annotations
@@ -31,7 +32,8 @@ from lang_tools.lexicon.codec import LEXICON_SUBDIR
 from lang_tools.lexicon.concept_id import concept_key
 from lang_tools.lexicon.lemma_store import CorpusNotFoundError
 from lang_tools.lexicon.maintenance import ReviewStatus
-from lang_tools.lexicon.maintenance import load_curated
+from lang_tools.lexicon.maintenance import curated_path
+from lang_tools.lexicon.maintenance import read_jsonl
 from lang_tools.lexicon.quality import _connect
 from lang_tools.lexicon.quality import _table_sources
 from lang_tools.llm.form_review import FormReviewInput
@@ -197,5 +199,16 @@ def apply_form_drops(tables: TaggedTables, drops: list[FormDrop]) -> tuple[int, 
 
 
 def load_form_drops(data_fol: Path) -> list[FormDrop]:
-    """Return the accepted rows of the committed member-form drop list."""
-    return load_curated(FormDrop, data_fol, MEMBER_FORM_DROPS_FILE)
+    """Return the latest row per sense of the committed drop list, if accepted.
+
+    Only the newest row of a (``lemma_id``, `concept_key`) pair counts, so a
+    later ``drop: false`` row retracts an earlier drop.
+    """
+    path = curated_path(data_fol, MEMBER_FORM_DROPS_FILE)
+    if not path.exists():
+        return []
+    latest: dict[str, FormDrop] = {}
+    for row in read_jsonl(FormDrop, path):
+        latest.pop(row.key, None)
+        latest[row.key] = row
+    return [row for row in latest.values() if row.status == "accepted"]

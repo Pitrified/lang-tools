@@ -27,6 +27,11 @@ Batches:
 
     The batch's numbers go to ``data/curated/sense_review_log.jsonl``.
 
+Corrections:
+    A wrong verdict is corrected by hand, outside the batches: `restore_drops`
+    writes a later ``drop: false`` row that retracts a drop, and `pin_sense` a
+    later `BestSense` row; in both files the latest row wins.
+
 Label format:
     One line per item. Senses are numbered in the card's pick order, so sense 1
     is the current card. ``k`` keeps it; ``pK`` pins sense K; ``dK,L`` drops
@@ -59,12 +64,14 @@ from lang_tools.lexicon.ingestion.best_senses import BEST_SENSES_FILE
 from lang_tools.lexicon.ingestion.best_senses import BestSense
 from lang_tools.lexicon.ingestion.form_review import MEMBER_FORM_DROPS_FILE
 from lang_tools.lexicon.ingestion.form_review import FormDrop
+from lang_tools.lexicon.ingestion.form_review import load_form_drops
 from lang_tools.lexicon.ingestion.lookalikes import REVIEW_MODEL
 from lang_tools.lexicon.ingestion.review_batches import LabelError
 from lang_tools.lexicon.ingestion.review_batches import append_rows
 from lang_tools.lexicon.ingestion.review_batches import guide_sha
 from lang_tools.lexicon.ingestion.review_batches import locked
 from lang_tools.lexicon.ingestion.review_batches import work_dir
+from lang_tools.lexicon.lemma_id import lemma_id
 from lang_tools.lexicon.maintenance import curated_path
 from lang_tools.lexicon.maintenance import read_jsonl
 
@@ -89,11 +96,22 @@ DEFAULT_BATCH_SIZE = 200
 DEFAULT_GOLD_PER_BATCH = 2
 #: The `FormDrop.kind` of a reviewed wrong link.
 DROP_KIND = "wrong link"
+#: Reviewer tag and batch of the rows a hand correction writes.
+CORRECTION_MODEL = "manual"
+CORRECTION_BATCH = "correction"
 #: Characters of gloss and translations shown per sense.
 _GLOSS_SHOWN = 80
 _TRANSLATIONS_SHOWN = 4
 
 _ACTION_RE = re.compile(r"^(k|x|p\d+|d\d+(?:,\d+)*)(!?)$")
+
+
+class CorrectionError(ValueError):
+    """A hand correction names a sense or a drop the data does not have."""
+
+    def __init__(self, language: str, word: str, problem: str) -> None:
+        """Name the lemma and what is missing."""
+        super().__init__(f"{language} {word!r}: {problem}")
 
 
 class SenseWorkItem(BaseModel):
@@ -700,6 +718,88 @@ def import_gold(data_fol: Path, store: LexiconStore) -> int:
         append_rows(curated_path(data_fol, BEST_SENSES_FILE), pins)
         append_rows(curated_path(data_fol, MEMBER_FORM_DROPS_FILE), drops)
         return len(pins)
+
+
+def restore_drops(
+    data_fol: Path,
+    word: str,
+    language: str,
+    *,
+    reason: str,
+    keys: Sequence[str] = (),
+) -> list[FormDrop]:
+    """Retract a lemma's applied drops; return the retracting rows written.
+
+    Each retracting row repeats the drop's key with ``drop: false``, and the
+    latest row per key wins (`form_review.load_form_drops`), so the sense is
+    back at the next build, and with it a lemma that had lost every sense.
+
+    Args:
+        data_fol: Project data folder.
+        word: The lemma's text, exactly as stored.
+        language: The lemma's language.
+        reason: Why the drop was wrong, kept on the rows.
+        keys: Only these concept keys; every applied drop of the lemma when empty.
+
+    Raises:
+        CorrectionError: When the lemma has no applied drop, or a key is not one.
+    """
+    target = lemma_id(word, language)
+    with locked(data_fol, WORK_SUBDIR):
+        dropped = {
+            row.concept_key: row
+            for row in load_form_drops(data_fol)
+            if row.lemma_id == target and row.drop
+        }
+        wanted = list(keys) or list(dropped)
+        unknown = [key for key in wanted if key not in dropped]
+        if not wanted or unknown:
+            raise CorrectionError(
+                language, word, f"no applied drop for {unknown or 'any sense'}"
+            )
+        rows = [
+            dropped[key].model_copy(
+                update={
+                    "drop": False,
+                    "reason": reason,
+                    "model": CORRECTION_MODEL,
+                    "prompt_sha": "",
+                    "batch": CORRECTION_BATCH,
+                }
+            )
+            for key in wanted
+        ]
+        append_rows(curated_path(data_fol, MEMBER_FORM_DROPS_FILE), rows)
+    return rows
+
+
+def pin_sense(
+    data_fol: Path, store: LexiconStore, word: str, language: str, key: str
+) -> BestSense:
+    """Pin one of a lemma's senses as its card; return the row written.
+
+    The latest row per lemma wins (`best_senses.load_best_senses`), so this
+    replaces the review's verdict at the next build.
+
+    Raises:
+        CorrectionError: When the corpus has no such sense for the lemma.
+    """
+    target = lemma_id(word, language)
+    known = [option.concept_key for option in _options(store, target)]
+    if key not in known:
+        raise CorrectionError(language, word, f"no sense {key}, known {known}")
+    row = BestSense(
+        lemma_id=target,
+        concept_key=key,
+        lemma_text=word,
+        language=language,
+        status="accepted",
+        model=CORRECTION_MODEL,
+        batch=CORRECTION_BATCH,
+    )
+    with locked(data_fol, WORK_SUBDIR):
+        append_rows(curated_path(data_fol, BEST_SENSES_FILE), [row])
+    return row
 
 
 def review_status(data_fol: Path) -> SenseReviewStatus:

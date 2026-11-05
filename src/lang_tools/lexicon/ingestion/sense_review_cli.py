@@ -7,10 +7,13 @@ Usage, with ``CLI=lang_tools.lexicon.ingestion.sense_review_cli``::
     uv run python -m $CLI serve --batch s0001
     uv run python -m $CLI apply --batch s0001 --labels s0001.txt
     uv run python -m $CLI status
+    uv run python -m $CLI restore --language pt --word moderna --reason "..."
+    uv run python -m $CLI pin --language pt --word copa --key e7aeea438f7f
 
 ``serve`` prints the batch's lines to stdout (gold items look like the others);
 ``apply`` validates the label file and records it, or prints every problem
-and exits 1 without writing anything.
+and exits 1 without writing anything. ``restore`` and ``pin`` are the hand
+corrections: a later row that retracts a drop, or pins another sense.
 """
 
 from __future__ import annotations
@@ -25,12 +28,15 @@ from lang_tools.lexicon.ingestion.sense_review import DEFAULT_BATCH_SIZE
 from lang_tools.lexicon.ingestion.sense_review import DEFAULT_GOLD_PER_BATCH
 from lang_tools.lexicon.ingestion.sense_review import DEFAULT_WORKLIST_SIZE
 from lang_tools.lexicon.ingestion.sense_review import WORKLIST_FILE
+from lang_tools.lexicon.ingestion.sense_review import CorrectionError
 from lang_tools.lexicon.ingestion.sense_review import apply_batch
 from lang_tools.lexicon.ingestion.sense_review import build_worklist
 from lang_tools.lexicon.ingestion.sense_review import import_gold
 from lang_tools.lexicon.ingestion.sense_review import load_gold
 from lang_tools.lexicon.ingestion.sense_review import load_worklist
+from lang_tools.lexicon.ingestion.sense_review import pin_sense
 from lang_tools.lexicon.ingestion.sense_review import render_batch
+from lang_tools.lexicon.ingestion.sense_review import restore_drops
 from lang_tools.lexicon.ingestion.sense_review import review_status
 from lang_tools.lexicon.ingestion.sense_review import serve_batch
 from lang_tools.lexicon.maintenance import curated_path
@@ -54,8 +60,19 @@ def _worklist(data_fol: Path, language: str, size: int) -> None:
     _out(f"{len(items)} {language} item(s) -> {path}")
 
 
-def main(argv: list[str] | None = None) -> int:
-    """Run one review command; return the exit code."""
+def _correct(data_fol: Path, args: argparse.Namespace) -> None:
+    """Write one hand correction and print its rows."""
+    if args.command == "restore":
+        rows = restore_drops(
+            data_fol, args.word, args.language, reason=args.reason, keys=args.keys
+        )
+    else:
+        rows = [pin_sense(data_fol, get_store(), args.word, args.language, args.key)]
+    for row in rows:
+        _out(row.model_dump_json())
+
+
+def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="sense_review_cli")
     sub = parser.add_subparsers(dest="command", required=True)
     worklist = sub.add_parser("worklist", help="rebuild a language's worklist")
@@ -71,7 +88,21 @@ def main(argv: list[str] | None = None) -> int:
     apply.add_argument("--batch", required=True)
     apply.add_argument("--labels", type=Path, required=True)
     sub.add_parser("status", help="print the progress per language")
-    args = parser.parse_args(argv)
+    restore = sub.add_parser("restore", help="retract a lemma's applied drops")
+    restore.add_argument("--language", required=True)
+    restore.add_argument("--word", required=True)
+    restore.add_argument("--reason", required=True)
+    restore.add_argument("--keys", nargs="*", default=[])
+    pin = sub.add_parser("pin", help="pin one of a lemma's senses as its card")
+    pin.add_argument("--language", required=True)
+    pin.add_argument("--word", required=True)
+    pin.add_argument("--key", required=True)
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Run one review command; return the exit code."""
+    args = _parser().parse_args(argv)
     params = get_lang_tools_params()
     data_fol = params.paths.data_fol
     guide = params.paths.root_fol / GUIDE
@@ -102,6 +133,12 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 return 1
             _out(log.model_dump_json(indent=1))
+        case "restore" | "pin":
+            try:
+                _correct(data_fol, args)
+            except CorrectionError as error:
+                _out(f"NOT WRITTEN: {error}")
+                return 1
         case _:
             status = review_status(data_fol)
             for language, (done, total) in status.languages.items():

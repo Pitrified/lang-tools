@@ -50,3 +50,7 @@ A session that runs many batches keeps its own context small by handing each bat
   `data/curated/sense_review_log.jsonl`, then commit `data/curated/best_senses.jsonl`,
   `data/curated/member_form_drops.jsonl`, the log and the label files under
   `data/work/sense_review/` (under Git LFS; add them with `git add -f`), and rebuild the corpus.
+- A wrong verdict found later is corrected by hand, never by a subagent and never by editing the
+  files: `CLI restore --language pt --word <w> --reason "<why>"` retracts the word's drops
+  (`--keys` to name some), `CLI pin --language pt --word <w> --key <concept key>` pins another
+  sense. Both write a later row; the latest row wins.
