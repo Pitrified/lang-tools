@@ -76,9 +76,11 @@ The narrative for each layer is in `docs/library/`. Params follow the config / p
   `docs/guides/rebuild_corpus.md`.
 - **`data/` is gitignored and stored through git LFS.** The seed (`bootstrap/`), the curated inputs
   and the review batches are committed with `git add -f`; the built corpus (`lexicon/`) stays local.
-- **Latest row wins** for look-alikes: only the newest row per pair counts, and a later `unrelated`
-  row retracts an edge. Reviews follow `.claude/skills/lookalike-review/` and the rulebook
-  `docs/guides/lookalike_review.md`, whose hash is stored on every row: change it deliberately.
+- **Latest row wins** for look-alikes (per pair; a later `unrelated` row retracts an edge), for
+  sense drops (per sense; a later `drop: false` row restores it) and for best-sense pins (per
+  lemma). Reviews follow `.claude/skills/lookalike-review/` and `.claude/skills/sense-review/`,
+  with the rulebooks `docs/guides/lookalike_review.md` and `docs/guides/sense_review.md`, whose
+  hash is stored on every row: change them deliberately.
 - **Paid LLM runs**: measure a small sample, report its cost, and get explicit approval before the
   full run (the notebooks gate this with `RUN_PAID`).
 

@@ -278,9 +278,11 @@ relative to the known languages. Adding a language to the learner's list is just
 one more list item, since the edges are pairwise and the view is computed at read
 time.
 
-Known limit: WordNet has no function words, so a few very frequent forms map to
-an odd best sense (en *a* -> angstrom, fr *sans* -> lilac). A drill that wants
-content words can filter on `part_of_speech`.
+Known limit: the best sense of a frequent form can still be a rare reading. The
+closed-class drops and the one-letter rule remove the function words and letters, and
+the card-sense review (below) has checked the 1,000 most frequent pt cards; es, fr
+and it are not reviewed, so their top cards still hold such picks (fr *comment*
+"yak", es *china* "pebble").
 
 ### Hydration and the guard
 
@@ -364,7 +366,7 @@ one source of truth. `run_quality_checks(data_fol)` executes a registry of named
 DuckDB checks (row counts, edge reconciliation, gloss/example/lexfile coverage,
 slug collisions, `definition == lemma`, provenance snapshot, ...) and returns a
 typed `QualityReport`; `render_report` / `write_report` turn it into a markdown
-report that leads with eleven regression invariants. Four are 05.56's:
+report that leads with twelve regression invariants. Four are 05.56's:
 
 - kaikki-tagged rows are 0 (the 5.5 cleanup holds on disk);
 - dangling sense / relation endpoints are 0;
@@ -404,7 +406,8 @@ the report diff.
 Phase 8 added the eleventh: every concept topic is in the reviewed vocabulary of
 `data/curated/topics.json` (a topic with no reviewed table at all counts as
 unreviewed), with topic coverage per language and concepts per topic reported
-beside it.
+beside it. Phase 11 added the twelfth: every look-alike edge is well formed (see
+[Look-alikes](#look-alikes-false-friends-and-cognates-phase-11)).
 
 The notebook under `scratch_space/09_concept_model/05.4_data_quality/` is a thin
 caller that regenerates `report.md` wholesale on every run - the report is
@@ -437,19 +440,10 @@ driven by the thin notebook `notebooks/lexicon_maintain/gloss_repair.ipynb`:
 - **Gate**: re-run `run_quality_checks`; the `definition == lemma` invariant
   converges to 0.
 
-Run on the real corpus on 2026-09-01:
-one worklist entry (`c__mind-noun-cognition__93923c10626c`, the it gloss "attenzione"),
-one accepted proposal, one concepts row rewritten and re-tagged `llm`,
-invariant 1 -> 0, baseline lowered to 0.
-The gloss was authored by the reviewer rather than drafted by the chain
-(no LLM API key in the cred file), so `build_gloss_repair_chain` is still unexercised
-against a live model - phase 8 is its first real run.
-
 **Curated overrides - what makes a repair survive a rebuild (phase 05.58).**
 `apply_gloss_proposals` edits `concepts.parquet`, and a full rebuild regenerates that file
 from OMW, so on its own an applied gloss repair is silently reverted by the next
-`build_initial` run - phase 05.57 hit exactly this, and the gate is what caught it.
-Accepted proposals therefore also live in `data/curated/gloss_overrides.jsonl`, committed
+`build_initial` run. Accepted proposals therefore also live in `data/curated/gloss_overrides.jsonl`, committed
 to git (force-added, since `data/` is gitignored wholesale - the same treatment the
 `data/bootstrap/*.jsonl` seed gets). `build_initial` calls `load_gloss_overrides` /
 `apply_gloss_overrides` right after `transform`, setting each override's gloss and
@@ -607,10 +601,12 @@ sources (OMW via wn, CILI gloss map, wordfreq)
   for exploration.
 - **`enrich`** is the pure phase-6 core; see
   [Frequency and complexity](#frequency-and-complexity-phase-6).
-- **`build_initial`** wires it together: transform, apply the curated gloss
-  overrides, enrich, write each table through the codec with its tags, write the
-  manifest, then carve and (optionally) write a sample slice. Thin notebooks
-  under `notebooks/lexicon_ingest/` drive it.
+- **`build_initial`** wires it together: transform (with the slug qualifiers),
+  apply the member-form and closed-class drops, the gloss overrides, the gloss
+  backfill and the example sentences, enrich, tag the topics, apply the
+  look-alikes and the best-sense pins, write each table through the codec with its
+  tags, write the manifest, then carve and (optionally) write a sample slice. Thin
+  notebooks under `notebooks/lexicon_ingest/` drive it.
 - **`carve_sample`** picks the slice. It **ranks** rather than taking the first N
   by id (phase 05.59): most languages first, then having an example, then id
   ascending. Id order was stable but arbitrary, and on the real corpus it yielded
@@ -759,9 +755,7 @@ OMW glosses every concept in English but almost none in fr, pt or es, and only
   dashes and typographic apostrophes. The committed rows stay as generated.
 
 The first run (2026-10-21, `gpt-6-luna` with prompt `gloss_translate/v3`, one
-OpenAI batch, about $1.87) accepted 174,315 glosses across the four languages. The
-model choice and the quality review are recorded under
-`scratch_space/09_concept_model/08_maintenance/`.
+OpenAI batch, about $1.87) accepted 174,315 glosses across the four languages.
 
 #### Look-alikes: false friends and cognates (phase 11)
 
@@ -781,8 +775,8 @@ stages:
      [Reviewing look-alike pairs](../guides/lookalike_review.md). Hidden gold
      pairs in every batch measure their agreement. Every row stores the
      rulebook's hash (`prompt_sha`), so after a rule change `recheck` serves
-     chosen older rows again under the current rules. Tier A (5,499 pairs, the
-     very common target words) is reviewed; tiers B to E are not.
+     chosen older rows again under the current rules. Tiers A and B (5,499
+     and 6,701 pairs) are reviewed; tiers C to E are not.
    - **LLM verifier**, parked. The `llm.lookalike_verify` chain classifies each
      candidate and writes the note. `is_trap` keeps a false-friend verdict only
      when the words share a root or are spelled nearly the same, and a sampled
@@ -808,8 +802,7 @@ duplicated, the kind is known, and every false friend has an English note.
 The yardstick is a 1000-pair hand-reviewed gold set,
 `data/curated/lookalike_gold.jsonl`: 200 curated pairs (known traps, cognates and
 coincidences) and 800 drawn from the selected candidates (`GoldPair.origin`).
-`score_against_gold` measures against it. The plan and the measurements are in
-`scratch_space/09_concept_model/11_false_friends.md`.
+`score_against_gold` measures against it.
 
 #### Example sentences (phase 9)
 

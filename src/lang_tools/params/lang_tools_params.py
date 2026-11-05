@@ -8,13 +8,17 @@ There is a parameter regarding the environment type (stage and location), which
 is used to load different paths and other parameters based on the environment.
 """
 
+from typing import TYPE_CHECKING
+
 from loguru import logger as lg
 
 from lang_tools.metaclasses.singleton import Singleton
 from lang_tools.params.env_type import EnvType
 from lang_tools.params.lang_tools_paths import LangToolsPaths
 from lang_tools.params.sample_params import SampleParams
-from lang_tools.params.webapp import WebappParams
+
+if TYPE_CHECKING:
+    from lang_tools.params.webapp import WebappParams
 
 
 class LangToolsParams(metaclass=Singleton):
@@ -43,17 +47,31 @@ class LangToolsParams(metaclass=Singleton):
         """Load the lang_tools configuration."""
         self.paths = LangToolsPaths(env_type=self.env_type)
         self.sample = SampleParams()
-        self.webapp = WebappParams(
-            stage=self.env_type.stage,
-            location=self.env_type.location,
-        )
+        self._webapp: WebappParams | None = None
+
+    @property
+    def webapp(self) -> WebappParams:
+        """The webapp params, loaded on first use.
+
+        They need the ``webapp`` extra (fastapi-tools), so a reader of the
+        lexicon alone never loads them.
+        """
+        if self._webapp is None:
+            from lang_tools.params.webapp import WebappParams  # noqa: PLC0415
+
+            self._webapp = WebappParams(
+                stage=self.env_type.stage,
+                location=self.env_type.location,
+            )
+        return self._webapp
 
     def __str__(self) -> str:
         """Return the string representation of the object."""
         s = "LangToolsParams:"
         s += f"\n{self.paths}"
         s += f"\n{self.sample}"
-        s += f"\n{self.webapp}"
+        if self._webapp is not None:
+            s += f"\n{self._webapp}"
         return s
 
     def __repr__(self) -> str:
