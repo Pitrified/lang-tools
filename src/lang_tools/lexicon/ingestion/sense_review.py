@@ -183,11 +183,14 @@ class SenseOption(BaseModel):
         concept_key: The sense's concept (`concept_key`).
         gloss: The concept's English gloss.
         translations: Its top English translations.
+        commonness: The concept's commonness (`Concept.commonness`), shown by
+            a `find_concepts` lookup only.
     """
 
     concept_key: str
     gloss: str = ""
     translations: list[str] = Field(default_factory=list)
+    commonness: float | None = None
 
 
 class SenseBatchItem(BaseModel):
@@ -314,7 +317,13 @@ class SenseAgreement(BaseModel):
         same_outcome: Items with the same card, drops and addition.
         first_changed: Items the first review did not keep.
         agree_on_changed: Of those, items with the same outcome in both.
+        twin_cards: Items whose outcomes differ only by the card, on two
+            concepts sharing an English member (two WordNet entries for one
+            meaning), with the same drops and both or neither adding.
+        agree_on_changed_twins: ``agree_on_changed`` plus the changed items
+            among those.
         disagreements: ``"lemma: first -> second"`` per differing outcome.
+        twins: ``"lemma: first card ~ second card"`` per twin card.
     """
 
     items: int
@@ -322,7 +331,10 @@ class SenseAgreement(BaseModel):
     same_outcome: int
     first_changed: int
     agree_on_changed: int
+    twin_cards: int = 0
+    agree_on_changed_twins: int = 0
     disagreements: list[str] = Field(default_factory=list)
+    twins: list[str] = Field(default_factory=list)
 
 
 class SenseReviewStatus(BaseModel):
@@ -1282,8 +1294,10 @@ def find_concepts(
 ) -> list[tuple[SenseOption, list[str]]]:
     """Return the concepts an English word names, with their members in ``language``.
 
-    The reviewer's lookup for an addition: each concept's key, gloss and English
-    members, and the lemmas of ``language`` already linked to it.
+    The reviewer's lookup for an addition: each concept's key, gloss, English
+    members and commonness, and the lemmas of ``language`` already linked to
+    it. The most common concept comes first, the tie-break between two entries
+    for one meaning.
     """
     found: list[tuple[SenseOption, list[str]]] = []
     for card in store.lemma_sense_cards(
@@ -1291,22 +1305,42 @@ def find_concepts(
     ):
         if card.concept_id is None:
             continue
+        concept = store.get_concept_by_id(card.concept_id)
         option = SenseOption(
             concept_key=concept_key(card.concept_id),
             gloss=card.gloss or "",
             translations=[word, *card.translations.get("en", [])][:_TRANSLATIONS_SHOWN],
+            commonness=concept.commonness if concept else None,
         )
         found.append((option, card.translations.get(language, [])))
-    return found
+    return sorted(found, key=lambda pair: -(pair[0].commonness or 0.0))
+
+
+def _english_members(store: LexiconStore, key: str) -> set[str]:
+    """Return the English words of the concept ``key`` (empty when absent)."""
+    concept = store.get_concept_by_key(key)
+    if concept is None:
+        return set()
+    return {lemma.text for lemma in store.lemmas_for_concept(concept.id, "en")}
 
 
 def agreement(
-    data_fol: Path, first: Sequence[str], second: Sequence[str]
+    data_fol: Path,
+    store: LexiconStore,
+    first: Sequence[str],
+    second: Sequence[str],
 ) -> SenseAgreement:
     """Compare a first review with a second (shadow) review of the same lemmas.
 
+    Two outcomes that differ only by a card on two concepts sharing an English
+    member are counted apart, as twins: WordNet often has two entries for one
+    meaning (pt *seis* as a quantity and as a number), and the card reads the
+    same on either. A shared member alone is not enough (*camera* and *tv
+    camera* share one), so a keep against an addition is never a twin.
+
     Args:
         data_fol: Project data folder.
+        store: The lexicon store, for the concepts' English members.
         first: Batch ids of the first review (the review log).
         second: Batch ids of the second review (the second-review log).
 
@@ -1338,13 +1372,29 @@ def agreement(
         parts += [f"add {outcome.add}"] if outcome.add else []
         return " ".join(parts)
 
+    def twin(a: SenseOutcome, b: SenseOutcome) -> bool:
+        if a.card is None or b.card is None or a.card == b.card:
+            return False
+        if a.drops != b.drops or a.kept != b.kept or (a.add is None) != (b.add is None):
+            return False
+        return bool(_english_members(store, a.card) & _english_members(store, b.card))
+
+    twins = [lid for lid in common if twin(outcomes_a[lid], outcomes_b[lid])]
     changed = [lid for lid in common if not outcomes_a[lid].kept]
+    agree_on_changed = sum(same(outcomes_a[lid], outcomes_b[lid]) for lid in changed)
     return SenseAgreement(
         items=len(common),
         same_card=sum(outcomes_a[lid].card == outcomes_b[lid].card for lid in common),
         same_outcome=sum(same(outcomes_a[lid], outcomes_b[lid]) for lid in common),
         first_changed=len(changed),
-        agree_on_changed=sum(same(outcomes_a[lid], outcomes_b[lid]) for lid in changed),
+        agree_on_changed=agree_on_changed,
+        twin_cards=len(twins),
+        agree_on_changed_twins=agree_on_changed + len(set(twins) & set(changed)),
+        twins=[
+            f"{outcomes_a[lid].lemma_text}: {outcomes_a[lid].card}"
+            f" ~ {outcomes_b[lid].card}"
+            for lid in twins
+        ],
         disagreements=[
             f"{outcomes_a[lid].lemma_text}: {describe(outcomes_a[lid])}"
             f" -> {describe(outcomes_b[lid])}"

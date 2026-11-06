@@ -28,7 +28,7 @@ the meaning the card teaches?
 
 | Label | When |
 | --- | --- |
-| `k` | Sense 1 is a meaning a learner meets often, and the best one to teach first. Nothing listed is wrong. |
+| `k` | Sense 1 is the everyday meaning itself, the one to teach first. Nothing listed is wrong. A narrow or neighbouring reading of the everyday meaning is not enough (see "A near miss is not the card", below). |
 | `pK` | Sense K is the meaning a learner meets most; sense 1 is real but rarer, or less useful first. |
 | `dK,L` | Senses K and L are wrong links: the word never means that. The card then falls to the first sense left. |
 | `pK dL` | Both: pin K and drop the wrong L. |
@@ -49,28 +49,43 @@ SAMPLE_API_KEY=placeholder-not-a-secret uv run python -m \
 ```
 
 Each line is a concept key, its gloss, its English members, and the pt words already linked to
-it. Pick the concept whose gloss is the everyday meaning, not a technical or rare one; when none
+it, with its commonness in parentheses; the most common concept comes first.
+Pick the concept whose gloss is the everyday meaning, not a technical or rare one; when none
 fits, keep or drop as usual and say so in the reason (`no concept for "headquarters"`).
+
+WordNet often has two entries for one meaning: "six" as a quantity and as the number, "create"
+as "bring into existence" and as "make or cause to be". When two concepts fit equally, take the
+one whose pt words include the word's base word (*criar* for *cria* and *criada*, *falar* for
+*fala* and *falo*); when neither does, take the first listed.
 
 ## Rules for the hard cases
 
 - **A wrong link is a meaning the word does not have.** The usual cause is a form shared with a
-  more frequent word the corpus does not hold: a verb form (pt *seja*, *tinha*, *olha*, *era*),
+  more frequent word the corpus does not hold: a verb form (pt *seja*, *tinha*, *olha*),
   a plural (pt *homens*), a letter or a unit symbol. Drop it, even when the sense list has
   nothing else.
 - **A real but rare homograph of a frequent form is dropped too.** When the word's frequency
   plainly comes from a reading the corpus does not hold, and the linked meaning is rare or
   technical, the card would rank a rare word among the most common ones: pt *tinha* is ringworm
   in a medical text, but a learner meets it as "had" (a form of *ter*), so it is `x`.
-  A homograph in ordinary use stays: pt *era* is "was", but also the noun "era, age", which a
-  learner meets in plain text (*a era digital*), so the noun is kept and pinned.
+- **The frequent reading wins over an everyday homograph.** When the word is both a frequent
+  form and a real word in ordinary use, the frequent reading is the card and the other stays as
+  a later sense: pt *era* is "was" far more often than the noun "era, age" (*a era digital*), so
+  it is linked to "be" with a form note and the noun stays; likewise *meia* "half" (*meia hora*)
+  over "sock", *juro* "I swear" over "interest", and *sede* "headquarters" over "thirst".
 - **Pin the meaning a learner meets most, not the first in a dictionary.** pt *tarde* is
   "afternoon" and "late"; "night" is wrong (`d`), and either of the right two is a fine pin.
   When two senses are near-duplicates (two glosses of "evening"), pin the plainer one and leave
   the other; it is not wrong.
 - **A narrow sense of a broad meaning is not wrong.** A sense that is a special case of the
   word's everyday meaning stays, unless it is plainly another word (pt *bem* "rather, quite" is
-  real: *bem grande*).
+  real: *bem grande*). It stays as a later sense; it is not the card (next rule).
+- **A near miss is not the card.** When sense 1 is a narrow case or a neighbouring reading of
+  the everyday meaning, and the everyday meaning itself is not listed, add it with `aKEY`; the
+  near miss stays as a later sense. pt *arquivos* is "files", not only "archives"; *câmeras* is
+  "cameras", not only "tv cameras"; *nenhum* is "no, not any", not "neither"; *sentir* is "feel",
+  not "perceive"; *entretanto* is "however" in Brazil, not "meanwhile"; *antiga* is "old", not
+  "ancient". When the everyday meaning is listed further down, pin it instead.
 - **Translations are a hint, not the sense.** Judge the gloss. A sense whose gloss is right but
   whose first translation is odd is still right.
 - **Drop only what is wrong.** A real meaning that is rare, technical or regional stays as a
@@ -83,6 +98,9 @@ fits, keep or drop as usual and say so in the reason (`no concept for "headquart
   among its senses (pt *sim* "yes", *vinte* "twenty", *aí* "there"), add it with `aKEY`, and drop
   the wrong senses with `d` in the same line. Do not pin a near miss instead (pt *aí* is not
   "yonder").
+- **An addition does not clean the item.** Read every listed sense even when you add, and drop
+  the ones the word never means: pt *além* is "beyond", and its "yonder" is dropped as well;
+  *novamente* is "again", never "newly".
 - **An inflected form is linked to its base word's concept, with a form note.** The corpus has
   no inflection model, so pt *são* (the verb) is linked to "be", and the note says which form it
   is, in braces: `{3rd person plural present of "ser": they are}`. The note names the person,

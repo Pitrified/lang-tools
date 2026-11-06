@@ -34,6 +34,10 @@ Context: [`00_start.md`](00_start.md), "Measurement", Q2 note, Q8. Depends on
 - Write the measurement up as a repeatable method in `docs/guides/missing_senses.md` (the first
   meta-experiment on the review method, Q8), with what it found and what to try next.
 - Apply; commit the curated files and the log.
+- The second review came in at 69% on the changed items (`00_start.md` Q10): the rules were
+  fixed (near misses, Q9's frequent reading, the twin tie-break, drops alongside an addition),
+  `concepts` shows commonness, `agreement` counts twins apart, and the 53 disagreements are
+  served again as `m0006` under the new rulebook. Phase 3's second review measures the fix.
 
 ## Out of scope
 

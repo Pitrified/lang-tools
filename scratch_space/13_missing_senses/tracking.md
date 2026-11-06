@@ -89,3 +89,22 @@ Append-only. Newest at the bottom.
   items (69%, below 90%). Disagreements tallied by cause into Q10 (28 near-miss threshold, 14
   WordNet twins, 11 extra drops). Notes: *eis* on "in or at that place", *lucro* and *saqué* on
   "interest, sake", still to check.
+- 2026-11-06 : committed the first and second review data (`fda1433`). Q10 a: `concepts` prints
+  each concept's commonness and lists the most common first; `agreement` takes the store and
+  counts twins apart (outcomes differing only by a card on two concepts sharing an English
+  member, with the same drops and both or neither adding). A first cut counted any shared
+  member and caught real splits (*câmeras* "camera" against "tv camera"); tightened, it finds
+  9 twins, all genuine, and agreement on the changed items is 117/157 (75%) with them.
+  Rulebook (`35151d6c864c`): `k` is the everyday meaning itself; "a near miss is not the card";
+  Q9's "the frequent reading wins over an everyday homograph" (*era*, *meia*, *juro*, *sede*);
+  the twin tie-break (the concept holding the base word, else the first listed); "an addition
+  does not clean the item". *era* gold re-answered to "be" and the card linked by `add`;
+  *lucro* dropped from "interest, sake" (n0003 notes; *saqué* and *eis* were already dropped).
+  `m0006` served: the 53 disagreements and 2 gold. The rulebook examples are drawn from these
+  items, so `m0006` is not a measurement; phase 3's second review of the 1,000 is.
+- 2026-11-06 : `m0006` applied (rulebook `35151d6c864c`): 4 kept, 2 pinned, 7 senses dropped,
+  43 added; gold 2/2; 13 edge cases. Notes: *carriera* (Italian) dropped from "career",
+  capitalised *Oriente* linked to "the countries of Asia". Found: a re-check's `k` writes an
+  unpinned row but leaves the earlier review's additions and drops in place (*seguros* keeps
+  the first review's "safe", *marina* its dropped dock, *eis* its "here"), because the item is
+  served from the worklist snapshot, not the corpus as the earlier rows leave it (Q11).

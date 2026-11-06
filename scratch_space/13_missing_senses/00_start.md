@@ -248,3 +248,17 @@ and the cards a learner meets first):
     and phase 3 already pays for the second review that checks the fix. Cost: about 5% of the
     5-hour meter for `m0006`, and a small tool change for `concepts` and `agreement`.
   - ANS: a (user, 2026-11-06).
+- Q11: A re-check serves an item as the worklist recorded it, before any review, so its
+  reviewer never sees the earlier review's additions and drops, and a `k` leaves them in place
+  (only the pin is released). In `m0006` that is 3 items: *seguros* keeps the first review's
+  "safe" next to "insurance", *marina* stays without its dock sense, and *eis* keeps "here"
+  (which the `m0006` reviewer, finding no "here is" concept, would likely have taken). Phase 3's
+  second review is not touched (it writes no curated row), but every later re-check is.
+  - a. Serve a re-check item as the corpus stands after the curated rows: its senses from the
+    rebuilt store, the earlier additions among them, and a note of the senses dropped, so a `k`
+    endorses what is there and a fix is an explicit `d` or a restore. Phase 3 rebuilds first,
+    so this lands before the next re-check.
+  - b. Keep serving the snapshot, and document that a re-check only adds.
+  - Recommended: a, because a re-check should judge the card a learner sees; the 3 items stand
+    as they are meanwhile (each is defensible).
+  - ANS: a (user, 2026-11-06).

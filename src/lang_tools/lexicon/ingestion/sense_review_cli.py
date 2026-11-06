@@ -102,7 +102,8 @@ def _concepts(word: str, language: str) -> None:
     found = find_concepts(get_store(), word, language=language)
     for option, members in found:
         _out(
-            f"{option.concept_key} {option.gloss} [{', '.join(option.translations)}]"
+            f"{option.concept_key} ({option.commonness or 0.0:.1f}) {option.gloss}"
+            f" [{', '.join(option.translations)}]"
             f" {language}: {', '.join(members) or '-'}"
         )
     if not found:
@@ -273,7 +274,11 @@ def main(argv: list[str] | None = None) -> int:
         case "serve" | "recheck":
             _serve(data_fol, guide, args)
         case "agreement":
-            _out(agreement(data_fol, args.first, args.second).model_dump_json(indent=1))
+            _out(
+                agreement(
+                    data_fol, get_store(), args.first, args.second
+                ).model_dump_json(indent=1)
+            )
         case "apply":
             return _apply(data_fol, guide, args)
         case "restore" | "pin" | "add" | "drop":

@@ -69,7 +69,9 @@ A second review writes no curated row, only its outcomes, to
 `data/curated/sense_review_shadow_log.jsonl`. `agreement` counts the items both labelled, how
 many reach the same card, how many the same card, drops and addition, and, of the items the
 first review changed, how many the second review changed the same way. It lists every
-disagreement.
+disagreement, and apart from them the twins: outcomes that differ only by a card on two
+concepts sharing an English member (WordNet's two entries for "six"), counted again in
+`agree_on_changed_twins`. Read the twins list before trusting that count.
 
 Read it this way:
 

@@ -15,10 +15,13 @@ from lang_tools.lexicon.ingestion.sense_additions import SENSE_ADDITIONS_FILE
 from lang_tools.lexicon.ingestion.sense_additions import SenseAddition
 from lang_tools.lexicon.ingestion.sense_review import DROP_KIND
 from lang_tools.lexicon.ingestion.sense_review import GOLD_FILE
+from lang_tools.lexicon.ingestion.sense_review import REVIEW_LOG_FILE
 from lang_tools.lexicon.ingestion.sense_review import SHADOW_LOG_FILE
 from lang_tools.lexicon.ingestion.sense_review import WORKLIST_FILE
 from lang_tools.lexicon.ingestion.sense_review import CorrectionError
 from lang_tools.lexicon.ingestion.sense_review import SenseGold
+from lang_tools.lexicon.ingestion.sense_review import SenseOutcome
+from lang_tools.lexicon.ingestion.sense_review import SenseReviewLogRow
 from lang_tools.lexicon.ingestion.sense_review import add_sense
 from lang_tools.lexicon.ingestion.sense_review import agreement
 from lang_tools.lexicon.ingestion.sense_review import apply_batch
@@ -364,7 +367,7 @@ def test_a_second_review_writes_no_rows_and_is_compared(tmp_path: Path) -> None:
         guide_path=guide,
         shadow=True,
     )
-    result = agreement(tmp_path, ["m0001"], ["n0001"])
+    result = agreement(tmp_path, store, ["m0001"], ["n0001"])
     assert (result.items, result.first_changed, result.agree_on_changed) == (
         len(ids),
         1,
@@ -373,6 +376,44 @@ def test_a_second_review_writes_no_rows_and_is_compared(tmp_path: Path) -> None:
     assert result.same_outcome == len(ids) - 1
     assert result.disagreements[0].startswith("seja: card - drop ")
     assert result.disagreements[0].endswith(" -> k")
+
+
+def test_agreement_counts_twin_concepts_apart(tmp_path: Path) -> None:
+    six = [
+        SynsetEntry("en", "en-6", "i006", "six items", ("six",), pos="n"),
+        SynsetEntry("en", "en-7", "i007", "the number six", ("six", "6"), pos="n"),
+    ]
+    build_initial(["en", "pt"], data_fol=tmp_path, omw_entries=[*ENTRIES, *six])
+    store = LexiconStore.from_data_fol(tmp_path)
+    quantity, number = (
+        concept_key(card.concept_id or "")
+        for card in store.lemma_sense_cards(lemma_id("six", "en"))
+    )
+    house = concept_key(store.lemma_sense_cards(CASA)[0].concept_id or "")
+
+    def row(batch: str, seis: str, casa: str) -> SenseReviewLogRow:
+        return SenseReviewLogRow(
+            batch=batch,
+            language="pt",
+            items=2,
+            outcomes={
+                "seis": SenseOutcome(
+                    lemma_text="seis", kept=False, card=seis, add=seis
+                ),
+                CASA: SenseOutcome(lemma_text="casa", kept=False, card=casa, add=casa),
+            },
+        )
+
+    write_jsonl(
+        [row("m0001", quantity, house)], curated_path(tmp_path, REVIEW_LOG_FILE)
+    )
+    write_jsonl(
+        [row("n0001", number, quantity)], curated_path(tmp_path, SHADOW_LOG_FILE)
+    )
+    result = agreement(tmp_path, store, ["m0001"], ["n0001"])
+    assert (result.same_card, result.twin_cards) == (0, 1)
+    assert (result.agree_on_changed, result.agree_on_changed_twins) == (0, 1)
+    assert result.twins == [f"seis: {quantity} ~ {number}"]
 
 
 def test_add_checks_the_concept_and_the_closed_class(tmp_path: Path) -> None:
