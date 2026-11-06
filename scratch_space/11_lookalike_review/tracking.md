@@ -129,3 +129,9 @@ Append-only. Newest at the bottom. The entries up to the spin-off are reconstruc
 - 2026-11-06 : Q10 b: `_write_batch` leaves disputed gold pairs (latest row a review row of
   another kind) out of the hidden gold pool; 42 excluded on the real data; test extended,
   `make check` green (422).
+- 2026-11-06 : rebuild with `r0011`: 6,814 edges (6,824 before; the 19 retracted traps net of
+  the relabels), 248 rare-word traps dropped, gate PASS, seed unchanged; the 8010 API serves
+  it. Stale rows are 34, up from 6 on 2026-11-03: none from `r0011`; nearly all sit on pt
+  lemmas that `12_card_senses` dropped whole (*como*, *quando*, *qual*, *vinte*, ...), which
+  `13_missing_senses` is meant to bring back, and one (*brasil*) on a lemma now stored as
+  *Brasil*.
