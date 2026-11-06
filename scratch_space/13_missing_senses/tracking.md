@@ -21,7 +21,7 @@ before and after on the pt top 1,000 cards. Analysis and decisions in
 | #  | Phase                 | Plan                               | Status  |
 | -- | --------------------- | ---------------------------------- | ------- |
 | 1  | Tooling               | [`01_tooling.md`](01_tooling.md)   | done    |
-| 2  | Agent review          | [`02_review.md`](02_review.md)     | draft   |
+| 2  | Agent review          | [`02_review.md`](02_review.md)     | in progress |
 | 3  | Rebuild and re-count  | [`03_recount.md`](03_recount.md)   | draft   |
 | 4  | Release v0.4.0        | [`04_release.md`](04_release.md)   | draft   |
 
@@ -57,3 +57,16 @@ Append-only. Newest at the bottom.
   `drop`, `concepts` lookup; rulebook, skill, how-to guide and library docs. `make check` green
   (433), docs strict. Hidden gold for the `a` action moved to phase 2. 64 removed pt lemmas on
   the real corpus (60 from the review, 4 gold).
+- 2026-11-06 : phase 2 started. Plan review: the 60 removed lemmas are already in the 1,000
+  (the worklist is 1,000, not 1,064; `worklist-removed` now skips gold). Gold for the `a` action:
+  *funcionário*, *gatos*, *turma*, *carreira*; `import-gold` now adds a missing link. The four gold
+  verb forms' answers moved to Q1 a (base word's concept), gold file made latest-row-wins, the
+  corpus fixed with `add` and form notes. A batch can no longer draw one of its own items as
+  gold. Found in passing: frequent pt number words are absent from the corpus altogether
+  (*doze*, *quinze*, *trinta*, *quarenta*, ...), a gap outside this folder's worklist.
+- 2026-11-06 : first batch `m0001` (200 + 2 gold), one subagent: 90,903 tokens, 3.4 minutes.
+  155 kept, 1 pinned, 6 senses dropped, 43 added (mostly inflected forms with form notes:
+  *são*, *fez*, *há*, *minutos*, *primeira*; and *sim* "yes", *aí* / *lá* "there"); gold 1/2.
+  The miss was the gold's fault: *turma* is also "a group of friends", now accepted too. The
+  notes line applied (pt *yes* dropped from "yes"). *deve*, *possa* stay out: WordNet has no
+  modal verbs. Additions read and judged right.

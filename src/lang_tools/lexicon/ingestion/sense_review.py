@@ -400,9 +400,17 @@ def load_worklist(data_fol: Path) -> list[SenseWorkItem]:
 
 
 def load_gold(data_fol: Path) -> list[SenseGold]:
-    """Read the committed gold set (empty when it does not exist)."""
+    """Read the committed gold set, the latest row per lemma (empty when absent).
+
+    A later row for a lemma replaces its answer (a rule change can move what a
+    right card is), and the earlier row stays in the file as history.
+    """
     path = curated_path(data_fol, GOLD_FILE)
-    return read_jsonl(SenseGold, path) if path.exists() else []
+    latest: dict[str, SenseGold] = {}
+    for row in read_jsonl(SenseGold, path) if path.exists() else []:
+        latest.pop(row.lemma_id, None)
+        latest[row.lemma_id] = row
+    return list(latest.values())
 
 
 def parse_labels(
@@ -593,12 +601,17 @@ def removed_lemmas(
     """Return ``(lemma_id, text)`` of the lemmas a review removed, by text.
 
     A lemma is removed when a card-sense review dropped one of its links
-    (`DROP_KIND`) and the corpus no longer holds it.
+    (`DROP_KIND`) and the corpus no longer holds it. The gold lemmas are left
+    out, as from the worklist.
     """
+    gold = {row.lemma_id for row in load_gold(data_fol)}
     found = {
         row.lemma_id: row.form
         for row in load_form_drops(data_fol)
-        if row.drop and row.kind == DROP_KIND and row.language == language
+        if row.drop
+        and row.kind == DROP_KIND
+        and row.language == language
+        and row.lemma_id not in gold
     }
     return sorted(
         ((lid, text) for lid, text in found.items() if not store.get_lemma_by_id(lid)),
@@ -700,7 +713,13 @@ def _write_items(
     """
     language = picked[0].language
     rng = random.Random(batch)  # noqa: S311 - a reproducible shuffle, not crypto
-    gold = _pick_gold(data_fol, rng, language=language, busy=busy, count=gold_per_batch)
+    gold = _pick_gold(
+        data_fol,
+        rng,
+        language=language,
+        busy=busy | {item.lemma_id for item in picked},
+        count=gold_per_batch,
+    )
     entries: list[tuple[str, str, int | None, list[str] | None]] = [
         (item.lemma_id, item.lemma_text, item.rank, None) for item in picked
     ]
@@ -1027,16 +1046,32 @@ def _check_additions(
 def import_gold(data_fol: Path, store: LexiconStore) -> int:
     """Record the gold lemmas not yet reviewed as reviewed rows; return how many.
 
-    A gold lemma with right senses pins the first of them; one without drops
-    every sense the store holds for it.
+    A gold lemma with right senses pins the first of them, and adds the link
+    when the lemma lacks it (a gold item for the review's ``a`` action); one
+    without drops every sense the store holds for it.
     """
     with locked(data_fol, WORK_SUBDIR):
         reviewed = _reviewed_ids(data_fol)
         pins: list[BestSense] = []
         drops: list[FormDrop] = []
+        additions: list[SenseAddition] = []
         for gold in load_gold(data_fol):
             if gold.lemma_id in reviewed:
                 continue
+            linked = {option.concept_key for option in _options(store, gold.lemma_id)}
+            if gold.best and gold.best[0] not in linked:
+                additions.append(
+                    SenseAddition(
+                        lemma_id=gold.lemma_id,
+                        concept_key=gold.best[0],
+                        word=gold.lemma_text,
+                        language=gold.language,
+                        reason=gold.reason,
+                        status="accepted",
+                        model="manual",
+                        batch="gold",
+                    )
+                )
             pins.append(
                 BestSense(
                     lemma_id=gold.lemma_id,
@@ -1066,6 +1101,7 @@ def import_gold(data_fol: Path, store: LexiconStore) -> int:
                 ]
         append_rows(curated_path(data_fol, BEST_SENSES_FILE), pins)
         append_rows(curated_path(data_fol, MEMBER_FORM_DROPS_FILE), drops)
+        append_rows(curated_path(data_fol, SENSE_ADDITIONS_FILE), additions)
         return len(pins)
 
 

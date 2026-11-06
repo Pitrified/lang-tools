@@ -1,5 +1,5 @@
 ---
-status: draft
+status: in progress
 ---
 
 # Phase 2 - agent review
@@ -13,14 +13,19 @@ Context: [`00_start.md`](00_start.md), "Measurement", Q2 note, Q8. Depends on
 
 ## Plan
 
-- Worklist: the 1,000 cards `12_card_senses` reviewed (same ids, so the counts compare) plus
-  the 64 removed lemmas (60 from the review, 4 gold); batches of 200, ids reserved up front,
-  one subagent per batch.
-- Gold for the new action (from phase 1): the gold set has no item whose right card is a missing
-  concept. Pick a few unambiguous ones outside the reviewed 1,064 (a number word or a plain noun
-  just below the top 1,000), write them to the gold file before the first batch.
+- Worklist: the 1,000 cards `12_card_senses` reviewed (same ids, so the counts compare); the 60
+  lemmas that review removed are among them, served from their dropped links. Batches of 200
+  (`m0001` to `m0005`), one subagent per batch.
+- Gold for the new action (from phase 1): four unambiguous words just below the top 1,000 whose
+  everyday meaning is not linked (*funcionário* "employee", *gatos* "cats", *turma* "class",
+  *carreira* "career"), added to the gold file and recorded with `import-gold`, which now writes
+  the addition a gold answer needs.
+- The four gold verb forms (*homens*, *seja*, *tinha*, *olha*) had "no right card" as their
+  answer, which Q1 a changes: their gold now names the base word's concept, and the corpus got
+  the same fix through `add` with a form note. The gold file is now latest-row-wins per lemma,
+  so the old answers stay as history.
 - Measure the cost on the first batch and report it before the rest.
-- First review `m0001` to `m0006`. Tally the causes from the labels and their reasons, not from
+- First review `m0001` to `m0005`. Tally the causes from the labels and their reasons, not from
   a list fixed up front.
 - Second review, blind, on 500 targeted items: every item the first review changes, filled with
   kept items. `agreement` over the two; at 90% or more on the changes, the first review's labels

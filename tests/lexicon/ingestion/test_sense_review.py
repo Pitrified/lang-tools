@@ -26,6 +26,7 @@ from lang_tools.lexicon.ingestion.sense_review import build_worklist
 from lang_tools.lexicon.ingestion.sense_review import drop_sense
 from lang_tools.lexicon.ingestion.sense_review import find_concepts
 from lang_tools.lexicon.ingestion.sense_review import import_gold
+from lang_tools.lexicon.ingestion.sense_review import load_gold
 from lang_tools.lexicon.ingestion.sense_review import parse_labels
 from lang_tools.lexicon.ingestion.sense_review import pin_sense
 from lang_tools.lexicon.ingestion.sense_review import recheck_batch
@@ -409,3 +410,28 @@ def test_drop_removes_a_wrong_link(tmp_path: Path) -> None:
         drop_sense(tmp_path, store, "seja", "pt", "000000000000", reason="x")
     drop_sense(tmp_path, store, "seja", "pt", key, reason="a form of ser")
     assert _build(tmp_path).get_lemma_by_id(SEJA) is None
+
+
+def test_imported_gold_adds_a_missing_link(tmp_path: Path) -> None:
+    store = _build(tmp_path)
+    be = _be_key(store)
+    write_jsonl(
+        [SenseGold(lemma_id=SEJA, lemma_text="seja", language="pt", best=[be])],
+        curated_path(tmp_path, GOLD_FILE),
+    )
+    assert import_gold(tmp_path, store) == 1
+    card = _build(tmp_path).lemma_card(SEJA)
+    assert card is not None
+    assert card.concept_id is not None
+    assert concept_key(card.concept_id) == be
+
+
+def test_a_later_gold_row_replaces_the_answer(tmp_path: Path) -> None:
+    write_jsonl(
+        [
+            SenseGold(lemma_id=SEJA, lemma_text="seja", language="pt"),
+            SenseGold(lemma_id=SEJA, lemma_text="seja", language="pt", best=["k1"]),
+        ],
+        curated_path(tmp_path, GOLD_FILE),
+    )
+    assert [gold.best for gold in load_gold(tmp_path)] == [["k1"]]
