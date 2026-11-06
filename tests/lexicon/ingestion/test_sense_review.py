@@ -11,16 +11,29 @@ from lang_tools.lexicon.ingestion.form_review import MEMBER_FORM_DROPS_FILE
 from lang_tools.lexicon.ingestion.form_review import FormDrop
 from lang_tools.lexicon.ingestion.pipeline import build_initial
 from lang_tools.lexicon.ingestion.review_batches import LabelError
+from lang_tools.lexicon.ingestion.sense_additions import SENSE_ADDITIONS_FILE
+from lang_tools.lexicon.ingestion.sense_additions import SenseAddition
 from lang_tools.lexicon.ingestion.sense_review import DROP_KIND
 from lang_tools.lexicon.ingestion.sense_review import GOLD_FILE
+from lang_tools.lexicon.ingestion.sense_review import REVIEW_LOG_FILE
+from lang_tools.lexicon.ingestion.sense_review import SHADOW_LOG_FILE
 from lang_tools.lexicon.ingestion.sense_review import WORKLIST_FILE
 from lang_tools.lexicon.ingestion.sense_review import CorrectionError
 from lang_tools.lexicon.ingestion.sense_review import SenseGold
+from lang_tools.lexicon.ingestion.sense_review import SenseOutcome
+from lang_tools.lexicon.ingestion.sense_review import SenseReviewLogRow
+from lang_tools.lexicon.ingestion.sense_review import add_sense
+from lang_tools.lexicon.ingestion.sense_review import agreement
 from lang_tools.lexicon.ingestion.sense_review import apply_batch
 from lang_tools.lexicon.ingestion.sense_review import build_worklist
+from lang_tools.lexicon.ingestion.sense_review import drop_sense
+from lang_tools.lexicon.ingestion.sense_review import find_concepts
 from lang_tools.lexicon.ingestion.sense_review import import_gold
+from lang_tools.lexicon.ingestion.sense_review import load_gold
 from lang_tools.lexicon.ingestion.sense_review import parse_labels
 from lang_tools.lexicon.ingestion.sense_review import pin_sense
+from lang_tools.lexicon.ingestion.sense_review import recheck_batch
+from lang_tools.lexicon.ingestion.sense_review import removed_lemmas
 from lang_tools.lexicon.ingestion.sense_review import render_batch
 from lang_tools.lexicon.ingestion.sense_review import restore_drops
 from lang_tools.lexicon.ingestion.sense_review import review_status
@@ -45,14 +58,30 @@ ENTRIES = [
     SynsetEntry("en", "en-4", "i004", "a building for living", ("house",), pos="n"),
     SynsetEntry("pt", "pt-4", "i004", None, ("casa",), pos="n"),
 ]
+BE = SynsetEntry(
+    "en",
+    "en-5",
+    "i005",
+    "have the quality of being",
+    ("be",),
+    pos="v",
+    lexfile="verb.stative",
+)
 MANGA = lemma_id("manga", "pt")
 SEJA = lemma_id("seja", "pt")
 CASA = lemma_id("casa", "pt")
 
 
 def _build(data_fol: Path) -> LexiconStore:
-    build_initial(["en", "pt"], data_fol=data_fol, omw_entries=ENTRIES)
+    build_initial(["en", "pt"], data_fol=data_fol, omw_entries=[*ENTRIES, BE])
     return LexiconStore.from_data_fol(data_fol)
+
+
+def _be_key(store: LexiconStore) -> str:
+    card = store.lemma_card(lemma_id("be", "en"))
+    assert card is not None
+    assert card.concept_id is not None
+    return concept_key(card.concept_id)
 
 
 def test_labels_parse_every_action() -> None:
@@ -146,6 +175,24 @@ def test_batch_serves_applies_and_rebuilds(tmp_path: Path) -> None:
     assert concept_key(card.concept_id) == other
     assert rebuilt.get_lemma_by_id(SEJA) is None
 
+    # a k on a re-check under new rules keeps the pin it endorsed
+    guide.write_text("new rules")
+    again = recheck_batch(
+        tmp_path,
+        rebuilt,
+        batch="m0001",
+        lemma_ids=[MANGA],
+        guide_path=guide,
+        gold_per_batch=0,
+    )
+    apply_batch(tmp_path, "m0001", f"{again[0].n} k", guide_path=guide)
+    pins = read_jsonl(BestSense, curated_path(tmp_path, BEST_SENSES_FILE))
+    assert pins[-1].concept_key == other
+    card = _build(tmp_path).lemma_card(MANGA)
+    assert card is not None
+    assert card.concept_id is not None
+    assert concept_key(card.concept_id) == other
+
 
 def test_gold_miss_is_logged(tmp_path: Path) -> None:
     store = _build(tmp_path)
@@ -206,3 +253,256 @@ def test_pin_moves_the_card(tmp_path: Path) -> None:
     assert card is not None
     assert card.concept_id is not None
     assert concept_key(card.concept_id) == keys[1]
+
+
+def test_labels_parse_an_addition_and_its_problems() -> None:
+    labels = parse_labels(
+        "m0001",
+        "1 a0123456789ab {plural of ser: they are} the verb is the frequent reading\n"
+        "2 d1 a0123456789ab! the right sense is missing\n",
+        {1: 1, 2: 2},
+    )
+    assert labels[1].add == "0123456789ab"
+    assert labels[1].form_note == "plural of ser: they are"
+    assert labels[1].reason == "the verb is the frequent reading"
+    assert labels[1].card([]) == "0123456789ab"
+    assert (labels[2].drops, labels[2].add, labels[2].edge_case) == (
+        [1],
+        "0123456789ab",
+        True,
+    )
+    text = "1 a0123456789ab\n2 a0123456789ab p1 both\n3 k {a note}\n4 p1 why\n"
+    with pytest.raises(LabelError) as caught:
+        parse_labels("m0001", text, {1: 1, 2: 1, 3: 1, 4: 1}, removed=[4])
+    problems = caught.value.problems
+    assert "item 1: an addition needs a reason" in problems
+    assert "item 2: a pins the added sense, so no p" in problems
+    assert "item 3: a form note needs an addition" in problems
+    assert "item 4: a removed lemma takes k or a" in problems
+
+
+def test_a_removed_lemma_comes_back_through_a_recheck(tmp_path: Path) -> None:
+    """An x removes seja; a re-check under new rules adds "be" and pins it."""
+    store = _build(tmp_path)
+    write_jsonl(build_worklist(store, "pt"), curated_path(tmp_path, WORKLIST_FILE))
+    items = serve_batch(tmp_path, store, batch="s0001", gold_per_batch=0)
+    old = tmp_path / "old.md"
+    old.write_text("old rules")
+    labels = "\n".join(
+        f"{i.n} x a form of ser" if i.lemma_text == "seja" else f"{i.n} k"
+        for i in items
+    )
+    apply_batch(tmp_path, "s0001", labels, guide_path=old)
+    store = _build(tmp_path)
+    assert removed_lemmas(tmp_path, store, "pt") == [(SEJA, "seja")]
+    be = _be_key(store)
+
+    guide = tmp_path / "new.md"
+    guide.write_text("new rules")
+    served = recheck_batch(
+        tmp_path,
+        store,
+        batch="m0001",
+        lemma_ids=[SEJA],
+        guide_path=guide,
+        gold_per_batch=0,
+    )
+    assert [(i.lemma_text, i.removed) for i in served] == [("seja", True)]
+    assert "seja REMOVED" in render_batch(served)
+    assert served[0].senses[0].gloss == "a unit of area"
+    with pytest.raises(LabelError, match="no concept"):
+        apply_batch(
+            tmp_path,
+            "m0001",
+            "1 a0123456789ab no such key",
+            guide_path=guide,
+            store=store,
+        )
+    log = apply_batch(
+        tmp_path,
+        "m0001",
+        f"1 a{be} {{subjunctive of ser}} the verb",
+        guide_path=guide,
+        store=store,
+    )
+    assert log.added == 1
+    assert log.outcomes[SEJA].add == be
+    # every listed lemma is now reviewed under the current rules
+    assert not recheck_batch(
+        tmp_path, store, batch="m0002", lemma_ids=[SEJA], guide_path=guide
+    )
+    card = _build(tmp_path).lemma_card(SEJA)
+    assert card is not None
+    assert card.concept_id is not None
+    assert (concept_key(card.concept_id), card.form_note) == (
+        be,
+        "subjunctive of ser",
+    )
+
+
+def test_a_second_review_writes_no_rows_and_is_compared(tmp_path: Path) -> None:
+    store = _build(tmp_path)
+    worklist = build_worklist(store, "pt")
+    write_jsonl(worklist, curated_path(tmp_path, WORKLIST_FILE))
+    ids = [item.lemma_id for item in worklist]
+    guide = tmp_path / "guide.md"
+    guide.write_text("rules")
+    first = recheck_batch(
+        tmp_path,
+        store,
+        batch="m0001",
+        lemma_ids=ids,
+        guide_path=guide,
+        gold_per_batch=0,
+    )
+    second = recheck_batch(
+        tmp_path,
+        store,
+        batch="n0001",
+        lemma_ids=ids,
+        guide_path=guide,
+        gold_per_batch=0,
+        shadow=True,
+    )
+    assert {i.lemma_id for i in first} == {i.lemma_id for i in second} == set(ids)
+
+    def labels(items: list, seja: str) -> str:
+        return "\n".join(
+            f"{i.n} {seja}" if i.lemma_text == "seja" else f"{i.n} k" for i in items
+        )
+
+    apply_batch(tmp_path, "m0001", labels(first, "x a form of ser"), guide_path=guide)
+    pins_before = curated_path(tmp_path, BEST_SENSES_FILE).read_text()
+    apply_batch(tmp_path, "n0001", labels(second, "k"), guide_path=guide, shadow=True)
+    assert curated_path(tmp_path, BEST_SENSES_FILE).read_text() == pins_before
+    assert curated_path(tmp_path, SHADOW_LOG_FILE).exists()
+    # done for these lemmas under this rulebook, whatever their rows
+    assert not recheck_batch(
+        tmp_path,
+        store,
+        batch="n0002",
+        lemma_ids=ids,
+        guide_path=guide,
+        shadow=True,
+    )
+    result = agreement(tmp_path, store, ["m0001"], ["n0001"])
+    assert (result.items, result.first_changed, result.agree_on_changed) == (
+        len(ids),
+        1,
+        0,
+    )
+    assert result.same_outcome == len(ids) - 1
+    assert result.disagreements[0].startswith("seja: card - drop ")
+    assert result.disagreements[0].endswith(" -> k")
+    # under a changed rulebook the same lemmas are served for a second review again
+    guide.write_text("new rules")
+    again = recheck_batch(
+        tmp_path,
+        store,
+        batch="n0002",
+        lemma_ids=ids,
+        guide_path=guide,
+        gold_per_batch=0,
+        shadow=True,
+    )
+    assert {i.lemma_id for i in again} == set(ids)
+
+
+def test_agreement_counts_twin_concepts_apart(tmp_path: Path) -> None:
+    six = [
+        SynsetEntry("en", "en-6", "i006", "six items", ("six",), pos="n"),
+        SynsetEntry("en", "en-7", "i007", "the number six", ("six", "6"), pos="n"),
+    ]
+    build_initial(["en", "pt"], data_fol=tmp_path, omw_entries=[*ENTRIES, *six])
+    store = LexiconStore.from_data_fol(tmp_path)
+    quantity, number = (
+        concept_key(card.concept_id or "")
+        for card in store.lemma_sense_cards(lemma_id("six", "en"))
+    )
+    house = concept_key(store.lemma_sense_cards(CASA)[0].concept_id or "")
+
+    def row(batch: str, seis: str, casa: str) -> SenseReviewLogRow:
+        return SenseReviewLogRow(
+            batch=batch,
+            language="pt",
+            items=2,
+            outcomes={
+                "seis": SenseOutcome(
+                    lemma_text="seis", kept=False, card=seis, add=seis
+                ),
+                CASA: SenseOutcome(lemma_text="casa", kept=False, card=casa, add=casa),
+            },
+        )
+
+    write_jsonl(
+        [row("m0001", quantity, house)], curated_path(tmp_path, REVIEW_LOG_FILE)
+    )
+    write_jsonl(
+        [row("n0001", number, quantity)], curated_path(tmp_path, SHADOW_LOG_FILE)
+    )
+    result = agreement(tmp_path, store, ["m0001"], ["n0001"])
+    assert (result.same_card, result.twin_cards) == (0, 1)
+    assert (result.agree_on_changed, result.agree_on_changed_twins) == (0, 1)
+    assert result.twins == [f"seis: {quantity} ~ {number}"]
+
+
+def test_add_checks_the_concept_and_the_closed_class(tmp_path: Path) -> None:
+    store = _build(tmp_path)
+    be = _be_key(store)
+    with pytest.raises(CorrectionError, match="no concept"):
+        add_sense(tmp_path, store, "são", "pt", "0123456789ab", reason="x")
+    with pytest.raises(CorrectionError, match="closed-class"):
+        add_sense(tmp_path, store, "como", "pt", be, reason="x")
+    rows = add_sense(
+        tmp_path, store, "são", "pt", be, reason="the verb", form_note="they are"
+    )
+    assert [type(row).__name__ for row in rows] == ["SenseAddition", "BestSense"]
+    added = read_jsonl(SenseAddition, curated_path(tmp_path, SENSE_ADDITIONS_FILE))
+    assert [(a.word, a.form_note, a.batch) for a in added] == [
+        ("são", "they are", "correction")
+    ]
+    card = _build(tmp_path).lemma_card(lemma_id("são", "pt"))
+    assert card is not None
+    assert card.form_note == "they are"
+
+
+def test_concepts_are_found_by_english_word(tmp_path: Path) -> None:
+    store = _build(tmp_path)
+    found = find_concepts(store, "house", language="pt")
+    assert [(o.gloss, members) for o, members in found] == [
+        ("a building for living", ["casa"])
+    ]
+
+
+def test_drop_removes_a_wrong_link(tmp_path: Path) -> None:
+    store = _build(tmp_path)
+    key = concept_key(store.lemma_sense_cards(SEJA)[0].concept_id or "")
+    with pytest.raises(CorrectionError, match="no sense"):
+        drop_sense(tmp_path, store, "seja", "pt", "000000000000", reason="x")
+    drop_sense(tmp_path, store, "seja", "pt", key, reason="a form of ser")
+    assert _build(tmp_path).get_lemma_by_id(SEJA) is None
+
+
+def test_imported_gold_adds_a_missing_link(tmp_path: Path) -> None:
+    store = _build(tmp_path)
+    be = _be_key(store)
+    write_jsonl(
+        [SenseGold(lemma_id=SEJA, lemma_text="seja", language="pt", best=[be])],
+        curated_path(tmp_path, GOLD_FILE),
+    )
+    assert import_gold(tmp_path, store) == 1
+    card = _build(tmp_path).lemma_card(SEJA)
+    assert card is not None
+    assert card.concept_id is not None
+    assert concept_key(card.concept_id) == be
+
+
+def test_a_later_gold_row_replaces_the_answer(tmp_path: Path) -> None:
+    write_jsonl(
+        [
+            SenseGold(lemma_id=SEJA, lemma_text="seja", language="pt"),
+            SenseGold(lemma_id=SEJA, lemma_text="seja", language="pt", best=["k1"]),
+        ],
+        curated_path(tmp_path, GOLD_FILE),
+    )
+    assert [gold.best for gold in load_gold(tmp_path)] == [["k1"]]

@@ -64,6 +64,7 @@ from lang_tools.lexicon.codec import load_raw_table
 from lang_tools.lexicon.codec import model_from_row
 from lang_tools.lexicon.codec import row_from_model
 from lang_tools.lexicon.concept import Concept
+from lang_tools.lexicon.concept_id import concept_key
 from lang_tools.lexicon.lemma import Lemma
 from lang_tools.lexicon.relations import FALSE_FRIEND_KINDS
 from lang_tools.lexicon.sense import Sense
@@ -90,7 +91,8 @@ if TYPE_CHECKING:
 #: v7: the derived ``lemma_drill`` table behind `LemmaCard` (phase 9).
 #: v8: ``false_friends`` became ``lookalikes`` with a ``kind`` column (phase 11).
 #: v9: ``senses.is_best``, the reviewed best-sense pin, ordered first by the cards.
-CACHE_VERSION = 9
+#: v10: ``senses.form_note`` (a curated sense addition), carried to the cards.
+CACHE_VERSION = 10
 
 #: Filename of the persisted SQLite cache built inside a corpus directory. It is
 #: rebuilt from the Parquet whenever the corpus signature changes; never committed
@@ -311,13 +313,14 @@ def _derive_drill_table(conn: sqlite3.Connection) -> None:
         """
 CREATE TABLE lemma_drill AS
   SELECT l.id AS lemma_id, l.language, l.part_of_speech,
-         b.concept_id, b.cefr_level, b.sense_frequency,
+         b.concept_id, b.cefr_level, b.sense_frequency, b.form_note,
          f.char_len, f.single_word, f.accented
     FROM lemmas l
     JOIN temp.lemma_flags f ON f.lemma_id = l.id
     LEFT JOIN (
-      SELECT lemma_id, concept_id, cefr_level, sense_frequency FROM (
+      SELECT lemma_id, concept_id, cefr_level, sense_frequency, form_note FROM (
         SELECT s.lemma_id, s.concept_id, s.cefr_level, s.sense_frequency,
+               s.form_note,
                row_number() OVER (
                  PARTITION BY s.lemma_id
                  ORDER BY coalesce(s.is_best, 0) DESC,
@@ -891,7 +894,8 @@ class LexiconStore:
             The cards (empty when the lemma is absent or has no sense).
         """
         rows = self._conn.execute(
-            "SELECT s.lemma_id, s.concept_id, s.cefr_level, s.sense_frequency"
+            "SELECT s.lemma_id, s.concept_id, s.cefr_level, s.sense_frequency,"
+            " s.form_note"
             " FROM senses s JOIN concepts c ON c.id = s.concept_id"
             " WHERE s.lemma_id = ?"
             " ORDER BY coalesce(s.is_best, 0) DESC,"
@@ -919,7 +923,7 @@ class LexiconStore:
     ) -> list[LemmaCard]:
         """Run the card SELECT (``params`` ends with the limit) and fill each card."""
         sql = (
-            "SELECT lemma_id, concept_id, cefr_level, sense_frequency"  # noqa: S608
+            "SELECT lemma_id, concept_id, cefr_level, sense_frequency, form_note"  # noqa: S608
             f" FROM lemma_drill d WHERE {where} ORDER BY {order} LIMIT ?"
         )
         rows = self._conn.execute(sql, params).fetchall()
@@ -938,7 +942,7 @@ class LexiconStore:
         translation_languages: Sequence[str],
         known_languages: Sequence[str] = (),
     ) -> list[LemmaCard]:
-        """Build one card per ``(lemma_id, concept_id, cefr, frequency)`` row."""
+        """Build one card per ``(lemma_id, concept_id, cefr, frequency, note)`` row."""
         lemma_ids = sorted({r["lemma_id"] for r in rows})
         lemmas = self._lemmas_by_ids(lemma_ids)
         lookalikes = self._card_lookalikes(lemma_ids, known_languages)
@@ -956,6 +960,7 @@ class LexiconStore:
                     concept_id=cid,
                     cefr_level=row["cefr_level"],
                     sense_frequency=row["sense_frequency"],
+                    form_note=row["form_note"],
                     gloss=definitions.get(gloss_language),
                     translations={
                         language: [
@@ -1096,6 +1101,15 @@ class LexiconStore:
             (concept_id,),
         )
         return rows[0] if rows else None
+
+    def get_concept_by_key(self, key: str) -> Concept | None:
+        """Look up a concept by its slug-free key (`concept_key`; None when absent)."""
+        rows = self._query(
+            "concepts",
+            f"SELECT {_select_cols('concepts')} FROM concepts WHERE id LIKE ?",  # noqa: S608
+            (f"%{key}",),
+        )
+        return next((c for c in rows if concept_key(c.id) == key), None)
 
     # --- Adjacency reads -------------------------------------------------
 

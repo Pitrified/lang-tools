@@ -85,6 +85,7 @@ nav:
       - Running the read service: guides/run_service.md
       - Reviewing look-alike pairs: guides/lookalike_review.md
       - Reviewing card senses: guides/sense_review.md
+      - Missing senses: guides/missing_senses.md
   - Library:
       - Overview: library/index.md
       - Frozen API (lang-tutor contract): library/frozen_api.md
