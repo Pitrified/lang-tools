@@ -21,8 +21,8 @@ before and after on the pt top 1,000 cards. Analysis and decisions in
 | #  | Phase                 | Plan                               | Status  |
 | -- | --------------------- | ---------------------------------- | ------- |
 | 1  | Tooling               | [`01_tooling.md`](01_tooling.md)   | done    |
-| 2  | Agent review          | [`02_review.md`](02_review.md)     | in progress |
-| 3  | Rebuild and re-count  | [`03_recount.md`](03_recount.md)   | draft   |
+| 2  | Agent review          | [`02_review.md`](02_review.md)     | done    |
+| 3  | Rebuild and re-count  | [`03_recount.md`](03_recount.md)   | done    |
 | 4  | Release v0.4.0        | [`04_release.md`](04_release.md)   | draft   |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
@@ -108,3 +108,35 @@ Append-only. Newest at the bottom.
   unpinned row but leaves the earlier review's additions and drops in place (*seguros* keeps
   the first review's "safe", *marina* its dropped dock, *eis* its "here"), because the item is
   served from the worklist snapshot, not the corpus as the earlier rows leave it (Q11).
+- 2026-11-06 : phase 2 closed (before table, agreement and gold in `02_review.md`; the pt
+  findings in `docs/guides/missing_senses.md`). Q11's premise corrected: a re-check is served
+  from the built corpus, which had not been rebuilt since the first review; so Q11 a is
+  "rebuild before a re-check" (guide and skill), no code. Phase 3 started. Rebuild:
+  `sense_additions` 171 added, 62 lemmas created, 0 stale; best senses 163 applied, 0 stale;
+  look-alikes 6,838 (stale 10, down from 34); gate PASS. pt gloss coverage 99.9%: 27 concepts
+  first linked to pt by an addition carry no pt gloss (a paid gloss-translate run, to ask).
+  The seed gains the `form_note` field. 8010 restarted. A second review now counts as done
+  once per rulebook (the 500 of `n0001` to `n0003` were under the old one); after review
+  `n0004` to `n0008` served, the 1,000 on the rebuilt corpus, rulebook `35151d6c864c`.
+- 2026-11-06 : after review `n0004` to `n0008` applied (shadow; 1,000; gold 10/10): 876 kept,
+  84 pinned, 37 added, 5 senses dropped. Of the 157 items the first review changed, 154 are kept
+  as now built (98%, above the 90% bar): the rule fix holds. But 85 pins fell on cards the first
+  review kept, and they traced to a defect: a label that does not pin wrote a best-sense row
+  with no concept, so on a re-check (latest row wins) a `k` released the `12_card_senses` pin
+  and the card fell back to the frequency pick (*praia* "coast" over "beach", *presidente*
+  "executive of a firm"). 97 pins were released; the after review, blind, pinned 74 of them
+  back. Fixed: a label now pins the card it leads to (the added or pinned sense, else the first
+  left; nothing for a removed item or `x`), with a test; the 97 restored by correction rows
+  (the card each `m` label endorsed). One of them, *eis*, endorsed a link `m0004` had dropped
+  (`m0006` was labelled on the pre-review corpus), so the build counted it stale; re-pinned to
+  "here". Rebuild: best senses 259 applied. Notes (`n0005`): *jazida* dropped from "centre",
+  capitalised *Porto* linked to the city. `m0007` served: the 39 after-review changes the
+  released pins do not explain (32 additions, 7 pins or drops) and the 23 released-pin words
+  the after review did not pin back, under rulebook `35151d6c864c`, on the rebuilt corpus.
+- 2026-11-06 : `m0007` applied (62 items; 33 kept, 4 pinned, 25 added; gold 2/2); its notes
+  gave 5 junk members (*word memory*, *deseo*, *montivar*, *bensderaiz*, *comerembanquete*),
+  dropped. Final rebuild: 197 senses added, 63 lemmas created, 300 pins, 0 stale; look-alikes
+  stale 10; gate PASS; 8010 restarted and serving form notes. Before 157/1,000 cards a
+  reviewer changes, after 50 (5.0%) once the 74 pin-defect changes are set aside; 154/157
+  first-review changes kept. Phase 3 closed; the still-wrong cards and their reasons are in
+  `03_recount.md`.

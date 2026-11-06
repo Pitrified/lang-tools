@@ -62,7 +62,8 @@ A session that runs many batches keeps its own context small by handing each bat
   `data/work/sense_review/` (under Git LFS; add them with `git add -f`), and rebuild the corpus.
 - A re-check of reviewed words under new rules: write their lemma ids, one per line, to a keys
   file, and serve them with `CLI recheck --batch m0001 --keys keys.txt`; successive ids walk the
-  list. `CLI worklist-removed --language pt` first appends the words an earlier review removed.
+  list. Rebuild the corpus first: a batch shows the built corpus, and curated rows only take
+  effect at build. `CLI worklist-removed --language pt` first appends the words an earlier review removed.
 - A second review, to measure agreement: `CLI recheck --batch n0001 --keys keys.txt --shadow`,
   handed to a different subagent that never sees the first labels, applied with `--shadow` (it
   writes no curated row); then `CLI agreement --first m0001 ... --second n0001 ...`.

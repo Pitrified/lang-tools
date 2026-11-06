@@ -262,3 +262,9 @@ and the cards a learner meets first):
   - Recommended: a, because a re-check should judge the card a learner sees; the 3 items stand
     as they are meanwhile (each is defensible).
   - ANS: a (user, 2026-11-06).
+    Correction (2026-11-06, on reading `_write_items`): the premise was wrong. A re-check is
+    served from the built corpus, not from the worklist; the corpus had not been rebuilt since
+    the first review, and curated rows only take effect at build. So a takes no code: rebuild
+    before a re-check (the guide and the skill say so), and the reviewer sees the earlier
+    additions as senses. Dropped links stay hidden, which is right for a wrong link; a dropped
+    link that is right after all is a hand `restore`.

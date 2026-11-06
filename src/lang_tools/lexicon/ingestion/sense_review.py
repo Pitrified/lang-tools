@@ -786,15 +786,16 @@ def recheck_batch(
     current guide; `apply_batch` then appends rows, and the latest row wins.
 
     A second review (``shadow``) picks the next ones not yet in a second-review
-    batch, whatever their rows, and is applied with ``shadow=True``: it writes
-    no curated row, only its outcomes, for `agreement` with the first review.
+    batch under the current guide, whatever their rows, and is applied with
+    ``shadow=True``: it writes no curated row, only its outcomes, for
+    `agreement` with the first review.
 
     Args:
         data_fol: Project data folder.
         store: The lexicon store, for the senses.
         batch: The batch id (e.g. ``m0001``, or ``n0001`` for a second review).
         lemma_ids: The lemmas to serve, in order.
-        guide_path: The review guide; a re-check skips rows under its hash.
+        guide_path: The review guide; both kinds skip lemmas done under its hash.
         size: Lemmas to reserve.
         gold_per_batch: Hidden gold lemmas to mix in.
         shadow: Serve a second review.
@@ -815,10 +816,10 @@ def recheck_batch(
             msg = f"batch {batch} was already applied"
             raise ValueError(msg)
         busy = {item.lemma_id for items in pending.values() for item in items}
+        sha = guide_sha(guide_path)
         if shadow:
-            done = {lid for row in logs for lid in row.outcomes}
+            done = {lid for row in logs if row.guide_sha == sha for lid in row.outcomes}
         else:
-            sha = guide_sha(guide_path)
             path = curated_path(data_fol, BEST_SENSES_FILE)
             latest = {
                 row.lemma_id: row.prompt_sha
@@ -983,10 +984,22 @@ def _item_rows(
     sha: str,
     batch: str,
 ) -> tuple[BestSense, list[FormDrop], SenseAddition | None]:
-    """Return the curated rows one worklist item's label writes."""
+    """Return the curated rows one worklist item's label writes.
+
+    The best-sense row pins the card the label leads to: the added or pinned
+    sense, or else the first sense left, so a ``k`` on a re-check keeps an
+    earlier review's pin rather than releasing it (the latest row wins). A
+    removed item, or one with every sense dropped, pins nothing.
+    """
+    left = [
+        sense
+        for k, sense in enumerate(item.senses, start=1)
+        if k not in dropped and not item.removed
+    ]
+    card = pinned or (left[0] if left else None)
     pin = BestSense(
         lemma_id=item.lemma_id,
-        concept_key=label.add or (pinned.concept_key if pinned else None),
+        concept_key=label.add or (card.concept_key if card else None),
         lemma_text=item.lemma_text,
         language=item.language,
         status="accepted",

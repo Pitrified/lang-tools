@@ -175,6 +175,24 @@ def test_batch_serves_applies_and_rebuilds(tmp_path: Path) -> None:
     assert concept_key(card.concept_id) == other
     assert rebuilt.get_lemma_by_id(SEJA) is None
 
+    # a k on a re-check under new rules keeps the pin it endorsed
+    guide.write_text("new rules")
+    again = recheck_batch(
+        tmp_path,
+        rebuilt,
+        batch="m0001",
+        lemma_ids=[MANGA],
+        guide_path=guide,
+        gold_per_batch=0,
+    )
+    apply_batch(tmp_path, "m0001", f"{again[0].n} k", guide_path=guide)
+    pins = read_jsonl(BestSense, curated_path(tmp_path, BEST_SENSES_FILE))
+    assert pins[-1].concept_key == other
+    card = _build(tmp_path).lemma_card(MANGA)
+    assert card is not None
+    assert card.concept_id is not None
+    assert concept_key(card.concept_id) == other
+
 
 def test_gold_miss_is_logged(tmp_path: Path) -> None:
     store = _build(tmp_path)
@@ -358,7 +376,7 @@ def test_a_second_review_writes_no_rows_and_is_compared(tmp_path: Path) -> None:
     apply_batch(tmp_path, "n0001", labels(second, "k"), guide_path=guide, shadow=True)
     assert curated_path(tmp_path, BEST_SENSES_FILE).read_text() == pins_before
     assert curated_path(tmp_path, SHADOW_LOG_FILE).exists()
-    # the second review is done for these lemmas, whatever their rows
+    # done for these lemmas under this rulebook, whatever their rows
     assert not recheck_batch(
         tmp_path,
         store,
@@ -376,6 +394,18 @@ def test_a_second_review_writes_no_rows_and_is_compared(tmp_path: Path) -> None:
     assert result.same_outcome == len(ids) - 1
     assert result.disagreements[0].startswith("seja: card - drop ")
     assert result.disagreements[0].endswith(" -> k")
+    # under a changed rulebook the same lemmas are served for a second review again
+    guide.write_text("new rules")
+    again = recheck_batch(
+        tmp_path,
+        store,
+        batch="n0002",
+        lemma_ids=ids,
+        guide_path=guide,
+        gold_per_batch=0,
+        shadow=True,
+    )
+    assert {i.lemma_id for i in again} == set(ids)
 
 
 def test_agreement_counts_twin_concepts_apart(tmp_path: Path) -> None:
