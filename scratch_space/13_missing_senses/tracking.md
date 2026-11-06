@@ -140,3 +140,7 @@ Append-only. Newest at the bottom.
   reviewer changes, after 50 (5.0%) once the 74 pin-defect changes are set aside; 154/157
   first-review changes kept. Phase 3 closed; the still-wrong cards and their reasons are in
   `03_recount.md`.
+- 2026-11-06 : the 33 pt gloss gaps closed without the paid job (user's call): 32 glosses
+  hand-written into `gloss_backfill.jsonl` (the build tags them `llm`, as the file carries no
+  author field), and the 33rd was a wrong OMW link, pt *próximo a* on the Lao coin "at",
+  dropped. Rebuild and gate PASS; pt gloss coverage 100.0%; 8010 restarted.
