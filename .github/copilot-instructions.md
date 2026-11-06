@@ -77,7 +77,8 @@ The narrative for each layer is in `docs/library/`. Params follow the config / p
 - **`data/` is gitignored and stored through git LFS.** The seed (`bootstrap/`), the curated inputs
   and the review batches are committed with `git add -f`; the built corpus (`lexicon/`) stays local.
 - **Latest row wins** for look-alikes (per pair; a later `unrelated` row retracts an edge), for
-  sense drops (per sense; a later `drop: false` row restores it) and for best-sense pins (per
+  sense drops (per sense; a later `drop: false` row restores it), for sense additions (per
+  lemma and concept; a later `add: false` row retracts one) and for best-sense pins (per
   lemma). Reviews follow `.claude/skills/lookalike-review/` and `.claude/skills/sense-review/`,
   with the rulebooks `docs/guides/lookalike_review.md` and `docs/guides/sense_review.md`, whose
   hash is stored on every row: change them deliberately.

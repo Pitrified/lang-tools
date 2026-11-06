@@ -64,6 +64,9 @@ class LemmaCard(BaseModel):
         concept_id: Concept of the best sense (None for a lemma with no sense).
         cefr_level: Estimated CEFR band of the best sense.
         sense_frequency: Frequency of the best sense (Zipf-like scale).
+        form_note: Which form of the word the sense is, when the lemma is an
+            inflected form linked to its base word's concept (pt *são* on "be":
+            ``3rd person plural present of "ser": they are``); None otherwise.
         gloss: Definition of the best concept in the query's gloss language.
         translations: Language -> lemma texts realising the same concept, most
             frequent first, except that a word comes before a symbol (a digit,
@@ -81,6 +84,7 @@ class LemmaCard(BaseModel):
     concept_id: str | None = None
     cefr_level: str | None = None
     sense_frequency: float | None = None
+    form_note: str | None = None
     gloss: str | None = None
     translations: dict[str, list[str]] = Field(default_factory=dict)
     examples: list[str] = Field(default_factory=list)

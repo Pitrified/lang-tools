@@ -1,5 +1,5 @@
 ---
-status: planned
+status: done
 ---
 
 # Phase 1 - tooling
@@ -33,15 +33,29 @@ build stage, the extended review harness, and the rules. Context: [`00_start.md`
 
 ## Plan
 
-- Review this plan against the code first: where provenance tags go (`lemma_sources`,
-  `sense_sources`) and which tag an addition gets; whether every gate invariant holds for a
-  sense with no OMW source; how `apply_batch` writes the pin for an added sense, whose sense id
-  only exists after the build.
+Plan review against the code (2026-11-06), folded in:
+
+- `serve_batch` skips every lemma with a `BestSense` row, and all 1,060 items have one. The
+  review needs a `recheck` mode, as for the look-alikes: serve chosen lemma ids whose latest
+  `BestSense` row was not written under the current rulebook.
+- The second review (Q8) must not write curated rows, or it would override the first: a shadow
+  apply validates the labels and keeps the outcome per lemma (card concept, drops, additions)
+  under the work folder; `agreement` compares two batches' outcomes.
+- Removed lemmas are not in the store: their item is built from their drop rows (the dropped
+  concept keys with the concepts' glosses). `k` keeps them removed, `a` brings them back.
+- Pins key on (lemma id, concept key), not on a sense id, so pinning an added sense needs nothing
+  new.
+- Provenance: added lemmas and senses take `SOURCE_MANUAL` (`ingestion.transform`). The stage
+  runs before `enrich`, so frequency, CEFR and their flags are filled as for any sense and the
+  frequency and CEFR invariants hold.
+- A new lemma's part of speech comes from its concept's lexfile (`noun.quantity` -> noun).
+- `form_note` follows the path `is_best` took: `Sense`, the codec schema, `CACHE_VERSION` 10,
+  the `lemma_drill` table and both card queries, `LemmaCard`.
 - Refuse an addition on a closed-class word with a named error (it would re-add what the rule
   just dropped).
-- Tests: the stage (new lemma, existing lemma, retraction, stale), the new label action and its
-  validation (unknown concept key), removed-lemma items, the second review and agreement, both
-  commands.
+- Tests: the stage (new lemma, existing lemma, retraction, stale, closed-class refusal), the new
+  label action and its validation, removed-lemma items, recheck, shadow apply and agreement,
+  both commands, `form_note` on the card.
 
 ## Out of scope
 
@@ -53,3 +67,19 @@ build stage, the extended review harness, and the rules. Context: [`00_start.md`
   sense and the form note on its card; docs build strict.
 
 ## What the implementation found
+
+- Built as planned: `ingestion.sense_additions` (row, loader, stage right after the drops),
+  `Sense.form_note` to `LemmaCard.form_note` (cache v10), `LexiconStore.get_concept_by_key`,
+  and in `sense_review` the `aKEY` action with a `{form note}`, removed-lemma items,
+  `recheck_batch` (with `shadow`), `agreement`, `add_sense`, `find_concepts`. Rulebook, skill,
+  `docs/guides/missing_senses.md`, `lexicon.md`, `frozen_api.md`, `rebuild_corpus.md` updated.
+  `make check` green (433), docs build strict.
+- Added beyond the plan: a `drop` hand correction. The rulebook has the reviewer write fixes that
+  are not about the item in hand (a wrong member of a looked-up concept, a capitalised name to
+  link) to a notes file, which the orchestrating session checks and applies with `drop` and
+  `add`; without `drop` there was no way to apply the first kind.
+- Not done: hidden gold for the new action (goal 4). The gold set has no item whose right card
+  is a concept the lemma lacks, and the clear candidates (*sim*, *vinte*, *seis*) are worklist
+  items; a gold lemma leaves the worklist. Moved to phase 2 as a step.
+- On the real corpus `removed_lemmas` finds 64 pt lemmas: the 60 the review removed and 4 gold
+  lemmas dropped the same way. The rulebook change makes all 1,064 servable by `recheck`.

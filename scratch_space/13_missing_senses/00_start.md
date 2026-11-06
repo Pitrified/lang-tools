@@ -1,5 +1,5 @@
 ---
-status: planned
+status: in progress
 priority: 0
 description: |
   Add the concept links the corpus is missing for frequent words, so their cards teach the

@@ -36,6 +36,8 @@ from lang_tools.lexicon.ingestion.lookalikes import drop_rare_traps
 from lang_tools.lexicon.ingestion.lookalikes import load_lookalikes
 from lang_tools.lexicon.ingestion.sample import DEFAULT_SAMPLE_CONCEPTS
 from lang_tools.lexicon.ingestion.sample import carve_sample
+from lang_tools.lexicon.ingestion.sense_additions import apply_sense_additions
+from lang_tools.lexicon.ingestion.sense_additions import load_sense_additions
 from lang_tools.lexicon.ingestion.slug_qualifiers import load_slug_qualifiers
 from lang_tools.lexicon.ingestion.sources.cili import load_cili_glosses
 from lang_tools.lexicon.ingestion.sources.frequency import lemma_zipf
@@ -285,6 +287,13 @@ def build_initial(
     closed_dropped, closed_removed = apply_form_drops(
         tables, closed_class_drops(tables)
     )
+    # Reviewed sense additions link a lemma to a concept the sources missed, and
+    # create a lemma the drops removed; after the drops, so an addition wins over
+    # a drop of the same link, and before enrichment, so the new senses get their
+    # frequency and band like any other.
+    senses_added, lemmas_created, additions_stale = apply_sense_additions(
+        tables, load_sense_additions(data_fol)
+    )
     # Curated gloss repairs are re-applied here so a rebuild reproduces them; a
     # post-hoc Parquet edit would be silently reverted by this very build (05.58).
     applied, stale = apply_gloss_overrides(
@@ -357,6 +366,11 @@ def build_initial(
         "closed_class": {
             "senses_dropped": closed_dropped,
             "lemmas_removed": closed_removed,
+        },
+        "sense_additions": {
+            "senses_added": senses_added,
+            "lemmas_created": lemmas_created,
+            "stale": additions_stale,
         },
         "gloss_backfill": {"filled": backfilled},
         "example_sentences": {"added": examples_added},

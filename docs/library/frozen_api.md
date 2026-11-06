@@ -36,7 +36,9 @@ over HTTP in its default `http` mode.
   lemma <-> concept edge hosting per-sense frequency / CEFR). `Sense.is_best`
   (default `False`) marks a reviewed best-sense pin, which the card's best-sense
   pick takes first; the field is new, so a reader of an older corpus sees it
-  unset.
+  unset. `Sense.form_note` (default `None`, since v0.4.0) says which form of the
+  word the sense is when an inflected form is linked to its base word's concept
+  (pt *são* on "be": `3rd person plural present of "ser": they are`).
 - `LookalikeRelation` (with `kind` = `full` / `partial` / `cognate` and
   `FALSE_FRIEND_KINDS`), `ConceptRelation`, `SenseRelation` - decoupled relation
   edge tables. `get_lookalikes_for_lemma` returns every kind (filterable by
@@ -61,8 +63,10 @@ over HTTP in its default `http` mode.
   card per sense for a detail page). This is what `lang-tutor` builds exercise
   rounds from (`GET /api/v1/cards` over HTTP). Since phase 11 a card also carries
   `lookalikes` (`LookalikeHint`) toward the query's `known_languages`, and
-  `CardQuery.lookalike` filters for traps, cognates, or neither.
-- `get_all_concepts`, `get_concept_by_id`, `concepts_for_lemma`,
+  `CardQuery.lookalike` filters for traps, cognates, or neither. Since v0.4.0 a
+  card carries the best sense's `form_note` (`None` for most cards).
+- `get_all_concepts`, `get_concept_by_id`, `get_concept_by_key` (by the
+  slug-free `concept_key`, since v0.4.0), `concepts_for_lemma`,
   `lemmas_for_concept`, `senses_for_lemma`, `senses_for_concept`,
   `get_false_friends_for_lemma`, `concept_relations_for`, `sense_relations_for` -
   concept/sense/edge read helpers.

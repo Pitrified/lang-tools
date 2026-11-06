@@ -108,8 +108,10 @@ patched into the Parquet post hoc, which is why every curated input keys on
 A `Sense` is the explicit `lemma_id <-> concept_id` edge and the canonical
 membership record. It also hosts the per-sense signals that must not live on the
 token - `token_frequency`, `sense_frequency`, and `cefr_level` (with their
-`*_is_estimated` flags) - and `is_best`, set when a review pinned this sense as
-the lemma's best one (see the curated inputs below). The "bank" polysemy trap is
+`*_is_estimated` flags) - `is_best`, set when a review pinned this sense as
+the lemma's best one, and `form_note`, set when an inflected form is linked to
+its base word's concept (pt *são* on "be", "they are"; see the curated inputs
+below). The "bank" polysemy trap is
 the rationale: one lemma's two meanings differ in frequency and difficulty, so
 those values belong on the sense. The id is computed from the endpoint pair.
 
@@ -227,6 +229,9 @@ never persisted:
   That is the sense a review pinned (`Sense.is_best`), else the highest
   `sense_frequency`, ties going to the more common concept
   (`Concept.commonness`), then the easier band.
+- `form_note`: the best sense's form note, when the lemma is an inflected form
+  linked to its base word's concept (pt *são*: `3rd person plural present of
+  "ser": they are`); `None` otherwise.
 - `gloss`: the best concept's definition in the requested gloss language.
 - `translations`: language -> the concept's other lemmas, most frequent first,
   except that a word comes before a symbol (a digit, one letter, or a Roman
@@ -474,6 +479,7 @@ cause. `maintenance` holds the shared pieces (`ReviewStatus`, `write_jsonl` /
 | `member_form_drops.jsonl` | `form_review` chain; card-sense review | human; the reviewing agent, under a rulebook | `apply_form_drops` |
 | `gloss_backfill.jsonl` | `gloss_translate` chain | sampled human review | `apply_gloss_backfill` |
 | `best_senses.jsonl` | card-sense review | the reviewing agent, under a rulebook | `apply_best_senses` |
+| `sense_additions.jsonl` | card-sense review | the reviewing agent, under a rulebook | `apply_sense_additions` |
 
 Each job has a thin notebook under `notebooks/lexicon_maintain/` (`gloss_repair`,
 `slug_qualifiers`, `form_review`, `gloss_backfill`). The jobs run through
@@ -506,21 +512,45 @@ picks, and a common concept the lemma reaches only through a rare reading wins (
 no concept retracts an earlier pin. The build sets `Sense.is_best` after every drop,
 and the manifest records the pins applied and the stale rows under `best_senses`.
 
+The sense additions (`ingestion.sense_additions`) fix the third way: the word's everyday
+meaning is not linked at all (pt *sim* has only "yea", *aí* only "yonder"), or every link
+was wrong and the review removed the word (pt *vinte*). A `SenseAddition` row names the
+lemma, its text, and the `concept_key` to link; only the latest row of a (lemma, concept)
+pair counts, and an `add: false` row retracts it. The stage runs right after the drops, so
+an addition wins over a drop of the same link, and before enrichment, so the new sense gets
+its frequency and band like any other. A lemma the build lacks is created, with the
+concept's part of speech, so a removed word comes back with its look-alikes. Added lemmas
+and senses carry the `manual` provenance tag. A row may carry a `form_note` for an
+inflected form, which the card shows. The manifest records the senses added, the lemmas
+created and the stale rows (a concept the build lacks, or a word that does not give the
+row's `lemma_id`) under `sense_additions`. A closed-class word never takes an addition.
+
 The pins and the wrong links of the most frequent cards come from the card-sense review
 (`ingestion.sense_review`, command line `sense_review_cli`), run by agents through the
 same batch harness as the look-alike review (`ingestion.review_batches`: the work-folder
 lock, the row append, the rulebook hash). The worklist is the top 1,000 single-word cards
 of a language in the cards' frequency order. Each served item shows a word with every
 sense in the card's pick order, and the reviewer keeps the card, pins another sense, drops
-the links the word never means (pt *seja* "are", the unit: a form of *ser*), or drops
-them all, which removes the lemma. Every reviewed lemma gets a `BestSense` row (no concept
-when the card stays), and every dropped sense a `FormDrop` row of kind `wrong link`, so
-both reach the build as curated inputs. Hidden gold lemmas score the card each label
-leads to. The rules are in [Reviewing card senses](../guides/sense_review.md). A wrong
-verdict is corrected by hand with a later row, since only the latest row of a sense
-counts in `member_form_drops.jsonl` (`load_form_drops`) and the latest of a lemma in
-`best_senses.jsonl`: `sense_review_cli restore` writes a `drop: false` row that brings a
-dropped sense back, with its lemma, and `sense_review_cli pin` pins another sense.
+the links the word never means (pt *seja* "are", the unit: a form of *ser*), drops
+them all, which removes the lemma, or adds the missing meaning by its concept key (found
+with `sense_review_cli concepts`). Every reviewed lemma gets a `BestSense` row (no concept
+when the card stays), every dropped sense a `FormDrop` row of kind `wrong link`, and every
+added link a `SenseAddition` row whose sense the `BestSense` row pins, so all reach the
+build as curated inputs. Hidden gold lemmas score the card each label leads to. The rules
+are in [Reviewing card senses](../guides/sense_review.md).
+
+A lemma already reviewed is served again by `recheck`, which picks listed lemmas whose
+latest `BestSense` row predates the current rulebook; `worklist-removed` first appends the
+lemmas a review removed, which are served with the links it dropped. A second review of the
+same lemmas (`recheck --shadow`, applied with `--shadow`) writes no curated row, only each
+item's outcome to `sense_review_shadow_log.jsonl`, and `agreement` compares it with the
+first review: how often two reviewers reach the same card, drops and addition under the
+same rules. The method is in [Missing senses](../guides/missing_senses.md).
+
+A wrong verdict is corrected by hand with a later row, since only the latest row counts in
+each file: `sense_review_cli restore` writes a `drop: false` row that brings a dropped sense
+back, with its lemma, `pin` pins another sense, `add` links and pins a missing meaning, and
+`drop` drops a wrong link met outside a batch.
 
 ## Ingestion
 
@@ -602,8 +632,8 @@ sources (OMW via wn, CILI gloss map, wordfreq)
 - **`enrich`** is the pure phase-6 core; see
   [Frequency and complexity](#frequency-and-complexity-phase-6).
 - **`build_initial`** wires it together: transform (with the slug qualifiers),
-  apply the member-form and closed-class drops, the gloss overrides, the gloss
-  backfill and the example sentences, enrich, tag the topics, apply the
+  apply the member-form and closed-class drops, the sense additions, the gloss
+  overrides, the gloss backfill and the example sentences, enrich, tag the topics, apply the
   look-alikes and the best-sense pins, write each table through the codec with its
   tags, write the manifest, then carve and (optionally) write a sample slice. Thin
   notebooks under `notebooks/lexicon_ingest/` drive it.

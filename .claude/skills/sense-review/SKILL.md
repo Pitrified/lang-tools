@@ -1,6 +1,6 @@
 ---
 name: sense-review
-description: Review one batch of the most frequent drill cards (pt first) for the lang-tools lexicon, keeping each card, pinning the right sense, or dropping the concept links the word never means, and apply the labels. Use when asked to review card-sense batches, or when an orchestrating session hands you a sense batch id (s0001, ...).
+description: Review one batch of the most frequent drill cards (pt first) for the lang-tools lexicon, keeping each card, pinning the right sense, dropping the concept links the word never means, or adding the meaning it lacks, and apply the labels. Use when asked to review card-sense batches, or when an orchestrating session hands you a sense batch id (s0001, m0001, n0001, ...).
 ---
 
 # Card-sense review: one batch
@@ -21,19 +21,29 @@ SAMPLE_API_KEY=placeholder-not-a-secret uv run --no-sync python -m lang_tools.le
    the hard cases, the reasons, edge cases and the label format.
 2. **Get the batch:** `CLI serve --batch <id>` (the id you were given, for example `s0003`).
    Serving an id that is already reserved prints the same batch again, so it is safe to repeat.
+   An orchestrator that served a re-check or a second review for you (ids `m...`, `n...`) says so;
+   the batch is then already reserved, and the orchestrator gives you its lines or the command.
    Each item is a line `n language word (part of speech)`, then one indented line per sense,
-   `k gloss [translations]`. Sense 1 is the card's meaning today.
+   `k gloss [translations]`. Sense 1 is the card's meaning today. An item marked `REMOVED` lists
+   the links an earlier review dropped.
 3. **Label every item.** Most cards are right (`k`); decide those quickly. Spend your thought on
-   words that are also a frequent verb form or plural, and on words whose sense 1 is a rare
-   reading. Write a reason on every `d` and `x`. Mark genuine judgement calls with `!`.
+   words that are also a frequent verb form or plural, on words whose sense 1 is a rare reading,
+   and on words whose everyday meaning is missing: look that meaning up with
+   `CLI concepts --word <english word> --language <lang>` and add it with `aKEY`. Write a reason
+   on every `d`, `x` and `a`, and a form note in braces on an inflected form. Mark genuine
+   judgement calls with `!`. Write the fixes that are not about the item in hand (a wrong member
+   of a concept you looked up, a capitalised name to link) to
+   `data/work/sense_review/<id>.notes.txt`.
 4. **Write the labels** to `data/work/sense_review/<id>.labels.txt`, one line per item, in the
    label format.
-5. **Apply:** `CLI apply --batch <id> --labels data/work/sense_review/<id>.labels.txt`. If it
-   prints `NOT APPLIED`, fix every listed problem in the labels file and run it again. Never edit
+5. **Apply:** `CLI apply --batch <id> --labels data/work/sense_review/<id>.labels.txt`, adding
+   `--shadow` when the orchestrator said the batch is a second review. If it prints
+   `NOT APPLIED`, fix every listed problem in the labels file and run it again. Never edit
    `data/curated/` files by hand.
 6. **Report** in at most four lines: the batch id, the counts (kept, pinned, dropped senses,
-   dropped lemmas), the gold agreement (`gold_agree` out of `gold_keys`), the number of edge
-   cases, and any problem worth a human look. Do not paste the labels.
+   dropped lemmas, added), the gold agreement (`gold_agree` out of `gold_keys`), the number of
+   edge cases, whether you wrote a notes file, and any problem worth a human look. Do not paste
+   the labels.
 
 ## Orchestrating several batches
 
@@ -50,7 +60,19 @@ A session that runs many batches keeps its own context small by handing each bat
   `data/curated/sense_review_log.jsonl`, then commit `data/curated/best_senses.jsonl`,
   `data/curated/member_form_drops.jsonl`, the log and the label files under
   `data/work/sense_review/` (under Git LFS; add them with `git add -f`), and rebuild the corpus.
+- A re-check of reviewed words under new rules: write their lemma ids, one per line, to a keys
+  file, and serve them with `CLI recheck --batch m0001 --keys keys.txt`; successive ids walk the
+  list. `CLI worklist-removed --language pt` first appends the words an earlier review removed.
+- A second review, to measure agreement: `CLI recheck --batch n0001 --keys keys.txt --shadow`,
+  handed to a different subagent that never sees the first labels, applied with `--shadow` (it
+  writes no curated row); then `CLI agreement --first m0001 ... --second n0001 ...`.
+- Read every notes file, check each line, and apply it with `CLI drop` (a wrong member) or
+  `CLI add` (a capitalised name); then commit `data/curated/sense_additions.jsonl` and the
+  second-review log `data/curated/sense_review_shadow_log.jsonl` with the other files.
 - A wrong verdict found later is corrected by hand, never by a subagent and never by editing the
   files: `CLI restore --language pt --word <w> --reason "<why>"` retracts the word's drops
   (`--keys` to name some), `CLI pin --language pt --word <w> --key <concept key>` pins another
-  sense. Both write a later row; the latest row wins.
+  sense, `CLI add --language pt --word <w> --key <concept key> --reason "<why>"` links and pins a
+  missing meaning (`--form-note` for an inflected form), and
+  `CLI drop --language pt --word <w> --key <concept key> --reason "<why>"` drops a wrong link.
+  Each writes a later row; the latest row wins.

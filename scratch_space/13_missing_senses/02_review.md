@@ -14,7 +14,11 @@ Context: [`00_start.md`](00_start.md), "Measurement", Q2 note, Q8. Depends on
 ## Plan
 
 - Worklist: the 1,000 cards `12_card_senses` reviewed (same ids, so the counts compare) plus
-  the 60 removed lemmas; batches of 200, ids reserved up front, one subagent per batch.
+  the 64 removed lemmas (60 from the review, 4 gold); batches of 200, ids reserved up front,
+  one subagent per batch.
+- Gold for the new action (from phase 1): the gold set has no item whose right card is a missing
+  concept. Pick a few unambiguous ones outside the reviewed 1,064 (a number word or a plain noun
+  just below the top 1,000), write them to the gold file before the first batch.
 - Measure the cost on the first batch and report it before the rest.
 - First review `m0001` to `m0006`. Tally the causes from the labels and their reasons, not from
   a list fixed up front.

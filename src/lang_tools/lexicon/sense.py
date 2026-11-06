@@ -50,6 +50,10 @@ class Sense(BaseModel):
         is_best: True when a review pinned this sense as the lemma's best one
             (`ingestion.best_senses`); the card's best-sense pick takes it
             before frequency. At most one sense per lemma carries it.
+        form_note: Which form of the word this sense is, when the lemma is an
+            inflected form linked to its base word's concept (pt *são* on "be":
+            ``3rd person plural present of "ser": they are``). Set by a curated
+            sense addition (`ingestion.sense_additions`); ``None`` otherwise.
         lemma: Resolved lemma endpoint. Store-hydrated, never persisted
             (``exclude=True``); ``None`` until hydration. Read via
             `resolve_lemma` to fail loud when unhydrated.
@@ -64,6 +68,7 @@ class Sense(BaseModel):
     cefr_level: str | None = None
     cefr_is_estimated: bool = False
     is_best: bool = False
+    form_note: str | None = None
 
     # Representation-layer back-references; populated by the store at hydration,
     # excluded from serialization so the persisted shape stays thin and stable.

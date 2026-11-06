@@ -20,7 +20,7 @@ before and after on the pt top 1,000 cards. Analysis and decisions in
 
 | #  | Phase                 | Plan                               | Status  |
 | -- | --------------------- | ---------------------------------- | ------- |
-| 1  | Tooling               | [`01_tooling.md`](01_tooling.md)   | planned |
+| 1  | Tooling               | [`01_tooling.md`](01_tooling.md)   | done    |
 | 2  | Agent review          | [`02_review.md`](02_review.md)     | draft   |
 | 3  | Rebuild and re-count  | [`03_recount.md`](03_recount.md)   | draft   |
 | 4  | Release v0.4.0        | [`04_release.md`](04_release.md)   | draft   |
@@ -48,3 +48,12 @@ Append-only. Newest at the bottom.
   agreement never measured. Recommended one agent plus a blind second review of 500 items.
 - 2026-11-06 : Q8 a. All questions answered; meta-experiments on the review method are welcome
   (the phase 2 measurement is the first). Phase 1 planned, phases 2 to 4 draft.
+- 2026-11-06 : phase 1 started. Plan review against the code: serve skips reviewed lemmas
+  (needs a recheck mode); the second review needs a shadow apply; removed lemmas need items built
+  from their drops; pins key on concept keys (no change); provenance `SOURCE_MANUAL`; POS from
+  the lexfile; `form_note` along the `is_best` path. Folded into `01_tooling.md`.
+- 2026-11-06 : phase 1 done. Sense additions input and stage, `form_note` to the card, the `a`
+  action, removed-lemma items, recheck and shadow second review, `agreement`, hand `add` and
+  `drop`, `concepts` lookup; rulebook, skill, how-to guide and library docs. `make check` green
+  (433), docs strict. Hidden gold for the `a` action moved to phase 2. 64 removed pt lemmas on
+  the real corpus (60 from the review, 4 gold).
