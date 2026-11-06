@@ -195,3 +195,35 @@ later rows carry the newer `prompt_sha`.
     later if budget is left.
   - ANS: b. Phase 4 reviews tiers C and D, filtered to known words of Zipf 3.3 or more, by
     agents; tier E stops here and can be reopened later.
+- Q9: The `r0011` step of phase 4 (`04_tiers_c_to_e.md`) cannot run as written. Mining the
+  latest rows finds 168 full or partial traps with a terse note (169 counting a superseded row),
+  and every one is a hand-written row of the gold set (`batch` gold, `model` manual), not an
+  older agent row; all agent trap notes already use the `pt "..."` form. None of the 168 keys is
+  on the review worklist (the gold pairs were written by hand, not drawn from the candidates;
+  19 have the same two words on the worklist under other lemma ids), and `recheck` only serves
+  worklist keys, so `r0011` would serve nothing.
+  - a. Let `recheck` also serve keys that have a curated row but are off the worklist, building
+    the item from that row; then serve the 168 keys as `r0011` (one batch of 200 with gold
+    mixed in) and apply as usual. An agent may change a hand label as well as its note, under
+    the rulebook. The gold file used to score agreement is not touched. A small code change
+    with a test.
+  - b. Notes only: an agent rewrites the 168 notes keeping each kind, appended as `manual`
+    `correction` rows. No code change, but the rows bypass the batch checks.
+  - c. Leave the gold notes terse and drop the `r0011` step.
+  - Recommended: a, because it reuses the reviewed path (checks, log, rulebook hash) and the
+    one reviewer pass also catches a wrong hand label.
+  - ANS: a. `recheck` serves curated pairs off the worklist too; the 168 keys go out as
+    `r0011`.
+- Q10: `r0011` changed the kind of 42 of the 168 hand-written gold traps it re-checked (logged
+  in `tracking.md`, 2026-11-06). The corpus takes the new rows, but the gold file
+  `data/curated/lookalike_gold.jsonl` still scores agreement on
+  the old labels, so when one of those 42 pairs is mixed into a later C or D batch as hidden
+  gold, an agent that agrees with `r0011` is counted as a miss.
+  - a. Leave the gold file as written; read gold misses on these 42 pairs as noise.
+  - b. Take these 42 pairs out of the hidden gold pool (a skip list in `_write_batch`).
+  - c. Update the gold file to the `r0011` labels after a human look at the 42 changes.
+  - Recommended: b, because the gold set should only hold labels nobody disputes, and the
+    535 gold pairs are still unused, against about 380 that the 76 C and D batches would draw
+    at 5 a batch (fewer than 535 once the 42 are out, but still enough).
+  - ANS: b. The pool skips a gold pair whose latest row is a review row of another kind,
+    derived from the rows rather than a hand list; it excludes these 42.

@@ -400,29 +400,46 @@ def _write_batch(
     store: LexiconStore,
     *,
     batch: str,
-    picked: Sequence[WorkItem],
+    picked: Sequence[WorkItem | LookalikeProposal],
     gold_per_batch: int,
 ) -> list[BatchItem]:
     """Mix hidden gold into ``picked``, shuffle, and write the batch file.
 
-    Must run under `review_batches.locked`.
+    A picked `LookalikeProposal` is a re-checked pair off the worklist (a gold
+    pair); it gets no rank. A gold pair whose re-check changed its kind is
+    disputed and no longer mixed in as hidden gold. Must run under
+    `review_batches.locked`.
     """
     pending = _pending(data_fol)
     rng = random.Random(batch)  # noqa: S311 - a reproducible shuffle, not crypto
+    picked_keys = {f"{it.target_id}:{it.known_id}" for it in picked}
     used_gold = {key for row in _log_rows(data_fol) for key in row.gold_keys} | {
         item.key for items in pending.values() for item in items if item.gold_kind
     }
+    path = curated_path(data_fol, LOOKALIKES_FILE)
+    latest = {
+        f"{row.target_id}:{row.known_id}": row
+        for row in (read_jsonl(LookalikeProposal, path) if path.exists() else [])
+    }
+
+    def disputed(pair: GoldPair) -> bool:
+        row = latest.get(gold_key(pair))
+        expected = "unrelated" if pair.kind == "noise" else pair.kind
+        return row is not None and row.batch != "gold" and row.kind != expected
+
     gold_pool = [
-        pair for pair in load_gold(data_fol) if gold_key(pair) not in used_gold
+        pair
+        for pair in load_gold(data_fol)
+        if gold_key(pair) not in used_gold | picked_keys and not disputed(pair)
     ]
     gold = rng.sample(gold_pool, min(gold_per_batch, len(gold_pool)))
     entries: list[tuple[str, str, str, str, int | None, str | None, float | None]] = [
         (
-            it.key,
+            f"{it.target_id}:{it.known_id}",
             it.target_text,
             it.known_text,
             it.known_language,
-            it.rank,
+            it.rank if isinstance(it, WorkItem) else None,
             None,
             it.similarity,
         )
@@ -468,9 +485,10 @@ def recheck_batch(
     """Serve already reviewed pairs again, for a re-check under the current guide.
 
     Picks the next ``size`` of ``keys`` (``{target_id}:{known_id}``) that are on
-    the worklist, not pending, and whose latest review row was not written
-    under the current guide. `apply_batch` then appends new rows, and the
-    corpus build keeps the later row of a pair.
+    the worklist or have a curated row (the gold pairs stay off the worklist),
+    are not pending, and whose latest review row was not written under the
+    current guide. `apply_batch` then appends new rows, and the corpus build
+    keeps the later row of a pair.
 
     Args:
         data_fol: Project data folder.
@@ -494,15 +512,17 @@ def recheck_batch(
         sha = guide_sha(guide_path)
         path = curated_path(data_fol, LOOKALIKES_FILE)
         latest = {
-            f"{row.target_id}:{row.known_id}": row.prompt_sha
+            f"{row.target_id}:{row.known_id}": row
             for row in (read_jsonl(LookalikeProposal, path) if path.exists() else [])
         }
         busy = {item.key for items in pending.values() for item in items}
         by_key = {item.key: item for item in load_worklist(data_fol)}
         picked = [
-            by_key[key]
+            by_key.get(key) or latest[key]
             for key in keys
-            if key in by_key and key not in busy and latest.get(key) != sha
+            if (key in by_key or key in latest)
+            and key not in busy
+            and (key not in latest or latest[key].prompt_sha != sha)
         ][:size]
         if not picked:
             return []

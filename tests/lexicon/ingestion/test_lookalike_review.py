@@ -239,6 +239,43 @@ def test_recheck_serves_reviewed_pairs_until_under_the_current_guide(
     assert frozenset(keys[2].split(":")) not in pairs
 
 
+def test_recheck_serves_a_gold_pair_off_the_worklist_and_retires_it_if_relabelled(
+    tmp_path: Path,
+) -> None:
+    _setup(tmp_path)
+    import_gold(tmp_path)
+    guide = tmp_path / "guide.md"
+    guide.write_text("rules")
+
+    items = recheck_batch(
+        tmp_path,
+        _store(),
+        batch="r1",
+        keys=["g0:h0", "nowhere:none"],
+        guide_path=guide,
+        gold_per_batch=3,
+    )
+    served = [i for i in items if i.gold_kind is None]
+    assert [(i.key, i.rank) for i in served] == [("g0:h0", None)]
+    # the re-checked pair is not mixed in again as hidden gold
+    assert sorted(i.key for i in items if i.gold_kind) == ["g1:h1", "g2:h2"]
+    labels = "\n".join(
+        f'{i.n} p pt "g0" means x; en "h0" is y' if i.gold_kind is None else f"{i.n} u"
+        for i in items
+    )
+    log = apply_batch(tmp_path, "r1", labels, guide_path=guide)
+    assert (log.items, log.gold_agree) == (1, 2)
+    latest = {f"{r.target_id}:{r.known_id}": r for r in load_lookalikes(tmp_path)}
+    assert latest["g0:h0"].batch == "r1"
+    assert latest["g0:h0"].note.startswith('pt "g0"')
+    assert not recheck_batch(
+        tmp_path, _store(), batch="r2", keys=["g0:h0"], guide_path=guide
+    )
+    # g0 is gold `full` but now reviewed `partial`: disputed, so never hidden gold again
+    served = serve_batch(tmp_path, _store(), batch="a1", size=1, gold_per_batch=3)
+    assert not [i for i in served if i.gold_kind]
+
+
 def test_bad_labels_write_nothing_and_gold_misses_are_logged(tmp_path: Path) -> None:
     _setup(tmp_path)
     items = serve_batch(tmp_path, _store(), batch="b1", size=3, gold_per_batch=2)

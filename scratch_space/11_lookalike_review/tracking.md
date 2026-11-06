@@ -23,7 +23,7 @@ decisions in [`00_start.md`](00_start.md).
 | 1  | Tier A        | [`01_tier_a.md`](01_tier_a.md)               | done        |
 | 2  | Tier B        | [`02_tier_b.md`](02_tier_b.md)               | done        |
 | 3  | Tier depth    | [`03_tier_depth.md`](03_tier_depth.md)       | done        |
-| 4  | Tiers C to E  | [`04_tiers_c_to_e.md`](04_tiers_c_to_e.md)   | planned     |
+| 4  | Tiers C to E  | [`04_tiers_c_to_e.md`](04_tiers_c_to_e.md)   | in progress |
 | 5  | Close-out     | [`05_closeout.md`](05_closeout.md)           | draft       |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
@@ -115,3 +115,17 @@ Append-only. Newest at the bottom. The entries up to the spin-off are reconstruc
   batch `a0001`), since `12_card_senses` pinned the *era* card to the noun "era" and a `full`
   label made en *era* its own pair-matching decoy. Recheck `r0001` had moved it to `full` on
   the frequent reading "was". Rebuilt, gate PASS.
+- 2026-11-06 : phase 4 started, with the `r0011` step only (the user's scope; C and D wait).
+  Plan review: the 168 terse trap notes are all hand-written gold rows off the worklist, which
+  `recheck` cannot serve. Nothing served; raised as `00_start.md` Q9.
+- 2026-11-06 : Q9 a: `recheck` serves curated pairs off the worklist (the gold pairs), with a
+  test; `make check` green (422). `r0011` served the 168 terse gold traps (+5 hidden gold) to one
+  agent: 85 full, 60 partial, 19 unrelated, 4 cognate; gold 5/5; 12 edge cases; every trap note
+  now in the `pt "..."` form. 42 of the 168 hand labels changed kind: 14 full and 5 partial to
+  unrelated (rare or distinct known words: pt *compositor* / en *compositor*, it *censo*,
+  it *anello*), 12 full to partial (pt *realizar*, *balcão*, *colégio*, *pasta*), 7 partial to
+  full (pt *testa* / it *testa*, *conto*, *maioridade*), 4 partial to cognate. The gold file
+  that scores agreement still holds the old labels. Not yet rebuilt.
+- 2026-11-06 : Q10 b: `_write_batch` leaves disputed gold pairs (latest row a review row of
+  another kind) out of the hidden gold pool; 42 excluded on the real data; test extended,
+  `make check` green (422).

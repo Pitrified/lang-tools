@@ -773,9 +773,11 @@ stages:
      common target words first, then likely traps, then the rest by frequency.
      Agents label them in batches of 100 to 200 against the rulebook in
      [Reviewing look-alike pairs](../guides/lookalike_review.md). Hidden gold
-     pairs in every batch measure their agreement. Every row stores the
+     pairs in every batch measure their agreement; a gold pair that a re-check
+     relabels leaves that pool. Every row stores the
      rulebook's hash (`prompt_sha`), so after a rule change `recheck` serves
-     chosen older rows again under the current rules. Tiers A and B (5,499
+     chosen older rows again under the current rules, the hand-written gold
+     rows included. Tiers A and B (5,499
      and 6,701 pairs) are reviewed; tiers C to E are not.
    - **LLM verifier**, parked. The `llm.lookalike_verify` chain classifies each
      candidate and writes the note. `is_trap` keeps a false-friend verdict only

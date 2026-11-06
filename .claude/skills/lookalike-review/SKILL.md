@@ -50,7 +50,8 @@ A session that runs many batches keeps its own context small by handing each bat
 
 ## Re-checking pairs after a rule change
 
-When the guide changes, older rows keep their old `prompt_sha`. To re-check a chosen set of them,
+When the guide changes, older rows keep their old `prompt_sha`, and the hand-written gold rows have none.
+To re-check a chosen set of them (gold pairs included, though they are off the worklist),
 write their keys (`{target_id}:{known_id}`, one per line) to a file and serve them with
 `CLI recheck --batch r0001 --keys keys.txt --size 200`, then label and apply as usual. `recheck`
 skips keys that are pending or already have a row under the current guide, so successive ids
