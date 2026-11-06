@@ -23,7 +23,7 @@ before and after on the pt top 1,000 cards. Analysis and decisions in
 | 1  | Tooling               | [`01_tooling.md`](01_tooling.md)   | done    |
 | 2  | Agent review          | [`02_review.md`](02_review.md)     | done    |
 | 3  | Rebuild and re-count  | [`03_recount.md`](03_recount.md)   | done    |
-| 4  | Release v0.4.0        | [`04_release.md`](04_release.md)   | draft   |
+| 4  | Release v0.4.0        | [`04_release.md`](04_release.md)   | in progress |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
 
