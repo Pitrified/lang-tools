@@ -198,3 +198,53 @@ and the cards a learner meets first):
     meta-experiments to tune it (what a second reviewer catches, which rules disagree, how
     good the gold is) are welcome. The phase 2 measurement is the first one; further ones are
     designed from its numbers, and go to a sibling folder if they outgrow this one.
+- Q9: The rulebook contradicts itself on a verb form that is also an everyday noun. Its older
+  homograph example says pt *era* keeps and pins the noun "era, age" (and the gold says so), while
+  the form rule added for Q1 links an inflected form to its verb with a form note (*são* is "be",
+  "they are", and "healthy" stays as a later sense). The `m0004` reviewer applied the form rule to
+  *era* ("be", "I/he/she was") and was scored a gold miss. The corpus still pins the noun (gold
+  labels are not applied). It touches every verb form with an everyday homograph (*era*, *são*,
+  *vão*, *meia*, *levado*, *juro*).
+  - a. The frequent reading wins: the verb with its form note is the card, and the noun stays as a
+    later sense. Update the rulebook example and the *era* gold; re-pin *era*.
+  - b. The noun wins when it is in ordinary use: keep *era* on the noun, and re-check the forms the
+    first review moved to the verb over an everyday homograph.
+  - Recommended: a, because it is what Q1 asked for (a learner meets *era* as "was" far more than
+    as "age"), and the reviewers already applied it everywhere but the gold. The look-alike label
+    of pt *era* / en *era* stays `partial`, which suits either card. The rule is changed after the
+    second review, so both reviews run under the same rulebook.
+  - ANS: a (user, 2026-11-06). Applied after the second review (`n0001` to `n0003`), which
+    runs under the unchanged rulebook.
+- Q10: The second review (`n0001` to `n0003`, 500 items, same rulebook) agrees with the first on
+  458 cards (92%) and 447 outcomes (89%), but on only 108 of the 157 items the first review
+  changed (69%), below the 90% bar. The 53 disagreements fall in three groups:
+  - 28 are the threshold for a near miss: sense 1 is a narrow or neighbouring reading of the
+    everyday meaning, and one reviewer added the everyday concept while the other kept the card
+    (*arquivos* "archives" for "files", *câmeras* "tv camera", *nenhum* "neither" for "no",
+    *sentir* "perceive" for "feel", *entretanto* "meanwhile" for the Brazilian "however",
+    *antiga* "ancient" for "old"; the reverse once, *fato*). Six of them are Q9's case, an
+    everyday homograph against a frequent form (*meia*, *juro*, *sede*, *seguros*, *chamado*,
+    *privada*). The rulebook pulls both ways: "a narrow sense of a broad meaning is not wrong"
+    against "do not pin a near miss", and `k` asks for "the best one to teach first". On a
+    read of the reasons the first review's call is the better card in most of them.
+  - 14 add the same meaning through a different WordNet twin (*seis* "six" as a quantity or as
+    the number, *obrigado* "thanks" twice, *fala*/*falo* "express in speech" or "use
+    language", *cria*/*criada* split the two "create" concepts the other way round). The card
+    reads the same; the rulebook gives no tie-break, and `concepts` shows neither the
+    commonness nor an order.
+  - 11 reach the same card and differ only on dropping a second, wrong sense (*além* "yonder",
+    *novamente* "newly", *ponto* "skull joint"); the first review dropped more.
+  - a. Fix the rules, then serve the 53 again as a re-check (`m0006`, under the new rulebook,
+    so its rows win), and let phase 3's second review of the 1,000 measure agreement under the
+    new rules. The fixes: `k` means sense 1 is the everyday meaning itself, and a narrow or
+    neighbouring sense 1 takes `aKEY` with the everyday concept, the narrow sense staying later
+    (examples from the list above); Q9's "the frequent reading wins"; for twin concepts, the
+    one the base word's card uses, else the most common, with `concepts` printing the
+    commonness and sorting by it; and `agreement` counting a twin with the same first English
+    translation as the same card, reported apart.
+  - b. Accept the first review as it stands, apply only Q9, and carry the measured 69% into
+    the guide as the known spread.
+  - Recommended: a, because the near-miss split is a rule the next language will hit as well,
+    and phase 3 already pays for the second review that checks the fix. Cost: about 5% of the
+    5-hour meter for `m0006`, and a small tool change for `concepts` and `agreement`.
+  - ANS: a (user, 2026-11-06).

@@ -70,3 +70,22 @@ Append-only. Newest at the bottom.
   The miss was the gold's fault: *turma* is also "a group of friends", now accepted too. The
   notes line applied (pt *yes* dropped from "yes"). *deve*, *possa* stay out: WordNet has no
   modal verbs. Additions read and judged right.
+- 2026-11-06 : `m0001` committed. Usage meter before `m0002` to `m0005` (user's reading): 5-hour
+  20%, weekly 63%. The four batches served (202 items each) and handed to four subagents in
+  parallel.
+- 2026-11-06 : first review done (`m0001` to `m0005`, 1,000 cards, five subagents, 85k to 98k
+  tokens each): 843 kept, 147 added, 5 pinned, 17 senses and 1 lemma dropped, 32 edge cases;
+  gold 8/10, both misses on the gold side (*turma*, widened; *era*, raised as Q9: the rulebook's
+  old homograph example contradicts the form rule). Notes files: 18 member lines, 17 applied as
+  drops, `conflitos` kept (a plural on its base concept is right under Q1). The 500 targeted items
+  for the second review are the 157 changed plus 343 kept cards with two or more senses, in rank
+  order, shuffled (seed 13) into `data/work/sense_review/second_pt.txt`.
+- 2026-11-06 : first review cost: `m0002` to `m0005` took 21% of the 5-hour meter and 3% of the
+  weekly one (about 5% of the 5-hour meter a batch). Q9 answered a (the frequent reading wins),
+  applied after the second review. Second review started: `n0001` to `n0003` (200/200/100) from
+  `second_pt.txt`, under the unchanged rulebook.
+- 2026-11-06 : second review `n0001` to `n0003` applied (shadow; 500 items; gold 5/6, the miss
+  is *era*, Q9). `agreement`: 458/500 same card, 447/500 same outcome, 108/157 on the changed
+  items (69%, below 90%). Disagreements tallied by cause into Q10 (28 near-miss threshold, 14
+  WordNet twins, 11 extra drops). Notes: *eis* on "in or at that place", *lucro* and *saqué* on
+  "interest, sake", still to check.
