@@ -2,36 +2,49 @@
 status: planned
 ---
 
-# Phase 2 - number words
+# Phase 2 - number words, missing content words, the closed-class list
 
 ## Overview
 
-Add the 20 missing pt cardinals and bring the 22 present ones to one shape.
-Context: [`00_start.md`](00_start.md) Q4, Q6. No code: `sense_additions.jsonl` rows create a
-missing lemma, and `best_senses.jsonl` pins.
+Add the missing pt cardinals and bring the present ones to one shape (Q4), add the content
+words the sources lack in the top 5,000 (Q9), and put the 21 unlisted function words on the
+closed-class list (Q8).
+Context: [`00_start.md`](00_start.md) Q4, Q6, Q8, Q9; [`01_gap_assessment.md`](01_gap_assessment.md).
+No new code beyond the list: `add` writes a `sense_additions.jsonl` row, which creates a
+missing lemma, and a pin.
 
 ## Plan
 
-- The list: the 20 absent cardinals in `00_start.md` and the 22 present, checked again against
-  `wordfreq` for any other cardinal or spelling above zipf 3 (the feminine hundreds,
-  *duzentas*; *bilhões*; *zero*).
-- One subagent labels the whole list (Q6): for each word, the two twin concept keys (adjective
-  "denoting a quantity of N", noun "the cardinal number N", from `concepts`), a form note
-  where the word is a form (*uma* the feminine of *um*, *duas* of *dois*, *milhões* the plural
-  of *milhão*), and for a present word the links it should lose (*seis* on "six-spot").
-  It writes `add`, `pin` and `drop` lines; I check every line against the corpus, then apply.
-- *uma* is on the pt closed-class list as the article, which drops all its senses; an addition
-  runs after that drop and wins over it, so *uma* comes back on "one" only.
-- Words above a thousand that WordNet has as a single concept only (*bilhão*) take the one.
-- Rebuild, gate, and read every number card on 8010.
+- The closed-class list (`closed_class.py`):
+  - add the 21 function words of Q8. They have no lemma today, so the build changes nothing;
+    the list keeps a later source from carding them and `add` from linking them;
+  - take *uma* off the list. *um* is not on it (it is also "one"), and `add` refuses a
+    closed-class word, so *uma* "one" could not come back otherwise. Its OMW senses, if any
+    return, are read and dropped where wrong;
+  - the module docstring names *um* / *uma* with the other homographs kept off the list.
+- The numbers: the 20 absent cardinals and the 22 present, plus any other cardinal or spelling
+  in `wordfreq` above zipf 3 (*duzentas*, *bilhões*, *zero*), checked by a script, not
+  guessed.
+- The content words: run `01.1_gap_classify.py` over the whole 2,001 to 5,000 band (it
+  sampled 300), and I sort its residue by hand, as for the top 2,000. The missing content
+  words of all three bands make the list.
+- Labels (Q6): one subagent for the numbers and one for the content words. Each gets its list
+  with the `concepts` command and the rulebook, and writes one line per action:
+  `add <word> <key> [form note]`, `pin <word> <key>`, `drop <word> <key>`, with a reason.
+  For a number: both twins added, the adjective last so it is the pin, a form note where the
+  word is a form (*uma*, *duas*, *milhões*), and a present word's wrong links dropped (*seis*
+  on "six-spot"). I check every line against the corpus, then apply them in one process
+  through `add_sense`, `pin_sense` and `drop_sense`.
+- Rebuild, gate, read every card of both lists on 8010.
 
 ## Out of scope
 
-- Ordinals (present except *segunda*, which is a weekday and an ordinal; left to phase 1's
-  follow-ups).
+- Ordinals: present, except *segunda*, which is a weekday as much as an ordinal, so it goes
+  to the content-word labeller.
 - Compound numbers (*vinte e um*), which are not single-word cards.
 
 ## Done when
 
-- Every pt cardinal above zipf 3 has a lemma linked to both twins with the adjective pinned,
-  `_build.json` shows zero stale additions, the gate passes, and each card was read.
+- Every pt cardinal above zipf 3 has a lemma linked to both twins with the adjective pinned;
+  each listed content word has its link; the closed-class list holds the 21 and not *uma*;
+  zero stale additions in `_build.json`; `make check` and the gate pass; each card was read.

@@ -12,16 +12,22 @@ Analysis and decisions in [`00_start.md`](00_start.md).
 - Numbers link both WordNet twins and pin the adjective (Q4 a).
 - Every form in the pt top 5,000 gets a lemma with a form note (Q5 a).
 - Labels by subagents, every line checked by me; no paid LLM job (Q6).
+- The wider gap is mostly inflection (phase 1): the forms of the top 1,000 get rows here
+  (phase 5, Q7 a); an inflection model is raised again after it (Q7 b).
+- Missing content words of the top 5,000 join phase 2 (Q9 a); the 21 unlisted function words
+  go on the closed-class list, and cards for closed-class words are judged after phase 3
+  (Q8 c).
 
 ## Phases
 
 | #  | Phase                 | Plan                                         | Status  |
 | -- | --------------------- | -------------------------------------------- | ------- |
 | 1  | Gap assessment        | [`01_gap_assessment.md`](01_gap_assessment.md) | done    |
-| 2  | Number words          | [`02_numbers.md`](02_numbers.md)             | planned |
+| 2  | Numbers, content words | [`02_numbers.md`](02_numbers.md)            | planned |
 | 3  | Curated concepts      | [`03_concepts.md`](03_concepts.md)           | planned |
 | 4  | Modal verbs           | [`04_modals.md`](04_modals.md)               | planned |
-| 5  | Release v0.5.0        | [`05_release.md`](05_release.md)             | planned |
+| 5  | Inflected forms       | [`05_forms.md`](05_forms.md)                 | planned |
+| 6  | Release v0.5.0        | [`06_release.md`](06_release.md)             | planned |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
 
@@ -48,3 +54,9 @@ Append-only. Newest at the bottom.
   closed-class 32% of the top 1,000 and almost none beyond; names and English 8% rising to 26%;
   21 function words missing from the closed-class list; 11 content words missing. Rule
   precision about 93% on 90 forms, the misses mostly names. Q7 to Q9 raised.
+- 2026-11-09 : Q7 to Q9 folded in (all recommendations): phase 2 widened to the missing content
+  words and the closed-class list, new phase 5 for the forms of the top 1,000, release moved to
+  phase 6. Plan review: `add` refuses a closed-class word, so *uma* "one" needs *uma* off the
+  list (*um* is not on it); `add` checks the concept in the built corpus, so phase 4 follows
+  phase 3's rebuild. Labels are applied in one process through `add_sense` / `pin_sense` /
+  `drop_sense`, not one CLI call per line.

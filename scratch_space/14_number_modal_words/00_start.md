@@ -78,7 +78,8 @@ That is a design question of its own (Q1).
    top 2,000 and 5,000. A first count: 730 of the top 2,000 absent (37%), 2,222 of the top
    5,000 (45%). The 2,001 to 5,000 band is mostly inflected forms (*conseguem*, *dizia*,
    *poucas*, *decisões*), which points at an inflection question rather than per-word rows.
-2. Numbers: add the 20 missing words, labelled by subagents and applied with `add` (Q6), on the twin chosen in Q4, with a
+2. Numbers and content words: the missing content words of the top 5,000 (Q9) and the
+   function words onto the closed-class list (Q8) go with the numbers. Add the 20 missing words, labelled by subagents and applied with `add` (Q6), on the twin chosen in Q4, with a
    form note where the word is a form (*uma* the feminine of *um*, *milhões* the plural of
    *milhão*), and bring the present numbers onto the same twin.
 3. Curated concepts: a new curated input that creates a concept the sources lack, keyed on a
@@ -86,9 +87,11 @@ That is a design question of its own (Q1).
    the sense additions so an addition can link to it (Q2).
 4. Modal verbs: the concepts from Q3, *poder* and *dever* linked to them and pinned, their forms
    added with form notes (Q5).
-5. Release v0.5.0 and bump lang-tutor's pin.
+5. Inflected forms: the forms of the top 1,000 whose base word has a lemma (Q7), with form
+   notes.
+6. Release v0.5.0 and bump lang-tutor's pin.
 
-Steps 2 to 4 each end with a rebuild and the gate, as in `13_missing_senses`.
+Steps 2 to 5 each end with a rebuild and the gate, as in `13_missing_senses`.
 
 ## Open questions
 
@@ -170,7 +173,7 @@ Raised by phase 1 ([`01_gap_assessment.md`](01_gap_assessment.md)), 2026-11-09:
   - Recommended: a now as phase 6, and b raised again when phase 6 is done, because a is
     the pattern the corpus already has and covers the forms a learner meets first, while 1,500
     rows by hand would be the wrong tool for the rest.
-  - NEW_ANS:
+  - ANS: a (user, 2026-11-09): phase 5, the forms of the top 1,000; b raised again after it.
 - Q8: Function words. 21 frequent function words are on no list (*tudo*, *qualquer*,
   *ninguém*, *algo*, *algum*, *quanto*, *quantos*, *quantas*, *ambos*, *tais*, *disso*,
   *nisso*, *daqueles*, *através*, *apesar*, *entanto*, *devido*, *dentre*, *redor*, *exceto*,
@@ -183,7 +186,8 @@ Raised by phase 1 ([`01_gap_assessment.md`](01_gap_assessment.md)), 2026-11-09:
   - c. a now, and b assessed once phase 3 exists.
   - Recommended: c, because a keeps the rule consistent at no cost, and b is a change of
     policy that is better judged with the curated-concept input in hand.
-  - NEW_ANS:
+  - ANS: c (user, 2026-11-09): the 21 go on the list in phase 2; b is raised again after
+    phase 3.
 - Q9: The missing content words (11 found: *cinco*, *nove*, *questão*, *ideia*, *juiz*,
   *assembleia*, *rapidamente*, *estadual*, *paulista*, *bíblia*, *carioca*; the sample suggests
   about 10 more in the 2,001 to 5,000 band).
@@ -193,4 +197,4 @@ Raised by phase 1 ([`01_gap_assessment.md`](01_gap_assessment.md)), 2026-11-09:
   - b. Only the 11 found.
   - Recommended: a, because the classifier leaves a short residue, and phase 2 already has the
     tooling and the review.
-  - NEW_ANS:
+  - ANS: a (user, 2026-11-09): phase 2.

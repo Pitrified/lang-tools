@@ -2,7 +2,7 @@
 status: planned
 ---
 
-# Phase 5 - release v0.5.0
+# Phase 6 - release v0.5.0
 
 ## Overview
 

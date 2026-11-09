@@ -19,6 +19,7 @@ Context: [`00_start.md`](00_start.md) Q3, Q5, Q6; depends on [`03_concepts.md`](
   `add`.
 - *poder* and *dever* keep their noun and "owe" senses and are pinned to the modal concept,
   the frequent reading.
+- Phase 3 ends with a rebuild, so `add` finds the two concepts (it checks the built corpus).
 - Rebuild, gate, and read every card on 8010.
 
 ## Out of scope
