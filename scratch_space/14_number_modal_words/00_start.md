@@ -1,5 +1,5 @@
 ---
-status: planned
+status: in progress
 priority: 0
 description: |
   Give pt its number words and modal verbs. Half the cardinals (*cinco*, *doze*, *trinta*) and
@@ -153,3 +153,44 @@ Steps 2 to 4 each end with a rebuild and the gate, as in `13_missing_senses`.
     repeat it.
   - ANS: all labelled by hand through agents (user, 2026-11-09): subagents label under the
     rulebook, no paid LLM job; I check every label and every rebuilt card.
+
+Raised by phase 1 ([`01_gap_assessment.md`](01_gap_assessment.md)), 2026-11-09:
+
+- Q7: Inflected forms. About 1,500 forms in the pt top 5,000 lack a lemma while their base word
+  has one (*tem* of *ter*, *anos* of *ano*, *boa* of *bom*); about 200 of them are in the top
+  1,000. Today a form gets a card only through its own addition row with a form note (*são*).
+  - a. Per-word rows for the forms in the top 1,000 (about 200), found by the phase 1 rules,
+    labelled by subagents with a form note, as phases 2 and 4 do for numbers and modals.
+    The forms beyond wait for b.
+  - b. An inflection model: a curated form table (form, base lemma, features such as "3rd
+    person plural present"), applied at build, from which the form notes and lookups come. A
+    form is found by search and tagged on its base word's card; it is not a card of its own.
+    A later phase with its own questions: source of the table, how lang-tutor shows it.
+  - c. Leave the forms out: cards are base words.
+  - Recommended: a now as phase 6, and b raised again when phase 6 is done, because a is
+    the pattern the corpus already has and covers the forms a learner meets first, while 1,500
+    rows by hand would be the wrong tool for the rest.
+  - NEW_ANS:
+- Q8: Function words. 21 frequent function words are on no list (*tudo*, *qualquer*,
+  *ninguém*, *algo*, *algum*, *quanto*, *quantos*, *quantas*, *ambos*, *tais*, *disso*,
+  *nisso*, *daqueles*, *através*, *apesar*, *entanto*, *devido*, *dentre*, *redor*, *exceto*,
+  *quê*). Phase 3's curated concepts would also make the closed-class rule's premise optional
+  ("no WordNet concept, so no card"), and the 117 closed-class words of the top 1,000 (*eu*,
+  *você*, *de*, *que*) are the most frequent words of the language.
+  - a. Add the 21 to the closed-class list; the policy is unchanged.
+  - b. Give closed-class words curated concepts and cards, pronouns and quantifiers first
+    (*eu* "I", *tudo* "everything", *ninguém* "nobody"), a later phase reusing phase 3.
+  - c. a now, and b assessed once phase 3 exists.
+  - Recommended: c, because a keeps the rule consistent at no cost, and b is a change of
+    policy that is better judged with the curated-concept input in hand.
+  - NEW_ANS:
+- Q9: The missing content words (11 found: *cinco*, *nove*, *questão*, *ideia*, *juiz*,
+  *assembleia*, *rapidamente*, *estadual*, *paulista*, *bíblia*, *carioca*; the sample suggests
+  about 10 more in the 2,001 to 5,000 band).
+  - a. Phase 2 takes them along with the numbers: the full top 5,000 residue sorted by hand
+    (the 1,192 unsampled words of the band run through the classifier first), each linked
+    to its en concept by a subagent.
+  - b. Only the 11 found.
+  - Recommended: a, because the classifier leaves a short residue, and phase 2 already has the
+    tooling and the review.
+  - NEW_ANS:

@@ -17,7 +17,7 @@ Analysis and decisions in [`00_start.md`](00_start.md).
 
 | #  | Phase                 | Plan                                         | Status  |
 | -- | --------------------- | -------------------------------------------- | ------- |
-| 1  | Gap assessment        | [`01_gap_assessment.md`](01_gap_assessment.md) | planned |
+| 1  | Gap assessment        | [`01_gap_assessment.md`](01_gap_assessment.md) | done    |
 | 2  | Number words          | [`02_numbers.md`](02_numbers.md)             | planned |
 | 3  | Curated concepts      | [`03_concepts.md`](03_concepts.md)           | planned |
 | 4  | Modal verbs           | [`04_modals.md`](04_modals.md)               | planned |
@@ -39,3 +39,12 @@ Append-only. Newest at the bottom.
   Part of the gap is deliberate: `closed_class.py` drops pt articles, prepositions and
   pronouns, *uma* among them (phase 2 adds it back as "one", since an addition wins over the
   drop).
+- 2026-11-09 : phase 1 started. Plan review: no pt lemmatizer is installed (simplemma, spaCy,
+  stanza absent), so the "lookup of candidate base forms" is a rule heuristic (plural and
+  feminine table, verb endings against the corpus verbs, 26 irregular verbs); its precision
+  measured on a sample instead. No other finding.
+- 2026-11-09 : phase 1 done (`01.1_gap_classify.py`). Of the absent words: forms of a word the
+  corpus has 54% of the top 1,000 and about 71% beyond (about 1,500 in the top 5,000);
+  closed-class 32% of the top 1,000 and almost none beyond; names and English 8% rising to 26%;
+  21 function words missing from the closed-class list; 11 content words missing. Rule
+  precision about 93% on 90 forms, the misses mostly names. Q7 to Q9 raised.
