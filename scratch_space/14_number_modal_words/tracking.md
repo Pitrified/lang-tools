@@ -17,6 +17,9 @@ Analysis and decisions in [`00_start.md`](00_start.md).
 - Missing content words of the top 5,000 join phase 2 (Q9 a); the 21 unlisted function words
   go on the closed-class list, and cards for closed-class words are judged after phase 3
   (Q8 c).
+- Pre-reform spellings are respelt at build by a deterministic rule (Q10 a, phase 6).
+- Closed-class words get cards on curated concepts, all groups, the WordNet senses still
+  dropped; filtering them from drills is lang-tutor's job (Q13, phase 7).
 
 ## Phases
 
@@ -27,7 +30,9 @@ Analysis and decisions in [`00_start.md`](00_start.md).
 | 3  | Curated concepts      | [`03_concepts.md`](03_concepts.md)           | done    |
 | 4  | Modal verbs           | [`04_modals.md`](04_modals.md)               | done    |
 | 5  | Inflected forms       | [`05_forms.md`](05_forms.md)                 | done    |
-| 6  | Release v0.5.0        | [`06_release.md`](06_release.md)             | planned |
+| 6  | Pre-reform spelling   | [`06_spelling.md`](06_spelling.md)           | planned |
+| 7  | Closed-class concepts | [`07_closed_class_concepts.md`](07_closed_class_concepts.md) | planned |
+| 8  | Release v0.5.0        | [`08_release.md`](08_release.md)             | planned |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
 
@@ -80,3 +85,7 @@ Append-only. Newest at the bottom.
   (`14_base_cards.labels.txt`), rebuild 588 pins 0 stale, gate PASS, the 4 cards and their
   forms (*redes*, *recebeu*) read right on 8010. Q8 b raised as Q13, naming the two pieces of
   code that make the closed-class rule.
+- 2026-11-10 : committed Q12 (`a1d5361`). Folded in Q10 a (phase 6, spelling rule) and Q13
+  (phase 7, concepts for the 128 closed-class words of the top 1,000, all groups); the release
+  moved to phase 8 (`08_release.md`). Q11 gained its cost in limit terms from the look-alike
+  usage log (about 5% to 10% of a week); still open.

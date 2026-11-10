@@ -218,7 +218,8 @@ Raised during phase 2, 2026-11-09:
   - c. Leave it; the cards stay under the old spelling.
   - Recommended: a, because the rule is mechanical and fixes the whole class at once, the way
     the closed-class rule does; b duplicates cards and has to be redone for every new word.
-  - NEW_ANS:
+  - ANS: a (user, 2026-11-10): phase 6, before the release (phase 5 was already done when this
+    was raised, so it runs after it).
 
 Raised at the end of phases 2 to 5, 2026-11-09:
 
@@ -231,6 +232,11 @@ Raised at the end of phases 2 to 5, 2026-11-09:
   - c. Stop at the top 1,000 for now.
   - Recommended: c, then b: the top 1,000 covers the forms a learner meets first, and rows past
     it scale linearly while a model would cover every form at once.
+  - Cost in limit terms (user asked, 2026-11-10), from the look-alike rounds in
+    `11_lookalike_review/00.1_usage_log.md`: one weekly point per about 250k to 330k subagent
+    tokens with orchestration, and about 2.4 points of a 5-hour window per agent. So a is about
+    5 to 7 weekly points for the subagents, call it 5% to 10% of a week with my checking, and
+    about one full 5-hour window (28 agents). Phase 5 was about 1 weekly point.
   - NEW_ANS:
 - Q12: Base words with a wrong card, found while labelling their forms: *rede* "cloth" (it is
   "net, network"), *graça* "joke" ("grace", *de graça* "free"), *atividade* "action"
@@ -264,4 +270,7 @@ Raised at the end of phases 2 to 5, 2026-11-09:
   - Recommended: a as a sibling folder after Q10 and Q11, because those words are among the
     first a learner drills and translate cleanly, while a gloss card for *de* or *que* would
     mislead more than it teaches.
-  - NEW_ANS:
+  - ANS (user, 2026-11-10): the concepts are written now, in this folder, as phase 7. The 40
+    pronouns and quantifiers are basic and important (*ninguém*, *tudo*); articles,
+    prepositions and conjunctions are added too, for completeness, and filtering them out of
+    drills is lang-tutor's job. So all of b, with a's words first.

@@ -2,13 +2,13 @@
 status: planned
 ---
 
-# Phase 6 - release v0.5.0
+# Phase 8 - release v0.5.0
 
 ## Overview
 
 Release lang-tools and bump lang-tutor's pin, as for v0.4.0
 ([`13_missing_senses/04_release.md`](../13_missing_senses/04_release.md)).
-Context: [`00_start.md`](00_start.md).
+Context: [`00_start.md`](00_start.md). After phases 6 and 7.
 
 ## Plan
 
