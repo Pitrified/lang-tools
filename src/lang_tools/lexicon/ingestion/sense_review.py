@@ -385,6 +385,8 @@ def build_worklist(
         query = CardQuery(
             language=language,
             single_word=True,
+            # Function words have cards too, and a review serves them.
+            exclude_part_of_speech=[],
             order="frequency",
             exclude_ids=taken,
             limit=min(MAX_CARD_LIMIT, size - len(items)),

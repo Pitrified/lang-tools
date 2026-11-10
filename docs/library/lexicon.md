@@ -255,6 +255,11 @@ filters are:
 - language;
 - CEFR window (`min_cefr` / `max_cefr`);
 - topic, part of speech, exact or minimum length;
+- `exclude_part_of_speech`, the classes left out, by default the function words
+  (`FUNCTION_WORD_POS`: pronoun, determiner, preposition, conjunction), whose cards
+  exist for a client that chooses to drill them. An empty list keeps every class; over
+  HTTP an empty value does it (`?exclude_part_of_speech=`), and a query for one
+  function-word class sends both keys (`?part_of_speech=pronoun&exclude_part_of_speech=`);
 - `accented_only` and `single_word`, which means one lowercase alphabetic token,
   so no proper nouns, compounds or digits;
 - `require_translation` (in every `translation_languages`), `require_example`,
@@ -517,6 +522,10 @@ picks, and a common concept the lemma reaches only through a rare reading wins (
 `concept_key` of the right sense; only the latest row of a lemma counts, and a row with
 no concept retracts an earlier pin. The build sets `Sense.is_best` after every drop,
 and the manifest records the pins applied and the stale rows under `best_senses`.
+A pinned lemma then takes the part of speech of its pinned concept's lexfile class, so the
+class a card filter reads is the card's (pt *um* is a determiner for its card "a, an", not
+a noun; *hoje* an adverb); the manifest counts the lemmas changed as
+`part_of_speech_changed`.
 
 The sense additions (`ingestion.sense_additions`) fix the third way: the word's everyday
 meaning is not linked at all (pt *sim* has only "yea", *aí* only "yonder"), or every link
@@ -761,6 +770,7 @@ sport topics still come in through OMW's domain links.
 OMW gives a lemma's part of speech once per synset it appears in, and they do not
 always agree. The build settles each lemma on the **majority** POS across its
 synsets instead of the first one seen (4,198 POS fixes on the five-language build).
+A pinned best sense overrides it (see the best-sense pins above).
 
 Because identity keeps case and accents, the wordnets' noisy spellings of one
 word would otherwise become separate lemmas. `spelling_noise_folds` maps them to

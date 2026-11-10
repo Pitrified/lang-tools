@@ -64,7 +64,10 @@ over HTTP in its default `http` mode.
   rounds from (`GET /api/v1/cards` over HTTP). Since phase 11 a card also carries
   `lookalikes` (`LookalikeHint`) toward the query's `known_languages`, and
   `CardQuery.lookalike` filters for traps, cognates, or neither. Since v0.4.0 a
-  card carries the best sense's `form_note` (`None` for most cards).
+  card carries the best sense's `form_note` (`None` for most cards). Since v0.6.0
+  `CardQuery.exclude_part_of_speech` leaves out the function words by default
+  (`FUNCTION_WORD_POS`); an empty list, or `?exclude_part_of_speech=` over HTTP,
+  keeps them.
 - `get_all_concepts`, `get_concept_by_id`, `get_concept_by_key` (by the
   slug-free `concept_key`, since v0.4.0), `concepts_for_lemma`,
   `lemmas_for_concept`, `senses_for_lemma`, `senses_for_concept`,

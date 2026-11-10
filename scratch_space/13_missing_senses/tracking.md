@@ -23,7 +23,7 @@ before and after on the pt top 1,000 cards. Analysis and decisions in
 | 1  | Tooling               | [`01_tooling.md`](01_tooling.md)   | done    |
 | 2  | Agent review          | [`02_review.md`](02_review.md)     | done    |
 | 3  | Rebuild and re-count  | [`03_recount.md`](03_recount.md)   | done    |
-| 4  | Release v0.4.0        | [`04_release.md`](04_release.md)   | in progress |
+| 4  | Release v0.4.0        | [`04_release.md`](04_release.md)   | done    |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
 
@@ -144,3 +144,5 @@ Append-only. Newest at the bottom.
   hand-written into `gloss_backfill.jsonl` (the build tags them `llm`, as the file carries no
   author field), and the 33rd was a wrong OMW link, pt *próximo a* on the Lao coin "at",
   dropped. Rebuild and gate PASS; pt gloss coverage 100.0%; 8010 restarted.
+- 2026-11-10 : phase 4 closed after the fact: v0.4.0 was released, merged into main (`1397b10`)
+  and pinned in lang-tutor (`890f337`) on 2026-11-08; only the status was left behind. Folder done.

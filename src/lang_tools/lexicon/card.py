@@ -13,6 +13,12 @@ simply names which sense it picked (`concept_id`).
 consumer (``lang-tutor``) asks for "20 easy single-word pt nouns with an en
 translation" instead of pulling a whole language and joining client-side.
 
+A query leaves out the function words (`FUNCTION_WORD_POS`: pt *eu*, *um*, *de*,
+*mas*) unless it asks for them: their cards exist so a client can choose to drill
+them, and no current drill does. `CardQuery.exclude_part_of_speech` holds the
+classes left out; an empty list, or an empty value in a query string
+(``?exclude_part_of_speech=``), keeps every class.
+
 See ``scratch_space/09_concept_model/09_sample_and_consumer.md`` for the design.
 """
 
@@ -22,6 +28,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 from pydantic import Field
+from pydantic import field_validator
 
 from lang_tools.lexicon.lemma import Lemma  # noqa: TC001 - pydantic field type
 
@@ -31,6 +38,14 @@ CEFR_LEVELS: tuple[str, ...] = ("A1", "A2", "B1", "B2", "C1", "C2")
 
 #: Hard cap on the cards one query may return.
 MAX_CARD_LIMIT = 500
+
+#: The function-word classes a card query leaves out by default.
+FUNCTION_WORD_POS: tuple[str, ...] = (
+    "pronoun",
+    "determiner",
+    "preposition",
+    "conjunction",
+)
 
 CefrLevel = Literal["A1", "A2", "B1", "B2", "C1", "C2"]
 
@@ -123,6 +138,11 @@ class CardQuery(BaseModel):
         max_cefr: Highest CEFR band of the best sense (inclusive).
         topic: Topic tag (the lemma's own or a sense concept's).
         part_of_speech: Lemma part of speech (``"noun"``, ``"verb"``, ...).
+        exclude_part_of_speech: Lemma parts of speech to leave out; the
+            function-word classes by default (`FUNCTION_WORD_POS`). Empty keeps
+            every class, and an empty string counts as no class, so a query
+            string turns the default off with ``?exclude_part_of_speech=``.
+            A query for one function-word class sets both fields.
         length: Exact character length of the lemma text.
         min_length: Minimum character length (drops two-letter tokens such as
             unit symbols from a drill; one-letter lemmas are never cards).
@@ -152,6 +172,9 @@ class CardQuery(BaseModel):
     max_cefr: CefrLevel | None = None
     topic: str | None = None
     part_of_speech: str | None = None
+    exclude_part_of_speech: list[str] = Field(
+        default_factory=lambda: list(FUNCTION_WORD_POS)
+    )
     length: int | None = Field(default=None, ge=1)
     min_length: int | None = Field(default=None, ge=1)
     accented_only: bool = False
@@ -162,3 +185,9 @@ class CardQuery(BaseModel):
     order: Literal["random", "frequency"] = "random"
     seed: int | None = None
     limit: int = Field(default=50, ge=1, le=MAX_CARD_LIMIT)
+
+    @field_validator("exclude_part_of_speech")
+    @classmethod
+    def _drop_empty_classes(cls, value: list[str]) -> list[str]:
+        """Drop empty strings, which a bare ``?exclude_part_of_speech=`` sends."""
+        return [pos for pos in value if pos]

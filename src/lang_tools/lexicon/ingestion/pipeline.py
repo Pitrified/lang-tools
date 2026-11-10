@@ -26,6 +26,7 @@ from lang_tools.lexicon.codec import LEXICON_SUBDIR
 from lang_tools.lexicon.codec import _dump_table
 from lang_tools.lexicon.ingestion.acquire import write_manifest
 from lang_tools.lexicon.ingestion.best_senses import apply_best_senses
+from lang_tools.lexicon.ingestion.best_senses import apply_pinned_part_of_speech
 from lang_tools.lexicon.ingestion.best_senses import load_best_senses
 from lang_tools.lexicon.ingestion.closed_class import closed_class_drops
 from lang_tools.lexicon.ingestion.concept_additions import apply_concept_additions
@@ -348,6 +349,10 @@ def build_initial(
         tables.senses,
         load_best_senses(data_fol),
     )
+    # A pinned card sets its lemma's part of speech, which card filters read.
+    pos_changed = apply_pinned_part_of_speech(
+        tables.lemmas, tables.senses, tables.concepts
+    )
     counts = _write_tables(tables, data_fol)
 
     sample = carve_sample(tables, max_concepts=max_sample_concepts)
@@ -391,7 +396,11 @@ def build_initial(
             "stale": lookalikes_stale,
             "rare_traps_dropped": rare_traps,
         },
-        "best_senses": {"applied": best_applied, "stale": best_stale},
+        "best_senses": {
+            "applied": best_applied,
+            "stale": best_stale,
+            "part_of_speech_changed": pos_changed,
+        },
         **(extra_manifest or {}),
     }
     path = write_manifest(data_fol, manifest)

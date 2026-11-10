@@ -12,7 +12,11 @@ lemma reaches only through a rare reading wins: pt *homens* shows "work force",
   latest row of a lemma counts, so a later row with no concept retracts an
   earlier pin;
 - `apply_best_senses` runs as a build stage and sets `Sense.is_best`, which the
-  card's best-sense pick orders first.
+  card's best-sense pick orders first;
+- `apply_pinned_part_of_speech` then gives a pinned lemma the part of speech of
+  its card: a lemma takes the class most of its WordNet synsets have, so pt *um*
+  stayed a noun with the article "a, an" as its card, and a filter on the class
+  missed it.
 
 A row naming a lemma or a concept the build does not have is counted as stale and
 skipped, never fatal (the curated-input rule).
@@ -26,6 +30,7 @@ from loguru import logger as lg
 from pydantic import BaseModel
 
 from lang_tools.lexicon.concept_id import concept_key
+from lang_tools.lexicon.ingestion.sense_additions import LEXFILE_POS
 from lang_tools.lexicon.maintenance import ReviewStatus
 from lang_tools.lexicon.maintenance import curated_path
 from lang_tools.lexicon.maintenance import read_jsonl
@@ -34,6 +39,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
     from pathlib import Path
 
+    from lang_tools.lexicon.concept import Concept
+    from lang_tools.lexicon.lemma import Lemma
     from lang_tools.lexicon.sense import Sense
 
 #: Committed curated best-sense pins, under ``<data_fol>/curated/``.
@@ -116,3 +123,37 @@ def apply_best_senses(
         applied += 1
     lg.info("Best senses: {} pinned, {} stale", applied, stale)
     return applied, stale
+
+
+def apply_pinned_part_of_speech(
+    lemmas: Iterable[Lemma], senses: Iterable[Sense], concepts: Iterable[Concept]
+) -> int:
+    """Give each pinned lemma the part of speech of its pinned concept, in place.
+
+    The class comes from the concept's lexfile (`LEXFILE_POS`); a concept
+    whose lexfile has no class leaves the lemma as it is.
+
+    Args:
+        lemmas: Every lemma of the build.
+        senses: Every sense of the build, after `apply_best_senses`.
+        concepts: Every concept of the build.
+
+    Returns:
+        The number of lemmas whose part of speech changed.
+    """
+    lexfiles = {concept.id: concept.lexfile or "" for concept in concepts}
+    pinned = {
+        sense.lemma_id: LEXFILE_POS.get(
+            lexfiles.get(sense.concept_id, "").split(".")[0]
+        )
+        for sense in senses
+        if sense.is_best
+    }
+    changed = 0
+    for lemma in lemmas:
+        pos = pinned.get(lemma.id)
+        if pos is not None and pos != lemma.part_of_speech:
+            lemma.part_of_speech = pos
+            changed += 1
+    lg.info("Pinned part of speech: {} lemma(s) changed", changed)
+    return changed

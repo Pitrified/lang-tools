@@ -308,6 +308,39 @@ def test_accented_length_and_pos_filters() -> None:
     assert store.lemma_cards(CardQuery(language="pt", part_of_speech="verb")) == []
 
 
+def test_function_words_are_left_out_unless_asked() -> None:
+    eu = Lemma(text="eu", language="pt", part_of_speech="pronoun")
+    casa = Lemma(text="casa", language="pt", part_of_speech="noun")
+    sem_classe = Lemma(text="sem-classe", language="pt")
+    c_i = "c__pronoun-i__0055eeff0011"
+    store = LexiconStore.from_models(
+        lemmas=[eu, casa, sem_classe],
+        concepts=[
+            Concept(id=c_i, definitions={"en": "the speaker"}),
+            Concept(id=C_HOUSE, definitions={"en": "a building to live in"}),
+        ],
+        senses=[
+            Sense(lemma_id=eu.id, concept_id=c_i, sense_frequency=7.0),
+            Sense(lemma_id=casa.id, concept_id=C_HOUSE, sense_frequency=5.0),
+            Sense(lemma_id=sem_classe.id, concept_id=C_HOUSE, sense_frequency=1.0),
+        ],
+        lookalikes=[],
+        concept_relations=[],
+        sense_relations=[],
+    )
+    query = CardQuery(language="pt")
+    # A lemma with no part of speech is kept.
+    assert sorted(_texts(store.lemma_cards(query))) == ["casa", "sem-classe"]
+    every = query.model_copy(update={"exclude_part_of_speech": []})
+    assert sorted(_texts(store.lemma_cards(every))) == ["casa", "eu", "sem-classe"]
+    # A query for one function-word class sets both fields.
+    pronouns = query.model_copy(
+        update={"part_of_speech": "pronoun", "exclude_part_of_speech": []}
+    )
+    assert _texts(store.lemma_cards(pronouns)) == ["eu"]
+    assert CardQuery(exclude_part_of_speech=[""]).exclude_part_of_speech == []
+
+
 def test_require_translation_and_example() -> None:
     store = _store()
     with_en = store.lemma_cards(CardQuery(language="pt", require_translation=True))
