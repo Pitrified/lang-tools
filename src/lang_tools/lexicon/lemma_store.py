@@ -420,6 +420,13 @@ def _card_where(query: CardQuery) -> tuple[list[str], list[object]]:
     clauses = ["d.char_len > 1"]
     clauses += [clause for value, clause in valued if value is not None]
     params: list[object] = [value for value, _ in valued if value is not None]
+    if query.exclude_part_of_speech:
+        marks = ", ".join("?" for _ in query.exclude_part_of_speech)
+        # NOT IN alone would drop a lemma with no part of speech.
+        clauses.append(
+            f"(d.part_of_speech IS NULL OR d.part_of_speech NOT IN ({marks}))"
+        )
+        params.extend(query.exclude_part_of_speech)
     if query.accented_only:
         clauses.append("d.accented = 1")
     if query.single_word:

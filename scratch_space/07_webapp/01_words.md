@@ -1,3 +1,7 @@
+---
+status: superseded
+---
+
 # show words starting
 
 ## overview

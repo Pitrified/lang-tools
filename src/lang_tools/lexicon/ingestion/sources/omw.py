@@ -37,6 +37,7 @@ from lang_tools.lexicon.concept import Concept
 from lang_tools.lexicon.concept_id import concept_id
 from lang_tools.lexicon.concept_id import source_key_hash
 from lang_tools.lexicon.ingestion.deps import OptionalDependencyMissingError
+from lang_tools.lexicon.ingestion.spelling_reform import respell_pt
 from lang_tools.lexicon.lemma import Lemma
 from lang_tools.lexicon.lemma_id import lemma_id
 from lang_tools.lexicon.relations import RELATION_ANTONYM
@@ -375,6 +376,9 @@ def spelling_noise_folds(
       share a concept: a variant with fewer marks folds into the fullest one (es
       ``percepcion`` -> ``percepción``). Variants with as many marks stay apart,
       since they are parallel norms (pt ``blasfémia`` / ``blasfêmia``).
+    - **Pre-reform pt spelling.** Every pt form, and every pt fold target, is
+      respelt as the 2009 orthography writes it (`respell_pt`: pt ``idéia`` and
+      ``ideia`` -> ``ideia``), so a respelt form merges with the modern one.
 
     Variants that never share a concept are different words and never fold, so
     ``avó`` / ``avô`` and en ``State`` / ``state`` stay two lemmas each.
@@ -393,7 +397,27 @@ def spelling_noise_folds(
 
     for variant_key in (str.lower, _bare):
         _fold_variants(concepts_of, folds, variant_key)
-    return _resolve_chains(folds)
+    return _respell_reform(concepts_of, _resolve_chains(folds))
+
+
+def _respell_reform(
+    concepts_of: Mapping[tuple[str, str], set[str]],
+    folds: Mapping[tuple[str, str], str],
+) -> dict[tuple[str, str], str]:
+    """Respell every pt fold target in post-2009 spelling (`respell_pt`).
+
+    It runs last because the lost-accent pass folds the modern spelling into the
+    old one, which has more marks (*ideia* -> *idéia*): respelling the target then
+    sends both to *ideia*.
+    """
+    respelt: dict[tuple[str, str], str] = {}
+    for language, form in concepts_of:
+        target = folds.get((language, form), form)
+        if language == "pt":
+            target = respell_pt(target)
+        if target != form:
+            respelt[language, form] = target
+    return respelt
 
 
 def _fold_variants(
@@ -445,7 +469,8 @@ def _log_folds(folds: Mapping[tuple[str, str], str]) -> None:
     """Log how many forms `spelling_noise_folds` folded, per language."""
     if folds:
         lg.info(
-            "Folded {} noisy spelling(s) (case, lost accents) into one form: {}",
+            "Folded {} noisy spelling(s) (case, lost accents, pre-reform pt) "
+            "into one form: {}",
             len(folds),
             dict(sorted(Counter(language for language, _ in folds).items())),
         )

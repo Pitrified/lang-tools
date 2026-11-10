@@ -79,6 +79,7 @@ from lang_tools.lexicon.concept_id import concept_key
 from lang_tools.lexicon.ingestion.best_senses import BEST_SENSES_FILE
 from lang_tools.lexicon.ingestion.best_senses import BestSense
 from lang_tools.lexicon.ingestion.closed_class import CLOSED_CLASS
+from lang_tools.lexicon.ingestion.concept_additions import load_concept_additions
 from lang_tools.lexicon.ingestion.form_review import MEMBER_FORM_DROPS_FILE
 from lang_tools.lexicon.ingestion.form_review import FormDrop
 from lang_tools.lexicon.ingestion.form_review import load_form_drops
@@ -384,6 +385,8 @@ def build_worklist(
         query = CardQuery(
             language=language,
             single_word=True,
+            # Function words have cards too, and a review serves them.
+            exclude_part_of_speech=[],
             order="frequency",
             exclude_ids=taken,
             limit=min(MAX_CARD_LIMIT, size - len(items)),
@@ -907,7 +910,7 @@ def apply_batch(
             {item.n: len(item.senses) for item in items},
             removed=[item.n for item in items if item.removed],
         )
-        _check_additions(batch, items, labels, store)
+        _check_additions(data_fol, batch, items, labels, store)
         sha = guide_sha(guide_path)
         pins: list[BestSense] = []
         drops: list[FormDrop] = []
@@ -1043,14 +1046,34 @@ def _item_rows(
     return pin, drops, addition
 
 
+def _curated_concepts(data_fol: Path) -> set[str]:
+    """Return the concept keys the curated concept additions create."""
+    return {row.concept_key for row in load_concept_additions(data_fol) if row.add}
+
+
+def _closed_class_refused(
+    word: str, language: str, key: str, curated: Collection[str]
+) -> bool:
+    """Return whether a link from a closed-class word to ``key`` is refused.
+
+    The build drops every WordNet sense of a closed-class word, so a link to a
+    WordNet concept would teach the wrong meaning; a curated concept (*eu* "I",
+    *de* "of, from") is the one link such a word takes.
+    """
+    closed = word.lower() in CLOSED_CLASS.get(language, frozenset())
+    return closed and key not in curated
+
+
 def _check_additions(
+    data_fol: Path,
     batch: str,
     items: Sequence[SenseBatchItem],
     labels: Mapping[int, SenseLabel],
     store: LexiconStore | None,
 ) -> None:
-    """Raise when an added concept does not exist or the word is closed-class."""
+    """Raise when an added concept does not exist or the word refuses it."""
     problems: list[str] = []
+    curated = _curated_concepts(data_fol)
     for item in items:
         key = labels[item.n].add
         if key is None:
@@ -1059,10 +1082,10 @@ def _check_additions(
             problems.append(f"item {item.n}: an addition needs the store to check it")
         elif store.get_concept_by_key(key) is None:
             problems.append(f"item {item.n}: no concept {key}")
-        if item.lemma_text.lower() in CLOSED_CLASS.get(item.language, frozenset()):
+        if _closed_class_refused(item.lemma_text, item.language, key, curated):
             problems.append(
                 f"item {item.n}: {item.lemma_text!r} is a closed-class word, "
-                "which the build keeps without senses"
+                "which takes only a curated concept"
             )
     if problems:
         raise LabelError(batch, problems)
@@ -1269,12 +1292,14 @@ def add_sense(
 
     Raises:
         CorrectionError: When the concept does not exist, or the word is a
-            closed-class word.
+            closed-class word and the concept is not a curated one.
     """
     if store.get_concept_by_key(key) is None:
         raise CorrectionError(language, word, f"no concept {key}")
-    if word.lower() in CLOSED_CLASS.get(language, frozenset()):
-        raise CorrectionError(language, word, "a closed-class word keeps no senses")
+    if _closed_class_refused(word, language, key, _curated_concepts(data_fol)):
+        raise CorrectionError(
+            language, word, "a closed-class word takes only a curated concept"
+        )
     target = lemma_id(word, language)
     addition = SenseAddition(
         lemma_id=target,

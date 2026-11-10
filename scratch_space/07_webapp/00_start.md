@@ -1,3 +1,14 @@
+---
+status: superseded
+priority: 0
+description: |
+  One FastAPI webapp for every exercise type (HTMX + Jinja2), built here before the repo split.
+comment: |
+  Frontmatter added on 2026-11-10. Superseded by the repo split (58f399a, "extract tutor
+  concerns to lang-tutor"): the exercise webapp lives in lang-tutor, and lang-tools serves
+  only the content read API.
+---
+
 # Webapp
 
 ## Overview

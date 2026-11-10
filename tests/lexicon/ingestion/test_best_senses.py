@@ -2,11 +2,14 @@
 
 from typing import TYPE_CHECKING
 
+from lang_tools.lexicon.concept import Concept
 from lang_tools.lexicon.concept_id import concept_key
 from lang_tools.lexicon.ingestion.best_senses import BEST_SENSES_FILE
 from lang_tools.lexicon.ingestion.best_senses import BestSense
 from lang_tools.lexicon.ingestion.best_senses import apply_best_senses
+from lang_tools.lexicon.ingestion.best_senses import apply_pinned_part_of_speech
 from lang_tools.lexicon.ingestion.best_senses import load_best_senses
+from lang_tools.lexicon.lemma import Lemma
 from lang_tools.lexicon.maintenance import curated_path
 from lang_tools.lexicon.maintenance import write_jsonl
 from lang_tools.lexicon.sense import Sense
@@ -52,3 +55,29 @@ def test_apply_pins_the_named_sense_and_counts_stale() -> None:
     ]
     assert apply_best_senses(senses, rows) == (1, 1)
     assert [sense.is_best for sense in senses] == [False, True]
+
+
+def test_a_pinned_lemma_takes_the_class_of_its_card() -> None:
+    um = Lemma(text="um", language="pt", part_of_speech="noun")
+    hoje = Lemma(text="hoje", language="pt", part_of_speech="noun")
+    casa = Lemma(text="casa", language="pt", part_of_speech="noun")
+    c_article = "c__a-an__0011aabbccdd"
+    c_today = "c__today__0022bbccddee"
+    c_odd = "c__odd__0033ccddeeff"
+    concepts = [
+        Concept(id=c_article, lexfile="det.article"),
+        Concept(id=c_today, lexfile="adv.all"),
+        Concept(id=c_odd, lexfile="unknown"),
+    ]
+    senses = [
+        Sense(lemma_id=um.id, concept_id=c_article, is_best=True),
+        Sense(lemma_id=hoje.id, concept_id=c_today, is_best=True),
+        # A pin on a concept with no known class leaves the lemma as it is.
+        Sense(lemma_id=casa.id, concept_id=c_odd, is_best=True),
+    ]
+    assert apply_pinned_part_of_speech([um, hoje, casa], senses, concepts) == 2
+    assert [um.part_of_speech, hoje.part_of_speech, casa.part_of_speech] == [
+        "determiner",
+        "adverb",
+        "noun",
+    ]

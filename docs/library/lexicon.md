@@ -255,6 +255,11 @@ filters are:
 - language;
 - CEFR window (`min_cefr` / `max_cefr`);
 - topic, part of speech, exact or minimum length;
+- `exclude_part_of_speech`, the classes left out, by default the function words
+  (`FUNCTION_WORD_POS`: pronoun, determiner, preposition, conjunction), whose cards
+  exist for a client that chooses to drill them. An empty list keeps every class; over
+  HTTP an empty value does it (`?exclude_part_of_speech=`), and a query for one
+  function-word class sends both keys (`?part_of_speech=pronoun&exclude_part_of_speech=`);
 - `accented_only` and `single_word`, which means one lowercase alphabetic token,
   so no proper nouns, compounds or digits;
 - `require_translation` (in every `translation_languages`), `require_example`,
@@ -480,6 +485,7 @@ cause. `maintenance` holds the shared pieces (`ReviewStatus`, `write_jsonl` /
 | `gloss_backfill.jsonl` | `gloss_translate` chain | sampled human review | `apply_gloss_backfill` |
 | `best_senses.jsonl` | card-sense review | the reviewing agent, under a rulebook | `apply_best_senses` |
 | `sense_additions.jsonl` | card-sense review | the reviewing agent, under a rulebook | `apply_sense_additions` |
+| `concept_additions.jsonl` | written by hand for a meaning WordNet lacks | human | `apply_concept_additions` |
 
 Each job has a thin notebook under `notebooks/lexicon_maintain/` (`gloss_repair`,
 `slug_qualifiers`, `form_review`, `gloss_backfill`). The jobs run through
@@ -500,9 +506,14 @@ success", *para* "toward the east"). `ingestion.closed_class` holds a closed-cla
 list per language, and the build drops every sense of a lemma on it (and the lemma, left
 without a sense) right after the member-form drops, through the same
 `apply_form_drops`. Words that are also common content words are left off the lists (es
-*bajo*, fr *son*, *ton*, *or*, *vers*, it *verso*, *sopra*, *sotto*, pt *caso*), and
-English is exempt. The 2026-10 build dropped 231 senses and 118 lemmas this way; the
-manifest records it under `closed_class`.
+*bajo*, fr *son*, *ton*, *or*, *vers*, it *verso*, *sopra*, *sotto*, pt *caso*, *devido*,
+*consigo* "I manage", and *um* / *uma*, also the number "one"), and English is exempt.
+A closed-class word still gets a card, through a curated concept (below): the pt words of
+the top 1,000 link to 64 of them, from *eu* "I" and *de* "of, from" to *do* "of the"
+with a form note, and their lemmas carry a function-word part of speech (`pronoun`,
+`determiner`, `preposition`, `conjunction`), so a client can leave them out of drills.
+The 2026-11 build dropped 230 senses and 117 lemmas this way (the curated links then bring
+the lemmas back); the manifest records it under `closed_class`.
 
 The best-sense pins (`ingestion.best_senses`) fix the other way a card shows the wrong
 meaning. Outside English every sense of a lemma ties on frequency, so concept commonness
@@ -511,6 +522,10 @@ picks, and a common concept the lemma reaches only through a rare reading wins (
 `concept_key` of the right sense; only the latest row of a lemma counts, and a row with
 no concept retracts an earlier pin. The build sets `Sense.is_best` after every drop,
 and the manifest records the pins applied and the stale rows under `best_senses`.
+A pinned lemma then takes the part of speech of its pinned concept's lexfile class, so the
+class a card filter reads is the card's (pt *um* is a determiner for its card "a, an", not
+a noun; *hoje* an adverb); the manifest counts the lemmas changed as
+`part_of_speech_changed`.
 
 The sense additions (`ingestion.sense_additions`) fix the third way: the word's everyday
 meaning is not linked at all (pt *sim* has only "yea", *aí* only "yonder"), or every link
@@ -523,7 +538,22 @@ concept's part of speech, so a removed word comes back with its look-alikes. Add
 and senses carry the `manual` provenance tag. A row may carry a `form_note` for an
 inflected form, which the card shows. The manifest records the senses added, the lemmas
 created and the stale rows (a concept the build lacks, or a word that does not give the
-row's `lemma_id`) under `sense_additions`. A closed-class word never takes an addition.
+row's `lemma_id`) under `sense_additions`. A closed-class word takes an addition only to a
+curated concept: the hand corrections refuse a link to a WordNet one.
+
+Some meanings have no WordNet concept to link to: WordNet has no modal verbs, so pt *pode*
+"can" and *deve* "must" have nothing to be added to (en *can* is a tin can, *must* grape
+juice), and no pronouns, articles, prepositions or conjunctions. The concept additions (`ingestion.concept_additions`) create such a concept. A
+`ConceptAddition` row names a stable `source_key` (`manual:can-be-able`), the slug, the
+nearest lexfile (a WordNet class, or a function-word class: `pron.personal`,
+`det.article`, `prep`, `conj`, which gives a created lemma its part of speech), the English
+gloss and the English members; the id is built from the key
+like a synset's, so its `concept_key` is stable. Only the latest row of a key counts, and
+an `add: false` row retracts it. The stage runs right before the sense additions, so an
+addition can link a word of any language to the new concept; it creates the English member
+lemmas the build lacks, and the concept, its members and senses carry the `manual` tag. A
+row whose key is already taken, or whose slug is not a valid id slug, is stale. The
+manifest records them under `concept_additions`.
 
 The pins and the wrong links of the most frequent cards come from the card-sense review
 (`ingestion.sense_review`, command line `sense_review_cli`), run by agents through the
@@ -632,7 +662,7 @@ sources (OMW via wn, CILI gloss map, wordfreq)
 - **`enrich`** is the pure phase-6 core; see
   [Frequency and complexity](#frequency-and-complexity-phase-6).
 - **`build_initial`** wires it together: transform (with the slug qualifiers),
-  apply the member-form and closed-class drops, the sense additions, the gloss
+  apply the member-form and closed-class drops, the concept and sense additions, the gloss
   overrides, the gloss backfill and the example sentences, enrich, tag the topics, apply the
   look-alikes and the best-sense pins, write each table through the codec with its
   tags, write the manifest, then carve and (optionally) write a sample slice. Thin
@@ -740,6 +770,7 @@ sport topics still come in through OMW's domain links.
 OMW gives a lemma's part of speech once per synset it appears in, and they do not
 always agree. The build settles each lemma on the **majority** POS across its
 synsets instead of the first one seen (4,198 POS fixes on the five-language build).
+A pinned best sense overrides it (see the best-sense pins above).
 
 Because identity keeps case and accents, the wordnets' noisy spellings of one
 word would otherwise become separate lemmas. `spelling_noise_folds` maps them to
@@ -752,7 +783,17 @@ one canonical form before ids are minted:
   frequent, most capitalized one (pt `Golden gate bridge` -> `Golden Gate Bridge`);
 - accent variants that share a concept fold the spelling with fewer marks into the
   fullest one (es `percepcion` -> `percepción`); spellings with as many marks stay
-  apart as parallel norms (pt `blasfémia` / `blasfêmia`).
+  apart as parallel norms (pt `blasfémia` / `blasfêmia`);
+- last, every pt form is respelt as the 2009 orthography reform writes it
+  (`ingestion.spelling_reform.respell_pt`), because the pt wordnet predates it:
+  the trema goes from *gue*, *gui*, *que*, *qui* (`freqüência` -> `frequência`),
+  the open diphthongs *éi* / *ói* lose the accent in a paroxytone no other rule
+  accents (`idéia` -> `ideia`, `heróico` -> `heroico`, but `papéis`, `destróier`),
+  `ôo` and `êem` lose the circumflex (`vôo` -> `voo`), and a short table fixes
+  the rest (`juíz` -> `juiz`, `pólo` -> `polo`). It runs after the lost-accent
+  pass, which folds `ideia` into `idéia`, so both end as `ideia`. Frequency is not
+  consulted, since `wordfreq` still counts many old spellings higher. `pêlo`
+  "hair" keeps its accent: respelt, it would be the closed-class `pelo`.
 
 Variants that never share a concept are different words and never fold: pt `avó` /
 `avô`, es `mono` / `moño`, it `papa` / `papà`, en `State` / `state`, it `Mosca` /

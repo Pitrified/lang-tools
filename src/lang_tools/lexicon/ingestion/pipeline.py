@@ -26,8 +26,11 @@ from lang_tools.lexicon.codec import LEXICON_SUBDIR
 from lang_tools.lexicon.codec import _dump_table
 from lang_tools.lexicon.ingestion.acquire import write_manifest
 from lang_tools.lexicon.ingestion.best_senses import apply_best_senses
+from lang_tools.lexicon.ingestion.best_senses import apply_pinned_part_of_speech
 from lang_tools.lexicon.ingestion.best_senses import load_best_senses
 from lang_tools.lexicon.ingestion.closed_class import closed_class_drops
+from lang_tools.lexicon.ingestion.concept_additions import apply_concept_additions
+from lang_tools.lexicon.ingestion.concept_additions import load_concept_additions
 from lang_tools.lexicon.ingestion.enrich import enrich
 from lang_tools.lexicon.ingestion.form_review import apply_form_drops
 from lang_tools.lexicon.ingestion.form_review import load_form_drops
@@ -287,6 +290,11 @@ def build_initial(
     closed_dropped, closed_removed = apply_form_drops(
         tables, closed_class_drops(tables)
     )
+    # Reviewed concept additions create the concepts WordNet lacks (the modal
+    # verbs), right before the sense additions, which link lemmas to them.
+    concepts_added, concept_lemmas_created, concepts_stale = apply_concept_additions(
+        tables, load_concept_additions(data_fol)
+    )
     # Reviewed sense additions link a lemma to a concept the sources missed, and
     # create a lemma the drops removed; after the drops, so an addition wins over
     # a drop of the same link, and before enrichment, so the new senses get their
@@ -341,6 +349,10 @@ def build_initial(
         tables.senses,
         load_best_senses(data_fol),
     )
+    # A pinned card sets its lemma's part of speech, which card filters read.
+    pos_changed = apply_pinned_part_of_speech(
+        tables.lemmas, tables.senses, tables.concepts
+    )
     counts = _write_tables(tables, data_fol)
 
     sample = carve_sample(tables, max_concepts=max_sample_concepts)
@@ -367,6 +379,11 @@ def build_initial(
             "senses_dropped": closed_dropped,
             "lemmas_removed": closed_removed,
         },
+        "concept_additions": {
+            "concepts_added": concepts_added,
+            "lemmas_created": concept_lemmas_created,
+            "stale": concepts_stale,
+        },
         "sense_additions": {
             "senses_added": senses_added,
             "lemmas_created": lemmas_created,
@@ -379,7 +396,11 @@ def build_initial(
             "stale": lookalikes_stale,
             "rare_traps_dropped": rare_traps,
         },
-        "best_senses": {"applied": best_applied, "stale": best_stale},
+        "best_senses": {
+            "applied": best_applied,
+            "stale": best_stale,
+            "part_of_speech_changed": pos_changed,
+        },
         **(extra_manifest or {}),
     }
     path = write_manifest(data_fol, manifest)

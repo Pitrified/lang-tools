@@ -7,6 +7,8 @@ import pytest
 from lang_tools.lexicon.concept_id import concept_key
 from lang_tools.lexicon.ingestion.best_senses import BEST_SENSES_FILE
 from lang_tools.lexicon.ingestion.best_senses import BestSense
+from lang_tools.lexicon.ingestion.concept_additions import CONCEPT_ADDITIONS_FILE
+from lang_tools.lexicon.ingestion.concept_additions import ConceptAddition
 from lang_tools.lexicon.ingestion.form_review import MEMBER_FORM_DROPS_FILE
 from lang_tools.lexicon.ingestion.form_review import FormDrop
 from lang_tools.lexicon.ingestion.pipeline import build_initial
@@ -464,6 +466,29 @@ def test_add_checks_the_concept_and_the_closed_class(tmp_path: Path) -> None:
     card = _build(tmp_path).lemma_card(lemma_id("são", "pt"))
     assert card is not None
     assert card.form_note == "they are"
+
+
+def test_a_closed_class_word_takes_a_curated_concept(tmp_path: Path) -> None:
+    as_like = ConceptAddition(
+        source_key="manual:as-like",
+        slug="as-like",
+        lexfile="conj",
+        definition="in the way that; like",
+        members=["as", "like"],
+        status="accepted",
+    )
+    write_jsonl([as_like], curated_path(tmp_path, CONCEPT_ADDITIONS_FILE))
+    store = _build(tmp_path)
+    add_sense(
+        tmp_path, store, "como", "pt", as_like.concept_key, reason="the conjunction"
+    )
+    store = _build(tmp_path)
+    card = store.lemma_card(lemma_id("como", "pt"))
+    assert card is not None
+    assert card.gloss == "in the way that; like"
+    lemma = store.get_lemma_by_id(lemma_id("como", "pt"))
+    assert lemma is not None
+    assert lemma.part_of_speech == "conjunction"
 
 
 def test_concepts_are_found_by_english_word(tmp_path: Path) -> None:
