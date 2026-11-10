@@ -76,3 +76,7 @@ Append-only. Newest at the bottom.
   misspelling). Gate PASS, `make check` 440 passed, docs build. All 300 labelled words read on
   8010: each card is the labelled one. Subagent cost about 410k tokens. Q11 to Q12 raised;
   Q10 still open.
+- 2026-11-10 : committed phases 2 to 5 (`4681752`). Q12 a done by hand: 4 pins and 4 drops
+  (`14_base_cards.labels.txt`), rebuild 588 pins 0 stale, gate PASS, the 4 cards and their
+  forms (*redes*, *recebeu*) read right on 8010. Q8 b raised as Q13, naming the two pieces of
+  code that make the closed-class rule.

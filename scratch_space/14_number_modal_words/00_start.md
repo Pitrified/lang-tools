@@ -240,8 +240,28 @@ Raised at the end of phases 2 to 5, 2026-11-09:
   - b. Extend the card-sense review to the pt cards ranked 1,001 to 2,000, which would catch
     these and their like, as its own measured run.
   - Recommended: a now (small, clear), and b raised when the next card-review run is planned.
+  - ANS: a (user, 2026-11-10: "recheck and fix them yourself now"). Done by hand through
+    `02.1_apply_labels.py` (`14_base_cards.labels.txt`): pinned *rede* "network", *graça*
+    "grace", *atividade* "activity", *receber* "receive"; dropped *rede* "cloth" and "fabric
+    on the loom", *receber* "win" and "benefit from". b stays for the next card-review run.
+- Q13 (Q8 b again, now that phase 3 exists): cards for closed-class words. Today they have
+  none, by two pieces of code that make one rule ("a closed-class word has no card"):
+  - the build stage `closed_class_drops` drops every WordNet sense of a listed word (*de* as
+    the letter D, *o* as oxygen, *eu* as the ego), and removes the lemma when nothing is left;
+  - the hand corrections (`add_sense`, and the batch check of `sense_review`) refuse to add a
+    sense to a listed word.
+  The build itself would already keep a curated link: sense additions run after the drop and
+  win. So the change is to lift the refusal for a link to a curated concept (a
+  `concept_additions` row such as "I, first person singular"), keep the drop of the WordNet
+  senses, and write the concepts. The cost is in the concepts, not the code: the 117 words of
+  the top 1,000 split into pronouns and quantifiers (*eu*, *você*, *tudo*, *ninguém*, about 40,
+  which translate one-to-one and make a fair card) and articles, prepositions and
+  conjunctions (*o*, *de*, *que*, *e*, *em*), whose meaning is grammatical and is taught better
+  by a sentence than a gloss.
+  - a. Pronouns and quantifiers only (about 40 words, about 30 concepts), as its own folder.
+  - b. All 117, articles and prepositions included.
+  - c. Leave the rule as it is.
+  - Recommended: a as a sibling folder after Q10 and Q11, because those words are among the
+    first a learner drills and translate cleanly, while a gloss card for *de* or *que* would
+    mislead more than it teaches.
   - NEW_ANS:
-- Q8 b, as its answer asked, now that phase 3 exists: closed-class words could get cards
-  through curated concepts (*eu* "I", *tudo* "everything", *ninguém* "nobody"). Not raised as a
-  question yet: it is a policy change for the 117 most frequent words, best opened as its own
-  plan once Q10 and Q11 are settled. Noted here so it is not lost.
