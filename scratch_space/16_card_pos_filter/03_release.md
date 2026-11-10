@@ -15,8 +15,8 @@ Context: [`00_start.md`](00_start.md).
 - CHANGELOG, version 0.6.0, release commit, `--no-ff` merge into main, annotated tag; the user
   pushes.
 - lang-tutor: pin bump on a short branch cut from its main (check first that no running server
-  depends on files of another branch), `uv lock`, `make undev`, `make check`; set the filter on
-  its four queries only if Q2 is b. Restart 8000.
+  depends on files of another branch), `uv lock`, `make undev`, `make check`; its four queries need
+  no change, since the default excludes the function words (Q2 a). Restart 8000.
 
 ## Done when
 

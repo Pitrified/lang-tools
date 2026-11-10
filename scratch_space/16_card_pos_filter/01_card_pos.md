@@ -12,12 +12,14 @@ Context: [`00_start.md`](00_start.md) Q3, Q4.
 
 ## Plan
 
-- A build step after the best-sense pins: a lemma whose pin is on a concept with a known class
-  (`sense_additions.LEXFILE_POS` of its lexfile) takes that class. Scope per Q3.
+- A build step after the best-sense pins: every lemma whose pin is on a concept with a known
+  class (`sense_additions.LEXFILE_POS` of its lexfile) takes that class (Q3 a).
 - Test on the seed; `docs/library/lexicon.md` says where a lemma's part of speech comes from.
 - Rebuild, gate, `make check`. Before and after: the part-of-speech counts, the look-alike
   edges and stale rows (`cognate_key` reads the part of speech), the stale pins.
-- Read the changed lemmas (90 expected) on 8010, and measure the unpinned mismatch (Q4).
+- Read the changed lemmas (90 expected) on 8010.
+- Assess the unpinned lemmas (Q4 a): how many have a part of speech other than the class of
+  their card sense, by band of frequency, with examples; reported here, not changed.
 
 ## Pitfalls
 
