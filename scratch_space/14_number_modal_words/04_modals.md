@@ -1,5 +1,5 @@
 ---
-status: planned
+status: done
 ---
 
 # Phase 4 - modal verbs
@@ -30,3 +30,10 @@ Context: [`00_start.md`](00_start.md) Q3, Q5, Q6; depends on [`03_concepts.md`](
 
 - Every form in the list has a lemma on its modal concept with a form note, *poder* and *dever*
   are pinned, zero stale rows, the gate passes, each card was read.
+
+## What the implementation found
+
+- 28 forms of the two verbs are in the top 5,000, all absent; *devido* is left out (it is
+  "due" and *devido a* "due to", not the modal).
+- One subagent wrote the notes (about 45k tokens): 29 adds, the infinitives with no note and
+  pinned over their nouns. Every card read on 8010 shows the modal meaning with its note.

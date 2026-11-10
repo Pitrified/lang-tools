@@ -23,10 +23,10 @@ Analysis and decisions in [`00_start.md`](00_start.md).
 | #  | Phase                 | Plan                                         | Status  |
 | -- | --------------------- | -------------------------------------------- | ------- |
 | 1  | Gap assessment        | [`01_gap_assessment.md`](01_gap_assessment.md) | done    |
-| 2  | Numbers, content words | [`02_numbers.md`](02_numbers.md)            | planned |
-| 3  | Curated concepts      | [`03_concepts.md`](03_concepts.md)           | planned |
-| 4  | Modal verbs           | [`04_modals.md`](04_modals.md)               | planned |
-| 5  | Inflected forms       | [`05_forms.md`](05_forms.md)                 | planned |
+| 2  | Numbers, content words | [`02_numbers.md`](02_numbers.md)            | done        |
+| 3  | Curated concepts      | [`03_concepts.md`](03_concepts.md)           | done    |
+| 4  | Modal verbs           | [`04_modals.md`](04_modals.md)               | done    |
+| 5  | Inflected forms       | [`05_forms.md`](05_forms.md)                 | done    |
 | 6  | Release v0.5.0        | [`06_release.md`](06_release.md)             | planned |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
@@ -60,3 +60,19 @@ Append-only. Newest at the bottom.
   list (*um* is not on it); `add` checks the concept in the built corpus, so phase 4 follows
   phase 3's rebuild. Labels are applied in one process through `add_sense` / `pin_sense` /
   `drop_sense`, not one CLI call per line.
+- 2026-11-09 : phase 2 started. Plan review: *devido* stays off the closed-class list (also
+  "due"), so 20 of Q8's 21 go on; *uma* comes off. The cardinal check found 48 above zipf 3,
+  26 absent (with *milhares*, *bilhões*, *trilhões*, the feminine hundreds). Sorting the
+  content-word residue of the full 2,001 to 5,000 band found the pt wordnet's pre-2009
+  spelling: 225 lemmas (*idéia*, *seqüência*, *vôo*) and misspellings (*qüestão*, *juíz*),
+  behind most of the "missing" content words. Raised as Q10; the spelling-affected words wait
+  for it, the numbers and the other content words go ahead.
+- 2026-11-09 : phases 2 to 5 implemented (user: "implement"). Closed-class list +20, *uma* off;
+  `ingestion.concept_additions` with tests and docs, the two modal concepts; subagent labels:
+  numbers (85 lines), content words (34), modals (29), forms (195 in four batches), plus 22
+  hand drops of wrong members; every line checked by `02.1_apply_labels.py --dry`, then
+  applied. Two rebuilds (the modal adds need the concepts built): 2 concepts, 516 senses added,
+  327 lemmas created, 584 pins, 0 stale; look-alikes stale 11 (+1, *rápidamente*, a dropped
+  misspelling). Gate PASS, `make check` 440 passed, docs build. All 300 labelled words read on
+  8010: each card is the labelled one. Subagent cost about 410k tokens. Q11 to Q12 raised;
+  Q10 still open.

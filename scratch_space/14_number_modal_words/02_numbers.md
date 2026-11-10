@@ -1,5 +1,5 @@
 ---
-status: planned
+status: done
 ---
 
 # Phase 2 - number words, missing content words, the closed-class list
@@ -48,3 +48,25 @@ missing lemma, and a pin.
 - Every pt cardinal above zipf 3 has a lemma linked to both twins with the adjective pinned;
   each listed content word has its link; the closed-class list holds the 21 and not *uma*;
   zero stale additions in `_build.json`; `make check` and the gate pass; each card was read.
+
+## What the implementation found
+
+- The closed-class list took 20 of Q8's 21: *devido* stays off, since it is also the
+  adjective "due" (*o devido respeito*). *uma* came off, which the build shows as one sense and
+  one lemma fewer dropped (230 and 117).
+- The cardinal check found 53 words above zipf 3, 26 absent. Labels (one subagent, about 71k
+  tokens): 66 adds, 5 pins, 6 drops, 8 skips. Two decisions beyond the plan:
+  - Brazilian *bilhão* is 10^9 and *trilhão* 10^12, so their long-scale links (10^12, 10^18)
+    were dropped; Portugal's *biliões* links the long-scale twins with a note.
+  - *seiscentos*, *setecentos*, *oitocentos* have no WordNet concept and stay out;
+    *cinqüenta* waits for Q10.
+- Content words (one subagent, about 69k tokens): 31 words, 29 adds, 5 skips. *estadual*,
+  *paulista*, *carioca* and *afro* have no concept that is their meaning; *segunda* takes the
+  ordinal as its card and Monday as a second sense.
+- The labellers reported wrong pt members, applied by hand as 22 drops: *osenhor* on
+  thousand, *metrô* on the metre and three meters, four "comics" words on comedian, the
+  misspellings *fèbre*, *diáriamente*, *rápidamente*, *assintência*, *dazassete*,
+  *cinqüênta*, and *trilhão* on the long-scale billion.
+- Most of the "missing" content words were spelling, not absence: Q10. They wait for it.
+- Labels are applied by [`02.1_apply_labels.py`](02.1_apply_labels.py), which checks every
+  line against the built corpus first and writes nothing unless all pass.

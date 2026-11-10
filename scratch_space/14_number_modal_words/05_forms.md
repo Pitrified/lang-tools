@@ -1,5 +1,5 @@
 ---
-status: planned
+status: done
 ---
 
 # Phase 5 - inflected forms of the top 1,000
@@ -33,3 +33,18 @@ After phase 4, so the forms of *poder* and *dever* are already done and skipped 
 
 - Every listed form has a lemma on its concept with a form note, zero stale rows, `make check`
   and the gate pass, each card was read, and Q7 b is raised again.
+
+## What the implementation found
+
+- 195 rule-found forms less 13 struck (10 modal forms, *milhões*, *segunda*, the name
+  *silva*), plus 5 the rules missed (*boa*, *boas*, *meses*, *tá*, *fiquei*): 187 forms.
+- Four subagents in batches of 47 (about 223k tokens, 1 to 2 minutes each), 195 adds. They
+  corrected 8 wrong bases (*gosta* to *gostar*, *novas* to *novo*, *algumas* to *algum*, ...)
+  and moved about 20 forms off the base word's card where the form means something else (*todos*
+  "all" not "each", *muitos* "many" not "very", *pais* "parents", *redes* "networks", *graças*
+  "thanks to", *reais* the currency).
+- They found base words whose own card is wrong: *rede* "cloth", *graça* "joke", *atividade*
+  "action", *receber* "get, acquire", none of them in the 1,000 cards `13_missing_senses`
+  reviewed; raised as Q12. (*pouco* "a little" was reviewed, and is right for the singular.)
+- Cost per form: about 1,200 subagent tokens and a check line each. Q7 b raised again as
+  Q11.

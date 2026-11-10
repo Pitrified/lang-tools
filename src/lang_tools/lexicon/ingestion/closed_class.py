@@ -12,7 +12,8 @@ The rule is deterministic, so it lives here rather than in the reviewed
 language's closed-class list is dropped, and the lemma with it when no sense is
 left (`apply_form_drops`). A word that is also a common content word keeps its
 senses and is left off the list (es *bajo* "low", fr *son* "sound", *ton*,
-*or*, *vers*, it *verso*, *sopra*, *sotto*, pt *caso*). English is exempt:
+*or*, *vers*, it *verso*, *sopra*, *sotto*, pt *caso*, *devido* "due", and the
+articles *um* and *uma*, which are also the number "one"). English is exempt:
 Princeton WordNet's senses for *a*, *in* or *can* are real homographs.
 """
 
@@ -31,7 +32,7 @@ CLOSED_CLASS_MODEL = "closed-class-rule"
 
 _LISTS = {
     "pt": """
-        a o as os uma uns umas de do da dos das em no na nos nas num numa nuns numas
+        a o as os uns umas de do da dos das em no na nos nas num numa nuns numas
         ao à aos às pelo pela pelos pelas por para pra pro com sem sob sobre entre até
         desde contra perante após ante trás dum duma deste desta destes destas neste
         nesta nestes nestas desse dessa desses dessas nesse nessa nesses nessas daquele
@@ -43,6 +44,8 @@ _LISTS = {
         seus suas nosso nossa nossos nossas vosso vossa vossos vossas
         este esta estes estas esse essa esses essas aquele aquela aqueles aquelas isto
         isso aquilo qual quais quem cujo cuja cujos cujas onde durante cada
+        tudo algo algum ninguém qualquer quanto quantos quantas ambos tais quê disso
+        nisso daqueles através apesar entanto dentre redor exceto
     """,
     "es": """
         el la los las lo un una unos unas de del a al en por para con sin sobre entre

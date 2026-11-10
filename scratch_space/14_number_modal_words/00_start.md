@@ -198,3 +198,50 @@ Raised by phase 1 ([`01_gap_assessment.md`](01_gap_assessment.md)), 2026-11-09:
   - Recommended: a, because the classifier leaves a short residue, and phase 2 already has the
     tooling and the review.
   - ANS: a (user, 2026-11-09): phase 2.
+
+Raised during phase 2, 2026-11-09:
+
+- Q10: Pre-reform spelling. The pt wordnet spells words as before the 2009 orthography reform:
+  225 single-word lemmas (*idéia*, *assembléia*, *seqüência*, *tranqüilo*, *vôo*, *jóia*),
+  of which 134 are less frequent in `wordfreq` than their modern spelling and 53 have a modern
+  spelling above zipf 3. It also has a few misspellings (*qüestão*, *juíz*, *raíz*). This is
+  why *ideia*, *questão*, *juiz*, *assembleia*, *sequência*, *tranquilo* and *aguentar* looked
+  missing in phase 1: their meaning is in the corpus under the old spelling, a lemma
+  `wordfreq` barely sees, so its card is rare or absent. 12 lemmas exist in both spellings.
+  - a. A deterministic spelling rule at build, like the closed-class rule: right after the
+    transform, before anything keys on a lemma id, respell a pre-reform lemma (trema dropped,
+    *éi* / *ói* in a paroxytone unaccented, *ôo*, *êem*) plus a short table of misspellings,
+    and merge it into the modern lemma when both exist. Curated rows keyed on an old lemma id
+    are migrated in the same step (counted first). A phase of its own, before phase 5.
+  - b. Per-word additions for the 53 frequent modern spellings, linked to the old spelling's
+    concepts; the old lemmas stay, so a word can have two cards.
+  - c. Leave it; the cards stay under the old spelling.
+  - Recommended: a, because the rule is mechanical and fixes the whole class at once, the way
+    the closed-class rule does; b duplicates cards and has to be redone for every new word.
+  - NEW_ANS:
+
+Raised at the end of phases 2 to 5, 2026-11-09:
+
+- Q11 (Q7 b again): an inflection model for the forms beyond the top 1,000. Phase 5 cost about
+  1,200 subagent tokens and one checked line per form, and every card came out right; the
+  forms of the top 5,000 would be about 1,300 more (about 1.6M tokens, 28 batches of 47).
+  - a. Continue with rows: the forms of the 1,001 to 2,000 band next (about 260), same method.
+  - b. Design the inflection model (a form table applied at build; a form found by search and
+    tagged on its base word's card) as the next folder, and stop adding form rows here.
+  - c. Stop at the top 1,000 for now.
+  - Recommended: c, then b: the top 1,000 covers the forms a learner meets first, and rows past
+    it scale linearly while a model would cover every form at once.
+  - NEW_ANS:
+- Q12: Base words with a wrong card, found while labelling their forms: *rede* "cloth" (it is
+  "net, network"), *graça* "joke" ("grace", *de graça* "free"), *atividade* "action"
+  ("activity"), *receber* "get, acquire" ("receive"). None is among the 1,000 cards the card
+  review covered.
+  - a. A card-sense re-check of these four now, through the `sense-review` skill.
+  - b. Extend the card-sense review to the pt cards ranked 1,001 to 2,000, which would catch
+    these and their like, as its own measured run.
+  - Recommended: a now (small, clear), and b raised when the next card-review run is planned.
+  - NEW_ANS:
+- Q8 b, as its answer asked, now that phase 3 exists: closed-class words could get cards
+  through curated concepts (*eu* "I", *tudo* "everything", *ninguém* "nobody"). Not raised as a
+  question yet: it is a policy change for the 117 most frequent words, best opened as its own
+  plan once Q10 and Q11 are settled. Noted here so it is not lost.

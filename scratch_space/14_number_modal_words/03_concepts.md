@@ -1,5 +1,5 @@
 ---
-status: planned
+status: done
 ---
 
 # Phase 3 - curated concepts
@@ -41,3 +41,19 @@ Context: [`00_start.md`](00_start.md) Q2, Q3.
 
 - The input, its stage, tests and docs are in; `make check` passes; a rebuild holds the two
   concepts with their en members and the gate passes.
+
+## What the implementation found
+
+- `ingestion.concept_additions` with `ConceptAddition`, `load_concept_additions` and
+  `apply_concept_additions`, a build stage right before the sense additions, the manifest's
+  `concept_additions`, four tests, and the docs (`docs/library/lexicon.md`,
+  `docs/guides/rebuild_corpus.md`).
+- The plan's `definition_sources: manual` was wrong: that field records a gloss that did not
+  come from the concept's own source, and here the row is the source. The concept's provenance
+  tag is `manual` instead.
+- The two rows (`manual:can-be-able`, key `96b457c8f204`; `manual:must-have-to`, key
+  `a0785e55476c`) are hand-written. The lexfile is `verb.stative`, WordNet's class for
+  *be* and *have*. The build created the en lemmas *be able to* and *have to*; *can*, *may*,
+  *must* existed and took the new sense.
+- `add` checks the concept in the built corpus, so the modal labels went in after a rebuild:
+  two rebuilds in all for phases 2 to 5.
