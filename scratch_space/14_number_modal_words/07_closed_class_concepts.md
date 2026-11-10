@@ -1,5 +1,5 @@
 ---
-status: planned
+status: done
 ---
 
 # Phase 7 - concepts for the closed-class words
@@ -41,9 +41,15 @@ Context: [`00_start.md`](00_start.md) Q8, Q13; reuses phase 3
   note (*do*: `contraction of "de" + "o": of the`). Expected about 70 concepts.
 - Code: `add_sense` and the batch check in `sense_review` accept a closed-class word when the
   concept is a curated one (a key of `load_concept_additions`), and still refuse a WordNet
-  concept. A test each, and the closed-class paragraph of `docs/library/lexicon.md` updated.
-- Labels by subagents (Q6), one batch per group or two, proposing the concept rows and the
-  links in the `02.1_apply_labels.py` format; I check every line. The concept rows go in first
+  concept. The lexfile-to-part-of-speech map, duplicated in `concept_additions` and
+  `sense_additions`, becomes one shared `LEXFILE_POS` that also knows the function-word
+  classes (`pron`, `det`, `prep`, `conj`), so the new lemmas carry a part of speech lang-tutor
+  can filter on. A test, and the closed-class paragraph of `docs/library/lexicon.md` updated.
+- The inventory written by hand in one script (`07.1_closed_class_concepts.py`), not by
+  subagents: 64 concepts that must agree with each other (one "that" for *esse*, another for
+  *aquele*) are one design, not 128 independent labels, and writing them was cheaper than
+  checking agent output line by line. The script checks every listed word has a link and
+  every concept is used, and writes the label files for `02.1_apply_labels.py`. The concept rows go in first
   and are built, then the links are applied (`add` needs a built concept), then a second build.
 - Gate, and every card of the 128 words read on 8010.
 
@@ -66,3 +72,29 @@ Context: [`00_start.md`](00_start.md) Q8, Q13; reuses phase 3
 
 - Every one of the 128 words has a card on a curated concept, or is listed with the reason,
   0 stale rows, `make check` and the gate pass, and each card was read.
+
+## What the implementation found
+
+- The plan review found the part-of-speech gap (a created lemma took its part of speech from
+  a map of the four WordNet classes only, so every new card would have had none) and the
+  duplicated map; both fixed in the code step above.
+- *consigo* is mostly "I manage" (a form of *conseguir*), a WordNet concept, which a
+  closed-class word may not take; it came off the list, as *devido* did, and links to both
+  meanings with "I manage" as its card.
+- 64 concepts and 142 links over 130 words: the 128 closed-class words of the top 1,000, and
+  *um* / *uma*, which gain the article "a, an" as their card (the number "one" stays a sense).
+  The links went in after a build with the concepts, the 10 pins of the main meaning of a
+  multi-meaning word (*a* "the" over "to" and "her", *que* "that" over "what" and "than",
+  *como* "how" over "as, like") after the next.
+- Build: 66 concepts added (64 new), 71 en lemmas created (*the*, *of*, *nobody*), 659 senses
+  and 455 lemmas from the sense additions, 724 pins, 0 stale. Look-alikes stale 11 to 8,
+  as reviewed rows on words that exist again now apply; six accepted rows sit on the newly
+  linked words (*qual* / it *quale*, *como* / *come*, *quando*, *durante* / *durata*), and the
+  two on *pelos* (it *pelo* "hair", *peloso*) were reviewed for *pelos*
+  "hairs", which this corpus spells *pêlos* (phase 6 kept *pêlo*), so they now sit on the
+  contraction "by the". Left as they are; the *pêlo* / *pelo* homograph is the cause.
+- All 130 cards read on 8010: each shows the chosen meaning and form note, 0 wrong. *um* and
+  *uma* keep their old part of speech (noun, adverb), since their lemmas predate this phase;
+  a client filtering on part of speech misses those two.
+- `make check` 469 passed, docs build, gate PASS. The `docs/guides/sense_review.md` change
+  (the refusal now names WordNet concepts) changes the rulebook hash future batches record.

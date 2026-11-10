@@ -33,6 +33,7 @@ from lang_tools.lexicon.concept_id import CONCEPT_ID_RE
 from lang_tools.lexicon.concept_id import concept_id
 from lang_tools.lexicon.concept_id import concept_key
 from lang_tools.lexicon.concept_id import source_key_hash
+from lang_tools.lexicon.ingestion.sense_additions import LEXFILE_POS
 from lang_tools.lexicon.ingestion.transform import SOURCE_MANUAL
 from lang_tools.lexicon.lemma import Lemma
 from lang_tools.lexicon.maintenance import ReviewStatus
@@ -48,9 +49,6 @@ if TYPE_CHECKING:
 #: Committed curated concept additions, under ``<data_fol>/curated/``.
 CONCEPT_ADDITIONS_FILE = "concept_additions.jsonl"
 
-#: Lexfile class -> the lemma part-of-speech label, for a lemma a row creates.
-_LEXFILE_POS = {"noun": "noun", "verb": "verb", "adj": "adjective", "adv": "adverb"}
-
 
 class ConceptAddition(BaseModel):
     """One reviewed concept the sources lack (a JSONL line).
@@ -59,8 +57,9 @@ class ConceptAddition(BaseModel):
         source_key: Stable key of the concept, ``manual:<name>``; hashed into
             the id like a synset key, so `concept_key` reads back its hash.
         slug: Human-readable slug of the id (lowercase, digits, hyphens).
-        lexfile: The nearest WordNet lexicographer class (``verb.stative``);
-            it gives a created lemma its part of speech.
+        lexfile: The nearest WordNet lexicographer class (``verb.stative``),
+            or a function-word class (``pron.personal``, ``det.article``,
+            ``prep``, ``conj``); it gives a created lemma its part of speech.
         definition: The English gloss.
         members: The English words that realise the concept.
         add: True to add the concept; a later False row retracts it.
@@ -138,7 +137,7 @@ def apply_concept_additions(
         tables.concept_sources.append(SOURCE_MANUAL)
         keys.add(row.concept_key)
         added += 1
-        pos = _LEXFILE_POS.get(row.lexfile.split(".")[0])
+        pos = LEXFILE_POS.get(row.lexfile.split(".")[0])
         for word in row.members:
             lemma = Lemma(
                 text=word, language="en", part_of_speech=pos, sources=[SOURCE_MANUAL]

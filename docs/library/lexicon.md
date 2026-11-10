@@ -502,8 +502,13 @@ list per language, and the build drops every sense of a lemma on it (and the lem
 without a sense) right after the member-form drops, through the same
 `apply_form_drops`. Words that are also common content words are left off the lists (es
 *bajo*, fr *son*, *ton*, *or*, *vers*, it *verso*, *sopra*, *sotto*, pt *caso*, *devido*,
-and *um* / *uma*, also the number "one"), and English is exempt. The 2026-10 build dropped 231 senses and 118 lemmas this way; the
-manifest records it under `closed_class`.
+*consigo* "I manage", and *um* / *uma*, also the number "one"), and English is exempt.
+A closed-class word still gets a card, through a curated concept (below): the pt words of
+the top 1,000 link to 64 of them, from *eu* "I" and *de* "of, from" to *do* "of the"
+with a form note, and their lemmas carry a function-word part of speech (`pronoun`,
+`determiner`, `preposition`, `conjunction`), so a client can leave them out of drills.
+The 2026-11 build dropped 230 senses and 117 lemmas this way (the curated links then bring
+the lemmas back); the manifest records it under `closed_class`.
 
 The best-sense pins (`ingestion.best_senses`) fix the other way a card shows the wrong
 meaning. Outside English every sense of a lemma ties on frequency, so concept commonness
@@ -524,13 +529,16 @@ concept's part of speech, so a removed word comes back with its look-alikes. Add
 and senses carry the `manual` provenance tag. A row may carry a `form_note` for an
 inflected form, which the card shows. The manifest records the senses added, the lemmas
 created and the stale rows (a concept the build lacks, or a word that does not give the
-row's `lemma_id`) under `sense_additions`. A closed-class word never takes an addition.
+row's `lemma_id`) under `sense_additions`. A closed-class word takes an addition only to a
+curated concept: the hand corrections refuse a link to a WordNet one.
 
 Some meanings have no WordNet concept to link to: WordNet has no modal verbs, so pt *pode*
 "can" and *deve* "must" have nothing to be added to (en *can* is a tin can, *must* grape
-juice). The concept additions (`ingestion.concept_additions`) create such a concept. A
+juice), and no pronouns, articles, prepositions or conjunctions. The concept additions (`ingestion.concept_additions`) create such a concept. A
 `ConceptAddition` row names a stable `source_key` (`manual:can-be-able`), the slug, the
-nearest lexfile, the English gloss and the English members; the id is built from the key
+nearest lexfile (a WordNet class, or a function-word class: `pron.personal`,
+`det.article`, `prep`, `conj`, which gives a created lemma its part of speech), the English
+gloss and the English members; the id is built from the key
 like a synset's, so its `concept_key` is stable. Only the latest row of a key counts, and
 an `add: false` row retracts it. The stage runs right before the sense additions, so an
 addition can link a word of any language to the new concept; it creates the English member

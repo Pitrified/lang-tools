@@ -11,7 +11,8 @@ Usage: ``02.1_apply_labels.py [--dry] <labels file>...``
 from pathlib import Path
 import sys
 
-from lang_tools.lexicon.ingestion.closed_class import CLOSED_CLASS
+from lang_tools.lexicon.ingestion.sense_review import _closed_class_refused
+from lang_tools.lexicon.ingestion.sense_review import _curated_concepts
 from lang_tools.lexicon.ingestion.sense_review import _options
 from lang_tools.lexicon.ingestion.sense_review import add_sense
 from lang_tools.lexicon.ingestion.sense_review import drop_sense
@@ -27,6 +28,7 @@ dry = "--dry" in args
 files = [Path(a) for a in args if a != "--dry"]
 store = get_store()
 data_fol = get_lang_tools_params().paths.data_fol
+curated = _curated_concepts(data_fol)
 
 lines = []
 for path in files:
@@ -45,8 +47,8 @@ for name, action, word, key, _note, _reason in lines:
     if action == "add":
         if store.get_concept_by_key(key) is None:
             problems.append(f"{name}: add {word}: no concept {key}")
-        if word.lower() in CLOSED_CLASS[LANGUAGE]:
-            problems.append(f"{name}: add {word}: closed-class")
+        if _closed_class_refused(word, LANGUAGE, key, curated):
+            problems.append(f"{name}: add {word}: closed-class, not a curated concept")
     elif action in {"pin", "drop"}:
         if key not in known:
             problems.append(f"{name}: {action} {word}: no sense {key}")

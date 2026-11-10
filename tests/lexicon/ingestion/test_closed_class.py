@@ -41,7 +41,7 @@ def test_lists_hold_function_words_not_content_homographs() -> None:
     assert {"com", "para", "como", "dela"} <= CLOSED_CLASS["pt"]
     assert "caso" not in CLOSED_CLASS["pt"]
     assert {"tudo", "ninguém", "através"} <= CLOSED_CLASS["pt"]
-    assert {"um", "uma", "devido"}.isdisjoint(CLOSED_CLASS["pt"])
+    assert {"um", "uma", "devido", "consigo"}.isdisjoint(CLOSED_CLASS["pt"])
     assert "bajo" not in CLOSED_CLASS["es"]
     assert {"son", "ton", "or"}.isdisjoint(CLOSED_CLASS["fr"])
     assert "en" not in CLOSED_CLASS

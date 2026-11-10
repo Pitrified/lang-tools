@@ -169,7 +169,8 @@ addition pins its own sense). `apply` refuses the whole batch if a line is missi
 appears twice, a sense number is out of range, a sense is both pinned and dropped, every sense is
 dropped with `d` and nothing is added (use `x`), a drop or an addition has no reason, a form note
 has no addition, a `REMOVED` item takes anything but `k` or `a`, an added concept does not exist,
-or an addition names a closed-class word (the build keeps those without senses), and it lists
+or an addition links a closed-class word to a WordNet concept (such a word takes only a curated
+one), and it lists
 every problem at once. Fix the labels and run it again.
 
 ## Hidden gold
