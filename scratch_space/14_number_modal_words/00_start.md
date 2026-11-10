@@ -237,7 +237,8 @@ Raised at the end of phases 2 to 5, 2026-11-09:
     tokens with orchestration, and about 2.4 points of a 5-hour window per agent. So a is about
     5 to 7 weekly points for the subagents, call it 5% to 10% of a week with my checking, and
     about one full 5-hour window (28 agents). Phase 5 was about 1 weekly point.
-  - NEW_ANS:
+  - ANS: b (user, 2026-11-10: "we do the inflection models first"): no more form rows here;
+    the inflection model is a sibling folder, before any rows past the top 1,000.
 - Q12: Base words with a wrong card, found while labelling their forms: *rede* "cloth" (it is
   "net, network"), *graça* "joke" ("grace", *de graça* "free"), *atividade* "action"
   ("activity"), *receber* "get, acquire" ("receive"). None is among the 1,000 cards the card

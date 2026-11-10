@@ -98,7 +98,8 @@ kernel; step 2 can record it in the manifest.
 Run `notebooks/lexicon_ingest/02_transform.ipynb`
 in the same kernel.
 
-The build cell calls `pipeline.build_initial`, which transforms the OMW cache,
+The build cell calls `pipeline.build_initial`, which transforms the OMW cache
+(folding spelling noise and respelling pre-reform pt),
 drops the reviewed member forms and the closed-class words, re-applies every
 curated input under `data/curated/` (concept and sense additions, gloss overrides, slug
 qualifiers, gloss backfill, example sentences, look-alikes, with rare-word traps

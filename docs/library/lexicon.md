@@ -765,7 +765,17 @@ one canonical form before ids are minted:
   frequent, most capitalized one (pt `Golden gate bridge` -> `Golden Gate Bridge`);
 - accent variants that share a concept fold the spelling with fewer marks into the
   fullest one (es `percepcion` -> `percepción`); spellings with as many marks stay
-  apart as parallel norms (pt `blasfémia` / `blasfêmia`).
+  apart as parallel norms (pt `blasfémia` / `blasfêmia`);
+- last, every pt form is respelt as the 2009 orthography reform writes it
+  (`ingestion.spelling_reform.respell_pt`), because the pt wordnet predates it:
+  the trema goes from *gue*, *gui*, *que*, *qui* (`freqüência` -> `frequência`),
+  the open diphthongs *éi* / *ói* lose the accent in a paroxytone no other rule
+  accents (`idéia` -> `ideia`, `heróico` -> `heroico`, but `papéis`, `destróier`),
+  `ôo` and `êem` lose the circumflex (`vôo` -> `voo`), and a short table fixes
+  the rest (`juíz` -> `juiz`, `pólo` -> `polo`). It runs after the lost-accent
+  pass, which folds `ideia` into `idéia`, so both end as `ideia`. Frequency is not
+  consulted, since `wordfreq` still counts many old spellings higher. `pêlo`
+  "hair" keeps its accent: respelt, it would be the closed-class `pelo`.
 
 Variants that never share a concept are different words and never fold: pt `avó` /
 `avô`, es `mono` / `moño`, it `papa` / `papà`, en `State` / `state`, it `Mosca` /

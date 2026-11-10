@@ -13,7 +13,8 @@ Analysis and decisions in [`00_start.md`](00_start.md).
 - Every form in the pt top 5,000 gets a lemma with a form note (Q5 a).
 - Labels by subagents, every line checked by me; no paid LLM job (Q6).
 - The wider gap is mostly inflection (phase 1): the forms of the top 1,000 get rows here
-  (phase 5, Q7 a); an inflection model is raised again after it (Q7 b).
+  (phase 5, Q7 a); the forms past it wait for an inflection model, a sibling folder
+  (Q11 b).
 - Missing content words of the top 5,000 join phase 2 (Q9 a); the 21 unlisted function words
   go on the closed-class list, and cards for closed-class words are judged after phase 3
   (Q8 c).
@@ -30,7 +31,7 @@ Analysis and decisions in [`00_start.md`](00_start.md).
 | 3  | Curated concepts      | [`03_concepts.md`](03_concepts.md)           | done    |
 | 4  | Modal verbs           | [`04_modals.md`](04_modals.md)               | done    |
 | 5  | Inflected forms       | [`05_forms.md`](05_forms.md)                 | done    |
-| 6  | Pre-reform spelling   | [`06_spelling.md`](06_spelling.md)           | planned |
+| 6  | Pre-reform spelling   | [`06_spelling.md`](06_spelling.md)           | done    |
 | 7  | Closed-class concepts | [`07_closed_class_concepts.md`](07_closed_class_concepts.md) | planned |
 | 8  | Release v0.5.0        | [`08_release.md`](08_release.md)             | planned |
 
@@ -89,3 +90,9 @@ Append-only. Newest at the bottom.
   (phase 7, concepts for the 128 closed-class words of the top 1,000, all groups); the release
   moved to phase 8 (`08_release.md`). Q11 gained its cost in limit terms from the look-alike
   usage log (about 5% to 10% of a week); still open.
+- 2026-11-10 : Q11 answered b (inflection model first, a sibling folder). Phase 6 done: plan
+  review corrected the frequency gate (dropped, `wordfreq` favours 55 old spellings) and the
+  rule scopes; `ingestion.spelling_reform.respell_pt` as the last pass of
+  `spelling_noise_folds`, since the lost-accent pass folded *ideia* into *idéia*. 305 lemmas
+  respelt, 12 merged, 474 look-alike rows re-keyed once, 0 new stale. 90 cards read on 8010,
+  8 wrong cards of newly frequent words fixed by hand. `make check` 468, gate PASS, docs build.

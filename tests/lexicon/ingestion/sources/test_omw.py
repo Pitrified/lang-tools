@@ -811,6 +811,26 @@ def test_variant_spellings_of_one_meaning_fold_together() -> None:
     assert {("es", "mono"), ("es", "moño")} <= texts
 
 
+def test_pre_reform_pt_spelling_folds_into_the_modern_one() -> None:
+    entries = [
+        # Both spellings on one concept: the lost-accent pass alone would keep
+        # the old one, which has more marks.
+        SynsetEntry("en", "n1", "i1", "a thought", ("idea",), pos="n"),
+        SynsetEntry("pt", "pn1", "i1", "", ("idéia", "ideia"), pos="n"),
+        # The old spelling alone is respelt; so is a capitalized name.
+        SynsetEntry("en", "n2", "i2", "a sequence", ("sequence",), pos="n"),
+        SynsetEntry("pt", "pn2", "i2", "", ("seqüência",), pos="n"),
+        SynsetEntry("en", "n3", "i3", "a country", ("Korea",), pos="n"),
+        SynsetEntry("pt", "pn3", "i3", "", ("Coréia",), pos="n"),
+        # Other languages are untouched.
+        SynsetEntry("es", "en1", "i1", "", ("idéia",), pos="n"),
+    ]
+    texts = {(lemma.language, lemma.text) for lemma in group_to_records(entries).lemmas}
+    pt = sorted(text for language, text in texts if language == "pt")
+    assert pt == ["Coreia", "ideia", "sequência"]
+    assert ("es", "idéia") in texts
+
+
 def test_joined_variants_split_into_separate_forms() -> None:
     assert member_forms("maire ; bourgmestre") == (["maire", "bourgmestre"], 0)
     assert member_forms("GAP!") == ([], 1)
