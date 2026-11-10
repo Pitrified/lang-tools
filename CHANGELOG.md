@@ -7,6 +7,39 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.5.0] - 2026-11-10
+
+The pt corpus gains its number words, its modal verbs, the forms and function words of its 1,000
+most frequent words, and the modern spelling.
+
+### Added
+
+- Reviewed concept additions, `data/curated/concept_additions.jsonl`, applied at build by
+  `ingestion.concept_additions`: a concept WordNet lacks, with its English gloss and members,
+  keyed on a manual source key; the latest row of a key wins, and `add: false` retracts one.
+  `_build.json` records what they applied and how many rows were stale.
+- Curated concepts for the modal verbs (*poder* "can", *dever* "must") and for the function
+  words: pronouns, articles, possessives, demonstratives, quantifiers, prepositions and
+  conjunctions (pt *eu* "I", *o* "the", *de* "of, from").
+- `ingestion.spelling_reform.respell_pt`: the pre-2009 pt spellings of the pt wordnet
+  (*idéia*, *seqüência*, *vôo*) are respelt at build, folding into the modern word when both
+  exist.
+- pt data: the missing cardinal numbers, content words of the top 5,000, the frequent forms of
+  the top 1,000 with their form notes, and cards for the 128 closed-class words of the top
+  1,000.
+
+### Changed
+
+- A created lemma takes its part of speech from one shared map of lexfile classes,
+  `sense_additions.LEXFILE_POS`, which also knows `pronoun`, `determiner`, `preposition` and
+  `conjunction`.
+- The closed-class list: 20 pt function words added, *uma* and *consigo* removed, since they
+  are also "one" and "I manage".
+- The rulebook `docs/guides/sense_review.md`: a closed-class word takes a curated concept, and
+  only a WordNet concept is refused.
+
+---
+
 ## [0.4.0] - 2026-11-06
 
 Drill cards gain the everyday meanings the corpus did not link, and verb forms and plurals say

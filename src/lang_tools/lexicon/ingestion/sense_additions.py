@@ -46,7 +46,18 @@ if TYPE_CHECKING:
 SENSE_ADDITIONS_FILE = "sense_additions.jsonl"
 
 #: Lexfile class -> the lemma part-of-speech label, for a lemma an addition creates.
-_LEXFILE_POS = {"noun": "noun", "verb": "verb", "adj": "adjective", "adv": "adverb"}
+#: The WordNet classes, plus the function-word classes a curated concept uses
+#: (``pron.personal``, ``det.article``, ``prep``, ``conj``).
+LEXFILE_POS = {
+    "noun": "noun",
+    "verb": "verb",
+    "adj": "adjective",
+    "adv": "adverb",
+    "pron": "pronoun",
+    "det": "determiner",
+    "prep": "preposition",
+    "conj": "conjunction",
+}
 
 
 class SenseAddition(BaseModel):
@@ -133,7 +144,7 @@ def apply_sense_additions(
             existing.form_note = row.form_note or existing.form_note
             continue
         if row.lemma_id not in lemmas:
-            pos = _LEXFILE_POS.get((concept.lexfile or "").split(".")[0])
+            pos = LEXFILE_POS.get((concept.lexfile or "").split(".")[0])
             lemma = Lemma(
                 text=row.word,
                 language=row.language,
