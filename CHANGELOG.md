@@ -7,6 +7,29 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.6.0] - 2026-11-10
+
+Card queries leave out the function words unless a client asks for them.
+
+### Added
+
+- `CardQuery.exclude_part_of_speech`: the lemma parts of speech a card query leaves out. Its
+  default is `card.FUNCTION_WORD_POS` (pronoun, determiner, preposition, conjunction); an empty
+  list, or `?exclude_part_of_speech=` over HTTP, keeps every class. A query for one function-word
+  class sets both fields (`?part_of_speech=pronoun&exclude_part_of_speech=`). A lemma with no part
+  of speech is kept.
+
+### Changed
+
+- A card query no longer returns the function words by default (pt *eu*, *um*, *de*, *mas*);
+  `lemma_card` by id is not affected, and the card-sense review worklist still serves them.
+- A lemma with a pinned card takes the part of speech of that card
+  (`best_senses.apply_pinned_part_of_speech`): pt *um* and *uma* are determiners, *poder* and
+  *dever* verbs, 90 pt lemmas in all. `_build.json` records the count under `best_senses`.
+- The bootstrap seed: pt *preciso* is a verb.
+
+---
+
 ## [0.5.0] - 2026-11-10
 
 The pt corpus gains its number words, its modal verbs, the forms and function words of its 1,000

@@ -1,5 +1,5 @@
 ---
-status: draft
+status: in progress
 ---
 
 # Phase 3 - release v0.6.0

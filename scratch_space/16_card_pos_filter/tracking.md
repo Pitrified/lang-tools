@@ -17,7 +17,7 @@ lemma the part of speech of its card. Analysis and decisions in [`00_start.md`](
 | -- | ------------------------ | -------------------------------------- | ------ |
 | 1  | Part of speech of a card | [`01_card_pos.md`](01_card_pos.md)     | done   |
 | 2  | Function-word filter     | [`02_filter.md`](02_filter.md)         | done   |
-| 3  | Release v0.6.0           | [`03_release.md`](03_release.md)       | draft  |
+| 3  | Release v0.6.0           | [`03_release.md`](03_release.md)       | in progress |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
 
@@ -45,3 +45,6 @@ Append-only. Newest at the bottom.
   function words. On 8010: 0 function words in the 500 most frequent pt cards by default, 104 with
   the empty value; 123 reachable by class (the 4 one-letter ones are never cards). `make check`
   472, docs build.
+- 2026-11-10 : committed phase 2 (`ca8a666`). Phase 3 started; review found nothing to correct,
+  and the CHANGELOG also lists the phase 1 change and the seed fix. The local uv (0.13.1) wrote
+  lock revision 5; set back to 3, which the pinned hook uv (0.9.16) writes.
