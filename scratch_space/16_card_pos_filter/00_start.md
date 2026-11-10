@@ -1,5 +1,5 @@
 ---
-status: draft
+status: in progress
 priority: 0
 description: |
   Let a card query leave out the function words (pronouns, articles, prepositions,
@@ -33,7 +33,7 @@ noun and an adverb, are fixed.
   53 determiner, 36 preposition, 23 pronoun, 13 conjunction. en has 67 function-word lemmas
   (the members of the curated concepts); es, fr and it none, since their closed-class words are
   dropped without a card.
-- A lemma has one part of speech, taken from its first WordNet sense, whatever its card shows.
+- A lemma has one part of speech, the class most of its WordNet synsets have, whatever its card shows.
   Of the 724 pt lemmas with a pinned card, 90 have a part of speech that differs from the class
   of their pinned concept (`LEXFILE_POS` of its lexfile):
   - 4 on curated concepts: *um* noun and *uma* adverb (card "a, an", determiner), *poder* and
@@ -71,6 +71,8 @@ noun and an adverb, are fixed.
     the 86 WordNet cases too; the 90 are read before and after. The part of speech also feeds
     the look-alike matching (`lookalikes.cognate_key` treats a verb apart), so phase 1 counts the
     look-alike edges before and after.
+    Note (phase 1 review): only the worklist mining reads it; the build applies reviewed rows by
+    lemma id, so the built edges cannot change.
   - ANS: a (user, 2026-11-10).
 - Q4: Unpinned lemmas, whose card is the most frequent sense.
   - a. Out of scope: measure the mismatch only, and note it.

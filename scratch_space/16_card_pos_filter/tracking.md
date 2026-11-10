@@ -15,7 +15,7 @@ lemma the part of speech of its card. Analysis and decisions in [`00_start.md`](
 
 | #  | Phase                    | Plan                                   | Status |
 | -- | ------------------------ | -------------------------------------- | ------ |
-| 1  | Part of speech of a card | [`01_card_pos.md`](01_card_pos.md)     | draft  |
+| 1  | Part of speech of a card | [`01_card_pos.md`](01_card_pos.md)     | done   |
 | 2  | Function-word filter     | [`02_filter.md`](02_filter.md)         | draft  |
 | 3  | Release v0.6.0           | [`03_release.md`](03_release.md)       | draft  |
 
@@ -32,3 +32,8 @@ Append-only. Newest at the bottom.
 - 2026-11-10 : Q1 to Q4 answered (b, a, a, a with an assessment) and folded in; Q5 raised (an
   empty list cannot be sent in a query string).
 - 2026-11-10 : Q5 answered b (an empty value turns the exclusion off) and folded in.
+- 2026-11-10 : phase 1 done. Review corrected two claims (look-alike edges cannot move in the
+  build; class is the synset majority). `apply_pinned_part_of_speech` after the pins: 90 pt
+  lemmas changed, all read right on 8010, other counts unchanged. Q4 assessed: 440 of 45,470
+  unpinned pt lemmas (about 1%) differ from their card's class, 26 in the top 1,000; left.
+  `make check` 470, gate PASS, docs build.

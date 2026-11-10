@@ -225,7 +225,12 @@ def test_reviewed_best_sense_pins_the_card(tmp_path: Path) -> None:
     assert (summary.best_senses_applied, summary.best_senses_stale) == (1, 1)
     manifest = read_manifest(tmp_path)
     assert manifest is not None
-    assert manifest["best_senses"] == {"applied": 1, "stale": 1}
+    # Both senses of manga are nouns, so the pin leaves its part of speech.
+    assert manifest["best_senses"] == {
+        "applied": 1,
+        "stale": 1,
+        "part_of_speech_changed": 0,
+    }
     card = LexiconStore.from_data_fol(tmp_path).lemma_card(manga)
     assert card is not None
     assert card.concept_id == other
