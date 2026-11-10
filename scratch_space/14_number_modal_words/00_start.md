@@ -1,5 +1,5 @@
 ---
-status: in progress
+status: done
 priority: 0
 description: |
   Give pt its number words and modal verbs. Half the cardinals (*cinco*, *doze*, *trinta*) and

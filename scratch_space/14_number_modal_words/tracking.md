@@ -33,7 +33,7 @@ Analysis and decisions in [`00_start.md`](00_start.md).
 | 5  | Inflected forms       | [`05_forms.md`](05_forms.md)                 | done    |
 | 6  | Pre-reform spelling   | [`06_spelling.md`](06_spelling.md)           | done    |
 | 7  | Closed-class concepts | [`07_closed_class_concepts.md`](07_closed_class_concepts.md) | done    |
-| 8  | Release v0.5.0        | [`08_release.md`](08_release.md)             | in progress |
+| 8  | Release v0.5.0        | [`08_release.md`](08_release.md)             | done    |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
 
@@ -102,3 +102,8 @@ Append-only. Newest at the bottom.
   map; `sense_review` takes a closed-class word for a curated concept only; *consigo* off the
   list. 64 concepts, 142 links over 130 words, 10 pins, three builds; 0 stale, look-alikes 8.
   All 130 cards read on 8010, 0 wrong. `make check` 469, gate PASS, docs build.
+- 2026-11-10 : committed phase 7 (`1f01275`). Phase 8 done: release `1d3334f`, merged into main
+  (`5e8dba7`), tag `v0.5.0`, pushed by the user. lang-tutor: `feat/form_note` merged into main
+  (`5fdafba`), pin bumped on `deps/lang-tools-v0.5.0` (`b0f5a65`, `uv lock`, `make undev`,
+  `make check` 151 passed) and merged (`989fc75`); 8000 restarted on it. lang-tutor has no
+  part-of-speech filter yet, so closed-class cards reach its drills.
