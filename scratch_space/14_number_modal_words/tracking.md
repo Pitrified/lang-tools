@@ -33,7 +33,7 @@ Analysis and decisions in [`00_start.md`](00_start.md).
 | 5  | Inflected forms       | [`05_forms.md`](05_forms.md)                 | done    |
 | 6  | Pre-reform spelling   | [`06_spelling.md`](06_spelling.md)           | done    |
 | 7  | Closed-class concepts | [`07_closed_class_concepts.md`](07_closed_class_concepts.md) | done    |
-| 8  | Release v0.5.0        | [`08_release.md`](08_release.md)             | planned |
+| 8  | Release v0.5.0        | [`08_release.md`](08_release.md)             | in progress |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
 
