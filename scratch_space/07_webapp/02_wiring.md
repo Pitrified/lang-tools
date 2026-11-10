@@ -1,3 +1,7 @@
+---
+status: superseded
+---
+
 # Exercise Wiring Status
 
 Status of each exercise: API endpoint, frontend JS, and what's still missing.

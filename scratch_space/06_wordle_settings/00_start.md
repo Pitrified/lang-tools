@@ -1,3 +1,14 @@
+---
+status: done
+priority: 0
+description: |
+  Move the wordle settings (word lengths) out of the `Language` model, which should only
+  describe a language.
+comment: |
+  Frontmatter added on 2026-11-10: implemented in 5a56351 ("decouple wordle from language");
+  the exercises then moved to lang-tutor.
+---
+
 # wordle settings
 
 ## Overview
