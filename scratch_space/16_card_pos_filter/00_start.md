@@ -1,5 +1,5 @@
 ---
-status: in progress
+status: done
 priority: 0
 description: |
   Let a card query leave out the function words (pronouns, articles, prepositions,

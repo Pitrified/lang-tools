@@ -17,7 +17,7 @@ lemma the part of speech of its card. Analysis and decisions in [`00_start.md`](
 | -- | ------------------------ | -------------------------------------- | ------ |
 | 1  | Part of speech of a card | [`01_card_pos.md`](01_card_pos.md)     | done   |
 | 2  | Function-word filter     | [`02_filter.md`](02_filter.md)         | done   |
-| 3  | Release v0.6.0           | [`03_release.md`](03_release.md)       | in progress |
+| 3  | Release v0.6.0           | [`03_release.md`](03_release.md)       | done   |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
 
@@ -48,3 +48,8 @@ Append-only. Newest at the bottom.
 - 2026-11-10 : committed phase 2 (`ca8a666`). Phase 3 started; review found nothing to correct,
   and the CHANGELOG also lists the phase 1 change and the seed fix. The local uv (0.13.1) wrote
   lock revision 5; set back to 3, which the pinned hook uv (0.9.16) writes.
+- 2026-11-10 : phase 3 done. Released v0.6.0 (`7d80157`, merge `0bc7c17`, tag pushed by the
+  user). lang-tutor pinned v0.6.0 (`483502b`, merged `15adce7`), `make check` 151; 8000
+  restarted on it. Its four drill queries (limit 500, by frequency and two random seeds) drew no
+  function word. Found: lang-tutor's query encoder drops an empty `exclude_part_of_speech`, so
+  it cannot turn the filter off yet; no query of it needs to. Folder done.
