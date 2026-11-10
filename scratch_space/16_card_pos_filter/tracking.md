@@ -16,7 +16,7 @@ lemma the part of speech of its card. Analysis and decisions in [`00_start.md`](
 | #  | Phase                    | Plan                                   | Status |
 | -- | ------------------------ | -------------------------------------- | ------ |
 | 1  | Part of speech of a card | [`01_card_pos.md`](01_card_pos.md)     | done   |
-| 2  | Function-word filter     | [`02_filter.md`](02_filter.md)         | draft  |
+| 2  | Function-word filter     | [`02_filter.md`](02_filter.md)         | done   |
 | 3  | Release v0.6.0           | [`03_release.md`](03_release.md)       | draft  |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
@@ -37,3 +37,11 @@ Append-only. Newest at the bottom.
   lemmas changed, all read right on 8010, other counts unchanged. Q4 assessed: 440 of 45,470
   unpinned pt lemmas (about 1%) differ from their card's class, 26 in the top 1,000; left.
   `make check` 470, gate PASS, docs build.
+- 2026-11-10 : committed phase 1 (`898501c`). Phase 2 started; review: the sense-review worklist
+  builds a `CardQuery` too and keeps the function words (empty list); `FUNCTION_WORD_POS` lives in
+  `lexicon.card`, not next to `LEXFILE_POS` in `ingestion`.
+- 2026-11-10 : phase 2 done. `CardQuery.exclude_part_of_speech` (default `FUNCTION_WORD_POS`),
+  the empty-value validator, the `IS NULL OR NOT IN` clause; the review worklist keeps the
+  function words. On 8010: 0 function words in the 500 most frequent pt cards by default, 104 with
+  the empty value; 123 reachable by class (the 4 one-letter ones are never cards). `make check`
+  472, docs build.

@@ -255,6 +255,11 @@ filters are:
 - language;
 - CEFR window (`min_cefr` / `max_cefr`);
 - topic, part of speech, exact or minimum length;
+- `exclude_part_of_speech`, the classes left out, by default the function words
+  (`FUNCTION_WORD_POS`: pronoun, determiner, preposition, conjunction), whose cards
+  exist for a client that chooses to drill them. An empty list keeps every class; over
+  HTTP an empty value does it (`?exclude_part_of_speech=`), and a query for one
+  function-word class sends both keys (`?part_of_speech=pronoun&exclude_part_of_speech=`);
 - `accented_only` and `single_word`, which means one lowercase alphabetic token,
   so no proper nouns, compounds or digits;
 - `require_translation` (in every `translation_languages`), `require_example`,

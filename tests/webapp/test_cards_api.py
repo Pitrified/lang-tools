@@ -48,6 +48,21 @@ class TestListCards:
         second = client.get("/api/v1/cards", params=params).json()
         assert [c["lemma"]["id"] for c in first] == [c["lemma"]["id"] for c in second]
 
+    def test_excluded_classes_and_the_empty_value(self, client: TestClient) -> None:
+        """A listed class is left out; an empty value turns the exclusion off."""
+        params = {"language": "pt", "part_of_speech": "noun", "limit": 5}
+        left_out = client.get(
+            "/api/v1/cards", params={**params, "exclude_part_of_speech": "noun"}
+        )
+        assert left_out.status_code == 200
+        assert left_out.json() == []
+        kept = client.get(
+            "/api/v1/cards", params={**params, "exclude_part_of_speech": ""}
+        )
+        assert kept.status_code == 200
+        assert kept.json()
+        assert all(c["lemma"]["part_of_speech"] == "noun" for c in kept.json())
+
     def test_bad_level_is_rejected(self, client: TestClient) -> None:
         """A value outside the CEFR bands is a validation error."""
         response = client.get("/api/v1/cards", params={"max_cefr": "Z9"})
