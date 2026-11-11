@@ -7,6 +7,40 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.7.0] - 2026-11-11
+
+The frequent pt inflected forms get a lemma by rule, on their base word's meaning, and stay out of
+drills and word lists unless asked for.
+
+### Added
+
+- `ingestion.inflections`: pt inflection rules of our own, with no third-party morphology table. They
+  generate a noun's plural, an adjective's feminine and plurals, the feminine of a noun naming a
+  person, and a verb's finite forms, personal infinitive, gerund and past participles (regular
+  paradigms with spelling and stem changes, and a table of 28 irregular verbs and their
+  compounds). A form several bases give gets one base, and a form note written from its tags
+  (`3rd person singular preterite of "ser"`, `plural of "ano"`).
+- The build stage `apply_inflections`, right after the sense additions: each pt form of
+  `wordfreq` zipf 3.0 and up that the build lacks gets a lemma with its base's senses of the form's
+  class, and takes its base's pinned sense (`propagate_base_pins`), so its card is its base's card.
+  The 2026-11 build adds 12,395 pt forms with 49,675 senses; `_build.json` records them under
+  `inflections`. The rows carry the new provenance tag `inflection`. A reviewed form row still wins.
+- `CardQuery.include_forms` (default `False`): keep the inflected forms, the cards with a
+  `form_note`.
+
+### Changed
+
+- A card query leaves out the inflected forms by default, the reviewed ones (pt *anos*, *foi*)
+  included; `lemma_card` by id still reads a form's card.
+- A sense with a form note is never a card translation or own-language synonym, a
+  `require_translation` match, a `lemmas_for_concept` member, or a lemma of a hydrated concept:
+  the en card "year" listed pt *anos* before *ano*, and "be" listed 26 pt words. `senses_for_concept`
+  keeps every edge.
+- The card-sense review worklist leaves the inflected forms out.
+- The bootstrap seed has 276 inflected forms (863 lemmas, 1,000 senses).
+
+---
+
 ## [0.6.0] - 2026-11-10
 
 Card queries leave out the function words unless a client asks for them.
