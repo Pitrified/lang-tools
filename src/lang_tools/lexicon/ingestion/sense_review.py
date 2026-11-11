@@ -385,7 +385,9 @@ def build_worklist(
         query = CardQuery(
             language=language,
             single_word=True,
-            # Function words have cards too, and a review serves them.
+            # Function words have cards too, and a review serves them. The
+            # inflected forms stay out (the default): a form's card is its
+            # base's, so the base's review covers it.
             exclude_part_of_speech=[],
             order="frequency",
             exclude_ids=taken,

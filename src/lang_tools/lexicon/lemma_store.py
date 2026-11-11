@@ -427,10 +427,12 @@ def _card_where(query: CardQuery) -> tuple[list[str], list[object]]:
             f"(d.part_of_speech IS NULL OR d.part_of_speech NOT IN ({marks}))"
         )
         params.extend(query.exclude_part_of_speech)
-    if query.accented_only:
-        clauses.append("d.accented = 1")
-    if query.single_word:
-        clauses.append("d.single_word = 1")
+    flags = [
+        (not query.include_forms, "d.form_note IS NULL"),
+        (query.accented_only, "d.accented = 1"),
+        (query.single_word, "d.single_word = 1"),
+    ]
+    clauses += [clause for on, clause in flags if on]
     if query.exclude_ids:
         marks = ", ".join("?" for _ in query.exclude_ids)
         clauses.append(f"d.lemma_id NOT IN ({marks})")
@@ -441,7 +443,7 @@ def _card_where(query: CardQuery) -> tuple[list[str], list[object]]:
                 "EXISTS (SELECT 1 FROM senses s2"
                 " JOIN lemmas l2 ON l2.id = s2.lemma_id"
                 " WHERE s2.concept_id = d.concept_id AND l2.language = ?"
-                " AND l2.id <> d.lemma_id)",
+                " AND l2.id <> d.lemma_id AND s2.form_note IS NULL)",
             )
             params.append(language)
     lookalike = _lookalike_clause(query)
@@ -1065,7 +1067,8 @@ class LexiconStore:
         """Return ``(concept_id, language) -> [(lemma_id, text)]`` for cards.
 
         Ordered by frequency, then words before phrases and symbols
-        (`_rank_translations`).
+        (`_rank_translations`). An inflected form (a sense with a form note) is
+        not another word for the concept, so it is left out.
         """
         if not concept_ids or not languages:
             return {}
@@ -1078,7 +1081,7 @@ class LexiconStore:
             # senses, not from the (far less selective) lemma language index.
             " CROSS JOIN lemmas l ON l.id = s.lemma_id"
             f" WHERE s.concept_id IN ({c_marks})"
-            f" AND l.language IN ({l_marks})"
+            f" AND l.language IN ({l_marks}) AND s.form_note IS NULL"
             " ORDER BY s.sense_frequency DESC NULLS LAST, l.text",
             (*concept_ids, *languages),
         ).fetchall()
@@ -1151,10 +1154,15 @@ class LexiconStore:
         concept_id: str,
         language: str | None = None,
     ) -> list[Lemma]:
-        """Return the lemmas realising a concept, optionally filtered by language."""
+        """Return the lemmas realising a concept, optionally filtered by language.
+
+        An inflected form (a sense with a form note, pt *anos* on "year") is left
+        out: it is a form of a member, not a member.
+        """
         sql = (
             f"SELECT {_select_cols('lemmas', 'l')} FROM senses s "  # noqa: S608
-            "JOIN lemmas l ON l.id = s.lemma_id WHERE s.concept_id = ?"
+            "JOIN lemmas l ON l.id = s.lemma_id"
+            " WHERE s.concept_id = ? AND s.form_note IS NULL"
         )
         params: tuple[object, ...] = (concept_id,)
         if language is not None:
@@ -1292,6 +1300,9 @@ class LexiconStore:
     def hydrate_concept(self, concept: Concept) -> Concept:
         """Fill `concept`'s back-references from SQLite (its senses and lemmas).
 
+        Every sense is kept; the lemmas leave out the inflected forms, as
+        `lemmas_for_concept` does.
+
         Args:
             concept: The concept to hydrate in place.
 
@@ -1303,7 +1314,7 @@ class LexiconStore:
         for sense in senses:
             sense.concept = concept
             sense.lemma = self.get_lemma_by_id(sense.lemma_id)
-            if sense.lemma is not None:
+            if sense.lemma is not None and sense.form_note is None:
                 grouped[sense.lemma.language].append(sense.lemma)
         concept.senses = senses
         concept.lemmas = dict(grouped)

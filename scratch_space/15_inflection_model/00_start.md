@@ -237,4 +237,4 @@ Rewritten after Q1 b; the first draft parsed kaikki at build.
   - b. Only the translations of a card; the concept reads keep the forms.
   - Recommended: a, because a form is not another word for the concept anywhere a list of words is
     shown, and it fixes the shipped defect too.
-  - NEW_ANS:
+  - ANS: a (user, 2026-11-11). Folded into phase 3.

@@ -209,8 +209,9 @@ webapp consume:
   has a sense in, computed once per cache build into an indexed `lemma_topics`
   table, so a topic filter is a lookup rather than a scan.
 - Concepts: `get_all_concepts`, `get_concept_by_id`.
-- Adjacency: `concepts_for_lemma`, `lemmas_for_concept` (optional `language`),
-  `senses_for_lemma`, `senses_for_concept`.
+- Adjacency: `concepts_for_lemma`, `lemmas_for_concept` (optional `language`;
+  it leaves out the inflected forms, a sense with a form note, as a hydrated
+  concept's `lemmas` does), `senses_for_lemma`, `senses_for_concept` (every edge).
 - Edges: `get_false_friends_for_lemma` (returns `(other_lemma, edge)` pairs,
   resolving symmetry), `concept_relations_for` and `sense_relations_for` (both
   with an optional `relation_type`; a symmetric edge is found from either end).
@@ -239,7 +240,9 @@ never persisted:
   is the more common of the two. wordfreq ranks *x*, *2* and *i* above *ten*,
   *two* and *one*, so without it pt *dez* would show "x" and *quatro* "Little
   Joe"; the frequency test keeps "in love" ahead of *potty* and "Black person"
-  ahead of *blackamoor*. The lemma's own language lists its synonyms.
+  ahead of *blackamoor*. The lemma's own language lists its synonyms. An
+  inflected form (a sense with a form note: pt *anos* on "year") is never listed,
+  since it is a form of a member, not another word for the concept.
 - `examples`: the concept's example sentences in the lemma's language.
 
 The commonness tie-break matters outside English. The SemCor prior that splits a
@@ -260,6 +263,9 @@ filters are:
   exist for a client that chooses to drill them. An empty list keeps every class; over
   HTTP an empty value does it (`?exclude_part_of_speech=`), and a query for one
   function-word class sends both keys (`?part_of_speech=pronoun&exclude_part_of_speech=`);
+- `include_forms`, off by default: the inflected forms (a card with a form note,
+  pt *anos*, *foi*, from the inflection rules or a reviewed row) are left out, since
+  a form's card is its base word's card and a drill of the base teaches it;
 - `accented_only` and `single_word`, which means one lowercase alphabetic token,
   so no proper nouns, compounds or digits;
 - `require_translation` (in every `translation_languages`), `require_example`,

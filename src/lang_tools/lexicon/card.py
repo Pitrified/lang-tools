@@ -19,6 +19,12 @@ them, and no current drill does. `CardQuery.exclude_part_of_speech` holds the
 classes left out; an empty list, or an empty value in a query string
 (``?exclude_part_of_speech=``), keeps every class.
 
+A query leaves out the inflected forms too (pt *anos*, *foi*: a lemma whose card
+has a `LemmaCard.form_note`), unless ``include_forms`` is set: a form's card is
+its base word's card, so a drill of the base already teaches it. A form is never
+listed among a card's translations either; `LexiconStore.lemma_card` still
+reads a form's own card by id.
+
 See ``scratch_space/09_concept_model/09_sample_and_consumer.md`` for the design.
 """
 
@@ -83,7 +89,8 @@ class LemmaCard(BaseModel):
             inflected form linked to its base word's concept (pt *são* on "be":
             ``3rd person plural present of "ser": they are``); None otherwise.
         gloss: Definition of the best concept in the query's gloss language.
-        translations: Language -> lemma texts realising the same concept, most
+        translations: Language -> lemma texts realising the same concept (never
+            an inflected form, a lemma whose sense carries a form note), most
             frequent first, except that a word comes before a symbol (a digit,
             one letter, a Roman numeral) and a single word before a phrase
             that is less common than it: pt *dez* lists *ten* before *x*. The
@@ -147,6 +154,8 @@ class CardQuery(BaseModel):
         min_length: Minimum character length (drops two-letter tokens such as
             unit symbols from a drill; one-letter lemmas are never cards).
         accented_only: Keep only lemmas whose text carries a diacritic.
+        include_forms: Keep the inflected forms (a lemma whose card has a
+            `LemmaCard.form_note`), which are left out by default.
         single_word: Keep only one lowercase alphabetic token (no spaces,
             hyphens, digits, apostrophes, or capitals - so no proper nouns).
         exclude_ids: Lemma ids to leave out (e.g. the ones already drilled).
@@ -178,6 +187,7 @@ class CardQuery(BaseModel):
     length: int | None = Field(default=None, ge=1)
     min_length: int | None = Field(default=None, ge=1)
     accented_only: bool = False
+    include_forms: bool = False
     single_word: bool = False
     exclude_ids: list[str] = Field(default_factory=list)
     known_languages: list[str] = Field(default_factory=list)

@@ -10,7 +10,8 @@ Analysis and decisions in [`00_start.md`](00_start.md).
 - The model fills only the forms the build lacks; every reviewed row wins (Q5 a).
 - One base per form (Q4 a); a form copies that base's senses of the form's class and its pin, so its
   card is its base's card with a label-only note (Q6 a).
-- Forms of zipf 3.0 and up (Q3 c), out of card queries unless asked for (Q2 b).
+- Forms of zipf 3.0 and up (Q3 c), out of card queries unless asked for (Q2 b), and never a
+  translation or a concept member (Q9 a).
 
 ## Phases
 
@@ -18,7 +19,7 @@ Analysis and decisions in [`00_start.md`](00_start.md).
 | -- | --------------------------- | ------------------------------------------ | ----------- |
 | 1  | Form generator and measure  | [`01_form_table.md`](01_form_table.md)     | done        |
 | 2  | Build stage                 | [`02_build_stage.md`](02_build_stage.md)   | done        |
-| 3  | Card filter for forms       | [`03_card_filter.md`](03_card_filter.md)   | planned     |
+| 3  | Card filter for forms       | [`03_card_filter.md`](03_card_filter.md)   | done        |
 | 4  | Release v0.7.0              | [`04_release.md`](04_release.md)           | planned     |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
@@ -57,3 +58,9 @@ Append-only. Newest at the bottom.
   12,234 forms show their base's card, 147 a sense of their own class (better), 14 differ by a
   tie. 100 cards read: 3 wrong or doubtful picks (*virei*, *obvio*, *rebelo*), 3 wrong glosses
   inherited from the base's card. Docs updated.
+- 2026-11-11 : Q9 answered a and folded into phase 3. Committed phase 2 (`96c793f`).
+- 2026-11-11 : phase 3 done. Review: the worklist leaves the forms out (the plan said keep).
+  `CardQuery.include_forms`; no form in translations, `require_translation`,
+  `lemmas_for_concept` or a hydrated concept's lemmas. On 8010 en "year" lists pt *ano* only and
+  "be" *ser*, *estar*; lang-tutor's drills draw no form (wordle 393, diacritic 371, the reviewed
+  forms now out too). `make check` 554, docs build.
