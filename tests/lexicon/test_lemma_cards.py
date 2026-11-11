@@ -341,6 +341,58 @@ def test_function_words_are_left_out_unless_asked() -> None:
     assert CardQuery(exclude_part_of_speech=[""]).exclude_part_of_speech == []
 
 
+def _store_with_a_form() -> LexiconStore:
+    casa = Lemma(text="casa", language="pt", part_of_speech="noun")
+    casas = Lemma(text="casas", language="pt", part_of_speech="noun")
+    house = Lemma(text="house", language="en", part_of_speech="noun")
+    return LexiconStore.from_models(
+        lemmas=[casa, casas, house],
+        concepts=[Concept(id=C_HOUSE, definitions={"en": "a building to live in"})],
+        senses=[
+            Sense(lemma_id=casa.id, concept_id=C_HOUSE, sense_frequency=5.0),
+            Sense(
+                lemma_id=casas.id,
+                concept_id=C_HOUSE,
+                sense_frequency=4.5,
+                form_note='plural of "casa"',
+            ),
+            Sense(lemma_id=house.id, concept_id=C_HOUSE, sense_frequency=5.5),
+        ],
+        lookalikes=[],
+        concept_relations=[],
+        sense_relations=[],
+    )
+
+
+def test_forms_are_left_out_unless_asked() -> None:
+    store = _store_with_a_form()
+    query = CardQuery(language="pt")
+    assert _texts(store.lemma_cards(query)) == ["casa"]
+    every = query.model_copy(update={"include_forms": True})
+    assert sorted(_texts(store.lemma_cards(every))) == ["casa", "casas"]
+
+
+def test_a_form_is_never_a_translation_or_a_member() -> None:
+    store = _store_with_a_form()
+    house = store.lemma_cards(CardQuery(language="en", translation_languages=["pt"]))
+    assert house[0].translations == {"pt": ["casa"]}
+    synonyms = store.lemma_cards(CardQuery(language="pt", translation_languages=["pt"]))
+    assert synonyms[0].translations == {"pt": []}
+    assert [lemma.text for lemma in store.lemmas_for_concept(C_HOUSE, "pt")] == ["casa"]
+    concept = store.get_concept_by_id(C_HOUSE)
+    assert concept is not None
+    store.hydrate_concept(concept)
+    assert concept.lemmas is not None
+    assert concept.senses is not None
+    assert [lemma.text for lemma in concept.lemmas["pt"]] == ["casa"]
+    assert len(concept.senses) == 3
+    # The form's own card still reads, with its note and its base's meaning.
+    card = store.lemma_card(Lemma(text="casas", language="pt").id)
+    assert card is not None
+    assert card.form_note == 'plural of "casa"'
+    assert card.translations == {"en": ["house"]}
+
+
 def test_require_translation_and_example() -> None:
     store = _store()
     with_en = store.lemma_cards(CardQuery(language="pt", require_translation=True))

@@ -55,6 +55,8 @@ if TYPE_CHECKING:
 SOURCE_KAIKKI = "kaikki"
 SOURCE_LLM = "llm"
 SOURCE_MANUAL = "manual"
+#: Rows the inflection rules generate (`ingestion.inflections`).
+SOURCE_INFLECTION = "inflection"
 
 
 @dataclass

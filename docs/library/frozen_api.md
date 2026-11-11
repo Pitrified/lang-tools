@@ -67,12 +67,16 @@ over HTTP in its default `http` mode.
   card carries the best sense's `form_note` (`None` for most cards). Since v0.6.0
   `CardQuery.exclude_part_of_speech` leaves out the function words by default
   (`FUNCTION_WORD_POS`); an empty list, or `?exclude_part_of_speech=` over HTTP,
-  keeps them.
+  keeps them. Since v0.7.0 a card query leaves out the inflected forms (a card with
+  a `form_note`) unless `CardQuery.include_forms` is set, and a form is never in a
+  card's `translations`.
 - `get_all_concepts`, `get_concept_by_id`, `get_concept_by_key` (by the
   slug-free `concept_key`, since v0.4.0), `concepts_for_lemma`,
   `lemmas_for_concept`, `senses_for_lemma`, `senses_for_concept`,
   `get_false_friends_for_lemma`, `concept_relations_for`, `sense_relations_for` -
-  concept/sense/edge read helpers.
+  concept/sense/edge read helpers. Since v0.7.0 `lemmas_for_concept` and a hydrated
+  concept's `lemmas` leave out the inflected forms; `senses_for_concept` and the
+  concept's `senses` keep every edge.
 - `NotHydratedError`, `SenseNotHydratedError` - raised by the `resolve_*`
   back-reference accessors before the store hydrates an object.
 

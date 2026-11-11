@@ -53,7 +53,8 @@ class Sense(BaseModel):
         form_note: Which form of the word this sense is, when the lemma is an
             inflected form linked to its base word's concept (pt *são* on "be":
             ``3rd person plural present of "ser": they are``). Set by a curated
-            sense addition (`ingestion.sense_additions`); ``None`` otherwise.
+            sense addition (`ingestion.sense_additions`) or by the inflection
+            rules (`ingestion.inflections`); ``None`` otherwise.
         lemma: Resolved lemma endpoint. Store-hydrated, never persisted
             (``exclude=True``); ``None`` until hydration. Read via
             `resolve_lemma` to fail loud when unhydrated.

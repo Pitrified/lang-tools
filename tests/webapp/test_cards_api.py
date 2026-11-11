@@ -63,6 +63,17 @@ class TestListCards:
         assert kept.json()
         assert all(c["lemma"]["part_of_speech"] == "noun" for c in kept.json())
 
+    def test_forms_only_when_asked(self, client: TestClient) -> None:
+        """The seed's inflected forms come back only with ``include_forms``."""
+        params = {"language": "pt", "limit": 500, "order": "frequency"}
+        default = client.get("/api/v1/cards", params=params).json()
+        assert default
+        assert all(card["form_note"] is None for card in default)
+        every = client.get(
+            "/api/v1/cards", params={**params, "include_forms": "true"}
+        ).json()
+        assert any(card["form_note"] for card in every)
+
     def test_bad_level_is_rejected(self, client: TestClient) -> None:
         """A value outside the CEFR bands is a validation error."""
         response = client.get("/api/v1/cards", params={"max_cefr": "Z9"})

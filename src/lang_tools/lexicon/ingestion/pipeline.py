@@ -34,6 +34,10 @@ from lang_tools.lexicon.ingestion.concept_additions import load_concept_addition
 from lang_tools.lexicon.ingestion.enrich import enrich
 from lang_tools.lexicon.ingestion.form_review import apply_form_drops
 from lang_tools.lexicon.ingestion.form_review import load_form_drops
+from lang_tools.lexicon.ingestion.inflections import INFLECTION_LANGUAGE
+from lang_tools.lexicon.ingestion.inflections import INFLECTION_ZIPF_FLOOR
+from lang_tools.lexicon.ingestion.inflections import apply_inflections
+from lang_tools.lexicon.ingestion.inflections import propagate_base_pins
 from lang_tools.lexicon.ingestion.lookalikes import apply_lookalikes
 from lang_tools.lexicon.ingestion.lookalikes import drop_rare_traps
 from lang_tools.lexicon.ingestion.lookalikes import load_lookalikes
@@ -59,6 +63,7 @@ from lang_tools.lexicon.maintenance import load_gloss_backfill
 from lang_tools.lexicon.maintenance import load_gloss_overrides
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from collections.abc import Iterable
     from collections.abc import Mapping
     from pathlib import Path
@@ -237,6 +242,15 @@ def _wn_data_dir(data_fol: Path) -> Path:
     return raw_dir(data_fol) / "wn_data"
 
 
+def _form_zipf(
+    zipf_by_form: Mapping[tuple[str, str], float] | None,
+) -> Callable[[str], float]:
+    """Return the zipf lookup of a generated form: the given map, else ``wordfreq``."""
+    if zipf_by_form is None:
+        return lambda text: token_zipf(text, INFLECTION_LANGUAGE)
+    return lambda text: zipf_by_form.get((text, INFLECTION_LANGUAGE), 0.0)
+
+
 def build_initial(
     langs: Iterable[str],
     *,
@@ -302,6 +316,10 @@ def build_initial(
     senses_added, lemmas_created, additions_stale = apply_sense_additions(
         tables, load_sense_additions(data_fol)
     )
+    # The inflected forms the sources lack (pt *anos*, *foi*) get a lemma on their
+    # base word's senses: after the sense additions, so a reviewed form is a lemma
+    # already and wins, and before enrichment, so the forms get their frequency.
+    inflections = apply_inflections(tables, zipf=_form_zipf(zipf_by_form))
     # Curated gloss repairs are re-applied here so a rebuild reproduces them; a
     # post-hoc Parquet edit would be silently reverted by this very build (05.58).
     applied, stale = apply_gloss_overrides(
@@ -349,6 +367,8 @@ def build_initial(
         tables.senses,
         load_best_senses(data_fol),
     )
+    # A generated form shows its base's card, so it takes its base's pin.
+    form_pins = propagate_base_pins(tables.senses, inflections.links)
     # A pinned card sets its lemma's part of speech, which card filters read.
     pos_changed = apply_pinned_part_of_speech(
         tables.lemmas, tables.senses, tables.concepts
@@ -388,6 +408,12 @@ def build_initial(
             "senses_added": senses_added,
             "lemmas_created": lemmas_created,
             "stale": additions_stale,
+        },
+        "inflections": {
+            "zipf_floor": INFLECTION_ZIPF_FLOOR,
+            "forms_added": inflections.forms,
+            "senses_added": inflections.senses,
+            "pins_from_base": form_pins,
         },
         "gloss_backfill": {"filled": backfilled},
         "example_sentences": {"added": examples_added},

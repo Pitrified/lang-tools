@@ -1,0 +1,67 @@
+# implementation tracking
+
+Give the frequent inflected pt forms (*anos*, *foi*, *boa*) a lemma on their base word's meaning,
+with a form note, from our own inflection rules applied at build instead of one reviewed row per form.
+Analysis and decisions in [`00_start.md`](00_start.md).
+
+## Key decisions
+
+- Our own rules generate the forms; kaikki only measures them, in the scratchpad (Q1 b).
+- The model fills only the forms the build lacks; every reviewed row wins (Q5 a).
+- One base per form (Q4 a); a form copies that base's senses of the form's class and its pin, so its
+  card is its base's card with a label-only note (Q6 a).
+- Forms of zipf 3.0 and up (Q3 c), out of card queries unless asked for (Q2 b), and never a
+  translation or a concept member (Q9 a).
+
+## Phases
+
+| #  | Phase                       | Plan                                       | Status      |
+| -- | --------------------------- | ------------------------------------------ | ----------- |
+| 1  | Form generator and measure  | [`01_form_table.md`](01_form_table.md)     | done        |
+| 2  | Build stage                 | [`02_build_stage.md`](02_build_stage.md)   | done        |
+| 3  | Card filter for forms       | [`03_card_filter.md`](03_card_filter.md)   | done        |
+| 4  | Release v0.7.0              | [`04_release.md`](04_release.md)           | in progress |
+
+Status values: draft / planned / in progress / done / superseded / discarded.
+
+## Log
+
+Append-only. Newest at the bottom.
+
+- 2026-11-10 : draft folder spun off from `14_number_modal_words` Q11 b.
+- 2026-11-11 : picked up. Merged main (v0.6.0) into the branch, which was cut at v0.4.0.
+  Assessed three sources in the scratchpad: UniMorph `por` (verbs only), the kaikki pt extract
+  (form-of senses for nouns, adjectives and verbs; 351,303 forms) and the ending rules of
+  `14_number_modal_words`. kaikki finds the reviewed base for 363 of the 421 reviewed form words,
+  the rules plus UniMorph 312; the misses are nearly all closed-class words. At zipf 3.0, 10,834
+  absent pt forms have a base the corpus has. kaikki serves only its latest extract. Q1 to Q8
+  raised, phases 1 to 4 drafted.
+- 2026-11-11 : Q1 to Q8 answered (b, b, c, then a, a, a, a, b as recommended) and folded in. Q1 b
+  (own rules, kaikki only to measure) rewrote the approach and phase 1, and made Q8 moot.
+- 2026-11-11 : phase 1 started. Review: the claim that a wrong generated form can only be a
+  non-word was too strong (a regular form of a rare verb can spell a real word); corrected, the
+  kaikki measure covers it. Nothing else to correct.
+- 2026-11-11 : phase 1 done. `ingestion/inflections.py`: our own pt paradigms (regular, spelling
+  and stem changes, 28 irregular verbs and their compounds), noun and adjective rules, the base
+  pick and the form note; 75 tests. At zipf 3.0: 12,395 new forms; kaikki gives the same or an
+  equivalent base on 12,102 (98%), 205 have no kaikki analysis, 88 differ (mostly kaikki
+  listing only a verb reading; about 7 model errors). 326 of 347 reviewed content forms get the
+  reviewed base. A finite-form rule was tried and removed (it broke *completa*, *viva*). English
+  look-alikes (183) and names (140) are kept, with counts. `make check` 547.
+- 2026-11-11 : phase 2 started. Review: the source tag is a new `SOURCE_INFLECTION`, not kaikki,
+  and the manifest has no extract date (Q1 b). Found an existing defect the model would spread:
+  card translations list the reviewed forms (en "year" -> pt *anos*, *ano*; en "be" -> 26 pt
+  words with *ser* 13th), raised as Q9 for phase 3.
+- 2026-11-11 : phase 2 done. `apply_inflections` after the sense additions, `propagate_base_pins`
+  after the pins, tag `inflection`, manifest block `inflections`. Rebuild: 12,395 pt forms,
+  49,675 senses, 444 base pins, zero stale; gate PASS; seed 587 -> 863 lemmas; `make check` 551.
+  12,234 forms show their base's card, 147 a sense of their own class (better), 14 differ by a
+  tie. 100 cards read: 3 wrong or doubtful picks (*virei*, *obvio*, *rebelo*), 3 wrong glosses
+  inherited from the base's card. Docs updated.
+- 2026-11-11 : Q9 answered a and folded into phase 3. Committed phase 2 (`96c793f`).
+- 2026-11-11 : phase 3 done. Review: the worklist leaves the forms out (the plan said keep).
+  `CardQuery.include_forms`; no form in translations, `require_translation`,
+  `lemmas_for_concept` or a hydrated concept's lemmas. On 8010 en "year" lists pt *ano* only and
+  "be" *ser*, *estar*; lang-tutor's drills draw no form (wordle 393, diacritic 371, the reviewed
+  forms now out too). `make check` 554, docs build.
+- 2026-11-11 : committed phase 3 (`8492a49`). Phase 4 started; review found nothing to correct.

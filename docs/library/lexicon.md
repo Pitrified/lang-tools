@@ -209,8 +209,9 @@ webapp consume:
   has a sense in, computed once per cache build into an indexed `lemma_topics`
   table, so a topic filter is a lookup rather than a scan.
 - Concepts: `get_all_concepts`, `get_concept_by_id`.
-- Adjacency: `concepts_for_lemma`, `lemmas_for_concept` (optional `language`),
-  `senses_for_lemma`, `senses_for_concept`.
+- Adjacency: `concepts_for_lemma`, `lemmas_for_concept` (optional `language`;
+  it leaves out the inflected forms, a sense with a form note, as a hydrated
+  concept's `lemmas` does), `senses_for_lemma`, `senses_for_concept` (every edge).
 - Edges: `get_false_friends_for_lemma` (returns `(other_lemma, edge)` pairs,
   resolving symmetry), `concept_relations_for` and `sense_relations_for` (both
   with an optional `relation_type`; a symmetric edge is found from either end).
@@ -239,7 +240,9 @@ never persisted:
   is the more common of the two. wordfreq ranks *x*, *2* and *i* above *ten*,
   *two* and *one*, so without it pt *dez* would show "x" and *quatro* "Little
   Joe"; the frequency test keeps "in love" ahead of *potty* and "Black person"
-  ahead of *blackamoor*. The lemma's own language lists its synonyms.
+  ahead of *blackamoor*. The lemma's own language lists its synonyms. An
+  inflected form (a sense with a form note: pt *anos* on "year") is never listed,
+  since it is a form of a member, not another word for the concept.
 - `examples`: the concept's example sentences in the lemma's language.
 
 The commonness tie-break matters outside English. The SemCor prior that splits a
@@ -260,6 +263,9 @@ filters are:
   exist for a client that chooses to drill them. An empty list keeps every class; over
   HTTP an empty value does it (`?exclude_part_of_speech=`), and a query for one
   function-word class sends both keys (`?part_of_speech=pronoun&exclude_part_of_speech=`);
+- `include_forms`, off by default: the inflected forms (a card with a form note,
+  pt *anos*, *foi*, from the inflection rules or a reviewed row) are left out, since
+  a form's card is its base word's card and a drill of the base teaches it;
 - `accented_only` and `single_word`, which means one lowercase alphabetic token,
   so no proper nouns, compounds or digits;
 - `require_translation` (in every `translation_languages`), `require_example`,
@@ -541,6 +547,32 @@ created and the stale rows (a concept the build lacks, or a word that does not g
 row's `lemma_id`) under `sense_additions`. A closed-class word takes an addition only to a
 curated concept: the hand corrections refuse a link to a WordNet one.
 
+The inflected forms (`ingestion.inflections`) get a lemma by rule rather than by row. The
+sources list base words only, so a frequent pt form such as *anos*, *foi* or *boa* had no
+lemma unless a reviewed sense addition created it. The module generates the forms of each pt
+base word from rules of our own, with no third-party morphology table: a noun's plural, an
+adjective's feminine and plurals (and the feminine of a noun naming a person, lexfile
+`noun.person`: *bióloga*), a verb's finite forms, personal infinitive, gerund and past
+participles. The verbs follow the regular -ar, -er and -ir paradigms with their spelling
+changes (*fiquei*, *conheço*), the stem changes of some -ir verbs (*sinto*, *durmo*) and a
+written table of 28 irregular verbs and their compounds (*ser*, *ter*, *manter*, *pôr*,
+*propor*). Imperatives, diminutives, superlatives and clitic forms are not generated. A
+form several bases give gets one: an adjective that is the feminine of another adjective
+base gives way to it (*novas* of *novo*), a verb gives way to its own participle used as a
+word (*estados* of *estado*, *comidas* of *comida*), a second-person or pluperfect reading
+gives way to any other (*partes* of *parte*, not "you leave"), and then the more frequent
+base wins (*foi* of *ser*, not *ir*). The stage runs right after the sense additions, so
+every reviewed form is a lemma already and wins, and before enrichment. It keeps the forms
+of `wordfreq` zipf 3.0 and up (`INFLECTION_ZIPF_FLOOR`) that the build lacks and that are
+not closed-class words; each gets a lemma with the `inflection` provenance tag and a copy
+of its base's senses of the form's class, each with a form note written from the tags
+(``3rd person singular preterite of "ser"``, ``plural of "ano"``; no English rendering).
+After the best-sense pins, a form whose base is pinned takes the same pin, so its card is
+its base's card. Measured against the Wiktionary analyses (kaikki, read only to measure,
+never by the build), about 98% of the forms have the same base or an equivalent one. The
+2026-11 build added 12,395 pt forms with 49,675 senses, and 444 pins from their base; the
+manifest records them under `inflections`.
+
 Some meanings have no WordNet concept to link to: WordNet has no modal verbs, so pt *pode*
 "can" and *deve* "must" have nothing to be added to (en *can* is a tin can, *must* grape
 juice), and no pronouns, articles, prepositions or conjunctions. The concept additions (`ingestion.concept_additions`) create such a concept. A
@@ -662,7 +694,8 @@ sources (OMW via wn, CILI gloss map, wordfreq)
 - **`enrich`** is the pure phase-6 core; see
   [Frequency and complexity](#frequency-and-complexity-phase-6).
 - **`build_initial`** wires it together: transform (with the slug qualifiers),
-  apply the member-form and closed-class drops, the concept and sense additions, the gloss
+  apply the member-form and closed-class drops, the concept and sense additions, the
+  inflected forms, the gloss
   overrides, the gloss backfill and the example sentences, enrich, tag the topics, apply the
   look-alikes and the best-sense pins, write each table through the codec with its
   tags, write the manifest, then carve and (optionally) write a sample slice. Thin

@@ -103,7 +103,7 @@ The build cell calls `pipeline.build_initial`, which transforms the OMW cache
 drops the reviewed member forms and the closed-class words, re-applies every
 curated input under `data/curated/` (concept and sense additions, gloss overrides, slug
 qualifiers, gloss backfill, example sentences, look-alikes, with rare-word traps
-filtered out, best-sense pins),
+filtered out, best-sense pins), gives the frequent pt inflected forms a lemma by rule,
 adds the phase-6 frequency and CEFR estimates, writes `data/lexicon/`, and
 carves the sample into `data/bootstrap/lexicon/`. Expect it to take about four
 minutes. The logged summary should match the row counts in the committed quality
