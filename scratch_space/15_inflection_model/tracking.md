@@ -17,7 +17,7 @@ Analysis and decisions in [`00_start.md`](00_start.md).
 | #  | Phase                       | Plan                                       | Status      |
 | -- | --------------------------- | ------------------------------------------ | ----------- |
 | 1  | Form generator and measure  | [`01_form_table.md`](01_form_table.md)     | done        |
-| 2  | Build stage                 | [`02_build_stage.md`](02_build_stage.md)   | planned     |
+| 2  | Build stage                 | [`02_build_stage.md`](02_build_stage.md)   | done        |
 | 3  | Card filter for forms       | [`03_card_filter.md`](03_card_filter.md)   | planned     |
 | 4  | Release v0.7.0              | [`04_release.md`](04_release.md)           | planned     |
 
@@ -47,3 +47,13 @@ Append-only. Newest at the bottom.
   listing only a verb reading; about 7 model errors). 326 of 347 reviewed content forms get the
   reviewed base. A finite-form rule was tried and removed (it broke *completa*, *viva*). English
   look-alikes (183) and names (140) are kept, with counts. `make check` 547.
+- 2026-11-11 : phase 2 started. Review: the source tag is a new `SOURCE_INFLECTION`, not kaikki,
+  and the manifest has no extract date (Q1 b). Found an existing defect the model would spread:
+  card translations list the reviewed forms (en "year" -> pt *anos*, *ano*; en "be" -> 26 pt
+  words with *ser* 13th), raised as Q9 for phase 3.
+- 2026-11-11 : phase 2 done. `apply_inflections` after the sense additions, `propagate_base_pins`
+  after the pins, tag `inflection`, manifest block `inflections`. Rebuild: 12,395 pt forms,
+  49,675 senses, 444 base pins, zero stale; gate PASS; seed 587 -> 863 lemmas; `make check` 551.
+  12,234 forms show their base's card, 147 a sense of their own class (better), 14 differ by a
+  tie. 100 cards read: 3 wrong or doubtful picks (*virei*, *obvio*, *rebelo*), 3 wrong glosses
+  inherited from the base's card. Docs updated.

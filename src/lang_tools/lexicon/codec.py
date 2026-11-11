@@ -51,7 +51,7 @@ LEXICON_SUBDIR = "lexicon"
 #: Tables stored one Parquet file per language (the large ones).
 PARTITIONED: frozenset[str] = frozenset({"lemmas", "senses"})
 
-#: Lightweight per-row provenance column (``omw|kaikki|llm|manual``). It is the
+#: Lightweight per-row provenance column (``omw|llm|manual|inflection``). It is the
 #: one seam a future re-ingestion merge needs (refresh machine rows, preserve
 #: ``manual`` ones), so it lives **on disk only**: written as an extra Parquet
 #: column when a provenance-aware dump supplies it, and always dropped on load so
@@ -492,7 +492,7 @@ def _dump_table(
         data_fol: Project data folder.
         lang: Force a single per-language file for a partitioned table.
         sources: Optional parallel list of per-row provenance tags
-            (``omw|kaikki|llm|manual``); when given, an extra `PROVENANCE_COL`
+            (``omw|llm|manual|inflection``); when given, an extra `PROVENANCE_COL`
             column is written and stays with each row through partitioning. The
             tag is always dropped on load, so it never reaches the models.
 

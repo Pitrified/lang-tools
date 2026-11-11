@@ -626,9 +626,9 @@ def _provenance_check(con: Any, t: dict[str, str]) -> CheckResult:  # noqa: ANN4
         if _has_column(con, t[name], "source")
     ]
     description = (
-        "Per-row on-disk source tag counts (omw|cili|derived|llm|manual; kaikki "
-        "is a legacy value no writer sets; derived marks the concept antonyms "
-        "lifted from English sense antonymy)."
+        "Per-row on-disk source tag counts (omw|cili|derived|llm|manual|"
+        "inflection; kaikki is a legacy value no writer sets; derived marks the "
+        "concept antonyms lifted from English sense antonymy)."
     )
     if not parts:
         return CheckResult(

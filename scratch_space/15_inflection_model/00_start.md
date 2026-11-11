@@ -222,3 +222,19 @@ Rewritten after Q1 b; the first draft parsed kaikki at build.
     cannot; the committed table is also what a diff shows when it is refreshed.
   - ANS: b (user, 2026-11-11), made moot by Q1 b: the rules are code, so there is no derived
     table to commit. The irregular verbs are a table in that code, written by us.
+
+### Raised in phase 2
+
+- Q9: Card translations list the inflected forms. `lemma_store._card_translations` takes every
+  lemma with a sense on the card's concept, so on v0.6.0 the en card "year" shows pt
+  `['anos', 'ano']` and "be" shows 26 pt words with *ser* 13th (the reviewed forms of
+  `14_number_modal_words`). The model adds a form to most pt concepts, so most cards would list
+  forms. The same holds for the pt card's own-language synonyms, `lemmas_for_concept` and the
+  `require_translation` filter.
+  - a. A sense with a form note is never a translation, a synonym or a concept member in those
+    reads; `lemma_card` by id and the form's own card are unchanged. Done in phase 3 with the
+    card filter.
+  - b. Only the translations of a card; the concept reads keep the forms.
+  - Recommended: a, because a form is not another word for the concept anywhere a list of words is
+    shown, and it fixes the shipped defect too.
+  - NEW_ANS:

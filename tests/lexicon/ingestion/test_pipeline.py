@@ -186,9 +186,11 @@ def test_topics_reach_disk_and_lemmas_through_the_store(tmp_path: Path) -> None:
     assert manifest["topics"] == {"concepts_tagged": 1}
 
     store = LexiconStore.from_data_fol(tmp_path)
+    # The inflection stage gives the plural *casas* the senses of *casa*.
     assert {lem.text for lem in store.get_lemmas_by_topic("places")} == {
         "house",
         "casa",
+        "casas",
     }
 
 

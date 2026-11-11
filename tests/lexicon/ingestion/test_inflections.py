@@ -1,16 +1,29 @@
 """Tests for the pt inflection rules (`ingestion.inflections`)."""
 
+from typing import TYPE_CHECKING
+
 import pytest
 
+from lang_tools.lexicon.ingestion.inflections import InflectionCounts
 from lang_tools.lexicon.ingestion.inflections import Reading
 from lang_tools.lexicon.ingestion.inflections import analyse
+from lang_tools.lexicon.ingestion.inflections import apply_inflections
 from lang_tools.lexicon.ingestion.inflections import feminine
 from lang_tools.lexicon.ingestion.inflections import form_note
 from lang_tools.lexicon.ingestion.inflections import inflect
 from lang_tools.lexicon.ingestion.inflections import participles
 from lang_tools.lexicon.ingestion.inflections import pick_readings
 from lang_tools.lexicon.ingestion.inflections import plural
+from lang_tools.lexicon.ingestion.inflections import propagate_base_pins
 from lang_tools.lexicon.ingestion.inflections import verb_tenses
+from lang_tools.lexicon.ingestion.sources.omw import SynsetEntry
+from lang_tools.lexicon.ingestion.transform import SOURCE_INFLECTION
+from lang_tools.lexicon.ingestion.transform import transform
+from lang_tools.lexicon.lemma_id import lemma_id
+
+if TYPE_CHECKING:
+    from lang_tools.lexicon.ingestion.transform import TaggedTables
+    from lang_tools.lexicon.sense import Sense
 
 
 @pytest.mark.parametrize(
@@ -239,3 +252,81 @@ def test_the_pt_pt_first_plural_preterite_is_a_form_too() -> None:
     forms = {form for form, _ in inflect("falar", "verb")}
     assert {"falamos", "falámos"} <= forms
     assert not any(form.endswith("ámos") for form, _ in inflect("dar", "verb"))
+
+
+def _entries() -> list[SynsetEntry]:
+    return [
+        SynsetEntry(
+            "en", "en-1", "i1", "a period of 365 days", ("year",), lexfile="noun.time"
+        ),
+        SynsetEntry("pt", "pt-1", "i1", None, ("ano",), lexfile="noun.time"),
+        SynsetEntry(
+            "en",
+            "en-2",
+            "i2",
+            "perceive with the eyes",
+            ("look",),
+            pos="v",
+            lexfile="verb.perception",
+        ),
+        SynsetEntry("pt", "pt-2", "i2", None, ("olhar",), pos="v"),
+        SynsetEntry(
+            "en", "en-3", "i3", "the act of looking", ("look",), lexfile="noun.act"
+        ),
+        SynsetEntry("pt", "pt-3", "i3", None, ("olhar",), lexfile="noun.act"),
+        SynsetEntry(
+            "en", "en-4", "i4", "the 12th month", ("december",), lexfile="noun.time"
+        ),
+        SynsetEntry("pt", "pt-4", "i4", None, ("dezembro",), lexfile="noun.time"),
+    ]
+
+
+ZIPF = {"anos": 5.0, "olha": 4.5, "olhares": 3.5, "olhamos": 2.0, "dezembros": 3.2}
+
+
+def _apply(tables: TaggedTables, **kwargs: float) -> InflectionCounts:
+    return apply_inflections(tables, zipf=lambda word: ZIPF.get(word, 0.0), **kwargs)
+
+
+def _senses(tables: TaggedTables, word: str) -> list[Sense]:
+    return [s for s in tables.senses if s.lemma_id == lemma_id(word, "pt")]
+
+
+def test_a_form_gets_its_base_senses_of_its_class() -> None:
+    tables = transform(_entries())
+    counts = _apply(tables)
+    assert counts.forms == 4  # anos, olha, olhares, dezembros; olhamos is rare
+    olha = _senses(tables, "olha")
+    assert len(olha) == 1  # the verb sense only, not "the act of looking"
+    assert olha[0].concept_id in {s.concept_id for s in _senses(tables, "olhar")}
+    assert olha[0].form_note == '3rd person singular present of "olhar"'
+    lemma = next(lemma for lemma in tables.lemmas if lemma.text == "olha")
+    assert lemma.part_of_speech == "verb"
+    assert lemma.sources == [SOURCE_INFLECTION]
+    assert [s.form_note for s in _senses(tables, "anos")] == ['plural of "ano"']
+    assert counts.links[lemma_id("anos", "pt")] == lemma_id("ano", "pt")
+
+
+def test_the_floor_leaves_rare_forms_out() -> None:
+    tables = transform(_entries())
+    assert _apply(tables, floor=4.0).forms == 2  # anos, olha
+    assert not _senses(tables, "olhares")
+
+
+def test_a_word_the_build_has_is_left_alone() -> None:
+    entries = [*_entries(), SynsetEntry("pt", "pt-9", "i4", None, ("anos",))]
+    tables = transform(entries)
+    before = len(_senses(tables, "anos"))
+    _apply(tables)
+    assert len(_senses(tables, "anos")) == before
+    assert all(s.form_note is None for s in _senses(tables, "anos"))
+
+
+def test_a_form_takes_its_base_pin() -> None:
+    tables = transform(_entries())
+    counts = _apply(tables)
+    december = next(s for s in _senses(tables, "dezembro"))
+    december.is_best = True
+    assert propagate_base_pins(tables.senses, counts.links) == 1
+    assert [s.is_best for s in _senses(tables, "dezembros")] == [True]
+    assert not any(s.is_best for s in _senses(tables, "anos"))

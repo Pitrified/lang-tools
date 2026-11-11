@@ -541,6 +541,32 @@ created and the stale rows (a concept the build lacks, or a word that does not g
 row's `lemma_id`) under `sense_additions`. A closed-class word takes an addition only to a
 curated concept: the hand corrections refuse a link to a WordNet one.
 
+The inflected forms (`ingestion.inflections`) get a lemma by rule rather than by row. The
+sources list base words only, so a frequent pt form such as *anos*, *foi* or *boa* had no
+lemma unless a reviewed sense addition created it. The module generates the forms of each pt
+base word from rules of our own, with no third-party morphology table: a noun's plural, an
+adjective's feminine and plurals (and the feminine of a noun naming a person, lexfile
+`noun.person`: *bióloga*), a verb's finite forms, personal infinitive, gerund and past
+participles. The verbs follow the regular -ar, -er and -ir paradigms with their spelling
+changes (*fiquei*, *conheço*), the stem changes of some -ir verbs (*sinto*, *durmo*) and a
+written table of 28 irregular verbs and their compounds (*ser*, *ter*, *manter*, *pôr*,
+*propor*). Imperatives, diminutives, superlatives and clitic forms are not generated. A
+form several bases give gets one: an adjective that is the feminine of another adjective
+base gives way to it (*novas* of *novo*), a verb gives way to its own participle used as a
+word (*estados* of *estado*, *comidas* of *comida*), a second-person or pluperfect reading
+gives way to any other (*partes* of *parte*, not "you leave"), and then the more frequent
+base wins (*foi* of *ser*, not *ir*). The stage runs right after the sense additions, so
+every reviewed form is a lemma already and wins, and before enrichment. It keeps the forms
+of `wordfreq` zipf 3.0 and up (`INFLECTION_ZIPF_FLOOR`) that the build lacks and that are
+not closed-class words; each gets a lemma with the `inflection` provenance tag and a copy
+of its base's senses of the form's class, each with a form note written from the tags
+(``3rd person singular preterite of "ser"``, ``plural of "ano"``; no English rendering).
+After the best-sense pins, a form whose base is pinned takes the same pin, so its card is
+its base's card. Measured against the Wiktionary analyses (kaikki, read only to measure,
+never by the build), about 98% of the forms have the same base or an equivalent one. The
+2026-11 build added 12,395 pt forms with 49,675 senses, and 444 pins from their base; the
+manifest records them under `inflections`.
+
 Some meanings have no WordNet concept to link to: WordNet has no modal verbs, so pt *pode*
 "can" and *deve* "must" have nothing to be added to (en *can* is a tin can, *must* grape
 juice), and no pronouns, articles, prepositions or conjunctions. The concept additions (`ingestion.concept_additions`) create such a concept. A
@@ -662,7 +688,8 @@ sources (OMW via wn, CILI gloss map, wordfreq)
 - **`enrich`** is the pure phase-6 core; see
   [Frequency and complexity](#frequency-and-complexity-phase-6).
 - **`build_initial`** wires it together: transform (with the slug qualifiers),
-  apply the member-form and closed-class drops, the concept and sense additions, the gloss
+  apply the member-form and closed-class drops, the concept and sense additions, the
+  inflected forms, the gloss
   overrides, the gloss backfill and the example sentences, enrich, tag the topics, apply the
   look-alikes and the best-sense pins, write each table through the codec with its
   tags, write the manifest, then carve and (optionally) write a sample slice. Thin
