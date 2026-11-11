@@ -20,7 +20,7 @@ Analysis and decisions in [`00_start.md`](00_start.md).
 | 1  | Form generator and measure  | [`01_form_table.md`](01_form_table.md)     | done        |
 | 2  | Build stage                 | [`02_build_stage.md`](02_build_stage.md)   | done        |
 | 3  | Card filter for forms       | [`03_card_filter.md`](03_card_filter.md)   | done        |
-| 4  | Release v0.7.0              | [`04_release.md`](04_release.md)           | in progress |
+| 4  | Release v0.7.0              | [`04_release.md`](04_release.md)           | done        |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
 
@@ -65,3 +65,7 @@ Append-only. Newest at the bottom.
   "be" *ser*, *estar*; lang-tutor's drills draw no form (wordle 393, diacritic 371, the reviewed
   forms now out too). `make check` 554, docs build.
 - 2026-11-11 : committed phase 3 (`8492a49`). Phase 4 started; review found nothing to correct.
+- 2026-11-11 : phase 4 done. Release `87c74e3`, merge `a036a30` tagged v0.7.0, pushed by the
+  user. lang-tutor pinned to v0.7.0 (`1d85c9c`, merged into its main), `make check` 151; on 8000
+  its four drills draw no form and no function word (pair 500, wordle 393, diacritic 371,
+  sentence 4). Folder done.

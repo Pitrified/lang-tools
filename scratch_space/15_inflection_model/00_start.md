@@ -1,6 +1,6 @@
 ---
-status: in progress
-priority: 1
+status: done
+priority: 0
 description: |
   An inflection model for pt (and later the other languages): map an inflected form
   (*anos*, *foi*, *disse*) to its base word's card with a form note, by rule or table at

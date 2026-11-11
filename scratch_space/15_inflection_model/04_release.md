@@ -1,5 +1,5 @@
 ---
-status: in progress
+status: done
 ---
 
 # Phase 4 - release v0.7.0
@@ -23,3 +23,11 @@ Context: [`00_start.md`](00_start.md); depends on phases 1 to 3.
 
 - The tag is pushed by the user, lang-tutor passes `make check` on v0.7.0, and its drills draw no
   form card.
+
+## What the implementation found
+
+- `uv lock` wrote lock revision 5 again; reset to 3 by hand before the release commit, as for v0.6.0.
+  lang-tutor's lock is already at revision 5 on its main, so its pin bump keeps 5.
+- The wordle and diacritic drills shrink (472 to 393, 414 to 371 cards): the 421 reviewed forms
+  are out of card queries now too, not only the new rule forms.
+  The sentence drill still finds 4 pt cards at B1.
