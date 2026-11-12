@@ -144,5 +144,12 @@ Append-only. Newest at the bottom.
   hand-written into `gloss_backfill.jsonl` (the build tags them `llm`, as the file carries no
   author field), and the 33rd was a wrong OMW link, pt *próximo a* on the Lao coin "at",
   dropped. Rebuild and gate PASS; pt gloss coverage 100.0%; 8010 restarted.
+- 2026-11-06 : phase 4: CHANGELOG 0.4.0, version 0.4.0 (`uv lock` raised the lock revision to 5
+  with this box's uv; set back to 3, `uv lock --check` passes), `make check` and docs build
+  pass; release commit `45982d8`, `--no-ff` merge into main `1397b10`, annotated tag `v0.4.0`.
+  The lang-tutor pin resolves from GitHub, so the bump waits for the user's push.
+- 2026-11-08 : phase 4 closed: the user pushed; lang-tutor pin bumped to `v0.4.0` on its
+  branch `deps/lang-tools-v0.4.0` (`uv lock`, `make undev`, `make check` 148 passed), 8000
+  restarted on it. Folder done.
 - 2026-11-10 : phase 4 closed after the fact: v0.4.0 was released, merged into main (`1397b10`)
   and pinned in lang-tutor (`890f337`) on 2026-11-08; only the status was left behind. Folder done.
