@@ -94,6 +94,8 @@ database apart from copyright, which is why "facts" does not end the question.
   - c. Accept CC BY-SA for the whole dataset.
   - Recommended: a, then b if the probe shows own-pt is worse than omw-pt, because pt is the
     language the project is for and the clean source exists.
+    The probe ran on 2026-11-12 (below): own-pt covers as much, maps to the same ILIs, and
+    changes few curated rows, so a stands; take its words and links, not its definitions.
   - NEW_ANS:
 - Q2: The fr backbone (WOLF) is CeCILL-C, a weak-copyleft software license.
   - a. Keep fr, with a per-language note naming CeCILL-C for the fr slice.
@@ -131,6 +133,43 @@ database apart from copyright, which is why "facts" does not end the question.
   - Recommended: c, because a root file is where people look for a license, and the coverage
     numbers change with each build.
   - NEW_ANS:
+
+## Probe: own-pt 1.0.0 against omw-pt 1.4
+
+Run on 2026-11-12, read-only: own-pt downloaded through the `wn` index into a scratchpad
+database, compared with the cached omw-pt 1.4, `data/` untouched.
+The comparison unit is the (word, ILI) pair, since the build groups concepts by ILI.
+Words are compared as the wordnets spell them, before the build's spelling reform.
+
+| | omw-pt 1.4 | own-pt 1.0.0 |
+| --- | --- | --- |
+| synsets, all with an ILI | 43,895 | 52,670 |
+| distinct words | 54,071 | 56,032 |
+| (word, ILI) pairs | 74,012 | 83,762 |
+| definitions | 0 | 7,557 synsets (7,993 texts) |
+| examples | 0 | 2,821 |
+
+- **Mapping.** 43,862 of omw-pt's 43,895 ILIs are in own-pt; 33 are not, and own-pt adds 8,808.
+  Pairs: 67,152 shared, 6,860 only in omw-pt, 16,610 only in own-pt.
+- **Frequent words** (wordfreq top lists, as a word in the wordnet at all):
+  top 1,000: omw-pt 669, own-pt 664 (27 lost, 22 gained);
+  top 5,000: 2,790 against 2,781; top 20,000: 7,761 against 7,846.
+  The 27 lost include function words the cards filter anyway (*de*, *do*, *no*, *se*, *ao*),
+  plurals the inflection rules generate (*pessoas*, *países*, *armas*, *filmes*), and *é*, whose
+  junk "letter" sense is an open point; and real losses such as *Brasil*, *sobre*, *há*, *qual*,
+  *deve*, *enquanto*. A rebuild would show which of them come back through the other stages.
+- **Definitions.** omw-pt has no pt definitions: every pt gloss in the corpus today is ours
+  (43,927 pt rows in `gloss_backfill.jsonl`). own-pt's definitions include Wikipedia leads
+  (91 with "(em francês: ...; ouça)"-style text, 407 over 200 characters), and Wikipedia text is
+  CC BY-SA. So taking own-pt would mean its words and links only, keeping our glosses.
+- **Curated rows.** Of 962 pt best-sense pins with a concept, 267 sit on an omw-pt pair and 8 of
+  those lose the pair in own-pt. 53 of the 689 pt sense additions become moot (own-pt already has
+  the pair). 155 of the 266 pt member-form drops still apply. 191 of the 8,440 pt look-alike words
+  are in omw-pt and not in own-pt (228 are in neither).
+- **Not measured:** own-pt's v1.1.0 release (built with Cygnet) is not in the `wn` index; the
+  effect on cards needs a rebuild.
+
+Script: `compare_ownpt.py` in the session scratchpad, not kept.
 
 ## Other work found
 
