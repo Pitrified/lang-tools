@@ -1,5 +1,5 @@
 ---
-status: draft
+status: superseded
 priority: 0
 description: |
   A git-tag install of lang-tools carries the code and no data, so lang-tutor's
@@ -8,6 +8,9 @@ description: |
 ---
 
 # Data for tag installs - start
+
+Superseded on 2026-11-12 by [`17_distribution`](../17_distribution/00_start.md), which carries
+this analysis and widens it to every consumer of the data.
 
 Spun off while switching `lang-tutor` from a `[tool.uv.sources]`
 path override to the `lang-tools @ v0.2.0` git-tag pin.

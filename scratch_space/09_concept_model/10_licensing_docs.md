@@ -2,7 +2,7 @@
 status: draft
 ---
 
-# Phase 10 - licensing & packaging
+# Phase 10 - licensing & docs
 
 > Draft. Scope sketch to hold the overarching story; not yet the plan of record.
 
@@ -54,12 +54,13 @@ free and open dataset". Depends on the source mix being final (phases 5-7).
 - **Project docs** - update `docs/` (library narrative for the new lexical model,
   guides for ingestion/maintenance, API reference via docstrings) per repo
   convention; ensure `mkdocs` builds.
-- **Distribution shape** - how the dataset is published/versioned (git-LFS layout
-  from phase 3, release tagging), if publishing externally.
 
 ## Out of scope
 
 - Generating or maintaining the data (phases 5, 8); model/store changes.
+- How the dataset is published and versioned: moved on 2026-11-12 to its own folder,
+  [`17_distribution`](../17_distribution/00_start.md). What it ships decides which
+  licenses and attributions travel with it.
 
 ## Done when (draft)
 

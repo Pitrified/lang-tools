@@ -72,7 +72,7 @@ parked in [`../open_points.md`](../open_points.md).
 | 8 | Maintenance (LLM-based) | [`08_maintenance.md`](08_maintenance.md) | done |
 | 9 | Sample data + consumer uplift | [`09_sample_and_consumer.md`](09_sample_and_consumer.md) | done |
 | 11 | False friends and cognates (runs before 10) | [`11_false_friends.md`](11_false_friends.md) | done |
-| 10 | Licensing & packaging | [`10_licensing_docs.md`](10_licensing_docs.md) | draft |
+| 10 | Licensing & docs | [`10_licensing_docs.md`](10_licensing_docs.md) | draft |
 
 What each phase did, in one line:
 
@@ -106,8 +106,8 @@ Status values: draft / planned / in progress / done / superseded / discarded.
 ## Backlog (deferred, no phase yet)
 
 The deferred items moved to [`../open_points.md`](../open_points.md) on 2026-11-12;
-data for tag installs is its own folder,
-[`10_data_for_tag_installs`](../10_data_for_tag_installs/00_start.md).
+data for tag installs is now part of
+[`17_distribution`](../17_distribution/00_start.md).
 
 Dropped, not deferred: an LLM pass estimating CEFR bands for pt/es/fr (phase 8,
 finding 4: nothing to validate it against).
@@ -1265,3 +1265,6 @@ Append-only. Newest at the bottom.
   known problems with no folder; data for tag installs stays its own folder (10). Checked
   the junk best senses item on 8010 first: *seja*, *são* and *Brasil* now show the right card,
   *é* still shows the letter, so the item moved with that update.
+- 2026-11-12 : phase 10's distribution shape (how the dataset is published and versioned) moved
+  to its own folder, `17_distribution`, which also takes in `10_data_for_tag_installs`;
+  phase 10 is now licensing and docs.
