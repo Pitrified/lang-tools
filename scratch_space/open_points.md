@@ -4,6 +4,7 @@ Known problems with no plan folder yet, one section each.
 To work on one, open a numbered folder for it, start its `00_start.md` from the section,
 and remove the section here.
 A new point gets a section: what is wrong, how big, and where it was found.
+Problems whose fix is lang-tutor code are in lang-tutor's `scratch_space/open_points.md`.
 
 ## pt *pêlo* / *pelo* homograph
 
@@ -13,16 +14,6 @@ Two reviewed look-alike rows on *pelos* (it *pelo* "hair", *peloso*) were review
 which this corpus spells *pêlos*, so they now sit on the contraction "by the".
 Found in `14_number_modal_words/07_closed_class_concepts.md` and `06_spelling.md`;
 the spelling rule is in `docs/library/lexicon.md`.
-
-## lang-tutor drops an empty `exclude_part_of_speech`
-
-lang-tutor sends only the `CardQuery` fields that differ from their defaults
-(`content/http.py` `_card_params`), and an empty list encodes to no pair at all.
-So a query with `exclude_part_of_speech=[]` reaches 8010 as the default and still gets no
-function word (0 against 123 when 8010 is sent `?exclude_part_of_speech=` directly).
-No lang-tutor query sets it today.
-The fix is in lang-tutor: send the bare key for an empty list.
-Found in `16_card_pos_filter/03_release.md`.
 
 ## Doubtful base picks for three pt forms
 
@@ -92,15 +83,6 @@ They would matter for a word-family feature ("words built from *feliz*"), or as 
 telling a derivational relative from a false friend.
 Found in `09_concept_model/07_relations.md`, Decisions, item 3, and Out of scope.
 
-## Durable per-user progress in lang-tutor
-
-lang-tutor records each exercise's lemma results in `SessionProgressService`, in memory per
-server process.
-Weighted selection works within a run, but a restart forgets everything.
-The follow-up is a durable store (a JSON file or SQLite per user, behind the same service
-seam), a lang-tutor change only.
-Found in `09_concept_model/09_sample_and_consumer.md`, Q2.
-
 ## More example sentences for pt, es, fr
 
 OMW has example sentences for en (about 33k concepts) and it (about 1.4k) only.
@@ -112,6 +94,8 @@ an LLM job on the maintenance loop (an A1 to B1 worklist, one sentence per lemma
 sample-measured and approved before a paid run),
 or Tatoeba (CC-BY, already staged), the sourced alternative.
 Found in `09_concept_model/09_sample_and_consumer.md`, Q1.
+lang-tutor has a written plan for it, deferred on 2026-11-03:
+its `scratch_space/03_ui_followups/04_sentences.md`.
 
 ## Junk best senses on common pt forms
 
