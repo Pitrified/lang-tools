@@ -1,3 +1,12 @@
+---
+status: done
+priority: 0
+description: |
+  Split lang-tools into lang-tools (content and data, the read API) and the new
+  lang-tutor repo (exercises, progress, the webapp): first as a library
+  dependency, then over HTTP.
+---
+
 # Splitting lang-tools into lang-tools + lang-tutor
 
 ## Original note

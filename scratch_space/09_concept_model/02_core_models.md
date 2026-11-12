@@ -9,7 +9,7 @@ status: done
 Introduce the concept-centric model on top of the thin `Lemma` left by phase 1.
 This is the structural heart of the effort: it defines the Pydantic models every
 later phase reads and writes. Context:
-[`00-concepts-brainstorm.md`](00-concepts-brainstorm.md), "Proposed models",
+[`00_start.md`](00_start.md), "Proposed models",
 "Lemma frequency", "Lemma complexity (CEFR level)", and "Semantic relations
 beyond false friends". Depends on phase 1 (rename, done) and informs phases 3-7
 (storage, store layer, ingestion, frequency, relations).

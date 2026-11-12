@@ -40,7 +40,7 @@ A **one-time initial build** that populates the lexical dataset from external
 sources and writes it into the phase-3 Parquet format / phase-4 store. Order:
 **OMW (via `wn`) as the concept backbone, kaikki/Wiktionary as enrichment, LLM for
 granularity/mapping only** (optional). Context:
-[`00-concepts-brainstorm.md`](00-concepts-brainstorm.md) ("Bootstrap source",
+[`00_start.md`](00_start.md) ("Bootstrap source",
 "First slice"); builds on the phase-4 `codec.py` seam and the
 [`04.1`](04.1_sqlite_mode.md) SQLite-only `LexiconStore` (the runtime engine is
 settled before this phase). Extends `src/lang_tools/lexicon/ingestion/`.

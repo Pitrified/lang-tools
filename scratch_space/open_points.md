@@ -48,3 +48,76 @@ most of them real pt forms, with *to* and *does* noise;
 real forms too.
 Worth a look only if forms come back into drills or word lists.
 Found in `15_inflection_model/01_form_table.md`.
+
+## `lang_tools.lexicon` needs fastapi-tools to import
+
+`lemma_store` imports `get_lang_tools_params`, which imports `WebappParams`, which imports
+`fastapi_tools`; but fastapi-tools is only in the `webapp` extra.
+Measured on a clean venv with `lang-tools @ v0.2.0`: `from lang_tools.lexicon import LemmaCard`
+raises `ModuleNotFoundError: fastapi_tools`, and works with `lang-tools[webapp]`.
+lang-tutor never hits it because `make sync` installs every extra.
+Fix candidates: a lazy webapp-params import, or fastapi-tools as a base dependency;
+either needs a patch release and a pin bump.
+Found in the `09_concept_model` backlog.
+
+## Mapping new lemmas into the corpus
+
+The phase-8 maintenance loop (worklist, proposer, reviewed JSONL, curated build input) was
+meant to also map new lemmas: a word that is not in OMW (a learner's lookup, a frequency-list
+form, an LLM-generated lemma) gets proposed concept links, reviewed before the build applies
+them.
+Deferred because nothing feeds new lemmas in yet, so there is no worklist to run;
+pick it up when a source appears.
+It would also cover the OMW coverage holes the look-alike measurements hit: en *parents*,
+es *embarazada* and *constipado*, and pt *eventualmente* are absent.
+Found in `09_concept_model/08_maintenance.md`, Decisions, item 1.
+
+## Merge on re-ingestion
+
+The corpus is built from pinned sources plus the committed curated inputs under
+`data/curated/`, so a rebuild reproduces curated state.
+What does not exist is a merge for when an upstream source changes, such as a new OMW
+release or re-sourcing pt from upstream own-pt for licensing: it would diff the new machine
+output against the old baseline and re-check the curated rows that went stale.
+The per-row `source` tag and the build manifest were kept as the seam for it.
+Found in `09_concept_model/05_ingestion.md`, "Deferred: re-ingestion merge".
+
+## `derivation` and `pertainym` relations
+
+OMW-en carries 74,708 derivation and 8,023 pertainym links (*happy* -> *happiness*,
+*atomic* -> *atom*).
+The relations phase left them out: they are English-only, sense-level morphology, and nothing
+consumed them.
+They would matter for a word-family feature ("words built from *feliz*"), or as a signal for
+telling a derivational relative from a false friend.
+Found in `09_concept_model/07_relations.md`, Decisions, item 3, and Out of scope.
+
+## Durable per-user progress in lang-tutor
+
+lang-tutor records each exercise's lemma results in `SessionProgressService`, in memory per
+server process.
+Weighted selection works within a run, but a restart forgets everything.
+The follow-up is a durable store (a JSON file or SQLite per user, behind the same service
+seam), a lang-tutor change only.
+Found in `09_concept_model/09_sample_and_consumer.md`, Q2.
+
+## More example sentences for pt, es, fr
+
+OMW has example sentences for en (about 33k concepts) and it (about 1.4k) only.
+10 hand-written rows in `data/curated/example_sentences.jsonl` proved the path, with
+`CardQuery.example_mentions_lemma` keeping each one to the lemma it uses;
+sentence reconstruction works, but has only 3 or 4 sentences per language.
+Two ways to scale it:
+an LLM job on the maintenance loop (an A1 to B1 worklist, one sentence per lemma,
+sample-measured and approved before a paid run),
+or Tatoeba (CC-BY, already staged), the sourced alternative.
+Found in `09_concept_model/09_sample_and_consumer.md`, Q1.
+
+## Junk best senses on common pt forms
+
+Frequent words whose best sense was a rare homograph, met on the first cards.
+Checked on 8010 on 2026-11-12: *seja*, *são* and *Brasil* now show the right card,
+but *é* still shows "the 5th letter of the Roman alphabet".
+Fix candidates: a curated pin for the remaining top forms, or a rule that a sense with no
+frequency data cannot become the best sense of a common lemma.
+Found in the `09_concept_model` backlog.

@@ -1,3 +1,7 @@
+---
+status: done
+---
+
 # Phase 2 - extract tutor concerns into lang-tutor (library-coupled)
 
 ## Overview
@@ -8,7 +12,7 @@ interactive concerns out of `lang-tools`. In this phase `lang-tutor` depends on
 **no HTTP boundary yet**. This proves the split works while the interface under
 test is still a cheap Python API (phase 3 swaps the transport).
 
-Context: [`00-start.md`](00-start.md), depends on
+Context: [`00_start.md`](00_start.md), depends on
 [`01_lib_freeze.md`](01_lib_freeze.md).
 
 ## Goals

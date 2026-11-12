@@ -5,13 +5,12 @@ flat `Lemma` to a concept-centric lexical model (thin `Lemma`,
 language-independent `Concept`/synset, explicit `Sense` edge, and decoupled
 relation edge tables), plus an open-source multilingual dataset built on OMW.
 Full analysis and decisions in
-[`00-concepts-brainstorm.md`](00-concepts-brainstorm.md).
+[`00_start.md`](00_start.md).
 
 Status (2026-10-24): phases 1-9 and 11 done; phase 10 (licensing) stays last. The
 look-alike review that phase 11 started continues in its own folder,
 [`11_lookalike_review`](../11_lookalike_review/tracking.md). Deferred work with no phase is
-listed under [Backlog](#backlog-deferred-no-phase-yet), so this file is the one
-place to look for what is planned and what is not.
+parked in [`../open_points.md`](../open_points.md).
 
 ## Key decisions (cross-cutting)
 
@@ -48,97 +47,67 @@ place to look for what is planned and what is not.
 
 ## Phases (proposed)
 
-| #  | Phase                         | Plan                                                     | Status | One-liner                                                                                                              |
-| -- | ----------------------------- | -------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------- |
-| 1  | Rename `Word` -> `Lemma`      | [`01_rename_word_to_lemma.md`](01_rename_word_to_lemma.md) | done | Preliminary mechanical refactor `Word`->`Lemma` (and `lang-tutor`) so later phases use literature vocabulary.          |
-| 2  | Core data models              | [`02_core_models.md`](02_core_models.md)                 | done | Define thin `Lemma`, `Concept`, explicit `Sense` edge, `FalseFriendRelation`, generic relation edge; concept id scheme. |
-| 3  | Storage & indexing analysis   | [`03_storage_indexing.md`](03_storage_indexing.md)       | done | Two-axis (storage format x access engine) analysis: ship Parquet under LFS, query via dicts/SQLite/DuckDB; decided by measured numbers. |
-| 4  | Store layer + indexes         | [`04_store_layer.md`](04_store_layer.md)                 | done | Extend `lemma_store` with concept/sense/edge registries, look-aside indexes, and back-ref hydration; query surface feeds phase 3. |
-| 4.1 | SQLite-only runtime engine   | [`04.1_sqlite_mode.md`](04.1_sqlite_mode.md)             | done   | Collapse the store to a single SQLite engine and remove resident mode; sequenced before phase 5 so the engine is settled. Supersedes phase 4's dual-mode. |
-| 4.2 | Single load path (Parquet-only) | [`04.2_seed_data.md`](04.2_seed_data.md)              | done   | Remove the JSONL-seed loader + pyarrow-missing fallback; the store reads Parquet only. Seed becomes a dev input parquetized by a notebook. pyarrow -> base dep. |
-| 5  | Initial ingestion pipeline    | [`05_ingestion.md`](05_ingestion.md)                     | done* | One-time initial build: OMW via `wn` -> concepts, kaikki enrichment, optional LLM granularity. Parquet is the source of truth; re-ingestion merge deferred. *(\*kaikki enrichment leg superseded by 5.5)* |
-| 5.1 | Ingestion fixes (first real run) | [`05.1_ingestion_fixes.md`](05.1_ingestion_fixes.md)  | done   | Fix four defects from the first real OMW/kaikki run: str `ili`, collection-not-per-lexicon download, ambiguous `it` lexicon, kaikki OOM. One `lang->lexicon` map + lazy filtered kaikki stream. |
-| 5.2 | Real-run perf follow-ups      | [`05.2_perf_followups.md`](05.2_perf_followups.md)       | superseded | Non-blocking observations from the successful en/pt run, kept as the record of what was seen; the fixes happened in the plans it routed to. Slug collisions halved deterministically by 5.55 (tier-2 -> phase 8); the >5 min load and the memory ceiling were root-caused and **fixed** in 5.3 (swap thrash from pydantic double-materialization, not `get_all_*`: cold load 16 s, 593 MB), and the five-language build then ran in 5.56 without the deferred restructure. Nothing open. |
-| 5.3 | Load + memory profiling (gate) | [`05.3_load_profiling.md`](05.3_load_profiling.md)      | done | Profiled (>5 min was swap thrash, not CPU; root cause = pydantic double-materialization) and **fixed**: stream lean Parquet rows into a persisted signature-keyed `_store.sqlite`; seed corpus split to `data/bootstrap/lexicon/`. Cold load 16 s / 593 MB (was 1362 MB), warm cache hit ~1 ms. |
-| 5.4 | Preliminary data quality checks | [`05.4_data_quality.md`](05.4_data_quality.md)         | done   | Read-only quality pass over the first build: count/emptiness/cross-lingual-balance/trust checks as bounded DuckDB queries; diagnose the `house` "definition = lemma" defect (sparse OMW glosses + sense-blind kaikki join); full OMW/kaikki metadata catalog (kept/dropped/promote); other datasets + licensing. Routes findings to phases 6/7/8/10. Both halves landed: the measurement ran, and the "these become a regression harness" note became `lexicon/quality.py` + the auto-generated `report.md` via 5.56, which has gated every corpus change since. The must-fix reconciliation class reads 0; `def==lemma` reached 0 (5.55) and is now rebuild-durable (5.58); orphans and POS measured clean. Frequency/CEFR (6), remaining relations (7) and licensing (10) stay open by design. |
-| 5.5 | Cleanup: re-cut around OMW backbone | [`05.5_cleanup.md`](05.5_cleanup.md)            | done | Execute 5.4's drop-kaikki decision: hard-delete the kaikki enrichment path, anchor on the concept/gloss/sense triple (OMW + CILI English fallback), one isolated loader per dataset, promote permissive OMW fields (examples/lexfile/`tag_count`/relations) for phases 6/7, LLM cleanup pass, regression-gated rebuild with no CC-BY-SA. Reopens phase 5's enrichment leg. **Steps 1-4 and 6-7 done** (kaikki removed; CILI English fallback; one isolated loader per dataset; Step-4 field promotion; rebuild + gate + license snapshot via 05.56); **All seven steps done**: Step 5 closed by 5.55 on 2026-09-01 (slug tier 1, def==lemma re-scope + repair to 0), Steps 1-4 and 6-7 earlier. Two deliberate deferrals carried to phase 8 / on-demand: LLM slug tier-2 qualifiers and non-en gloss backfill. |
-| 5.54 | Data enrichment (explore first) | [`05.54_data_enrich/05.54_data_enrich.md`](05.54_data_enrich/05.54_data_enrich.md) | exploration done | Sub-plan expanding 5.5 Step 4: stage the candidate datasets (OMW unused fields, CILI, Tatoeba, Wikidata, frequency list, CEFR), then a data-exploration pass over five topics (examples, categories/POS, SemCor + cross-language frequency propagation, relations, complexity) so each enrichment decision is grounded in numbers. Tests the concept-level-vs-language-level propagation assumption rather than assuming it. Findings rewrite Step 4 and feed phases 6/7. |
-| 5.55 | LLM cleanup (slug legibility + gloss repair) | [`05.55_llm_cleanup/05.55_llm_cleanup.md`](05.55_llm_cleanup/05.55_llm_cleanup.md) | done | Sub-plan executing 5.5 Step 5, sized from the 05.56 gate: deterministic lexfile slug tier (~halves 47,015 colliding concepts; ids rebuilt, never patched; LLM tier-2 qualifiers deferred to phase 8 with the committed-table + Batch-API decisions made) + re-scope the `def==lemma` check to gloss-equals-sole-member and LLM-repair the genuinely-thin remainder; orphan/POS items measured clean and closed. First run of the phase-8 loop shape. **Done** (2026-09-01): deterministic slice (collisions 47,015 -> 23,476, generic slugs 0, wiki-anchors dropped), maintenance loop built and tested, and the one thin gloss repaired through the loop on the real corpus - def==lemma 7,220 -> 1 -> **0**, baseline lowered to 0, one row re-tagged `llm`. The gloss was human-authored (no API key in the cred file), so the `gloss_repair` chain is still unexercised against a live model -> phase 8. |
-| 5.56 | Rebuild + regression gate    | [`05.56_rebuild_gate/05.56_rebuild_gate.md`](05.56_rebuild_gate/05.56_rebuild_gate.md) | done | Executed 5.5 Steps 7+6: 5-language rebuild from the re-cut pipeline (117,659 concepts / 321,126 lemmas / 491,876 senses + 97,666 hypernym edges, ~140 s / 1.5 GB); checks + renderer extracted to `lexicon/quality.py` (notebook = thin caller, report auto-generated); all four invariants pass (`def==lemma` 7,220 -> 20); per-lexicon license snapshot found **omw-pt CC BY-SA / omw-fr CeCILL-C** (routed to phase 10). |
-| 5.57 | Junk member forms (placeholders + markup) | [`05.57_junk_forms/05.57_junk_forms.md`](05.57_junk_forms/05.57_junk_forms.md) | done | Deterministic follow-on to 5.55, found while reviewing its gloss repair: MultiWordNet's `GAP!` / `PSEUDOGAP!` "no lexicalization" markers were in the corpus as ordinary Italian noun lemmas over 1,008 concepts, plus 11 fr HTML-escaped markup forms and pt `<HTML>`. `unescape_form` (bounded fixed point - the data is doubly escaped) repairs the 2 recoverable forms and the `<` / exact-placeholder markers drop the rest. Rebuilt + re-gated: -15 lemmas, -1,020 senses, 0 concepts lost, 0 orphans, all predictions exact. Exposed that a rebuild silently reverts applied gloss repairs -> phase 8. |
-| 5.58 | Curated gloss overrides (rebuild durability) | [`05.58_curated_glosses/05.58_curated_glosses.md`](05.58_curated_glosses/05.58_curated_glosses.md) | done | Closes the gap 5.57 found: a rebuild regenerates every gloss from OMW, so an applied gloss repair was silently reverted. Accepted `GlossProposal` rows now live in the committed `data/curated/gloss_overrides.jsonl` and `build_initial` applies them right after `transform` (re-tagging those rows `llm`), so a rebuild reproduces curated state instead of erasing it; applied/stale counts reach `BuildSummary` and `_build.json`. Stale ids warn and are counted, never fatal, so a re-slug cannot block a rebuild. 5.55 Q2's committed-input decision, applied to glosses. |
-| 5.59 | Sample seed regenerated from the build | [`05.59_sample_seed/05.59_sample_seed.md`](05.59_sample_seed/05.59_sample_seed.md) | done | Early slice of phase 9. The committed `data/bootstrap/` seed was hand-authored placeholder data whose 4 concept ids matched nothing in the corpus. The build now carves it (`sample_data_fol` into `data/bootstrap/lexicon/`, exported back to the committed JSONL), and `carve_sample` **ranks** rather than taking the first N by id - most languages, then an example, then id - because id order produced a seed of `15 May Organization` / `1530s`. 50 concepts / 587 lemmas balanced across all five languages (was 157 lemmas, 71 en / 11 it). |
-| 6  | Frequency & complexity        | [`06_frequency_complexity.md`](06_frequency_complexity.md) | done | Plan of record (2026-09-02). Per-sense token frequency (`wordfreq`, all five langs measured at 78-85% lemma coverage), sense frequency split in linear space by SemCor concept weights (Laplace-smoothed, English-only prior), and an estimated CEFR band from a concept-level score (commonness + hypernym depth) plus a per-language overlay, fit on Kelly en and applied unchanged everywhere. Runs as a **build stage** (5.58's rule: post-hoc columns are reverted by the next rebuild), which is also forced by the corpus not persisting the ILI. New `Concept.commonness`; four gate invariants added. **Done** (2026-09-02): built and gated on all five languages with row counts unchanged (this adds columns, not rows) - 86.6% of senses carry a token frequency, 100% carry an estimated band, all eight invariants pass. The hand-picked cutoffs turned out to be guesses (20.8% exact vs Kelly); fitting them on Kelly's English proportions doubled agreement to 41.2% exact / 74.4% within-one-band, and the ordering transfers to Italian (Spearman 0.661) though the absolute scale does not (+1.23 bands). |
-| 7  | Semantic relations            | [`07_relations.md`](07_relations.md)                     | done | Finished the relation graph: ten synset types read from both names of each inverse pair and stored one way, `instance_hypernym` split out of `hypernym`, a `sense_relations` table for English antonymy and derived concept `antonym` edges so pt/es/fr/it reach opposites (pt `quente` -> `frio`); 97,666 -> 137,936 concept edges + 3,992 sense edges, two new gate invariants. The build disproved the plan's headline - the non-English wordnets carry no relations, `wn`'s expansion had projected English's - and showed the old hypernym edges already held instance links, so Decision 4 was revisited and depth walks both; CEFR bands and Kelly validation unchanged. |
-| 8  | Maintenance (LLM-based)       | [`08_maintenance.md`](08_maintenance.md)                 | done | Generalized 5.55's gloss loop into worklist -> proposer -> reviewable JSONL -> curated build input, with a resumable OpenAI runner (live + Batch, measured token usage on every record). Ran and landed: learner topics (80,856 concepts, 75-86% of lemmas per language, table reviewed), slug tier 2 (23,012 qualifiers; distinct slugs 103,965 -> 117,588), member-form review (153 drops), lemma text/POS settled on the majority, and the non-en gloss backfill (174,315 glosses, `gpt-6-luna` batch, $1.87 measured; fr/pt/es 0% and it 5.5% -> 100%). Total LLM spend ~$7-9; after an early overspend every paid run is sample-measured and approved first. Step 9 (2026-10-22): lemma identity keeps case and accents (avó/avô, Be/be are two lemmas), 16,601 noisy spellings folded, no frequency lent across case, `CEFR_CUTOFFS` re-fitted (it exact 19.5% -> 23.1%); lemmas 320,904 -> 324,336; `lang-tutor` must re-key per-user progress in phase 9. |
-| 9  | Sample data + consumer uplift | [`09_sample_and_consumer.md`](09_sample_and_consumer.md) | done | `lang-tutor` reconnected to the concept model on `feat/lexicon`. `lang-tools` serves a `LemmaCard` drill view (best sense's CEFR band, gloss, translations, examples; ties broken by concept commonness, since the SemCor split is English-only) through a bounded `CardQuery` (`/api/v1/cards`, 20-50 ms per 200-card window), plus paged lemma lists. `lang-tutor` draws every round from cards weighted by session progress. 10 hand-written pt/es/fr example sentences; pt teatro dropped from the dwelling concept. The end-to-end run over HTTP plays every exercise in pt/en/fr, after fixing never-committed page scripts and four front-end bugs. Suites green (356 / 140). |
-| 11 | False friends and cognates (runs before 10) | [`11_false_friends.md`](11_false_friends.md) | done | Pairwise look-alike edges between lemmas, with `kind` = full / partial false friend or cognate, in one `lookalikes` table (`FalseFriendRelation` -> `LookalikeRelation`). The per-learner view (trap / free / neither) is computed at read time over the learner's known languages, so adding es / fr later just adds edges. v1 covers pt-en and pt-it (a pt learner who knows en and it), over the full word range. The pipeline is a cognate-key generator (IPA only if needed), then a main-sense test and concept distance, then a sample-approved LLM verifier that writes en notes. The yardstick is a 200-pair hand-reviewed gold set. Measured so far: spelling alone is noise, and spelling plus a main-sense test catches 26 of 33 classic pairs. **Status 2026-10-24:** done. Steps 1-8 built and tested (step 3, IPA, not needed). The paid verifier run is parked; the candidates are reviewed by agents in tiered batches instead, an effort spun off into [`11_lookalike_review`](../11_lookalike_review/tracking.md) (tier A done, tier B in progress). |
-| 10 | Licensing & packaging         | [`10_licensing_docs.md`](10_licensing_docs.md)           | draft  | Finalize open license, source attribution / dataset card, and docs.                                                    |
+| #    | Phase | Plan | Status |
+| ---- | ----- | ---- | ------ |
+| 1 | Rename `Word` -> `Lemma` | [`01_rename_word_to_lemma.md`](01_rename_word_to_lemma.md) | done |
+| 2 | Core data models | [`02_core_models.md`](02_core_models.md) | done |
+| 3 | Storage & indexing analysis | [`03_storage_indexing.md`](03_storage_indexing.md) | done |
+| 4 | Store layer + indexes | [`04_store_layer.md`](04_store_layer.md) | done |
+| 4.1 | SQLite-only runtime engine | [`04.1_sqlite_mode.md`](04.1_sqlite_mode.md) | done |
+| 4.2 | Single load path (Parquet-only) | [`04.2_seed_data.md`](04.2_seed_data.md) | done |
+| 5 | Initial ingestion pipeline | [`05_ingestion.md`](05_ingestion.md) | done |
+| 5.1 | Ingestion fixes (first real run) | [`05.1_ingestion_fixes.md`](05.1_ingestion_fixes.md) | done |
+| 5.2 | Real-run perf follow-ups | [`05.2_perf_followups.md`](05.2_perf_followups.md) | superseded |
+| 5.3 | Load + memory profiling (gate) | [`05.3_load_profiling.md`](05.3_load_profiling.md) | done |
+| 5.4 | Preliminary data quality checks | [`05.4_data_quality.md`](05.4_data_quality.md) | done |
+| 5.5 | Cleanup: re-cut around OMW backbone | [`05.5_cleanup.md`](05.5_cleanup.md) | done |
+| 5.54 | Data enrichment (explore first) | [`05.54_data_enrich/05.54_data_enrich.md`](05.54_data_enrich/05.54_data_enrich.md) | done |
+| 5.55 | LLM cleanup (slug legibility + gloss repair) | [`05.55_llm_cleanup/05.55_llm_cleanup.md`](05.55_llm_cleanup/05.55_llm_cleanup.md) | done |
+| 5.56 | Rebuild + regression gate | [`05.56_rebuild_gate/05.56_rebuild_gate.md`](05.56_rebuild_gate/05.56_rebuild_gate.md) | done |
+| 5.57 | Junk member forms (placeholders + markup) | [`05.57_junk_forms/05.57_junk_forms.md`](05.57_junk_forms/05.57_junk_forms.md) | done |
+| 5.58 | Curated gloss overrides (rebuild durability) | [`05.58_curated_glosses/05.58_curated_glosses.md`](05.58_curated_glosses/05.58_curated_glosses.md) | done |
+| 5.59 | Sample seed regenerated from the build | [`05.59_sample_seed/05.59_sample_seed.md`](05.59_sample_seed/05.59_sample_seed.md) | done |
+| 6 | Frequency & complexity | [`06_frequency_complexity.md`](06_frequency_complexity.md) | done |
+| 7 | Semantic relations | [`07_relations.md`](07_relations.md) | done |
+| 8 | Maintenance (LLM-based) | [`08_maintenance.md`](08_maintenance.md) | done |
+| 9 | Sample data + consumer uplift | [`09_sample_and_consumer.md`](09_sample_and_consumer.md) | done |
+| 11 | False friends and cognates (runs before 10) | [`11_false_friends.md`](11_false_friends.md) | done |
+| 10 | Licensing & packaging | [`10_licensing_docs.md`](10_licensing_docs.md) | draft |
+
+What each phase did, in one line:
+
+- 1: Preliminary mechanical refactor `Word`->`Lemma` (and `lang-tutor`) so later phases use literature vocabulary.
+- 2: Define thin `Lemma`, `Concept`, explicit `Sense` edge, `FalseFriendRelation`, generic relation edge; concept id scheme.
+- 3: Two-axis (storage format x access engine) analysis: ship Parquet under LFS, query via dicts/SQLite/DuckDB; decided by measured numbers.
+- 4: Extend `lemma_store` with concept/sense/edge registries, look-aside indexes, and back-ref hydration; query surface feeds phase 3.
+- 4.1: Collapse the store to a single SQLite engine and remove resident mode; sequenced before phase 5 so the engine is settled. Supersedes phase 4's dual-mode.
+- 4.2: Remove the JSONL-seed loader + pyarrow-missing fallback; the store reads Parquet only. Seed becomes a dev input parquetized by a notebook. pyarrow -> base dep.
+- 5: One-time initial build: OMW via `wn` -> concepts, kaikki enrichment, optional LLM granularity. Parquet is the source of truth; re-ingestion merge deferred. *(\*kaikki enrichment leg superseded by 5.5)*
+- 5.1: Fix four defects from the first real OMW/kaikki run: str `ili`, collection-not-per-lexicon download, ambiguous `it` lexicon, kaikki OOM. One `lang->lexicon` map + lazy filtered kaikki stream.
+- 5.2: Non-blocking observations from the successful en/pt run, kept as the record of what was seen; the fixes happened in the plans it routed to. Slug collisions halved deterministically by 5.55 (tier-2 -> phase 8); the >5 min load and the memory ceiling were root-caused and **fixed** in 5.3 (swap thrash from pydantic double-materialization, not `get_all_*`: cold load 16 s, 593 MB), and the five-language build then ran in 5.56 without the deferred restructure. Nothing open.
+- 5.3: Profiled (>5 min was swap thrash, not CPU; root cause = pydantic double-materialization) and **fixed**: stream lean Parquet rows into a persisted signature-keyed `_store.sqlite`; seed corpus split to `data/bootstrap/lexicon/`. Cold load 16 s / 593 MB (was 1362 MB), warm cache hit ~1 ms.
+- 5.4: Read-only quality pass over the first build: count/emptiness/cross-lingual-balance/trust checks as bounded DuckDB queries; diagnose the `house` "definition = lemma" defect (sparse OMW glosses + sense-blind kaikki join); full OMW/kaikki metadata catalog (kept/dropped/promote); other datasets + licensing. Routes findings to phases 6/7/8/10. Both halves landed: the measurement ran, and the "these become a regression harness" note became `lexicon/quality.py` + the auto-generated `report.md` via 5.56, which has gated every corpus change since. The must-fix reconciliation class reads 0; `def==lemma` reached 0 (5.55) and is now rebuild-durable (5.58); orphans and POS measured clean. Frequency/CEFR (6), remaining relations (7) and licensing (10) stay open by design.
+- 5.5: Execute 5.4's drop-kaikki decision: hard-delete the kaikki enrichment path, anchor on the concept/gloss/sense triple (OMW + CILI English fallback), one isolated loader per dataset, promote permissive OMW fields (examples/lexfile/`tag_count`/relations) for phases 6/7, LLM cleanup pass, regression-gated rebuild with no CC-BY-SA. Reopens phase 5's enrichment leg. **Steps 1-4 and 6-7 done** (kaikki removed; CILI English fallback; one isolated loader per dataset; Step-4 field promotion; rebuild + gate + license snapshot via 05.56); **All seven steps done**: Step 5 closed by 5.55 on 2026-09-01 (slug tier 1, def==lemma re-scope + repair to 0), Steps 1-4 and 6-7 earlier. Two deliberate deferrals carried to phase 8 / on-demand: LLM slug tier-2 qualifiers and non-en gloss backfill.
+- 5.54: Sub-plan expanding 5.5 Step 4: stage the candidate datasets (OMW unused fields, CILI, Tatoeba, Wikidata, frequency list, CEFR), then a data-exploration pass over five topics (examples, categories/POS, SemCor + cross-language frequency propagation, relations, complexity) so each enrichment decision is grounded in numbers. Tests the concept-level-vs-language-level propagation assumption rather than assuming it. Findings rewrite Step 4 and feed phases 6/7.
+- 5.55: Sub-plan executing 5.5 Step 5, sized from the 05.56 gate: deterministic lexfile slug tier (~halves 47,015 colliding concepts; ids rebuilt, never patched; LLM tier-2 qualifiers deferred to phase 8 with the committed-table + Batch-API decisions made) + re-scope the `def==lemma` check to gloss-equals-sole-member and LLM-repair the genuinely-thin remainder; orphan/POS items measured clean and closed. First run of the phase-8 loop shape. **Done** (2026-09-01): deterministic slice (collisions 47,015 -> 23,476, generic slugs 0, wiki-anchors dropped), maintenance loop built and tested, and the one thin gloss repaired through the loop on the real corpus - def==lemma 7,220 -> 1 -> **0**, baseline lowered to 0, one row re-tagged `llm`. The gloss was human-authored (no API key in the cred file), so the `gloss_repair` chain is still unexercised against a live model -> phase 8.
+- 5.56: Executed 5.5 Steps 7+6: 5-language rebuild from the re-cut pipeline (117,659 concepts / 321,126 lemmas / 491,876 senses + 97,666 hypernym edges, ~140 s / 1.5 GB); checks + renderer extracted to `lexicon/quality.py` (notebook = thin caller, report auto-generated); all four invariants pass (`def==lemma` 7,220 -> 20); per-lexicon license snapshot found **omw-pt CC BY-SA / omw-fr CeCILL-C** (routed to phase 10).
+- 5.57: Deterministic follow-on to 5.55, found while reviewing its gloss repair: MultiWordNet's `GAP!` / `PSEUDOGAP!` "no lexicalization" markers were in the corpus as ordinary Italian noun lemmas over 1,008 concepts, plus 11 fr HTML-escaped markup forms and pt `<HTML>`. `unescape_form` (bounded fixed point - the data is doubly escaped) repairs the 2 recoverable forms and the `<` / exact-placeholder markers drop the rest. Rebuilt + re-gated: -15 lemmas, -1,020 senses, 0 concepts lost, 0 orphans, all predictions exact. Exposed that a rebuild silently reverts applied gloss repairs -> phase 8.
+- 5.58: Closes the gap 5.57 found: a rebuild regenerates every gloss from OMW, so an applied gloss repair was silently reverted. Accepted `GlossProposal` rows now live in the committed `data/curated/gloss_overrides.jsonl` and `build_initial` applies them right after `transform` (re-tagging those rows `llm`), so a rebuild reproduces curated state instead of erasing it; applied/stale counts reach `BuildSummary` and `_build.json`. Stale ids warn and are counted, never fatal, so a re-slug cannot block a rebuild. 5.55 Q2's committed-input decision, applied to glosses.
+- 5.59: Early slice of phase 9. The committed `data/bootstrap/` seed was hand-authored placeholder data whose 4 concept ids matched nothing in the corpus. The build now carves it (`sample_data_fol` into `data/bootstrap/lexicon/`, exported back to the committed JSONL), and `carve_sample` **ranks** rather than taking the first N by id - most languages, then an example, then id - because id order produced a seed of `15 May Organization` / `1530s`. 50 concepts / 587 lemmas balanced across all five languages (was 157 lemmas, 71 en / 11 it).
+- 6: Plan of record (2026-09-02). Per-sense token frequency (`wordfreq`, all five langs measured at 78-85% lemma coverage), sense frequency split in linear space by SemCor concept weights (Laplace-smoothed, English-only prior), and an estimated CEFR band from a concept-level score (commonness + hypernym depth) plus a per-language overlay, fit on Kelly en and applied unchanged everywhere. Runs as a **build stage** (5.58's rule: post-hoc columns are reverted by the next rebuild), which is also forced by the corpus not persisting the ILI. New `Concept.commonness`; four gate invariants added. **Done** (2026-09-02): built and gated on all five languages with row counts unchanged (this adds columns, not rows) - 86.6% of senses carry a token frequency, 100% carry an estimated band, all eight invariants pass. The hand-picked cutoffs turned out to be guesses (20.8% exact vs Kelly); fitting them on Kelly's English proportions doubled agreement to 41.2% exact / 74.4% within-one-band, and the ordering transfers to Italian (Spearman 0.661) though the absolute scale does not (+1.23 bands).
+- 7: Finished the relation graph: ten synset types read from both names of each inverse pair and stored one way, `instance_hypernym` split out of `hypernym`, a `sense_relations` table for English antonymy and derived concept `antonym` edges so pt/es/fr/it reach opposites (pt `quente` -> `frio`); 97,666 -> 137,936 concept edges + 3,992 sense edges, two new gate invariants. The build disproved the plan's headline - the non-English wordnets carry no relations, `wn`'s expansion had projected English's - and showed the old hypernym edges already held instance links, so Decision 4 was revisited and depth walks both; CEFR bands and Kelly validation unchanged.
+- 8: Generalized 5.55's gloss loop into worklist -> proposer -> reviewable JSONL -> curated build input, with a resumable OpenAI runner (live + Batch, measured token usage on every record). Ran and landed: learner topics (80,856 concepts, 75-86% of lemmas per language, table reviewed), slug tier 2 (23,012 qualifiers; distinct slugs 103,965 -> 117,588), member-form review (153 drops), lemma text/POS settled on the majority, and the non-en gloss backfill (174,315 glosses, `gpt-6-luna` batch, $1.87 measured; fr/pt/es 0% and it 5.5% -> 100%). Total LLM spend ~$7-9; after an early overspend every paid run is sample-measured and approved first. Step 9 (2026-10-22): lemma identity keeps case and accents (avó/avô, Be/be are two lemmas), 16,601 noisy spellings folded, no frequency lent across case, `CEFR_CUTOFFS` re-fitted (it exact 19.5% -> 23.1%); lemmas 320,904 -> 324,336; `lang-tutor` must re-key per-user progress in phase 9.
+- 9: `lang-tutor` reconnected to the concept model on `feat/lexicon`. `lang-tools` serves a `LemmaCard` drill view (best sense's CEFR band, gloss, translations, examples; ties broken by concept commonness, since the SemCor split is English-only) through a bounded `CardQuery` (`/api/v1/cards`, 20-50 ms per 200-card window), plus paged lemma lists. `lang-tutor` draws every round from cards weighted by session progress. 10 hand-written pt/es/fr example sentences; pt teatro dropped from the dwelling concept. The end-to-end run over HTTP plays every exercise in pt/en/fr, after fixing never-committed page scripts and four front-end bugs. Suites green (356 / 140).
+- 11: Pairwise look-alike edges between lemmas, with `kind` = full / partial false friend or cognate, in one `lookalikes` table (`FalseFriendRelation` -> `LookalikeRelation`). The per-learner view (trap / free / neither) is computed at read time over the learner's known languages, so adding es / fr later just adds edges. v1 covers pt-en and pt-it (a pt learner who knows en and it), over the full word range. The pipeline is a cognate-key generator (IPA only if needed), then a main-sense test and concept distance, then a sample-approved LLM verifier that writes en notes. The yardstick is a 200-pair hand-reviewed gold set. Measured so far: spelling alone is noise, and spelling plus a main-sense test catches 26 of 33 classic pairs. **Status 2026-10-24:** done. Steps 1-8 built and tested (step 3, IPA, not needed). The paid verifier run is parked; the candidates are reviewed by agents in tiered batches instead, an effort spun off into [`11_lookalike_review`](../11_lookalike_review/tracking.md) (tier A done, tier B in progress).
+- 10: Finalize open license, source attribution / dataset card, and docs.
 
 Status values: draft / planned / in progress / done / superseded / discarded.
 
 ## Backlog (deferred, no phase yet)
 
-Work a phase explicitly put off, with where it was decided. Nothing here is scheduled;
-promote an item to a numbered phase (and a sub-plan file) when it is picked up.
-
-- **Data for tag installs.** A git-tag install of `lang-tools` has no `data/`, so lang-tutor's
-  `in_process` mode needs `make dev-lang-tools`. Whether a tag install needs data, and if so how
-  to ship it, is spun off to [`../10_data_for_tag_installs/00-start.md`](../10_data_for_tag_installs/00-start.md).
-- **`lang_tools.lexicon` needs fastapi-tools to import.** `lemma_store` imports
-  `get_lang_tools_params`, which imports `WebappParams`, which imports `fastapi_tools`; but
-  fastapi-tools is only in the `webapp` extra. Measured on a clean venv with
-  `lang-tools @ v0.2.0`: `from lang_tools.lexicon import LemmaCard` raises
-  `ModuleNotFoundError: fastapi_tools`, and works with `lang-tools[webapp]`. lang-tutor never hits
-  it because `make sync` installs every extra. Fix candidates: a lazy webapp-params import, or
-  fastapi-tools as a base dependency; either needs a patch release and a pin bump.
-- **Mapping new lemmas into the corpus.** Phase 8 built a generic
-  worklist -> proposer -> reviewed JSONL -> curated build input loop, and new-lemma
-  mapping was one of its intended uses: a word that is not in OMW (a learner's lookup, a
-  frequency-list form, an LLM-generated lemma) gets proposed concept links that are
-  reviewed before the build applies them. It was deferred because nothing feeds new
-  lemmas in yet, so there is no worklist to run. Pick it up when a source appears. It
-  would also cover the OMW coverage holes the phase-11 measurements hit: en *parents*,
-  es *embarazada* and *constipado*, and pt *eventualmente* are absent. See
-  [`08_maintenance.md`](08_maintenance.md), Decisions, item 1.
-- **Merge on re-ingestion.** The corpus is built once from pinned sources plus the
-  committed curated inputs under `data/curated/` (overrides, backfills, drops, topics,
-  qualifiers, sentences), so a rebuild reproduces curated state (the 5.58 rule). What
-  does not exist is a *smart merge* for when an upstream source changes, such as a new
-  OMW release or re-sourcing pt from upstream own-pt in phase 10. That merge would diff
-  the new machine output against the old baseline and re-check the curated rows that
-  went stale. The per-row `source` tag and the build manifest were kept as the seam for
-  it. See [`05_ingestion.md`](05_ingestion.md), "Deferred: re-ingestion merge".
-- **`derivation` and `pertainym` relations.** OMW-en carries 74,708 derivation and 8,023
-  pertainym links (*happy* -> *happiness*, *atomic* -> *atom*). Phase 7 left them out:
-  they are English-only, sense-level morphology, and nothing consumed them. They would
-  matter for a word-family feature ("words built from *feliz*"), or as a phase-11
-  signal for telling a derivational relative from a false friend. See
-  [`07_relations.md`](07_relations.md), Decisions, item 3, and Out of scope.
-- **Durable per-user progress (`lang-tutor`).** Phase 9 records each exercise's lemma
-  results in `SessionProgressService`, in memory per server process. Weighted selection
-  works within a run, but a restart forgets everything. The follow-up is a durable
-  store (a JSON file or SQLite per user in `lang-tutor`, behind the same service seam),
-  a `lang-tutor` change only. See
-  [`09_sample_and_consumer.md`](09_sample_and_consumer.md), Q2.
-- **More example sentences for pt / es / fr.** OMW has example sentences for en (about
-  33k concepts) and it (about 1.4k) only. Phase 9 proved the path with 10 hand-written
-  rows in `data/curated/example_sentences.jsonl`, applied at build, with
-  `CardQuery.example_mentions_lemma` keeping each one to the lemma it uses. Sentence
-  reconstruction works, but has only 3-4 sentences per language. There are two ways to
-  scale it:
-  - an LLM job on the phase-8 loop (an A1-B1 worklist, one sentence per lemma,
-    sample-measured and approved before a paid run);
-  - Tatoeba (CC-BY, staged in 5.54), the sourced alternative.
-
-  See [`09_sample_and_consumer.md`](09_sample_and_consumer.md), Q1.
-
-- **Junk best senses on common inflected forms.** Left over from phase 11's function-word
-  fix (`ingestion.closed_class`): inflected verb forms whose best sense is a rare homograph
-  (pt *é* "e", *são* "healthy", *seja* "are", the unit), and *brasil* "brazilwood". A learner
-  meets them on the first cards. Fix: a curated override for the top forms, or a rule that a
-  sense with no frequency data cannot become the best sense of a common lemma. The look-alike
-  review's own follow-ups are in [`11_lookalike_review`](../11_lookalike_review/tracking.md).
+The deferred items moved to [`../open_points.md`](../open_points.md) on 2026-11-12;
+data for tag installs is its own folder,
+[`10_data_for_tag_installs`](../10_data_for_tag_installs/00_start.md).
 
 Dropped, not deferred: an LLM pass estimating CEFR bands for pt/es/fr (phase 8,
 finding 4: nothing to validate it against).
@@ -160,7 +129,7 @@ Append-only. Newest at the bottom.
 
 - 2026-06-15 : bootstrapped the plan folder from the existing brainstorm; folded
   the open points (word frequency, no-migration uplift, git-LFS storage analysis,
-  open license, semantic relations) into `00-concepts-brainstorm.md`; drafted the
+  open license, semantic relations) into `00_start.md`; drafted the
   9 proposed phases here as one-liners (sub-plan files not yet written).
 - 2026-06-15 : per review - lang-tutor moves in lockstep (no contract to freeze);
   added preliminary phase 0 (rename `Word` -> `Lemma`) with pro/con assessment in
@@ -220,7 +189,7 @@ Append-only. Newest at the bottom.
   unhydrated-`Sense` guard (accessor raises vs lazy-resolves rather than returning
   `None`) in the phase 4 draft. Folded the `Sense` promotion, dropped
   `Lemma.concept_ids` / `Concept.lemmas`, persistence-vs-representation split, and
-  gloss decision back into `00-concepts-brainstorm.md` (model sections + Resolved
+  gloss decision back into `00_start.md` (model sections + Resolved
   list) so the high-level track stays aligned.
 - 2026-06-16 : executed phase 2 (status done). New modules in
   `src/lang_tools/lexicon/`: `concept.py` (`Concept` = id + `definitions`, id-shape
@@ -286,7 +255,7 @@ Append-only. Newest at the bottom.
   corpus (measured trigger, not "maybe later"); DuckDB is a build/QA reader only;
   do not ship a .duckdb/.sqlite as canonical. Decision memo + drafted
   `.gitattributes`/partitioning folded into `03_storage_indexing.md` and the
-  Storage section of `00-concepts-brainstorm.md`. Scratch deps `pyarrow`+`duckdb`
+  Storage section of `00_start.md`. Scratch deps `pyarrow`+`duckdb`
   installed into the venv (not added to pyproject).
 - 2026-06-16 : per review - refined the phase-3 storage decision to ship *all*
   tables (including the small curated `false_friends`/`concept_relations`) as
@@ -1288,3 +1257,11 @@ Append-only. Newest at the bottom.
 - 2026-10-22 : final pass on phase 11 after the learner-profile clarification (knows en + it, learns pt): pairs are target x known (pt-en, pt-it; en-it dropped), no CEFR bound, cognates join false friends in one `lookalikes` edge table with `kind`, the per-learner trap / free view is a read-time union over known languages, and the gold set is 200 hand-reviewed pairs. Plan rewritten as one coherent document.
 - 2026-10-22 : phase 11 steps 1-8 built. Gold set, generator (65,266 candidates; gold recall 93% full, 95% partial, 89% cognate), `LookalikeRelation` rename, verifier (sol v5 + root rule: 106/116 traps, 6 false alarms), build input and gate, per-learner cards, `lang-tutor` surface. The paid run is on hold pending the user's review.
 - 2026-10-24 : phase 11 closed as done. The look-alike review it started (tiered agent batches, tier A done, tier B in progress) was spun off into `scratch_space/11_lookalike_review/`, with its plan sections and usage log; the backlog's phase-11 bullet became the one item that is corpus quality (junk best senses on inflected forms). On main the same day: tier-A rebuild (2,801 edges, gate PASS) and the seed re-export.
+- 2026-11-12 : moved to the plan-file convention: the brainstorm is now `00_start.md` with frontmatter
+  (in progress, phase 10 open) and the dump `00.1_concepts_brainstorm_dump.md`; the table has four
+  columns, its one-liners moved below it; phase 5 `done*` and 5.54 "exploration done" are `done`, and
+  `08_maintenance.md` matches its table row at `done`.
+- 2026-11-12 : the Backlog's items moved to `scratch_space/open_points.md`, the one list of
+  known problems with no folder; data for tag installs stays its own folder (10). Checked
+  the junk best senses item on 8010 first: *seja*, *são* and *Brasil* now show the right card,
+  *é* still shows the letter, so the item moved with that update.

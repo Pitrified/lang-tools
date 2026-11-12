@@ -1,3 +1,7 @@
+---
+status: done
+---
+
 # Phase 3 - lang-tools HTTP read API + switch lang-tutor to HTTP
 
 ## Overview
@@ -7,7 +11,7 @@ from in-process library reads to consuming content over HTTP. The repo split is
 already stable (phase 2), so this phase changes only the **transport**, not the
 content contract - one hard change, isolated.
 
-Context: [`00-start.md`](00-start.md), depends on
+Context: [`00_start.md`](00_start.md), depends on
 [`02_tutor_extract.md`](02_tutor_extract.md).
 
 ## Goals

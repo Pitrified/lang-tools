@@ -11,7 +11,7 @@ status: draft
 Make the dataset shippable as a **free and open-source** resource: settle the
 license, record attribution for every source, and document the whole thing. This
 is the closing phase that turns the working data into something publishable.
-Context: [`00-concepts-brainstorm.md`](00-concepts-brainstorm.md), "Licensing -
+Context: [`00_start.md`](00_start.md), "Licensing -
 free and open dataset". Depends on the source mix being final (phases 5-7).
 
 > **From the 5.5 cleanup (2026-06-20).** The CC-BY-SA open question below is **resolved**:

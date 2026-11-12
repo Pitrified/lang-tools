@@ -11,7 +11,7 @@ entity from `Word` to `Lemma` (the literature term - WordNet, OntoLex-Lemon,
 BabelNet) and the package from `lang_tools.words` to `lang_tools.lexicon`. No
 behaviour changes, no model reshaping - that is phase 2. Doing it first means
 every later phase is written in the target vocabulary and we never refactor the
-same names twice. Context: [`00-concepts-brainstorm.md`](00-concepts-brainstorm.md),
+same names twice. Context: [`00_start.md`](00_start.md),
 "Naming: `Lemma`, not `Word`".
 
 It spans two repos that move in lockstep (both ours): the `lang-tools` producer

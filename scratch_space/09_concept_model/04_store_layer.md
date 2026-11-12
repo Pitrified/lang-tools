@@ -11,7 +11,7 @@ read/query layer for the whole lexical graph: lemmas, concepts, senses, and the
 decoupled edge tables, with the look-aside indexes the app needs and the
 representation-layer hydration that phase 2 deferred here. It implements the
 storage format and access engine decided in phase 3 over the models from phase 2.
-Context: [`00-concepts-brainstorm.md`](00-concepts-brainstorm.md), "Storage and
+Context: [`00_start.md`](00_start.md), "Storage and
 indexing"; [`02_core_models.md`](02_core_models.md), "Persistence vs
 representation"; [`03_storage_indexing.md`](03_storage_indexing.md).
 

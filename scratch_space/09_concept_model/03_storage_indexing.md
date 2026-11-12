@@ -11,7 +11,7 @@ lexical dataset sits on disk and how it is queried at runtime, and validates tha
 choice stays git-LFS friendly at the dataset's real scale. It gates the store
 layer (phase 4) and ingestion outputs (phase 5), and may feed small changes back
 into the models (phase 2). Context:
-[`00-concepts-brainstorm.md`](00-concepts-brainstorm.md), "Storage format,
+[`00_start.md`](00_start.md), "Storage format,
 git-LFS friendliness, and scaling".
 
 The central reframing this phase makes (from the web survey below): **storage
@@ -274,7 +274,7 @@ operations over the canonical Parquet, both routed through the phase-4 codec sea
 - The two-axis decision is made with **measured numbers** backing it (size,
   import latency, memory, point-lookup latency on a representative sample).
 - A `.gitattributes` LFS strategy and partitioning scheme are drafted.
-- The decision memo is folded into `00-concepts-brainstorm.md` and recorded in
+- The decision memo is folded into `00_start.md` and recorded in
   the tracking Log, with the provisional lean above confirmed or overturned.
 
 ## References

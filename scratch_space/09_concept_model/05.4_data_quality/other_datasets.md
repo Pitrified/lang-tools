@@ -4,7 +4,7 @@ Companion to [`../05.4_data_quality.md`](../05.4_data_quality.md). Datasets beyo
 two we already ingest (OMW + kaikki), what metadata each carries, how to access it, and
 where it would slot into the phase plan. Scoped to the five target languages
 (en/pt/es/fr/it). The brainstorm already names some of these
-([`../00-concepts-brainstorm.md`](../00-concepts-brainstorm.md), "Background",
+([`../00_start.md`](../00_start.md), "Background",
 "Frequency", "Complexity"); this consolidates them with current access details.
 
 > **Decided (2026-06-18): drop kaikki.** What the dataset needs - a good English gloss and

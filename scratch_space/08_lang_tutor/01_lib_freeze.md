@@ -1,3 +1,7 @@
+---
+status: done
+---
+
 # Phase 1 - freeze the lang-tools library API
 
 ## Overview
@@ -8,7 +12,7 @@ interface that both the repo split (phase 2) and the HTTP read API (phase 3)
 depend on. Iterating it here, in-process, is far cheaper than churning a
 cross-repo or network contract later.
 
-Context: [`00-start.md`](00-start.md).
+Context: [`00_start.md`](00_start.md).
 
 ## Goals
 

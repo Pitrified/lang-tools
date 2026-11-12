@@ -1,5 +1,5 @@
 ---
-status: in progress
+status: done
 ---
 
 # Phase 8 - maintenance (LLM-based)
@@ -8,7 +8,7 @@ The dataset is not build-once: new lemmas arrive, glosses need filling, and memb
 slug quality drift. This phase turns the one loop phase 5.55 built (thin-gloss repair) into
 the general upkeep machinery, and runs it on the worklists earlier phases routed here.
 
-Context: [`00-concepts-brainstorm.md`](00-concepts-brainstorm.md), "Bootstrap source" (LLM
+Context: [`00_start.md`](00_start.md), "Bootstrap source" (LLM
 mapping) and "Uplift plan". The machinery already exists in one instance:
 `lexicon/maintenance.py` (worklist -> chain -> reviewable JSONL -> apply) and the 05.58
 durability rule (accepted output becomes a committed `data/curated/*.jsonl` the build

@@ -2,7 +2,7 @@
 
 Splitting `lang-tools` into `lang-tools` (content + data service) and
 `lang-tutor` (tutoring + exercises). Analysis and decisions in
-[`00-start.md`](00-start.md).
+[`00_start.md`](00_start.md).
 
 ## Coupling decision
 
@@ -24,7 +24,7 @@ Splitting `lang-tools` into `lang-tools` (content + data service) and
 
 lang-tools first, **extract before building the HTTP endpoints** (not
 endpoints-first, not both-at-once). See "Migration order" in
-[`00-start.md`](00-start.md).
+[`00_start.md`](00_start.md).
 
 ## Phases
 
@@ -34,4 +34,4 @@ endpoints-first, not both-at-once). See "Migration order" in
 | 2 | Scaffold lang-tutor, migrate tutor concerns (library-coupled) | [`02_tutor_extract.md`](02_tutor_extract.md) | done |
 | 3 | Add lang-tools HTTP read API, switch lang-tutor to HTTP | [`03_http_service.md`](03_http_service.md) | done |
 
-Status values: not started / in progress / done.
+Status values: draft / planned / in progress / done / superseded / discarded.

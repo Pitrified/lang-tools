@@ -9,7 +9,7 @@ carries, plus antonymy, which lives at a different granularity and needs its own
 Phase 5.5 Step 4 already emits hypernym edges, so this phase is not "start relations" -
 it is **finish** them, and fix what the first cut got wrong.
 
-Context: [`00-concepts-brainstorm.md`](00-concepts-brainstorm.md), "Semantic relations
+Context: [`00_start.md`](00_start.md), "Semantic relations
 beyond false friends"; the edge models are the phase-2 stubs.
 
 ## Inherited decisions

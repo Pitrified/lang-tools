@@ -1,8 +1,16 @@
+---
+status: in progress
+priority: 0
+description: |
+  Uplift of `lang_tools.lexicon` from a flat `Word` to a concept-centric model
+  (thin `Lemma`, `Concept`, `Sense`, relation edges) and an open multilingual
+  dataset built on OMW. Phases 1 to 9 and 11 are done; phase 10, licensing and
+  packaging, is a draft.
+---
+
 # Concept model - brainstorm spec
 
-Status: brainstorm / design exploration. Not implemented yet.
-
-This spec consolidates the raw dump in `00-concepts-brainstorm-dump.md` into a
+This spec consolidates the raw dump in `00.1_concepts_brainstorm_dump.md` into a
 single design proposal, cross-referenced against the existing `lang_tools.lexicon`
 code and the linux-box `10-language-overview` design notes, and grounded in
 standard lexical-resource modelling (WordNet, OntoLex-Lemon, BabelNet).

@@ -10,7 +10,7 @@ Both are subject to the polysemy trap, so both live on the sense, not the bare `
 The fields were defined in phase 2 and left empty; this phase fills them for all five
 languages, deterministically, inside the build.
 
-Context: [`00-concepts-brainstorm.md`](00-concepts-brainstorm.md) ("Lemma frequency",
+Context: [`00_start.md`](00_start.md) ("Lemma frequency",
 "Lemma complexity"), the 5.54 exploration findings, and the 5.58 durability rule.
 
 ## Inherited decisions

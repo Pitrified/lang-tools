@@ -1,6 +1,15 @@
+---
+status: draft
+priority: 0
+description: |
+  A git-tag install of lang-tools carries the code and no data, so lang-tutor's
+  `in_process` mode needs a local checkout. Assess whether a tag install needs
+  data at all, and if it does, what to ship and how.
+---
+
 # Data for tag installs - start
 
-Status: open, not scheduled. Spun off while switching `lang-tutor` from a `[tool.uv.sources]`
+Spun off while switching `lang-tutor` from a `[tool.uv.sources]`
 path override to the `lang-tools @ v0.2.0` git-tag pin.
 
 ## The problem

@@ -6,7 +6,7 @@ status: done
 
 Plan of record (2026-10-22). Reconnect `lang-tutor` to the concept model built in phases
 2-8. Both repos develop on `feat/lexicon`. Context:
-[`00-concepts-brainstorm.md`](00-concepts-brainstorm.md), "Uplift plan (no data
+[`00_start.md`](00_start.md), "Uplift plan (no data
 migration)".
 
 The "sample data" half of the original draft is mostly done already: 5.59 carves
