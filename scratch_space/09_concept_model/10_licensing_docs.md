@@ -1,8 +1,11 @@
 ---
-status: draft
+status: superseded
 ---
 
 # Phase 10 - licensing & docs
+
+Superseded on 2026-11-12 by [`18_licensing`](../18_licensing/00_start.md), which carries the
+license findings below as its open questions, so this folder can close.
 
 > Draft. Scope sketch to hold the overarching story; not yet the plan of record.
 

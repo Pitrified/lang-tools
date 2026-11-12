@@ -1,5 +1,5 @@
 ---
-status: in progress
+status: done
 priority: 0
 description: |
   Uplift of `lang_tools.lexicon` from a flat `Word` to a concept-centric model
