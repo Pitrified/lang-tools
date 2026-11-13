@@ -86,15 +86,6 @@ Found in `09_concept_model/09_sample_and_consumer.md`, Q1.
 lang-tutor has a written plan for it, deferred on 2026-11-03:
 its `scratch_space/03_ui_followups/04_sentences.md`.
 
-## pt glosses for the concepts own-pt added
-
-With pt from OpenWordnet-PT, pt words are linked to 8,868 concepts that have no pt gloss
-(of 52,706 pt concepts): the gloss backfill covered the concepts omw-pt had.
-Cards show the en gloss by default, so a learner sees the gap only with a pt gloss language.
-The fix is a run of the existing gloss backfill job over those concepts; the 2026-10 run wrote
-174,315 glosses for about $1.87, so this is on the order of $0.10, to be measured on a sample.
-Found in `18_licensing/01_own_pt.md`, parked by `18_licensing/00_start.md` Q12.
-
 ## Plan references in `src/`
 
 `src/` holds about 165 "phase N" mentions in 44 files (docstrings, comments, a log message),
