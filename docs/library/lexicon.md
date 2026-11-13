@@ -161,7 +161,7 @@ what each orientation means):
 | `similar`, `also`, `attribute` | symmetric | similar adjective, "see also", noun <-> the adjectives that value it | 13,653 |
 | `antonym` | symmetric | opposed concepts, **derived** from English sense antonymy | 3,802 |
 
-plus 3,992 sense-level `antonym` edges in `sense_relations`.
+plus 4,268 sense-level `antonym` edges in `sense_relations` (3,992 English, 276 pt).
 
 How the OMW reader gets there (`ingestion.sources.omw`):
 
@@ -587,8 +587,8 @@ or *fala*, would gain a sense it rarely has), and a word with a reviewed row is 
 After the best-sense pins, a form whose base is pinned takes the same pin, so its card is
 its base's card. Measured against the Wiktionary analyses (kaikki, read only to measure,
 never by the build), about 98% of the forms have the same base or an equivalent one. The
-2026-11 build added 12,395 pt forms with 49,675 senses, and 444 pins from their base; the
-manifest records them under `inflections`.
+2026-11-13 build added 12,949 pt forms and extended 239 existing words, with 73,916 senses in
+all, and 1,075 pins from their base; the manifest records them under `inflections`.
 
 Some meanings have no WordNet concept to link to: WordNet has no modal verbs, so pt *pode*
 "can" and *deve* "must" have nothing to be added to (en *can* is a tin can, *must* grape

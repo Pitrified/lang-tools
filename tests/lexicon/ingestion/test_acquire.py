@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from lang_tools.lexicon.ingestion.acquire import manifest_path
 from lang_tools.lexicon.ingestion.acquire import raw_dir
 from lang_tools.lexicon.ingestion.acquire import read_manifest
+from lang_tools.lexicon.ingestion.acquire import source_versions
 from lang_tools.lexicon.ingestion.acquire import write_manifest
 
 if TYPE_CHECKING:
@@ -28,3 +29,10 @@ def test_manifest_round_trip_stamps_built_at(tmp_path: Path) -> None:
     assert loaded["languages"] == ["en"]
     assert loaded["counts"] == {"concepts": 3}
     assert "built_at" in loaded
+
+
+def test_source_versions_names_each_lexicon_read() -> None:
+    sources = source_versions(["en", "pt"])
+    assert sources["lexicons"] == ["omw-en:1.4", "own-pt:1.0.0"]
+    assert sources["languages"] == ["en", "pt"]
+    assert sources["wn_version"]
