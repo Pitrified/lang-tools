@@ -139,3 +139,29 @@ few sessions of orchestration, no API spend.
   - b. European Portuguese for the new ones only.
   - Recommended: a; a switch of variety is a decision for all pt glosses at once, not for 17%.
   - ANS: a, pt-BR.
+
+### Batch 2: after the pilot
+
+From [`02.1_pilot_assessment.md`](02.1_pilot_assessment.md): 590 of 600 right, 6 with a small
+flaw, 2 faithful to a broken English gloss, 2 wrong; the four corrected.
+
+- Q8: The subagent report lists, by item number, every item whose English gloss looks truncated
+  or a fragment (two of the four corrections came from such flags).
+  - a. Make it a required line of the skill's report.
+  - b. Leave the report as it is.
+  - Recommended: a, because it costs nothing and points the review at the items most likely wrong.
+  - ANS: a.
+- Q9: Size of the sampled review after the full run (8,277 glosses left, 42 batches).
+  - a. A random 500 of the full-run glosses, plus every item the subagents flagged.
+  - b. A random 200, plus the flagged items.
+  - Recommended: a, because at a 0.7% defect rate a 500 sample still finds 3 or 4, enough to
+    tell whether the rate held, and it matches the bar for an assessment.
+  - ANS: a.
+- Q10: About 3% of the pilot's items have pt words that do not mean the concept (OpenWordnet-PT
+  links on concepts the old pt wordnet lacked; list in the assessment).
+  - a. A section in `open_points.md`, no action here.
+  - b. Ask the subagents to list these too, by item number, to build a worklist for a later
+    review.
+  - Recommended: b, because the subagents already notice them and the list comes for free;
+    the review itself stays out of this folder, parked in `open_points.md`.
+  - ANS: b.

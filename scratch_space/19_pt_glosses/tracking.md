@@ -21,8 +21,8 @@ Analysis and decisions in [`00_start.md`](00_start.md).
 | # | Phase | Plan | Status |
 | - | ----- | ---- | ------ |
 | 1 | Tooling | [`01_tooling.md`](01_tooling.md) | done |
-| 2 | Pilot | [`02_pilot.md`](02_pilot.md) | planned |
-| 3 | Full run and rebuild | [`03_full_run.md`](03_full_run.md) | draft |
+| 2 | Pilot | [`02_pilot.md`](02_pilot.md) | done |
+| 3 | Full run and rebuild | [`03_full_run.md`](03_full_run.md) | planned |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
 
@@ -41,3 +41,9 @@ Append-only. Newest at the bottom.
   curated rows and replaces only its own unaccepted ones; `docs/library/lexicon.md` describes the
   agent path. `make check` 567 passed, docs build strict. Smoke on a throwaway copy passed.
   Q5: the card number came from the trial build; 8,877 is current.
+- 2026-11-13 : pilot g0001 to g0003 run by three subagents in parallel, 600 glosses, each batch
+  applied first try. All 600 read: 590 right, 6 small flaws, 2 faithful to a broken English
+  gloss, 2 wrong; 4 corrections in `gloss_overrides.jsonl`. Rules hold. Q8 to Q10 raised.
+- 2026-11-13 : the user read the assessment; Q8 a, Q9 a, Q10 b folded in: the skill's report
+  now lists `broken English` and `wrong pt words` by item number; phase 3 reviews a random 500
+  plus the flagged items. Phase 2 done; phase 3 planned.

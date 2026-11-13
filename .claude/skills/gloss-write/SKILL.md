@@ -34,8 +34,13 @@ SAMPLE_API_KEY=placeholder-not-a-secret uv run --no-sync python -m lang_tools.le
    `NOT APPLIED`, fix every listed problem in the file and run it again. The screen refuses a
    missing or doubled number, a gloss that only repeats a Portuguese word, an untranslated one,
    and a runaway length. Never edit `data/curated/` files by hand.
-6. **Report** in at most four lines: the batch id, the count applied, how many items you were
-   unsure of and why in a phrase, and anything worth a human look. Do not paste the glosses.
+6. **Report** in a few lines: the batch id, the count applied, and two lists by item number,
+   each with the English words and a phrase:
+   - `broken English:` every item whose English gloss looks truncated, is a fragment, or carries
+     a stray example (write the best gloss you can; the orchestrator corrects these);
+   - `wrong pt words:` every item whose Portuguese words do not mean the concept (gloss it from
+     the English anyway).
+   Write `none` for an empty list. Do not paste the glosses.
 
 ## Orchestrating several batches
 

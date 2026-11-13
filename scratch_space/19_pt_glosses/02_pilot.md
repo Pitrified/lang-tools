@@ -1,5 +1,5 @@
 ---
-status: planned
+status: done
 ---
 
 # Phase 2 - Pilot
@@ -36,3 +36,9 @@ Context: [`00_start.md`](00_start.md), depends on [`01_tooling.md`](01_tooling.m
 - `02.1_pilot_assessment.md` is written and the user has read it.
 
 ## What the implementation found
+
+- All three batches applied on the first try; 600 read. 590 right, 6 with a small flaw, 2
+  faithful to a broken English gloss, 2 wrong; the four corrected with `correct`.
+  Detail in [`02.1_pilot_assessment.md`](02.1_pilot_assessment.md).
+- About 3% of the items carry pt words that do not mean the concept: a property of
+  OpenWordnet-PT's links, not of the glosses (`00_start.md` Q10).

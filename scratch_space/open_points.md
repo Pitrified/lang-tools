@@ -94,3 +94,13 @@ such as "(phase 7)" or "phase 5.55 Q4". The plan convention keeps plan ids out o
 The fix: point each at the doc whose topic it is, or drop it, file by file; and teach the
 check the "phase N" form so new ones are caught.
 Found in `18_licensing/02_license_files.md`, parked by `18_licensing/00_start.md` Q15.
+
+## pt words linked to the wrong concept in OpenWordnet-PT
+
+On concepts the old pt wordnet did not have, about 3% of the links name a pt word that does not
+mean the concept (20 of a random 600): *inundar* on "stagger, astound", *salário* on payroll,
+*defensor* on "stalwart", *congressional* on Congregational.
+Mostly rare concepts, so few reach a card; the card-sense review covers the frequent words.
+The gloss-writing subagents list the ones they meet, which makes a worklist for a review of
+links by concept rather than by word.
+Found in `19_pt_glosses/02.1_pilot_assessment.md`.
