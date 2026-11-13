@@ -18,7 +18,7 @@ card. Analysis and decisions in [`00_start.md`](00_start.md).
 
 | # | Phase | Plan | Status |
 | - | ----- | ---- | ------ |
-| 1 | pt from own-pt | [`01_own_pt.md`](01_own_pt.md) | in progress |
+| 1 | pt from own-pt | [`01_own_pt.md`](01_own_pt.md) | done |
 | 2 | License files and dataset card | [`02_license_files.md`](02_license_files.md) | draft |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
@@ -57,3 +57,13 @@ Append-only. Newest at the bottom.
 - 2026-11-13 : worklist at 7,800 and `m0010` (42 words, gold 2/2); a second, rule-only pass of
   the reviewed drops after the inflection stage, used for *paris*, *castro*, *acerca*. Every
   frequent pt card whose best sense moved is now reviewed or follows a reviewed base.
+- 2026-11-13 : seed regenerated (742 lemmas, `make check` passes), look-alike losses read (58 pt
+  words own-pt lacks, mostly junk; no action), doc counts updated. Phase review at the end: the
+  corpus holds no own-pt definition or example (all 43,926 pt glosses are ours, 4 pt examples as
+  before); findings raised as `00_start.md` Q12 (8,868 pt concepts with no pt gloss) and Q13
+  (the notebook build records no source versions).
+- 2026-11-13 : Q12 parked in `open_points.md`, Q13 done (`acquire.source_versions`, passed by the
+  transform notebook); pt *é* had lost its only sense and is linked to "be" by a reviewed
+  addition; seed refreshed again. Done-when verified: pt rows from own-pt, `_build.json` names
+  `own-pt:1.0.0`, no own-pt text in the corpus, the 3,000-word comparison recorded,
+  `make check` and `make docs-build` pass. Phase 1 done.

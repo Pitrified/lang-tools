@@ -1,5 +1,5 @@
 ---
-status: in progress
+status: done
 ---
 
 # Phase 1 - pt from own-pt
@@ -193,3 +193,25 @@ Rebuilt in place: 958 pins applied, 1 stale; forms inherit 1,075 pins from their
 233 cards among the 3,000 most frequent pt words whose best sense differs from the omw-pt build,
 165 are reviewed, 63 are forms of a reviewed base, 4 are capitalised words or digits, and 1
 (*s*, the symbol) is left as it is.
+
+## Closing items (2026-11-13)
+
+- **Look-alikes.** 61 rows no longer match a build lemma (7 on the omw-pt build); 58 of them
+  because the pt word is not in own-pt. Most are welcome losses: English words omw-pt carried
+  (*night*, *link*, *darling*, *view*, *honey*), misspellings (*intéprete*, *poluíção*), rare
+  plurals (*carbonatos*, *discotecas*) and pt-PT spellings (*húmida*, *injecção*, *tecto*). Real
+  words lost: *regente*, *infante*, *albergar*, *refugiar*, *presidenta*, *lume*, *comuna*,
+  *pênalti*. A stale row is skipped, not fatal, and applies again if a build has the word; no
+  action. Edges: 6,840 to 6,786.
+- **Seed.** Regenerated: 742 lemmas (pt 287), 50 concepts, from 863 (pt 402). The sample ranks
+  concepts by how many languages they have, then by having an example, then by id; own-pt covers
+  different concepts, so the top 50 moved (*accuracy* left, *accent* and *agree* came in).
+  `make check` passes on it.
+- **Docs.** The sense-relation and inflection counts updated in `docs/library/lexicon.md`.
+- **pt *é***, the 8th most frequent pt word, had no card: own-pt does not list it (omw-pt had
+  only the letter), and `analyse` skips one-letter forms. A reviewed addition
+  (`sense_review_cli add`) links it to "be" as `3rd person singular present of "ser"`. *quão*
+  ("how", of degree) is lost too and has no fitting concept (the only "how" is manner, *como*);
+  left as it is.
+- **Source record** (Q13): `acquire.source_versions` names the lexicons read; the transform
+  notebook passes it, and the rebuild guide drops its by-hand step.

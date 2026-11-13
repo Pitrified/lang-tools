@@ -199,6 +199,29 @@ database apart from copyright, which is why "facts" does not end the question.
   - c. Accept the changes.
   - Recommended: a.
   - ANS: a (user, 2026-11-13).
+- Q12: own-pt links pt words to 8,868 concepts that have no pt gloss (52,706 pt concepts in
+  all): the gloss backfill covered the concepts omw-pt had. Cards show the en gloss by default,
+  so a learner sees the gap only with a pt gloss language. Filling it is a paid LLM run of the
+  existing gloss backfill job; the 2026-10 run wrote 174,315 glosses for about $1.87, so this
+  would be on the order of $0.10, measured on a sample first.
+  - a. Run it now, as a step of phase 1, after a measured sample and its cost.
+  - b. Park it in `open_points.md` for later.
+  - Recommended: b, because no card shows a pt gloss today and the run needs its own approval.
+  - ANS: b (user, 2026-11-13): parked in `open_points.md`, "pt glosses for the concepts own-pt
+    added".
+- Q13: `_build.json` names own-pt only when the build is given the download manifest
+  (`extra_manifest`); the transform notebook does not pass it (`docs/guides/rebuild_corpus.md`
+  says to change the call by hand), so a notebook rebuild records no source versions, and the
+  phase's "`_build.json` names it" holds only for builds run as this phase ran them.
+  - a. Pass the download manifest in the notebook's build cell, and drop the by-hand note from
+    the guide.
+  - b. Leave it as documented.
+  - Recommended: a, a one-line notebook change that makes the record automatic now that the pt
+    source differs from OMW.
+  - ANS: a (user, 2026-11-13). The download notebook's `omw_info` is not in the transform
+    notebook's kernel when they run headless, so `acquire.source_versions` returns the same
+    fragment without downloading; `download_omw` builds on it, and the transform notebook
+    passes it to the build.
 
 ## Code license
 
