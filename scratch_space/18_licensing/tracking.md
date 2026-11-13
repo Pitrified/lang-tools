@@ -1,0 +1,39 @@
+# implementation tracking
+
+Settle the license of the dataset and of the code, credit every source, and write the dataset
+card. Analysis and decisions in [`00_start.md`](00_start.md).
+
+## Key decisions
+
+- pt comes from upstream own-pt (CC BY 4.0), words and links only; our pt glosses stay
+  (`00_start.md` Q1).
+- fr stays in the local build and out of the shipped dataset until fala is decent in pt
+  (`00_start.md` Q2, Q8).
+- The wordfreq-derived numbers are facts, credited to wordfreq and its sources (`00_start.md` Q3).
+- The dataset is CC BY 4.0, free and open; the code is MIT (`00_start.md` Q4, Q9, Q7).
+- The pt switch lands first: share-alike rows cannot be relicensed CC BY (`00_start.md` Q1).
+- What is shipped, and how, is `17_distribution`'s; this folder writes the licenses it ships with.
+
+## Phases
+
+| # | Phase | Plan | Status |
+| - | ----- | ---- | ------ |
+| 1 | pt from own-pt | [`01_own_pt.md`](01_own_pt.md) | draft |
+| 2 | License files and dataset card | [`02_license_files.md`](02_license_files.md) | draft |
+
+Status values: draft / planned / in progress / done / superseded / discarded.
+
+## Log
+
+Append-only. Newest at the bottom.
+
+- 2026-11-12 : folder opened from `09_concept_model` phase 10; source licenses verified on the
+  web and in the `wn` metadata (wordfreq data is CC BY-SA 4.0; own-pt is CC BY 4.0 and in the
+  `wn` index); Q1 to Q6 raised.
+- 2026-11-12 : own-pt 1.0.0 compared with omw-pt 1.4 in the scratchpad: same ILIs, similar
+  coverage of frequent words, own-pt definitions partly copied from Wikipedia; recorded in
+  `00_start.md`.
+- 2026-11-12 : Q1 to Q6 answered (own-pt, fr out of the shipped dataset, wordfreq as facts,
+  CC BY 4.0, card in a root file and a docs page); code license assessed against reuse in fala.
+- 2026-11-13 : Q7 (MIT), Q8 (fr stays out until fala is decent in pt) and Q9 (CC BY 4.0,
+  anyone may sell) answered; phases 1 and 2 drafted.

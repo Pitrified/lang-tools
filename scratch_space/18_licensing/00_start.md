@@ -96,14 +96,16 @@ database apart from copyright, which is why "facts" does not end the question.
     language the project is for and the clean source exists.
     The probe ran on 2026-11-12 (below): own-pt covers as much, maps to the same ILIs, and
     changes few curated rows, so a stands; take its words and links, not its definitions.
-  - NEW_ANS:
+  - ANS: a (user, 2026-11-12): re-source pt from own-pt, words and links only; our pt glosses
+    stay.
 - Q2: The fr backbone (WOLF) is CeCILL-C, a weak-copyleft software license.
   - a. Keep fr, with a per-language note naming CeCILL-C for the fr slice.
   - b. Drop fr from the shipped dataset, keep it in the local build.
   - c. Look for another fr wordnet first.
   - Recommended: a, because fr is a secondary language and a per-language note is honest without
     losing it; revisit when 17_distribution decides what is shipped.
-  - NEW_ANS:
+  - ANS: b (user, 2026-11-12): fr stays in the local build and out of the shipped dataset.
+    Raised again as Q8, since fala offers French.
 - Q3: The frequency numbers and CEFR bands derive from wordfreq data under CC BY-SA 4.0.
   - a. Treat the derived numbers as facts: credit wordfreq and its listed sources in the card,
     and say the numbers derive from CC BY-SA data.
@@ -111,19 +113,21 @@ database apart from copyright, which is why "facts" does not end the question.
   - c. Replace the frequency source.
   - Recommended: a, the same reading as the inflection forms; a zipf value per word is not the
     wordfreq text, and every rebuild re-derives it.
-  - NEW_ANS:
+  - ANS: a (user, 2026-11-12).
 - Q4: The dataset license, once Q1 to Q3 are settled.
   - a. CC BY 4.0 for the dataset, with per-language exceptions noted in the card.
   - b. CC BY-SA 4.0 for the whole dataset.
   - Recommended: a if Q1 is a and Q3 is a, otherwise b, since CC BY-SA 4.0 accepts every CC BY
     input and is still an open license.
-  - NEW_ANS:
+  - ANS: a (user, 2026-11-12): CC BY 4.0, which Q1 a, Q2 b and Q3 a make possible.
 - Q5: The license of the code (no `LICENSE` file today). The other repos with one use MIT
   (go-accenter, go-firefly, show-epub). The dataset license stays separate from it.
   - a. MIT, for lang-tools and lang-tutor alike.
   - b. Apache-2.0 (adds a patent grant).
   - Recommended: a, to match the repos that have one.
-  - NEW_ANS:
+  - ANS (user, 2026-11-12): no preference; the point is to be able to package the database and
+    use it in the user's other projects, such as fala, without closing a door. Assessed under
+    "Code license" below; the choice is Q7.
 - Q6: Where the dataset card lives.
   - a. A docs page, `docs/library/dataset_card.md`, listing each source, its license, the
     attribution text, coverage counts per language and the estimated share of frequency and CEFR
@@ -132,7 +136,70 @@ database apart from copyright, which is why "facts" does not end the question.
   - c. Both: the root file holds the license and attributions, the docs page the coverage.
   - Recommended: c, because a root file is where people look for a license, and the coverage
     numbers change with each build.
-  - NEW_ANS:
+  - ANS: c (user, 2026-11-12).
+- Q7: The code license, after the assessment below.
+  - a. MIT for lang-tools and lang-tutor.
+  - b. Apache-2.0.
+  - c. Keep no code license for now.
+  - Recommended: a: it asks others only to keep the notice, never binds the user, and is what
+    the other licensed repos use.
+  - ANS: a (user, 2026-11-13): MIT, with Q9 raised on who may sell what.
+- Q8: French and fala. fala offers French, and Q2 b keeps fr out of the shipped dataset, so a
+  fala build that bundles the dataset has no French. CeCILL-C is a weak copyleft like the LGPL:
+  it allows bundling the fr data in a closed app as long as the fr data, and our changes to it,
+  stay available under CeCILL-C. That is a notice plus the fr slice published alongside.
+  - a. Keep Q2 b: fr out of the shipped dataset; fala's French waits for another source.
+  - b. Ship fr as a separate file under CeCILL-C, next to the CC BY 4.0 dataset.
+  - Recommended: b, if fala's French is wanted soon; otherwise a, and decide when it is.
+  - ANS: a (user, 2026-11-13): fr stays out of the shipped dataset for now; fala is made
+    decent in pt first, and fr is reassessed then. fala needs none of its other languages
+    (German and the rest) from the dataset.
+- Q9: Can someone else take the dataset and sell an app built on it, and can the user?
+  The code license (MIT or Apache-2.0) does not decide this: the dataset has its own license.
+  - Under CC BY 4.0 (Q4 a), anyone may sell an app built on the dataset, with attribution.
+    The user may too: every shipped source allows commercial use (Princeton WordNet, own-pt,
+    MCR, MultiWordNet and CILI are permissive or CC BY; the wordfreq-derived numbers are read as
+    facts per Q3), and our own additions are the user's.
+  - A licensor is never bound by their own license, so a stricter dataset license would limit
+    only others. CC BY-NC 4.0 on the dataset would stop others selling it; it can cover only
+    our additions (the reviewed glosses, pins, look-alikes, sense fixes, inflected forms), since
+    the upstream wordnets stay available to anyone under their own terms. Those additions are
+    most of the dataset's value for a learner app.
+  - The choice is one-way. A CC license is irrevocable (CC BY 4.0 section 2(a)(1)): a release
+    made under CC BY stays CC BY for anyone who has a copy, and they may sell it and pass it on
+    under CC BY indefinitely. Switching to CC BY-NC later covers only the later releases.
+    The other direction is free: a CC BY-NC release can be relaxed to CC BY at any time.
+    The data already in the GitHub repo states no license today, so nothing has been granted yet.
+  - a. Keep CC BY 4.0: anyone may sell, with attribution.
+  - b. CC BY-NC 4.0 on the dataset: others may use it but not sell it; the user keeps every
+    right, and can grant a commercial license case by case.
+  - c. Both: CC BY-NC 4.0 public, a separate commercial license from the user on request.
+  - Recommended: a, to keep the "free and open" goal: NC is not an open license under the usual
+    definitions, its "commercial" line is unclear (an ad-supported app, a paid tutor), and it
+    is hard to enforce on a solo project. Pick b if stopping a reseller matters more than open.
+  - ANS: a (user, 2026-11-13): CC BY 4.0, free and open; anyone may use it, also to make
+    money.
+
+## Code license
+
+The user's goal (Q5): package the database and use it in other projects, such as fala, an
+Android app in Flutter, without closing a door.
+
+- **fala takes the data, not the code.** fala is Dart; it would bundle the built database (a
+  SQLite or Parquet file) as an app asset. What travels into fala is governed by the dataset
+  license (Q4 a, CC BY 4.0) and the source licenses under it, not by the code license.
+- **CC BY 4.0 fits an app bundle.** It allows any use, commercial or closed, with attribution:
+  fala needs a licenses or about screen naming the dataset and the sources the card lists. The
+  root license file (Q6 c) is written so fala can copy the text from it.
+- **The code license never binds its owner.** As the copyright holder, the user can reuse
+  lang-tools code anywhere whatever its license. A code license only says what other people
+  may do, and what license their contributions come under.
+- **What would close a door:** a copyleft code license (GPL, AGPL), because a contributor's
+  code would then be usable only under it, including in the user's own closed projects. With
+  no license at all, nobody else may use the code, and a contribution's terms are unclear.
+- **MIT against Apache-2.0.** Both are permissive and allow anything. Apache-2.0 adds a patent
+  grant and asks for a NOTICE file to be carried along; MIT is shorter and matches go-accenter,
+  go-firefly and show-epub. For a solo project with no patents, MIT.
 
 ## Probe: own-pt 1.0.0 against omw-pt 1.4
 
