@@ -40,17 +40,6 @@ real forms too.
 Worth a look only if forms come back into drills or word lists.
 Found in `15_inflection_model/01_form_table.md`.
 
-## `lang_tools.lexicon` needs fastapi-tools to import
-
-`lemma_store` imports `get_lang_tools_params`, which imports `WebappParams`, which imports
-`fastapi_tools`; but fastapi-tools is only in the `webapp` extra.
-Measured on a clean venv with `lang-tools @ v0.2.0`: `from lang_tools.lexicon import LemmaCard`
-raises `ModuleNotFoundError: fastapi_tools`, and works with `lang-tools[webapp]`.
-lang-tutor never hits it because `make sync` installs every extra.
-Fix candidates: a lazy webapp-params import, or fastapi-tools as a base dependency;
-either needs a patch release and a pin bump.
-Found in the `09_concept_model` backlog.
-
 ## Mapping new lemmas into the corpus
 
 The phase-8 maintenance loop (worklist, proposer, reviewed JSONL, curated build input) was
@@ -96,18 +85,6 @@ or Tatoeba (CC-BY, already staged), the sourced alternative.
 Found in `09_concept_model/09_sample_and_consumer.md`, Q1.
 lang-tutor has a written plan for it, deferred on 2026-11-03:
 its `scratch_space/03_ui_followups/04_sentences.md`.
-
-## Junk best senses on common pt forms
-
-Frequent words whose best sense was a rare homograph, met on the first cards.
-Checked on 8010 on 2026-11-12: *seja*, *são* and *Brasil* now show the right card,
-but *é* still shows "the 5th letter of the Roman alphabet".
-Fix candidates: a curated pin for the remaining top forms, or a rule that a sense with no
-frequency data cannot become the best sense of a common lemma.
-Found in the `09_concept_model` backlog.
-With pt from own-pt (`18_licensing` phase 1, 2026-11-13) *é* lost its only sense (own-pt does
-not list it, and the inflection rules skip one-letter forms); a reviewed addition now links it
-to "be" as `3rd person singular present of "ser"`, so the letter card is gone.
 
 ## pt glosses for the concepts own-pt added
 
