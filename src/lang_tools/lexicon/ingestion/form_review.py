@@ -39,6 +39,7 @@ from lang_tools.lexicon.quality import _table_sources
 from lang_tools.llm.form_review import FormReviewInput
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
     from pathlib import Path
 
     from lang_tools.lexicon.ingestion.transform import TaggedTables
@@ -142,7 +143,12 @@ WHERE m.language <> 'en'
     return sorted(items, key=lambda item: item[0])
 
 
-def apply_form_drops(tables: TaggedTables, drops: list[FormDrop]) -> tuple[int, int]:
+def apply_form_drops(
+    tables: TaggedTables,
+    drops: list[FormDrop],
+    *,
+    only: Collection[str] | None = None,
+) -> tuple[int, int]:
     """Remove accepted dropped senses, and lemmas left without one, in place.
 
     Called by `ingestion.pipeline.build_initial` right after `transform`, so the
@@ -150,9 +156,15 @@ def apply_form_drops(tables: TaggedTables, drops: list[FormDrop]) -> tuple[int, 
     names a sense the build does not have is skipped (its form may already have
     been fixed upstream); it is not an error.
 
+    It runs a second time after the inflection stage, with `only` set to the
+    inflection tag, so a drop also retires a link the rules made (pt *paris*
+    is no form of *parir*) without undoing a reviewed addition, which wins over
+    a drop of the same link.
+
     Args:
         tables: The freshly transformed tables, mutated in place.
         drops: Accepted drops, typically from `load_form_drops`.
+        only: When given, only senses with one of these source tags are dropped.
 
     Returns:
         ``(senses dropped, lemmas removed)``.
@@ -162,7 +174,8 @@ def apply_form_drops(tables: TaggedTables, drops: list[FormDrop]) -> tuple[int, 
         return (0, 0)
     kept_senses, kept_tags, dropped_ids = [], [], set()
     for sense, tag in zip(tables.senses, tables.sense_sources, strict=True):
-        if (sense.lemma_id, concept_key(sense.concept_id)) in targets:
+        eligible = only is None or tag in only
+        if eligible and (sense.lemma_id, concept_key(sense.concept_id)) in targets:
             dropped_ids.add(sense.id)
             tables.sense_counts.pop((sense.lemma_id, sense.concept_id), None)
             continue

@@ -161,7 +161,7 @@ what each orientation means):
 | `similar`, `also`, `attribute` | symmetric | similar adjective, "see also", noun <-> the adjectives that value it | 13,653 |
 | `antonym` | symmetric | opposed concepts, **derived** from English sense antonymy | 3,802 |
 
-plus 3,992 sense-level `antonym` edges in `sense_relations`.
+plus 4,268 sense-level `antonym` edges in `sense_relations` (3,992 English, 276 pt).
 
 How the OMW reader gets there (`ingestion.sources.omw`):
 
@@ -175,13 +175,19 @@ How the OMW reader gets there (`ingestion.sources.omw`):
   graph onto the other wordnets through the ILI, and reading that projection
   produced ~250k phantom dangling targets and looked like missing taxonomy. Since
   concepts are grouped by ILI, English's edges already connect every language.
+  The pt wordnet, OpenWordnet-PT, states relations of its own but has hypernym and
+  hyponym the wrong way round (its *canine* lists *dog* as a hypernym), which
+  against English's links ties every edge and drops it; so its synset relations
+  are not read (`NO_RELATION_LEXICONS`), and its sense antonyms, which have no
+  direction, are.
 - **Contradictions are resolved by support.** A directional edge stated in both
   orientations keeps the better-supported one; a tie drops both. OMW 1.4 has one
   such pair, the WordNet 3.0 `restrain` / `inhibit` cycle.
 - **Antonymy is stored sense-level and derived to concept level.** Each English
   sense antonym also becomes a concept `antonym` edge with provenance `derived`,
-  which is how the four languages whose wordnets carry no sense relations get
-  opposites at all: pt `quente` reaches `frio`, es `feliz` reaches `triste`.
+  which is how the languages whose wordnets carry no sense relations get
+  opposites at all: es `feliz` reaches `triste`. pt has its own sense antonyms
+  (*aberto* / *fechado*) as well as the derived ones (`quente` reaches `frio`).
 - A link whose target does not resolve is counted and dropped, never emitted
   half-formed. Deferred: `domain_*` / `exemplifies` (topic metadata, phase 8)
   and `derivation` / `pertainym` (English-only morphology).
@@ -500,6 +506,12 @@ Each job has a thin notebook under `notebooks/lexicon_maintain/` (`gloss_repair`
 encode the spending rule: run a small live sample, read its measured cost, compare
 models if the choice is open, and only then flip `RUN_PAID` for the full batch.
 
+The member-form drops apply right after `transform`, and once more after the
+inflection stage to the senses the rules made, so a reviewed drop also retires a
+generated form that is no form at all (pt *paris* is not "you give birth"). The second
+pass touches only rule-made senses, so a reviewed sense addition still wins over a
+drop of the same link.
+
 The 2026-10 runs: 23,012 slug qualifiers accepted of 23,476; 161 member-form drops
 proposed and reviewed (153 dropped, 8 kept: real names the model read as
 definitions, and two pairs joined by "et" / "ou" that want splitting); 174,315
@@ -563,15 +575,20 @@ word (*estados* of *estado*, *comidas* of *comida*), a second-person or pluperfe
 gives way to any other (*partes* of *parte*, not "you leave"), and then the more frequent
 base wins (*foi* of *ser*, not *ir*). The stage runs right after the sense additions, so
 every reviewed form is a lemma already and wins, and before enrichment. It keeps the forms
-of `wordfreq` zipf 3.0 and up (`INFLECTION_ZIPF_FLOOR`) that the build lacks and that are
-not closed-class words; each gets a lemma with the `inflection` provenance tag and a copy
-of its base's senses of the form's class, each with a form note written from the tags
+of `wordfreq` zipf 3.0 and up (`INFLECTION_ZIPF_FLOOR`) that are not closed-class words; a
+form the build lacks gets a lemma with the `inflection` provenance tag and a copy of its
+base's senses of the form's class, each with a form note written from the tags
 (``3rd person singular preterite of "ser"``, ``plural of "ano"``; no English rendering).
+A form the build already has gets the base's senses only for a noun or adjective reading
+whose class it has no sense of: OpenWordnet-PT lists *nova* only as the star, so *nova*
+gains "feminine of *novo*", while *irmã* and *leis*, nouns already, are left alone. A verb
+reading of an existing word is never added (a common word that spells a verb form, *casa*
+or *fala*, would gain a sense it rarely has), and a word with a reviewed row is left alone.
 After the best-sense pins, a form whose base is pinned takes the same pin, so its card is
 its base's card. Measured against the Wiktionary analyses (kaikki, read only to measure,
 never by the build), about 98% of the forms have the same base or an equivalent one. The
-2026-11 build added 12,395 pt forms with 49,675 senses, and 444 pins from their base; the
-manifest records them under `inflections`.
+2026-11-13 build added 12,949 pt forms and extended 239 existing words, with 73,916 senses in
+all, and 1,075 pins from their base; the manifest records them under `inflections`.
 
 Some meanings have no WordNet concept to link to: WordNet has no modal verbs, so pt *pode*
 "can" and *deve* "must" have nothing to be added to (en *can* is a tin can, *must* grape
@@ -658,6 +675,10 @@ sources (OMW via wn, CILI gloss map, wordfreq)
   synsets (the only place that touches `wn`), and the pure `group_to_records`
   groups them by shared ILI key into one `Concept` per meaning (this is the
   cross-lingual cognate grouping) plus the member `Lemma`s and `Sense` edges.
+  pt comes from upstream OpenWordnet-PT (`own-pt`, CC BY 4.0, pinned at its own
+  release in `PINNED_VERSIONS`) rather than OMW's CC BY-SA copy; its definitions and
+  examples, partly Wikipedia text, are not read (`NO_TEXT_LEXICONS`), so pt glosses
+  come from the curated gloss backfill.
   Both the download (`download_omw`) and the read select by a **single explicit
   lexicon** via the `OMW_LEXICONS` map / `_omw_lexicon` helper, never the `omw`
   collection or a bare `lang=` filter: the collection pulls every member wordnet
@@ -940,7 +961,8 @@ datasets into a read-only cache under `data/_raw/lexicon/staging/` so the
 phase-5.54 exploration notebooks read clean inputs. Staging never writes the
 source-of-truth Parquet; it only fills the gitignored cache and a `_staging.json`
 manifest that records each dataset's source, version, and **license** (so the
-phase-10 posture is auditable from the cache alone). Each adapter follows the
+licensing posture, summed up in the [dataset card](dataset_card.md), is auditable from
+the cache alone). Each adapter follows the
 `sources` discipline: network and optional-dependency work is isolated in the
 impure functions, while the parsers, query builders, and the lemma index are pure
 and unit-tested.

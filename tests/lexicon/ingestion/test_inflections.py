@@ -18,6 +18,7 @@ from lang_tools.lexicon.ingestion.inflections import propagate_base_pins
 from lang_tools.lexicon.ingestion.inflections import verb_tenses
 from lang_tools.lexicon.ingestion.sources.omw import SynsetEntry
 from lang_tools.lexicon.ingestion.transform import SOURCE_INFLECTION
+from lang_tools.lexicon.ingestion.transform import SOURCE_MANUAL
 from lang_tools.lexicon.ingestion.transform import transform
 from lang_tools.lexicon.lemma_id import lemma_id
 
@@ -313,13 +314,66 @@ def test_the_floor_leaves_rare_forms_out() -> None:
     assert not _senses(tables, "olhares")
 
 
-def test_a_word_the_build_has_is_left_alone() -> None:
+def _nova_entries() -> list[SynsetEntry]:
+    # own-pt lists *nova* only as the star; *novo* is the adjective.
+    return [
+        *_entries(),
+        SynsetEntry(
+            "en", "en-5", "i5", "not known before", ("new",), lexfile="adj.all"
+        ),
+        SynsetEntry("pt", "pt-5", "i5", None, ("novo",), pos="a", lexfile="adj.all"),
+        SynsetEntry(
+            "en", "en-6", "i6", "a bright star", ("nova",), lexfile="noun.object"
+        ),
+        SynsetEntry("pt", "pt-6", "i6", None, ("nova",), lexfile="noun.object"),
+    ]
+
+
+def test_a_form_the_build_has_takes_a_class_it_lacks() -> None:
+    tables = transform(_nova_entries())
+    counts = apply_inflections(tables, zipf=lambda word: {"nova": 5.0}.get(word, 0.0))
+    nova = _senses(tables, "nova")
+    assert [s.form_note for s in nova] == [None, 'feminine of "novo"']
+    assert counts.extended == 1
+    assert counts.links[lemma_id("nova", "pt")] == lemma_id("novo", "pt")
+
+
+def test_a_form_the_build_has_in_its_class_is_left_alone() -> None:
+    # *anos* is a noun already: the plural of *ano* adds nothing (*irmã*, *leis*).
     entries = [*_entries(), SynsetEntry("pt", "pt-9", "i4", None, ("anos",))]
     tables = transform(entries)
     before = len(_senses(tables, "anos"))
     _apply(tables)
     assert len(_senses(tables, "anos")) == before
-    assert all(s.form_note is None for s in _senses(tables, "anos"))
+
+
+def test_a_verb_reading_of_a_word_the_build_has_is_left_alone() -> None:
+    # *olha* as a noun: a common word that spells a verb form gains no verb sense.
+    entries = [*_entries(), SynsetEntry("pt", "pt-9", "i4", None, ("olha",))]
+    tables = transform(entries)
+    before = len(_senses(tables, "olha"))
+    _apply(tables)
+    assert len(_senses(tables, "olha")) == before
+
+
+def test_a_reviewed_word_is_left_alone() -> None:
+    tables = transform(_nova_entries())
+    index = next(
+        i for i, s in enumerate(tables.senses) if s.lemma_id == lemma_id("nova", "pt")
+    )
+    tables.sense_sources[index] = SOURCE_MANUAL
+    apply_inflections(tables, zipf=lambda word: {"nova": 5.0}.get(word, 0.0))
+    assert all(s.form_note is None for s in _senses(tables, "nova"))
+
+
+def test_a_form_with_its_own_pin_keeps_it() -> None:
+    tables = transform(_nova_entries())
+    counts = apply_inflections(tables, zipf=lambda word: {"nova": 5.0}.get(word, 0.0))
+    next(s for s in _senses(tables, "novo")).is_best = True
+    own = next(s for s in _senses(tables, "nova") if s.form_note is None)
+    own.is_best = True
+    assert propagate_base_pins(tables.senses, counts.links) == 0
+    assert [s.is_best for s in _senses(tables, "nova")] == [True, False]
 
 
 def test_a_form_takes_its_base_pin() -> None:

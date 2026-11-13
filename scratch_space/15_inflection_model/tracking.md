@@ -69,3 +69,5 @@ Append-only. Newest at the bottom.
   user. lang-tutor pinned to v0.7.0 (`1d85c9c`, merged into its main), `make check` 151; on 8000
   its four drills draw no form and no function word (pair 500, wordle 393, diacritic 371,
   sentence 4). Folder done.
+- 2026-11-13 : key decision Q5 a narrowed by `18_licensing/00_start.md` Q10: existing words take
+  the noun and adjective forms' base senses they lack; reviewed rows still win.

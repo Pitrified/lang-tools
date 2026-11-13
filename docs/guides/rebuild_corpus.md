@@ -13,7 +13,7 @@ procedure: run them in order and read the logged numbers.
 
 | Folder | What it holds | Produced by |
 | ------ | ------------- | ----------- |
-| `data/_raw/lexicon/wn_data/` | OMW 1.4 wordnets (en, pt, es, fr, it) + CILI, in a `wn` database | `01_download` |
+| `data/_raw/lexicon/wn_data/` | OMW 1.4 wordnets (en, es, fr, it), OpenWordnet-PT 1.0.0 (pt) + CILI, in a `wn` database | `01_download` |
 | `data/lexicon/` | the source-of-truth Parquet (`concepts`, `lemmas`, `senses`, `concept_relations`, `sense_relations`, `lookalikes`) + `_build.json` manifest | `02_transform` |
 | `data/bootstrap/lexicon/` | the carved ~50-concept sample corpus (tests and the webapp read it) | `02_transform` |
 | `data/lexicon/_store.sqlite` | the store's derived runtime cache; rebuilds itself on first load | first `LexiconStore` load |
@@ -90,8 +90,8 @@ Run `notebooks/lexicon_ingest/01_download.ipynb`.
 It calls `acquire.download_omw` for the five languages, which downloads one OMW
 lexicon per language (not the whole `omw` collection) plus the CILI resource into
 `data/_raw/lexicon/wn_data/`. It is idempotent: `wn` skips anything already
-installed, so re-running it is cheap. Keep the returned `omw_info` dict in the
-kernel; step 2 can record it in the manifest.
+installed, so re-running it is cheap. pt comes from upstream OpenWordnet-PT
+(`own-pt`), the other four from OMW 1.4.
 
 ## Step 2 - build the corpus
 
@@ -112,14 +112,8 @@ for the concept and sense additions, gloss overrides, look-alikes and best-sense
 rows were stale (naming a concept or lemma the build no longer has). Zero stale overrides and a handful of
 stale look-alikes is healthy; a jump means the build drifted.
 
-The notebook does not pass `extra_manifest` to `build_initial`. To pin the source
-versions in `_build.json`, as its markdown recommends, change the call to:
-
-```python
-summary = build_initial(
-    LANGS, data_fol=data_fol, sample_data_fol=seed_fol, extra_manifest=omw_info
-)
-```
+The build cell passes `acquire.source_versions(LANGS)`, so `_build.json` names the
+`wn` version and the exact lexicon read for each language (`own-pt:1.0.0` for pt).
 
 Then:
 
@@ -152,7 +146,8 @@ not read any of these.
 It stages Tatoeba sentences, per-language wordfreq lists, the CC0 Wikidata lexeme
 dump (a large download, skipped when already present), and the Kelly en/it CEFR
 lists (validation only, never merged) under `data/_raw/lexicon/staging/`, and
-writes `_staging.json` recording each dataset's license. The final cell indexes
+writes `_staging.json` recording each dataset's license (the licenses of what the build
+uses are in the [dataset card](../library/dataset_card.md)). The final cell indexes
 English lemmas to Tatoeba sentences, so run it after step 2.
 
 ## Running the notebooks headless
@@ -166,9 +161,7 @@ uv run jupyter nbconvert --to notebook --execute --output-dir /tmp/nb_out \
     notebooks/lexicon_ingest/01_download.ipynb
 ```
 
-Two caveats when running steps 1 and 2 this way. Each notebook gets its own
-kernel, so `omw_info` from step 1 is not available to step 2. And step 2 runs
-every cell, including the seed-refresh export, which rewrites the committed seed
+One caveat when running step 2 this way: it runs every cell, including the seed-refresh export, which rewrites the committed seed
 JSONL. On an unchanged pipeline that export is byte-identical, so `git status`
 stays clean; if it does not, the build drifted. The step-3 gate rewrites
 `report.md` the same way.

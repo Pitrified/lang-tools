@@ -3,6 +3,8 @@ name = "lang-tools"
 version = "0.7.0"
 description = "Add your description here"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE", "DATA_LICENSE.md"]
 requires-python = "==3.14.*"
 dependencies = [
     "chroma-haystack>=2.0.1",

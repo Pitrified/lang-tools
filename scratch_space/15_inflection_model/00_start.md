@@ -195,6 +195,10 @@ Rewritten after Q1 b; the first draft parsed kaikki at build.
   - Recommended: a, because the rows carry choices the model cannot make (*todos* "all", *pais*
     "parents") and an English rendering, and keeping them costs nothing.
   - ANS: a (user, 2026-11-11).
+  - Narrowed on 2026-11-13 by `18_licensing/00_start.md` Q10: with pt from own-pt, a feminine
+    or plural noun or adjective form the build already has (*nova*, own-pt's star) takes the base
+    senses it lacks. Verb readings of existing words are still skipped, and a word with a
+    reviewed row is still left alone, so the answer above holds for every reviewed row.
 - Q6: Form note text.
   - a. The grammatical label only: `3rd person plural present of "ser"`.
   - b. The label plus an English rendering made from the base card's first English translation

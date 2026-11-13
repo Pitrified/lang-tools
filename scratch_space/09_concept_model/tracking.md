@@ -72,7 +72,7 @@ parked in [`../open_points.md`](../open_points.md).
 | 8 | Maintenance (LLM-based) | [`08_maintenance.md`](08_maintenance.md) | done |
 | 9 | Sample data + consumer uplift | [`09_sample_and_consumer.md`](09_sample_and_consumer.md) | done |
 | 11 | False friends and cognates (runs before 10) | [`11_false_friends.md`](11_false_friends.md) | done |
-| 10 | Licensing & docs | [`10_licensing_docs.md`](10_licensing_docs.md) | draft |
+| 10 | Licensing & docs | [`10_licensing_docs.md`](10_licensing_docs.md) | superseded |
 
 What each phase did, in one line:
 
@@ -1268,3 +1268,5 @@ Append-only. Newest at the bottom.
 - 2026-11-12 : phase 10's distribution shape (how the dataset is published and versioned) moved
   to its own folder, `17_distribution`, which also takes in `10_data_for_tag_installs`;
   phase 10 is now licensing and docs.
+- 2026-11-12 : phase 10 (licensing) moved to its own folder, `18_licensing`, and is
+  superseded here; every other phase is done, so the folder is done.

@@ -8,8 +8,8 @@ it (`tatoeba`, `frequency`, `wikidata`, `cefr`).
 
 Staging never writes the source-of-truth Parquet under ``data/lexicon/``; it only
 populates the gitignored raw cache and records what it pulled (source, version,
-license) in a ``_staging.json`` manifest, so the licensing posture (phase 10) is
-auditable from the cache alone.
+license) in a ``_staging.json`` manifest, so the licensing posture is auditable
+from the cache alone.
 """
 
 from __future__ import annotations
@@ -37,13 +37,13 @@ STAGING_SUBDIR = "_raw/lexicon/staging"
 #: Manifest filename written under the staging dir (records what was pulled).
 STAGING_MANIFEST_NAME = "_staging.json"
 
-#: Known licenses for the candidate datasets, recorded so phase 10 can audit the
-#: posture from the staging manifest alone. Value is ``(license, url)``.
+#: Known licenses for the candidate datasets, recorded so the licensing posture can
+#: be audited from the staging manifest alone. Value is ``(license, url)``.
 KNOWN_LICENSES: dict[str, tuple[str, str]] = {
     "tatoeba": ("CC-BY-2.0-FR", "https://tatoeba.org/eng/terms_of_use"),
     "wikidata": ("CC0-1.0", "https://www.wikidata.org/wiki/Wikidata:Licensing"),
     "wordfreq": (
-        "MIT code; mixed-corpus data (verify per language)",
+        "Apache-2.0 code; CC-BY-SA-4.0 data",
         "https://github.com/rspeer/wordfreq",
     ),
     "cili": ("CC-BY-4.0", "https://github.com/globalwordnet/cili"),

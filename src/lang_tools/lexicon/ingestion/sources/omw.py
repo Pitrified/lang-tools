@@ -135,11 +135,30 @@ OMW_VERSION = "1.4"
 #: through `_omw_lexicon`, so the two can never drift.
 OMW_LEXICONS: dict[str, str] = {
     "en": "omw-en",
-    "pt": "omw-pt",
+    "pt": "own-pt",  # upstream OpenWordnet-PT, CC BY 4.0; omw-pt is CC BY-SA
     "es": "omw-es",
     "fr": "omw-fr",
     "it": "omw-it",  # MultiWordNet; deliberately not omw-iwn (ItalWordNet)
 }
+
+#: Lexicons released apart from OMW, pinned to their own version: the OMW
+#: version passed to `_omw_lexicon` does not apply to them.
+PINNED_VERSIONS: dict[str, str] = {
+    "own-pt": "1.0.0",
+}
+
+#: Lexicons read for their words and links only. own-pt's definitions and
+#: examples are partly copied from Wikipedia (CC BY-SA), so the build takes none
+#: of them; the pt glosses come from the curated gloss backfill, as they did when
+#: omw-pt, which has none, was the pt source.
+NO_TEXT_LEXICONS: frozenset[str] = frozenset({"own-pt"})
+
+#: Lexicons whose synset relations are not read. own-pt 1.0.0 states hypernym and
+#: hyponym the wrong way round (its *canine* lists *dog* as a hypernym), so against
+#: English's links every such edge ties and is dropped. Concepts are grouped by
+#: ILI, so English's own edges already connect the pt concepts. Its sense
+#: antonyms (*aberto* / *fechado*) have no direction and are still read.
+NO_RELATION_LEXICONS: frozenset[str] = frozenset({"own-pt"})
 
 
 class UnknownOmwLanguageError(KeyError):
@@ -162,10 +181,11 @@ def _omw_lexicon(lang: str, version: str = OMW_VERSION) -> str:
 
     Args:
         lang: ISO 639-1 code (must be in `OMW_LEXICONS`).
-        version: OMW release version appended as ``:version``.
+        version: OMW release version appended as ``:version``, unless the
+            lexicon has its own in `PINNED_VERSIONS`.
 
     Returns:
-        A single-lexicon specifier such as ``"omw-en:1.4"``.
+        A single-lexicon specifier such as ``"omw-en:1.4"`` or ``"own-pt:1.0.0"``.
 
     Raises:
         UnknownOmwLanguageError: When `lang` has no mapped lexicon.
@@ -174,7 +194,7 @@ def _omw_lexicon(lang: str, version: str = OMW_VERSION) -> str:
         base = OMW_LEXICONS[lang]
     except KeyError as exc:
         raise UnknownOmwLanguageError(lang) from exc
-    return f"{base}:{version}"
+    return f"{base}:{PINNED_VERSIONS.get(base, version)}"
 
 
 def _ili_id(synset: object) -> str | None:
@@ -1257,18 +1277,20 @@ def wn_synset_entries(
         spec = _omw_lexicon(language, omw_version)
         wordnet = wn.Wordnet(lexicon=spec, expand="")
         read_counts = language == COUNT_LANGUAGE
+        read_text = OMW_LEXICONS[language] not in NO_TEXT_LEXICONS
+        read_relations = OMW_LEXICONS[language] not in NO_RELATION_LEXICONS
         for synset in wordnet.synsets():
             yield SynsetEntry(
                 language=language,
                 synset_id=synset.id,
                 ili=_ili_id(synset),
-                definition=synset.definition(),
+                definition=synset.definition() if read_text else None,
                 lemmas=tuple(synset.lemmas()),
                 member_counts=_member_counts(synset) if read_counts else (),
                 pos=synset.pos,
                 lexfile=synset.lexfile(),
-                examples=tuple(synset.examples()),
-                relations=_synset_relations(synset),
+                examples=tuple(synset.examples()) if read_text else (),
+                relations=_synset_relations(synset) if read_relations else {},
                 sense_links=_sense_links(synset),
                 domain_topics=_domain_topics(synset),
             )

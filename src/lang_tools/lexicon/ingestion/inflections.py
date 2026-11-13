@@ -18,8 +18,12 @@ morphology table, so the corpus licence stays as it is):
 - `apply_inflections` is the build stage: a frequent form the build lacks gets a
   lemma whose senses are its base's senses of the form's class, each with the
   note, so its card is its base's card; `propagate_base_pins` then gives it its
-  base's pinned sense. A word the build already has is left alone, so a
-  reviewed `sense_additions` row always wins over the rules.
+  base's pinned sense. A word the build already has, as a noun or adjective
+  form of a class it has no sense of (*nova*, otherwise only the star), gets
+  that class's base senses; its verb forms are left out, since a common word
+  that spells a verb form (*casa*, *fala*) would gain a sense it rarely has. A
+  word with a reviewed row is left alone, so a `sense_additions` row always wins
+  over the rules.
 
 Generating from the base, rather than guessing the base of a form, keeps a wrong
 guess to a form that is mostly not a word at all, and `analyse` keeps only the
@@ -38,6 +42,7 @@ from loguru import logger as lg
 from lang_tools.lexicon.ingestion.closed_class import CLOSED_CLASS
 from lang_tools.lexicon.ingestion.sense_additions import LEXFILE_POS
 from lang_tools.lexicon.ingestion.transform import SOURCE_INFLECTION
+from lang_tools.lexicon.ingestion.transform import SOURCE_MANUAL
 from lang_tools.lexicon.lemma import Lemma
 from lang_tools.lexicon.sense import Sense
 
@@ -968,12 +973,14 @@ class InflectionCounts:
 
     Attributes:
         forms: Lemmas created.
-        senses: Senses created on them.
-        links: Each created form's lemma id -> its base's lemma id, for
-            `propagate_base_pins`.
+        extended: Existing words that took base senses they lacked.
+        senses: Senses created, on both.
+        links: Each created or extended form's lemma id -> its base's lemma id,
+            for `propagate_base_pins`.
     """
 
     forms: int
+    extended: int
     senses: int
     links: dict[str, str]
 
@@ -993,18 +1000,43 @@ def _shares(reading: Reading, lexfile: str) -> bool:
     return LEXFILE_POS.get(lexfile.split(".", maxsplit=1)[0]) == reading.part_of_speech
 
 
+def _add_form_lemma(
+    tables: TaggedTables,
+    form: str,
+    shared: list[Sense],
+    lexfiles: Mapping[str, str],
+) -> str:
+    """Add a generated form's lemma, its class the commonest of its senses'."""
+    classes = Counter(LEXFILE_POS[lexfiles[s.concept_id].split(".")[0]] for s in shared)
+    lemma = Lemma(
+        text=form,
+        language=INFLECTION_LANGUAGE,
+        part_of_speech=classes.most_common(1)[0][0],
+        sources=[SOURCE_INFLECTION],
+    )
+    tables.lemmas.append(lemma)
+    tables.lemma_sources.append(SOURCE_INFLECTION)
+    return lemma.id
+
+
 def apply_inflections(
     tables: TaggedTables,
     *,
     zipf: Callable[[str], float],
     floor: float = INFLECTION_ZIPF_FLOOR,
 ) -> InflectionCounts:
-    """Give each frequent form the build lacks a lemma on its base's senses.
+    """Give each frequent form its base's senses: a new lemma, or the ones it lacks.
 
     Runs after the sense additions, so every reviewed form is a lemma already
     and is left alone, and before enrichment, so the new senses get their
     frequency and band like any other. A sense that is itself a form note
     (a reviewed form's) is never a base sense.
+
+    A form the build already has (*nova*, which own-pt lists only as the star)
+    takes the base senses of a noun or adjective reading whose class it has no
+    sense of: *nova* gains "feminine of *novo*", while *irmã* and *leis*, nouns
+    already, are left alone. A verb reading of an existing word, and a word with
+    a reviewed sense (a manual source or a form note), are left alone too.
 
     Args:
         tables: The transformed tables, edited in place.
@@ -1029,40 +1061,70 @@ def apply_inflections(
         for text, senses in base_senses.items()
         if text.isalpha() and text.islower()
     }
-    known = set(texts.values()) | CLOSED_CLASS[language]
+    reviewed = {
+        texts[sense.lemma_id]
+        for sense, source in zip(tables.senses, tables.sense_sources, strict=True)
+        if sense.lemma_id in texts
+        and (source == SOURCE_MANUAL or sense.form_note is not None)
+    }
+    existing = {text: lemma_id_ for lemma_id_, text in texts.items()}
+    has = {
+        (sense.lemma_id, sense.concept_id)
+        for sense in tables.senses
+        if sense.lemma_id in texts
+    }
+    classes_of: dict[str | None, set[str]] = {}
+    for sense in tables.senses:
+        if sense.lemma_id in texts:
+            pos = LEXFILE_POS.get(lexfiles[sense.concept_id].split(".", maxsplit=1)[0])
+            classes_of.setdefault(sense.lemma_id, set()).add(pos or "")
+    known = reviewed | CLOSED_CLASS[language]
     found = analyse(bases, known=known, zipf=zipf, floor=floor)
     links: dict[str, str] = {}
     added = 0
+    extended = 0
     for form, readings in sorted(found.items()):
         base = readings[0].base
+        form_id = existing.get(form)
+        picked = (
+            readings
+            if form_id is None
+            else [
+                r
+                for r in readings
+                if r.part_of_speech != "verb"
+                and r.part_of_speech not in classes_of.get(form_id, set())
+            ]
+        )
         shared = [
             sense
             for sense in base_senses[base]
-            if any(_shares(r, lexfiles[sense.concept_id]) for r in readings)
+            if any(_shares(r, lexfiles[sense.concept_id]) for r in picked)
+            and (form_id, sense.concept_id) not in has
         ]
-        if not shared:
+        if not shared or form == base:
             continue
-        classes = Counter(
-            LEXFILE_POS[lexfiles[s.concept_id].split(".")[0]] for s in shared
-        )
-        lemma = Lemma(
-            text=form,
-            language=language,
-            part_of_speech=classes.most_common(1)[0][0],
-            sources=[SOURCE_INFLECTION],
-        )
-        tables.lemmas.append(lemma)
-        tables.lemma_sources.append(SOURCE_INFLECTION)
-        note = form_note(readings)
+        if form_id is None:
+            form_id = _add_form_lemma(tables, form, shared, lexfiles)
+        else:
+            extended += 1
+        note = form_note(picked)
         for sense in shared:
             tables.senses.append(
-                Sense(lemma_id=lemma.id, concept_id=sense.concept_id, form_note=note)
+                Sense(lemma_id=form_id, concept_id=sense.concept_id, form_note=note)
             )
             tables.sense_sources.append(SOURCE_INFLECTION)
         added += len(shared)
-        links[lemma.id] = shared[0].lemma_id
-    lg.info("Inflections: {} form(s), {} sense(s)", len(links), added)
-    return InflectionCounts(forms=len(links), senses=added, links=links)
+        links[form_id] = shared[0].lemma_id
+    lg.info(
+        "Inflections: {} new form(s), {} existing word(s) extended, {} sense(s)",
+        len(links) - extended,
+        extended,
+        added,
+    )
+    return InflectionCounts(
+        forms=len(links) - extended, extended=extended, senses=added, links=links
+    )
 
 
 def propagate_base_pins(senses: Iterable[Sense], links: Mapping[str, str]) -> int:
@@ -1083,9 +1145,12 @@ def propagate_base_pins(senses: Iterable[Sense], links: Mapping[str, str]) -> in
     pinned = {
         s.lemma_id: s.concept_id for s in senses if s.is_best and s.lemma_id in bases
     }
+    own_pin = {s.lemma_id for s in senses if s.is_best and s.lemma_id in links}
     count = 0
     for sense in senses:
         base = links.get(sense.lemma_id)
+        if sense.lemma_id in own_pin:
+            continue  # a form with its own reviewed pin keeps it
         if base is not None and pinned.get(base) == sense.concept_id:
             sense.is_best = True
             count += 1

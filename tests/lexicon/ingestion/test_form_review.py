@@ -9,6 +9,7 @@ from lang_tools.lexicon.ingestion.form_review import apply_form_drops
 from lang_tools.lexicon.ingestion.form_review import suspicious_forms
 from lang_tools.lexicon.ingestion.pipeline import build_initial
 from lang_tools.lexicon.ingestion.sources.omw import SynsetEntry
+from lang_tools.lexicon.ingestion.transform import SOURCE_INFLECTION
 from lang_tools.lexicon.ingestion.transform import transform
 from lang_tools.lexicon.lemma_id import lemma_id
 from lang_tools.lexicon.lemma_store import LexiconStore
@@ -85,6 +86,15 @@ def test_a_row_for_a_sense_the_build_lacks_is_ignored() -> None:
         status="accepted",
     )
     assert apply_form_drops(tables, [stale]) == (0, 0)
+
+
+def test_only_limits_the_drops_to_those_source_tags(tmp_path: Path) -> None:
+    row = _drop(tmp_path, _DEFINITION)
+    tables = transform(_entries())
+    assert apply_form_drops(tables, [row], only={SOURCE_INFLECTION}) == (0, 0)
+    index = next(i for i, s in enumerate(tables.senses) if s.lemma_id == row.lemma_id)
+    tables.sense_sources[index] = SOURCE_INFLECTION
+    assert apply_form_drops(tables, [row], only={SOURCE_INFLECTION}) == (1, 1)
 
 
 def test_the_build_applies_only_accepted_drops(tmp_path: Path) -> None:

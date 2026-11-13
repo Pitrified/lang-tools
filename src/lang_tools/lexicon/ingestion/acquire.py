@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from datetime import UTC
 from datetime import datetime
+from importlib.metadata import version
 import json
 from typing import TYPE_CHECKING
 from typing import Any
@@ -25,6 +26,7 @@ from loguru import logger as lg
 
 from lang_tools.lexicon.codec import LEXICON_SUBDIR
 from lang_tools.lexicon.ingestion.sources.omw import OMW_VERSION
+from lang_tools.lexicon.ingestion.sources.omw import _omw_lexicon
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -44,6 +46,38 @@ CILI_PROJECT = "cili"
 def raw_dir(data_fol: Path) -> Path:
     """Return the raw-cache directory under a data folder."""
     return data_fol / RAW_SUBDIR
+
+
+def source_versions(
+    langs: Iterable[str],
+    *,
+    omw_version: str = OMW_VERSION,
+) -> dict[str, Any]:
+    """Return the manifest fragment naming the exact lexicons a build reads.
+
+    The same fragment `download_omw` returns, without downloading, so the
+    transform step can record its sources on its own (pt is upstream own-pt,
+    pinned apart from the OMW version).
+
+    Args:
+        langs: ISO 639-1 codes the build reads.
+        omw_version: OMW release version used to build the lexicon specifiers.
+
+    Returns:
+        The ``wn`` version, the OMW version, the languages, the lexicon
+        specifiers, and the ILI resource.
+
+    Raises:
+        UnknownOmwLanguageError: When a language has no mapped OMW lexicon.
+    """
+    langs = list(langs)
+    return {
+        "wn_version": version("wn"),
+        "omw_version": omw_version,
+        "languages": langs,
+        "lexicons": [_omw_lexicon(lang, omw_version) for lang in langs],
+        "ili_resource": CILI_PROJECT,
+    }
 
 
 def download_omw(
@@ -78,7 +112,6 @@ def download_omw(
         OptionalDependencyMissingError: When the ``ingest`` extra (``wn``) is absent.
         UnknownOmwLanguageError: When a language has no mapped OMW lexicon.
     """
-    from lang_tools.lexicon.ingestion.sources.omw import _omw_lexicon  # noqa: PLC0415
     from lang_tools.lexicon.ingestion.sources.omw import _require_wn  # noqa: PLC0415
 
     wn = _require_wn()
@@ -86,21 +119,19 @@ def download_omw(
     wn_data.mkdir(parents=True, exist_ok=True)
     wn.config.data_directory = str(wn_data)  # pyright: ignore[reportPrivateImportUsage]
 
-    langs = list(langs)
-    specs = [_omw_lexicon(lang, omw_version) for lang in langs]  # raises on unknown
-    lg.info("Downloading OMW {} lexicons {} for {}", omw_version, specs, langs)
+    sources = source_versions(langs, omw_version=omw_version)  # raises on unknown
+    specs = sources["lexicons"]  # only what we asked for, not everything installed
+    lg.info(
+        "Downloading OMW {} lexicons {} for {}",
+        omw_version,
+        specs,
+        sources["languages"],
+    )
     for spec in specs:
         wn.download(spec)  # idempotent: wn skips an installed lexicon
     lg.info("Downloading ILI resource {} (English gloss fallback)", CILI_PROJECT)
     wn.download(CILI_PROJECT)  # idempotent: the permissive CILI English glosses
-    return {
-        "wn_version": wn.__version__,
-        "omw_version": omw_version,
-        "languages": langs,
-        "lexicons": specs,  # only what we asked for, not everything installed
-        "ili_resource": CILI_PROJECT,
-        "wn_data_dir": str(wn_data),
-    }
+    return {**sources, "wn_data_dir": str(wn_data)}
 
 
 def manifest_path(data_fol: Path) -> Path:

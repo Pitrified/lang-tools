@@ -9,6 +9,9 @@ from dataclasses import dataclass
 import pytest
 
 from lang_tools.lexicon.concept_id import CONCEPT_ID_RE
+from lang_tools.lexicon.ingestion.sources.omw import NO_RELATION_LEXICONS
+from lang_tools.lexicon.ingestion.sources.omw import NO_TEXT_LEXICONS
+from lang_tools.lexicon.ingestion.sources.omw import OMW_LEXICONS
 from lang_tools.lexicon.ingestion.sources.omw import OMW_VERSION
 from lang_tools.lexicon.ingestion.sources.omw import SOURCE_CILI
 from lang_tools.lexicon.ingestion.sources.omw import SOURCE_DERIVED
@@ -351,9 +354,22 @@ def test_ili_id_normalizes_str_obj_and_empty() -> None:
 
 def test_omw_lexicon_maps_known_and_versions() -> None:
     assert _omw_lexicon("en") == f"omw-en:{OMW_VERSION}"
-    assert _omw_lexicon("pt", "1.4") == "omw-pt:1.4"
+    assert _omw_lexicon("es", "1.4") == "omw-es:1.4"
+    # pt comes from upstream own-pt, pinned to its own release whatever the OMW version.
+    assert _omw_lexicon("pt") == "own-pt:1.0.0"
+    assert _omw_lexicon("pt", "2.0") == "own-pt:1.0.0"
     # `it` deliberately maps to MultiWordNet, not ItalWordNet (omw-iwn).
     assert _omw_lexicon("it") == f"omw-it:{OMW_VERSION}"
+
+
+def test_pt_lexicon_is_read_without_text() -> None:
+    # own-pt's definitions and examples are partly Wikipedia text (CC BY-SA).
+    assert OMW_LEXICONS["pt"] in NO_TEXT_LEXICONS
+
+
+def test_pt_lexicon_is_read_without_synset_relations() -> None:
+    # own-pt 1.0.0 states hypernym and hyponym the wrong way round.
+    assert OMW_LEXICONS["pt"] in NO_RELATION_LEXICONS
 
 
 def test_omw_lexicon_unknown_language_raises() -> None:
