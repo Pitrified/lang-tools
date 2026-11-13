@@ -54,3 +54,6 @@ Append-only. Newest at the bottom.
   the *um* miss pinned by hand) and `m0009` (107 words, gold 2/2) after regenerating the pt
   worklist at 3,000 cards. After the rebuild 59 changed cards are still unreviewed: verbs below
   the worklist's rank 3,000 and their forms.
+- 2026-11-13 : worklist at 7,800 and `m0010` (42 words, gold 2/2); a second, rule-only pass of
+  the reviewed drops after the inflection stage, used for *paris*, *castro*, *acerca*. Every
+  frequent pt card whose best sense moved is now reviewed or follows a reviewed base.

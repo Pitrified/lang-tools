@@ -176,3 +176,20 @@ from the omw-pt build: 141 reviewed under the current rules, 43 forms of a revie
 capitalised words or digits, and 59 unreviewed: 31 words outside the 3,000-card worklist
 (mostly verbs ranked low by their card's sense frequency: *cair*, *ligar*, *permitir*,
 *realizar*) and 28 forms of such a base (*permite*, *lançou*, *caiu*).
+
+Then, on the same day:
+
+- **The worklist** was regenerated at 7,800 cards (the 31 verbs sit up to rank 7,757 by their
+  card's sense frequency; the 5,000 first estimated was wrong) plus the removed lemmas.
+- **`m0010`**: those words that are cards (42, plus 2 gold): 19 pins, 1 addition (*envolver*
+  "involve"), 2 edge cases; gold 2/2.
+- **Rule-made forms that are no forms.** own-pt lacks lowercase *paris*, *castro* and *acerca*,
+  which omw-pt had as words, so the rules made them forms of *parir*, *castrar* and *acercar*.
+  Reviewed drops ran before the inflection stage and could not reach them, so the build now runs
+  the drops a second time after it, on rule-made senses only (a reviewed addition still wins);
+  the three are dropped with `sense_review_cli drop`.
+
+Rebuilt in place: 958 pins applied, 1 stale; forms inherit 1,075 pins from their base. Of the
+233 cards among the 3,000 most frequent pt words whose best sense differs from the omw-pt build,
+165 are reviewed, 63 are forms of a reviewed base, 4 are capitalised words or digits, and 1
+(*s*, the symbol) is left as it is.
