@@ -1,5 +1,5 @@
 ---
-status: draft
+status: in progress
 priority: 1
 description: |
   Settle the license of the dataset and of the code, credit every source the corpus is built

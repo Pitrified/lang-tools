@@ -18,7 +18,7 @@ card. Analysis and decisions in [`00_start.md`](00_start.md).
 
 | # | Phase | Plan | Status |
 | - | ----- | ---- | ------ |
-| 1 | pt from own-pt | [`01_own_pt.md`](01_own_pt.md) | draft |
+| 1 | pt from own-pt | [`01_own_pt.md`](01_own_pt.md) | in progress |
 | 2 | License files and dataset card | [`02_license_files.md`](02_license_files.md) | draft |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
@@ -37,3 +37,10 @@ Append-only. Newest at the bottom.
   CC BY 4.0, card in a root file and a docs page); code license assessed against reuse in fala.
 - 2026-11-13 : Q7 (MIT), Q8 (fr stays out until fala is decent in pt) and Q9 (CC BY 4.0,
   anyone may sell) answered; phases 1 and 2 drafted.
+- 2026-11-13 : phase 1 started; review before code: own-pt states its own relations (hypernyms,
+  meronyms, 517 pt antonyms) where omw-pt states none, and the reader takes them as is; own-pt
+  needs its own version pin. Both written into the plan.
+- 2026-11-13 : phase 1 trial build in a scratch folder: own-pt 1.0.0 states hypernym and hyponym
+  reversed (36,122 concept edges tied and dropped), so its synset relations are not read; its
+  pt antonyms are kept. Second build: relations unchanged, 3,000-word card comparison recorded in
+  `01_own_pt.md` (304 best senses changed, a sample reads mostly worse; 15 lost, mostly junk).
