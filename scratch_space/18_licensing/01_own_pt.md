@@ -152,3 +152,27 @@ which is the Q11 review's job. Totals: 577,820 senses, 73,841 of them inflection
 The review set: the pt words among the 3,000 most frequent whose best sense differs from the
 omw-pt build (307 in the fourth trial), served as re-check batches by `sense_review_cli recheck`
 on the corpus rebuilt in place, labelled per `docs/guides/sense_review.md`.
+
+Done on 2026-11-13, on the corpus rebuilt in place with own-pt (the omw-pt corpus is kept in the
+session scratchpad):
+
+- **`m0008`**: the 90 served words of the 1,000-card worklist (plus 2 gold): 39 pins, 2 wrong
+  links dropped, 6 additions (*planos* "plans", *notícias* "news", *campos* "fields", *bonita*
+  "pretty", Brazilian *quinta* Thursday and *quarta* Wednesday), 3 edge cases. Gold 1/2: the miss
+  is *um*, kept as the article against the rule "pin one"; gold rows are not applied, so *um* was
+  pinned to "one" by hand (`sense_review_cli pin`).
+- **The worklist** was regenerated at 3,000 cards from the own-pt corpus and the removed lemmas
+  appended (3,040 rows). 178 words of the old worklist left it: they are inflected forms now,
+  which the worklist leaves out (a form follows its base's pin); their rows still apply, since
+  the build does not read the worklist.
+- **`m0009`**: the 107 changed words between rank 1,000 and 3,000 (plus 2 gold): 34 pins, 16
+  additions (mostly plurals own-pt links to one narrow sense: *produtos* "a mathematical
+  product", *linhas* "a short letter", *efeitos* "influence"), 3 dropped links, 2 words removed
+  (*vc*, *at*), 8 edge cases. Gold 2/2.
+
+Rebuilt in place: 916 pins applied, 1 stale; forms inherit 773 pins from their base (441
+before). Of the 247 cards among the 3,000 most frequent words whose best sense still differs
+from the omw-pt build: 141 reviewed under the current rules, 43 forms of a reviewed base, 4
+capitalised words or digits, and 59 unreviewed: 31 words outside the 3,000-card worklist
+(mostly verbs ranked low by their card's sense frequency: *cair*, *ligar*, *permitir*,
+*realizar*) and 28 forms of such a base (*permite*, *lançou*, *caiu*).

@@ -50,3 +50,7 @@ Append-only. Newest at the bottom.
   answered; `15_inflection_model` Q5 narrowed. Forms fix in two tries: the first regressed
   feminine person nouns, the class rule fixes 7 cards and moves 10 feminine nouns to the
   adjective (review).
+- 2026-11-13 : corpus rebuilt in place with own-pt; re-check batches `m0008` (90 words, gold 1/2,
+  the *um* miss pinned by hand) and `m0009` (107 words, gold 2/2) after regenerating the pt
+  worklist at 3,000 cards. After the rebuild 59 changed cards are still unreviewed: verbs below
+  the worklist's rank 3,000 and their forms.
