@@ -490,11 +490,11 @@ cause. `maintenance` holds the shared pieces (`ReviewStatus`, `write_jsonl` /
 
 | Curated file | Written by | Review | Applied by |
 | --- | --- | --- | --- |
-| `gloss_overrides.jsonl` | gloss repair (05.55) | human | `apply_gloss_overrides` |
+| `gloss_overrides.jsonl` | gloss repair (05.55); `gloss_write_cli correct` | human | `apply_gloss_overrides` |
 | `topics.json` | hand-written table | human | `assign_topics` |
 | `slug_qualifiers.jsonl` | `slug_qualifier` chain | `check_qualifiers` (mechanical) | `sources.omw._tiered_slugs` |
 | `member_form_drops.jsonl` | `form_review` chain; card-sense review | human; the reviewing agent, under a rulebook | `apply_form_drops` |
-| `gloss_backfill.jsonl` | `gloss_translate` chain | sampled human review | `apply_gloss_backfill` |
+| `gloss_backfill.jsonl` | `gloss_translate` chain; agent-written pt batches | sampled review | `apply_gloss_backfill` |
 | `best_senses.jsonl` | card-sense review | the reviewing agent, under a rulebook | `apply_best_senses` |
 | `sense_additions.jsonl` | card-sense review | the reviewing agent, under a rulebook | `apply_sense_additions` |
 | `concept_additions.jsonl` | written by hand for a meaning WordNet lacks | human | `apply_concept_additions` |
@@ -869,8 +869,20 @@ OMW glosses every concept in English but almost none in fr, pt or es, and only
   renders each gloss from the English one, grounded in both languages' member words,
   in Brazilian Portuguese and neutral Spanish. `check_glosses` rejects an empty
   gloss, a bare member word, the untranslated English, or a runaway length.
-- Rows are accepted by sampled human review (`review_sample`, then `accept_run`);
-  only `accepted` rows reach the build.
+- The same worklist can be written by agent-harness subagents instead of the chain
+  (`ingestion.gloss_write`, command line `gloss_write_cli`, the `gloss-write` skill
+  under `.claude/skills/`), for pt: `serve` reserves 200 missing glosses as a batch,
+  the writer follows the rules of the `gloss_translate/v3` prompt, and `apply` runs
+  `check_glosses` on every gloss and refuses the whole batch while one fails, so no
+  rejected row is written. Clean batches append `proposed` rows, and one row per batch
+  to `data/curated/gloss_write_log.jsonl` (rules hash, keys written), which keeps a
+  written key from being served again before the rebuild.
+- Rows are accepted by sampled review (`review_sample`, then `accept_run`);
+  only `accepted` rows reach the build. New rows are always appended to the
+  committed file, never written over it.
+- A wrong gloss is corrected with an accepted row in `gloss_overrides.jsonl`
+  (`gloss_write_cli correct`), not a second backfill row: the backfill applier keeps
+  the first accepted row of a concept, and the overrides are applied before it.
 - `maintenance.apply_gloss_backfill` runs after the curated overrides and only fills
   gaps, so a source or curated gloss always wins. Each filled gloss is tagged `llm`
   in `Concept.definition_sources`.

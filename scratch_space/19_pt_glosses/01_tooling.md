@@ -1,5 +1,5 @@
 ---
-status: planned
+status: done
 ---
 
 # Phase 1 - Tooling
@@ -13,7 +13,7 @@ Context: [`00_start.md`](00_start.md).
 
 1. A subagent can serve a batch of 200 missing pt glosses, write them, and apply them, with every
    gloss screened before anything is written.
-2. The existing 174,348 curated rows cannot be lost by this job or by the notebook.
+2. The existing 174,351 curated rows cannot be lost by this job or by the notebook.
 3. The 9 concepts between the card's 8,868 and today's 8,877 are explained.
 
 ## Plan
@@ -63,3 +63,18 @@ Context: [`00_start.md`](00_start.md).
   behaves as planned, then is removed (no row from it stays in `data/curated/`).
 
 ## What the implementation found
+
+- Q5: the card's 8,868 was measured on the phase-1 trial build of `18_licensing`
+  (52,706 pt concepts); the final build has 52,720, and 8,877 of them lack a pt gloss.
+  91 of the 8,877 are closed-class and number concepts linked only by reviewed additions
+  (*que*, *sobre*, *cinquenta*, the article *um*): they are glossed like the rest.
+- The labels parser takes the number and the gloss split by any whitespace, not only a tab;
+  the skill still asks for a tab.
+- `correct` looks the concept up among the pt backfill rows, so it corrects any written pt gloss,
+  the October ones included, and records the old text as `current_definition`.
+- The smoke ran on a throwaway data folder (the corpus symlinked, the curated file copied):
+  a bad file was refused with every problem and wrote nothing; the clean one appended 5 rows
+  after the 174,351 and a log row; `correct` wrote an accepted override; `status` counted 8,872
+  left and the next serve repeated no key. The copy was deleted; `data/curated/` is untouched.
+- A clean pass of the diff caught the skill calling a bare `uv run`, which re-syncs the
+  environment; it now uses `--no-sync`, as the repo requires.

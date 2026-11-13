@@ -1,5 +1,5 @@
 ---
-status: draft
+status: in progress
 priority: 1
 description: |
   Write the pt glosses missing since pt moved to OpenWordnet-PT: 8,877 concepts have a pt word
@@ -32,7 +32,7 @@ Measured on the 2026-11-13 build (`data/lexicon/`), read-only:
   It also returns 3 fr / it items, the rows the October run left rejected; out of scope here.
 - English glosses average 43 characters; each item carries up to 6 en and 6 pt member words
   as grounding, pt forms included (*totalizando*, *totalizar*).
-- `data/curated/gloss_backfill.jsonl` holds 174,348 rows: pt 43,926 accepted, 1 rejected,
+- `data/curated/gloss_backfill.jsonl` holds 174,351 rows: pt 43,926 accepted, 1 rejected,
   and the es, fr, it rows.
 - The build fills gaps only (`maintenance.apply_gloss_backfill`): an accepted row is applied when
   the concept has no gloss in that language, normalized by `normalize_gloss`, tagged `llm`.

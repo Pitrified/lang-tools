@@ -20,7 +20,7 @@ Analysis and decisions in [`00_start.md`](00_start.md).
 
 | # | Phase | Plan | Status |
 | - | ----- | ---- | ------ |
-| 1 | Tooling | [`01_tooling.md`](01_tooling.md) | planned |
+| 1 | Tooling | [`01_tooling.md`](01_tooling.md) | done |
 | 2 | Pilot | [`02_pilot.md`](02_pilot.md) | planned |
 | 3 | Full run and rebuild | [`03_full_run.md`](03_full_run.md) | draft |
 
@@ -36,3 +36,8 @@ Append-only. Newest at the bottom.
   the batch log, not every key with a curated row (the October run's rejected pt row still needs
   a gloss); wrong glosses are corrected through `gloss_overrides.jsonl`, since the backfill
   applier keeps the first accepted row per concept (a `correct` subcommand, phase 1).
+- 2026-11-13 : phase 1 done. `ingestion.gloss_write` and `gloss_write_cli` (serve, apply,
+  correct, status), the `gloss-write` skill, 5 tests; the notebook check cell now appends to the
+  curated rows and replaces only its own unaccepted ones; `docs/library/lexicon.md` describes the
+  agent path. `make check` 567 passed, docs build strict. Smoke on a throwaway copy passed.
+  Q5: the card number came from the trial build; 8,877 is current.
