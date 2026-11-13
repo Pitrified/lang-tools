@@ -19,7 +19,7 @@ card. Analysis and decisions in [`00_start.md`](00_start.md).
 | # | Phase | Plan | Status |
 | - | ----- | ---- | ------ |
 | 1 | pt from own-pt | [`01_own_pt.md`](01_own_pt.md) | done |
-| 2 | License files and dataset card | [`02_license_files.md`](02_license_files.md) | draft |
+| 2 | License files and dataset card | [`02_license_files.md`](02_license_files.md) | in progress |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
 
@@ -67,3 +67,8 @@ Append-only. Newest at the bottom.
   addition; seed refreshed again. Done-when verified: pt rows from own-pt, `_build.json` names
   `own-pt:1.0.0`, no own-pt text in the corpus, the 3,000-word comparison recorded,
   `make check` and `make docs-build` pass. Phase 1 done.
+- 2026-11-13 : phase 2 reviewed before execution: the fr carve-out covers the whole local build,
+  not only the seed; 170 "phase N" mentions in `src/`, of which phase 2 takes the five about
+  licensing; `license-files` and a `uv build` check added; Q14 to Q16 raised.
+- 2026-11-13 : Q14 (Pietro Maria Nobili), Q15 (licensing references only) and Q16 (lang-tutor
+  branch `feat/license`) answered; phase 2 started.

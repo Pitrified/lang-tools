@@ -222,6 +222,24 @@ database apart from copyright, which is why "facts" does not end the question.
     notebook's kernel when they run headless, so `acquire.source_versions` returns the same
     fragment without downloading; `download_omw` builds on it, and the transform notebook
     passes it to the build.
+- Q14: The copyright line in `LICENSE` (MIT needs one), which is also the name reusers credit
+  in `DATA_LICENSE.md`.
+  - a. Your legal name ("Copyright (c) 2026 <name>").
+  - b. "Copyright (c) 2026 Pitrified", the GitHub name.
+  - c. Both: the legal name as holder, the GitHub name in the attribution line.
+  - Recommended: c, a legal name is the usual holder and the GitHub name is how people find it.
+  - ANS (user, 2026-11-13): "Pietro Maria Nobili", as the holder and the name to credit.
+- Q15: `src/` holds 170 "phase N" mentions in 44 files (docstrings, comments, a log message),
+  which the plan convention keeps out of code and `plans.py check --citations` does not catch.
+  - a. Phase 2 removes only the five about licensing; the rest go to `open_points.md`.
+  - b. Phase 2 sweeps all of them.
+  - Recommended: a, the sweep touches 44 files that have nothing to do with licensing.
+  - ANS: a (user, 2026-11-13); the rest is in `open_points.md`, "Plan references in `src/`".
+- Q16: lang-tutor gets the MIT `LICENSE` too. It is on `main`, clean.
+  - a. A branch in lang-tutor, `feat/license`, one commit, merged when asked.
+  - b. A commit on lang-tutor's `main`.
+  - Recommended: a, the convention for any change there.
+  - ANS: a (user, 2026-11-13).
 
 ## Code license
 

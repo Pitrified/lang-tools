@@ -117,3 +117,12 @@ Cards show the en gloss by default, so a learner sees the gap only with a pt glo
 The fix is a run of the existing gloss backfill job over those concepts; the 2026-10 run wrote
 174,315 glosses for about $1.87, so this is on the order of $0.10, to be measured on a sample.
 Found in `18_licensing/01_own_pt.md`, parked by `18_licensing/00_start.md` Q12.
+
+## Plan references in `src/`
+
+`src/` holds about 165 "phase N" mentions in 44 files (docstrings, comments, a log message),
+such as "(phase 7)" or "phase 5.55 Q4". The plan convention keeps plan ids out of code, and
+`plans.py check --citations` does not match this form, so they were never flagged.
+The fix: point each at the doc whose topic it is, or drop it, file by file; and teach the
+check the "phase N" form so new ones are caught.
+Found in `18_licensing/02_license_files.md`, parked by `18_licensing/00_start.md` Q15.
