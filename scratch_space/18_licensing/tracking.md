@@ -44,3 +44,9 @@ Append-only. Newest at the bottom.
   reversed (36,122 concept edges tied and dropped), so its synset relations are not read; its
   pt antonyms are kept. Second build: relations unchanged, 3,000-word card comparison recorded in
   `01_own_pt.md` (304 best senses changed, a sample reads mostly worse; 15 lost, mostly junk).
+- 2026-11-13 : the best-sense changes have two causes: own-pt's extra senses ranked by English
+  commonness (202), and feminine and plural words own-pt lists only through another sense (about
+  70), which the inflection rules skipped. Q10 (extend existing words) and Q11 (review and pin)
+  answered; `15_inflection_model` Q5 narrowed. Forms fix in two tries: the first regressed
+  feminine person nouns, the class rule fixes 7 cards and moves 10 feminine nouns to the
+  adjective (review).

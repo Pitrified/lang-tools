@@ -175,13 +175,19 @@ How the OMW reader gets there (`ingestion.sources.omw`):
   graph onto the other wordnets through the ILI, and reading that projection
   produced ~250k phantom dangling targets and looked like missing taxonomy. Since
   concepts are grouped by ILI, English's edges already connect every language.
+  The pt wordnet, OpenWordnet-PT, states relations of its own but has hypernym and
+  hyponym the wrong way round (its *canine* lists *dog* as a hypernym), which
+  against English's links ties every edge and drops it; so its synset relations
+  are not read (`NO_RELATION_LEXICONS`), and its sense antonyms, which have no
+  direction, are.
 - **Contradictions are resolved by support.** A directional edge stated in both
   orientations keeps the better-supported one; a tie drops both. OMW 1.4 has one
   such pair, the WordNet 3.0 `restrain` / `inhibit` cycle.
 - **Antonymy is stored sense-level and derived to concept level.** Each English
   sense antonym also becomes a concept `antonym` edge with provenance `derived`,
-  which is how the four languages whose wordnets carry no sense relations get
-  opposites at all: pt `quente` reaches `frio`, es `feliz` reaches `triste`.
+  which is how the languages whose wordnets carry no sense relations get
+  opposites at all: es `feliz` reaches `triste`. pt has its own sense antonyms
+  (*aberto* / *fechado*) as well as the derived ones (`quente` reaches `frio`).
 - A link whose target does not resolve is counted and dropped, never emitted
   half-formed. Deferred: `domain_*` / `exemplifies` (topic metadata, phase 8)
   and `derivation` / `pertainym` (English-only morphology).
@@ -563,10 +569,15 @@ word (*estados* of *estado*, *comidas* of *comida*), a second-person or pluperfe
 gives way to any other (*partes* of *parte*, not "you leave"), and then the more frequent
 base wins (*foi* of *ser*, not *ir*). The stage runs right after the sense additions, so
 every reviewed form is a lemma already and wins, and before enrichment. It keeps the forms
-of `wordfreq` zipf 3.0 and up (`INFLECTION_ZIPF_FLOOR`) that the build lacks and that are
-not closed-class words; each gets a lemma with the `inflection` provenance tag and a copy
-of its base's senses of the form's class, each with a form note written from the tags
+of `wordfreq` zipf 3.0 and up (`INFLECTION_ZIPF_FLOOR`) that are not closed-class words; a
+form the build lacks gets a lemma with the `inflection` provenance tag and a copy of its
+base's senses of the form's class, each with a form note written from the tags
 (``3rd person singular preterite of "ser"``, ``plural of "ano"``; no English rendering).
+A form the build already has gets the base's senses only for a noun or adjective reading
+whose class it has no sense of: OpenWordnet-PT lists *nova* only as the star, so *nova*
+gains "feminine of *novo*", while *irmã* and *leis*, nouns already, are left alone. A verb
+reading of an existing word is never added (a common word that spells a verb form, *casa*
+or *fala*, would gain a sense it rarely has), and a word with a reviewed row is left alone.
 After the best-sense pins, a form whose base is pinned takes the same pin, so its card is
 its base's card. Measured against the Wiktionary analyses (kaikki, read only to measure,
 never by the build), about 98% of the forms have the same base or an equivalent one. The
@@ -658,6 +669,10 @@ sources (OMW via wn, CILI gloss map, wordfreq)
   synsets (the only place that touches `wn`), and the pure `group_to_records`
   groups them by shared ILI key into one `Concept` per meaning (this is the
   cross-lingual cognate grouping) plus the member `Lemma`s and `Sense` edges.
+  pt comes from upstream OpenWordnet-PT (`own-pt`, CC BY 4.0, pinned at its own
+  release in `PINNED_VERSIONS`) rather than OMW's CC BY-SA copy; its definitions and
+  examples, partly Wikipedia text, are not read (`NO_TEXT_LEXICONS`), so pt glosses
+  come from the curated gloss backfill.
   Both the download (`download_omw`) and the read select by a **single explicit
   lexicon** via the `OMW_LEXICONS` map / `_omw_lexicon` helper, never the `omw`
   collection or a bare `lang=` filter: the collection pulls every member wordnet

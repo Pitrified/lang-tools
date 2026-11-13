@@ -100,3 +100,55 @@ capitalised, en gloss and translations:
 
 The diff: `card_diff.tsv` in the session scratchpad (`p1_own/`), with the dump and compare
 scripts.
+
+## Why the best senses changed (2026-11-13)
+
+Read-only, on the two trial dumps and the Parquet. For a pt word every sense ties on
+`sense_frequency` (the SemCor split is English-only), so the card's best sense is the concept
+with the highest `commonness`, an English-derived count. Classified by whether the old best
+sense is still on the word and whether the new best is a sense own-pt added:
+
+| | count | examples |
+| --- | --- | --- |
+| old sense kept, an own-pt sense outranks it | 125 | *mesmo* truly, *agora* immediately, *sul* the US South, *zona* disturbance, *empresa* company |
+| the same, on an inflected form (copies its base's senses) | 77 | *armas* gun, *problemas*, *jovens*, *perdeu*, *voltou* |
+| old sense gone, another existing sense takes over | 58 | *nova* the star, *brasileira*, *empresas*, *santa*, *notícias*, *escolas*, *costa*, *viagem* |
+| old sense gone, an own-pt sense takes over | 28 | *todo*, *tão*, *devido*, *velha*, *curta*, *valores* |
+| the two above, on inflected forms | 16 | *pessoas*, *humana*, *vermelha*, *estranha* |
+
+Two causes:
+
+1. **More senses, ranked by English commonness** (202). own-pt gives frequent words more senses,
+   many of them real Brazilian ones (*zona* "a mess"), and the commonness tie-break prefers
+   whichever concept is common in English. The ranking is unchanged; it has more to choose from.
+   Inflected forms inherit it from their base, and a pin on the base fixes the form too
+   (`propagate_base_pins`).
+2. **Feminine and plural words lost their adjective or noun sense** (about 70 of the 102 "old
+   sense gone"). own-pt lists adjectives in the masculine and nouns in the singular more strictly
+   than omw-pt, which had *nova*, *brasileira*, *empresas* as members of the adjective and noun
+   synsets. In own-pt such a word exists only through another sense (*nova* the star), and
+   `apply_inflections` skips every word the build already has (`known`), so *nova* never gets
+   "feminine singular of *novo*". The rest of the 102 are singular words whose omw-pt pair own-pt
+   does not have (*costa*, *viagem*, *depois*).
+
+## The forms fix (2026-11-13, `00_start.md` Q10)
+
+`apply_inflections` now gives a word the build already has the base senses of a noun or
+adjective reading whose class the word has no sense of (*nova*, only the star in own-pt, gains
+"feminine of *novo*"). Verb readings of existing words and words with a reviewed row are left
+alone, and `propagate_base_pins` skips a form with its own pin.
+
+A first version extended any existing word that lacked the base's concepts (656 words) and
+regressed feminine person nouns (*irmã* to "a male with the same parents", *tia*, *garota*) and
+plurals that already had their noun (*leis*, *livros*). The class rule extends 242 words.
+Against the first trial build it fixes 7 cards (*brasileira*, *santa*, *velha*, *francesa*,
+*louca*, *altos*, *antigos*) and *nova* now means "new"; it moves 10 feminine nouns to the
+adjective (*física*, *lógica*, *prática*, *seca*, *escrita*, *partida*, *negra*, *muita*,
+*pobres*, *produtores*). The added senses are right; the commonness ranking puts them first,
+which is the Q11 review's job. Totals: 577,820 senses, 73,841 of them inflection senses.
+
+## Review (`00_start.md` Q11)
+
+The review set: the pt words among the 3,000 most frequent whose best sense differs from the
+omw-pt build (307 in the fourth trial), served as re-check batches by `sense_review_cli recheck`
+on the corpus rebuilt in place, labelled per `docs/guides/sense_review.md`.

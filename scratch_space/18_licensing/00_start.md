@@ -179,6 +179,26 @@ database apart from copyright, which is why "facts" does not end the question.
     is hard to enforce on a solo project. Pick b if stopping a reseller matters more than open.
   - ANS: a (user, 2026-11-13): CC BY 4.0, free and open; anyone may use it, also to make
     money.
+- Q10: The pt trial build (`01_own_pt.md`, "Why the best senses changed"): about 70 feminine
+  and plural words lost their adjective or noun sense, because own-pt lists them only through
+  another sense (*nova*, the star) and the inflection rules skip every word the build already
+  has (`15_inflection_model/00_start.md` Q5 a). Should a form the build already has take the
+  base senses it lacks?
+  - a. Yes, for noun and adjective readings; verb readings of existing words stay skipped
+    (*casa*, *fala* would gain verb senses they rarely carry), and a word with a reviewed row
+    is still left alone, so reviewed rows keep winning.
+  - b. No; the words go to review with the rest.
+  - Recommended: a, because it fixes a class of words by rule, the way the inflection model
+    meant to.
+  - ANS: a (user, 2026-11-13). Narrows `15_inflection_model/00_start.md` Q5 a.
+- Q11: The words whose best sense moved to an own-pt sense ranked by English commonness (202 of
+  the 304).
+  - a. Review the frequent ones that still differ after the Q10 fix and pin them with
+    best-sense rows (the sense-review process; no paid LLM).
+  - b. Look for a different tie-break for non-English words first.
+  - c. Accept the changes.
+  - Recommended: a.
+  - ANS: a (user, 2026-11-13).
 
 ## Code license
 

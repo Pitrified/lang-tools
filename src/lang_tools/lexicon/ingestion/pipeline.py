@@ -412,6 +412,7 @@ def build_initial(
         "inflections": {
             "zipf_floor": INFLECTION_ZIPF_FLOOR,
             "forms_added": inflections.forms,
+            "words_extended": inflections.extended,
             "senses_added": inflections.senses,
             "pins_from_base": form_pins,
         },
