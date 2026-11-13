@@ -506,6 +506,12 @@ Each job has a thin notebook under `notebooks/lexicon_maintain/` (`gloss_repair`
 encode the spending rule: run a small live sample, read its measured cost, compare
 models if the choice is open, and only then flip `RUN_PAID` for the full batch.
 
+The member-form drops apply right after `transform`, and once more after the
+inflection stage to the senses the rules made, so a reviewed drop also retires a
+generated form that is no form at all (pt *paris* is not "you give birth"). The second
+pass touches only rule-made senses, so a reviewed sense addition still wins over a
+drop of the same link.
+
 The 2026-10 runs: 23,012 slug qualifiers accepted of 23,476; 161 member-form drops
 proposed and reviewed (153 dropped, 8 kept: real names the model read as
 definitions, and two pairs joined by "et" / "ou" that want splitting); 174,315

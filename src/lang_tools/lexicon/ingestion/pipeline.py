@@ -53,6 +53,7 @@ from lang_tools.lexicon.ingestion.sources.frequency import wordfreq_version
 from lang_tools.lexicon.ingestion.sources.omw import wn_synset_entries
 from lang_tools.lexicon.ingestion.topics import assign_topics
 from lang_tools.lexicon.ingestion.topics import load_topic_table
+from lang_tools.lexicon.ingestion.transform import SOURCE_INFLECTION
 from lang_tools.lexicon.ingestion.transform import TaggedTables
 from lang_tools.lexicon.ingestion.transform import transform
 from lang_tools.lexicon.maintenance import apply_example_sentences
@@ -298,7 +299,8 @@ def build_initial(
     # shape the ids, so they go in before anything is keyed on a concept id.
     tables = transform(omw_entries, cili_glosses, load_slug_qualifiers(data_fol))
     # Reviewed member-form drops go first, so nothing downstream sees them.
-    forms_dropped, _lemmas_removed = apply_form_drops(tables, load_form_drops(data_fol))
+    form_drops = load_form_drops(data_fol)
+    forms_dropped, _lemmas_removed = apply_form_drops(tables, form_drops)
     # Closed-class words (prepositions, articles, pronouns...) have no WordNet
     # concept; the senses the non-en wordnets give them are phrase fragments.
     closed_dropped, closed_removed = apply_form_drops(
@@ -320,6 +322,10 @@ def build_initial(
     # base word's senses: after the sense additions, so a reviewed form is a lemma
     # already and wins, and before enrichment, so the forms get their frequency.
     inflections = apply_inflections(tables, zipf=_form_zipf(zipf_by_form))
+    # A reviewed drop also retires a link the rules made (pt *paris* is no form of
+    # *parir*); the rule-made senses only, so a reviewed addition still wins.
+    rule_dropped, _ = apply_form_drops(tables, form_drops, only={SOURCE_INFLECTION})
+    forms_dropped += rule_dropped
     # Curated gloss repairs are re-applied here so a rebuild reproduces them; a
     # post-hoc Parquet edit would be silently reverted by this very build (05.58).
     applied, stale = apply_gloss_overrides(
