@@ -14,6 +14,8 @@ imports and the git LFS content layout.
 - [Language](language.md) - presets, normalisation, keyboard layouts.
 - [Lexicon](lexicon.md) - the lemma / concept / sense model, relation edges,
   the store and drill cards, and the OMW build with its curated inputs.
+- [Dataset card](dataset_card.md) - the data's sources and licenses, coverage per
+  language, and what is measured and what estimated.
 - [LLM chains](llm.md) - content-producing structured chains for translation,
   conversation, topic suggestion, paragraph splitting, greetings, and lemma
   generation.

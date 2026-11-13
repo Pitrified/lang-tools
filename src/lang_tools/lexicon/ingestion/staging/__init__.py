@@ -7,8 +7,8 @@ adapters but for *exploration* inputs rather than the build:
 
 - Staging **never** writes the source-of-truth Parquet under ``data/lexicon/``; it
   only populates the gitignored raw cache and a ``_staging.json`` manifest.
-- Every staged dataset records its license in that manifest, so the phase-10
-  licensing posture is auditable from the cache alone.
+- Every staged dataset records its license in that manifest, so the licensing
+  posture is auditable from the cache alone.
 - Network and optional-dependency work is isolated in the impure functions; the
   parsers, query builders, and index builders are pure and unit-tested.
 

@@ -961,7 +961,8 @@ datasets into a read-only cache under `data/_raw/lexicon/staging/` so the
 phase-5.54 exploration notebooks read clean inputs. Staging never writes the
 source-of-truth Parquet; it only fills the gitignored cache and a `_staging.json`
 manifest that records each dataset's source, version, and **license** (so the
-phase-10 posture is auditable from the cache alone). Each adapter follows the
+licensing posture, summed up in the [dataset card](dataset_card.md), is auditable from
+the cache alone). Each adapter follows the
 `sources` discipline: network and optional-dependency work is isolated in the
 impure functions, while the parsers, query builders, and the lemma index are pure
 and unit-tested.

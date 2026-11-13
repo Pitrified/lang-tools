@@ -11,7 +11,8 @@ rows the way the dropped kaikki join did:
   id, sense id) is required for glosses; a lemma-only join (e.g. Tatoeba) is
   allowed only for examples, which tolerate sense-blindness.
 - Every written field carries its own ``source`` tag and license bucket; per-row
-  provenance stays the licensing source of truth (phase 10).
+  provenance stays the licensing source of truth (the dataset card,
+  ``docs/library/dataset_card.md``).
 
 Adapter registry:
 

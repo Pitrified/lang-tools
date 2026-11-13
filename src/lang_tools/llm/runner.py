@@ -7,8 +7,8 @@ completes. The checkpoint is the run's only state, so
 
 - a killed run resumes where it stopped and never re-bills a finished item;
 - every result carries the model, a hash of the exact prompt template and a
-  timestamp, which is what makes an accepted row auditable later (phase 10's
-  dataset card);
+  timestamp, which is what makes an accepted row auditable later (the dataset
+  card);
 - the live and batch paths are interchangeable: a job can start live on a sample,
   then finish the rest through a batch, and `load_checkpoint` reads both;
 - every record carries its measured token `Usage` (input, cached input, output,

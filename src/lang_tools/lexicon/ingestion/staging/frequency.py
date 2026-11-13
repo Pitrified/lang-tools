@@ -112,5 +112,5 @@ def stage_frequency_list(
         license_url=url,
         path=str(out.relative_to(data_fol)),
         row_count=count,
-        notes="language-level token frequency; mixed corpus, data license varies",
+        notes="language-level token frequency; mixed corpus",
     )

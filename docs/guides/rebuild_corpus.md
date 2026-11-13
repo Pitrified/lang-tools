@@ -146,7 +146,8 @@ not read any of these.
 It stages Tatoeba sentences, per-language wordfreq lists, the CC0 Wikidata lexeme
 dump (a large download, skipped when already present), and the Kelly en/it CEFR
 lists (validation only, never merged) under `data/_raw/lexicon/staging/`, and
-writes `_staging.json` recording each dataset's license. The final cell indexes
+writes `_staging.json` recording each dataset's license (the licenses of what the build
+uses are in the [dataset card](../library/dataset_card.md)). The final cell indexes
 English lemmas to Tatoeba sentences, so run it after step 2.
 
 ## Running the notebooks headless

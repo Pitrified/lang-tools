@@ -91,6 +91,7 @@ nav:
       - Frozen API (lang-tutor contract): library/frozen_api.md
       - Language: library/language.md
       - Lexicon: library/lexicon.md
+      - Dataset card: library/dataset_card.md
       - LLM chains: library/llm.md
   - API Reference: reference/
   - Contributing: contributing.md
