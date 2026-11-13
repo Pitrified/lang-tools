@@ -1,6 +1,6 @@
 ---
-status: in progress
-priority: 1
+status: done
+priority: 0
 description: |
   Settle the license of the dataset and of the code, credit every source the corpus is built
   from, and write a dataset card. The pt and fr wordnets and the wordfreq data carry share-alike

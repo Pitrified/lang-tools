@@ -19,7 +19,7 @@ card. Analysis and decisions in [`00_start.md`](00_start.md).
 | # | Phase | Plan | Status |
 | - | ----- | ---- | ------ |
 | 1 | pt from own-pt | [`01_own_pt.md`](01_own_pt.md) | done |
-| 2 | License files and dataset card | [`02_license_files.md`](02_license_files.md) | in progress |
+| 2 | License files and dataset card | [`02_license_files.md`](02_license_files.md) | done |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
 
@@ -72,3 +72,14 @@ Append-only. Newest at the bottom.
   licensing; `license-files` and a `uv build` check added; Q14 to Q16 raised.
 - 2026-11-13 : Q14 (Pietro Maria Nobili), Q15 (licensing references only) and Q16 (lang-tutor
   branch `feat/license`) answered; phase 2 started.
+- 2026-11-13 : phase 2 written: `LICENSE` (MIT, Pietro Maria Nobili), `DATA_LICENSE.md` (CC BY
+  4.0, the fr carve-out, every source with its license and the citation from its own
+  `citation.bib`, the WordNet 3.0 notice verbatim from the OMW archive), `license` and
+  `license-files` in `pyproject.toml` (the wheel reads `License-Expression: MIT` and carries both
+  files), `docs/library/dataset_card.md` in the nav, `KNOWN_LICENSES` wordfreq corrected (its
+  code is Apache-2.0, not MIT), the five licensing plan references gone. lang-tutor: `LICENSE`
+  and the field on branch `feat/license`. Uncommitted, for the user to read.
+- 2026-11-13 : phase 2 committed in lang-tools (`ee773e7`) after the user read the files; lang-tutor
+  `LICENSE` committed on its branch `feat/license`. Done-when verified: `LICENSE`,
+  `DATA_LICENSE.md` and the card agree with `00_start.md`; no licensing plan citation in `src/`;
+  `make check`, `make docs-build` and `uv build` pass. Phase 2 done; folder done.
