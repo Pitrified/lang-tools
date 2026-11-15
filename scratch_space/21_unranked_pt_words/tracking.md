@@ -63,5 +63,5 @@ Append-only. Newest at the bottom.
   `feat/20_rare_words_topics` reaches `main`) wait for the user.
 - 2026-11-15 : phase 4 done: `with_bucket_zipf` overlays the bucket stand-ins on the
   frequency table before `enrich`, no change to the score; manifest counts; tests (`make
-  check` passes, 576). Phase 5, the rebuild, waits for `feat/20_rare_words_topics` on
+  check` passes, 575). Phase 5, the rebuild, waits for `feat/20_rare_words_topics` on
   `main` and the user's go.
