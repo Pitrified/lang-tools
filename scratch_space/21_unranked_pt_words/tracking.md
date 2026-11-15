@@ -73,3 +73,9 @@ Append-only. Newest at the bottom.
 - 2026-11-15 : phase 5 done: rebuilt with the review (769 pt words dropped, 4,045 stand-ins,
   pt no-frequency words 8,597 to 3,783, all multiword); seed unchanged; `make check` 584;
   the quality gate's one known row; 0.9.0 and its changelog. Folder done.
+- 2026-11-15 : usage after the whole folder (pilot, four waves, re-checks, phases 4 and 5,
+  the acerta re-export and both merges), read by the user: 77% of the session (from 33%
+  after wave 1) and 29% of the week (from 23%). The 39 batches after wave 1 and the rest
+  of the work took about 44 points of the session and 6 of the week, so a full pass of
+  this size (about 50 batches of 100 words) costs roughly 60 session points and 8 weekly
+  points with this setup.
