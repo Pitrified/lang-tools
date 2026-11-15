@@ -42,3 +42,7 @@ Append-only. Newest at the bottom.
   start; recorded in `02_pilot.md` so the pilot's share projects the full run.
 - 2026-11-15 : phase 1 done: rulebook, harness, skill, tests (`make check` passes, 570);
   worklist of 4,814. Review: pre-1990 spellings moved from "valid" to `m`.
+- 2026-11-15 : phase 2, the pilot: 500 words in five parallel batches; c 6, u 129, r 289,
+  m 44, f 20, x 12. My read of a random 100: 95% agreement; of the 61 other drops 2 wrong
+  (túlipa, dendrite) and 2 compounds lost to the no-hyphen rule. Four rulebook and harness
+  changes proposed in `02_pilot.md`; waiting on the user and the usage reading.
