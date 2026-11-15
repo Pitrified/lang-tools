@@ -112,3 +112,30 @@ The quality gate's "definition == lemma" invariant fails with one row: concept
 OpenWordnet-PT, so the row most likely appeared with that move; nothing in
 `20_rare_words_topics` touches definitions. The fix is a gloss override row.
 Found in `20_rare_words_topics/05_rebuild.md`.
+
+## Translations ranked by an inflated -ing frequency
+
+A card's translations are ordered by each translation's sense frequency in the card's
+concept, and drills pair the first one. An English noun that is also a frequent verb form
+gets the verb's whole count: its token frequency comes from wordfreq, which cannot tell
+the noun from the gerund, and a word with a single noun sense keeps all of it.
+Seen on pt *carreira* (B1, best sense "the particular occupation for which you are
+trained", concept `c__career-particular-occupation__433152e5e945`), which acerta showed as
+"carreira - calling - vocazione":
+
+| en member | token frequency | share in this concept |
+| --- | --- | --- |
+| calling | 4.96 | 4.96 (its only noun sense) |
+| career | 5.07 | 4.88 (split over 3 senses) |
+| vocation | 3.2 | 3.08 |
+
+"calling" is not a second meaning of *carreira*: WordNet puts vocation, calling and career
+in one concept, and the split hands the lead to "calling". The Italian side has the same
+kind of gap: the concept's only it member is *vocazione*, so *carriera*, the cognate the
+card itself lists, is never offered as a translation.
+Measured on the 0.9.0 build (2026-11-15). How many cards lead with such a form is not
+measured; the likely set is English -ing nouns that lead a card's translations.
+Two ways to fix it: per word, a reviewed preferred translation (the card-sense review's
+shape); in general, a ranking rule that discounts an English -ing noun's share, checked on
+500+ cards before it ships.
+Found from acerta's first phone use, by the user.
