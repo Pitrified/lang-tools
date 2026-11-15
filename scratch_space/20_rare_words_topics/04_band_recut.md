@@ -1,21 +1,35 @@
 ---
-status: draft
+status: planned
 ---
 
 # Phase 4 - Re-cut the bands
 
 ## Overview
 
-Applies the option the user picks after [`01_band_analysis.md`](01_band_analysis.md).
-Written in full once that choice is made.
+Applies option a of [`01_band_analysis.md`](01_band_analysis.md), the user's pick
+(`00_start.md` Q4): for every language, C1 starts at score 0.50 and C2 at 0.60; A1 to B2
+keep their edges.
 Context: [`00_start.md`](00_start.md).
+
+## Goals
+
+1. `CEFR_CUTOFFS = (0.2956, 0.3561, 0.4147, 0.50, 0.60)`.
+2. The docs state the new agreement with Kelly and why the edges are no longer fitted.
 
 ## Plan
 
-- The chosen cutoffs or quotas in `ingestion.enrich`, `cefr_validation` re-run, the
-  numbers in `docs/library/lexicon.md` (CEFR) and `docs/library/dataset_card.md`.
-- Tests that pin band edges updated to the new values.
+- `ingestion.enrich`: the two upper cutoffs, and the comment above them: the top two edges
+  are set to bring common words out of C2, not fitted; English agreement is 29.1% exact,
+  72.7% within one band, mean offset -0.50 (words called half a band easier than Kelly);
+  Italian 33.1% / 76.1% / +0.56.
+- `docs/library/lexicon.md` (CEFR) and `docs/library/dataset_card.md` (the band sizes, after
+  the rebuild of phase 5).
+- Tests that pin the cutoffs or a band edge updated.
+
+## Out of scope
+
+- Per-language cutoffs, the score's terms, unknown frequencies (an open point).
 
 ## Done when
 
-- `make check` passes; Kelly agreement reported next to today's.
+- `make check` passes; the band sizes of the rebuild are logged in phase 5.

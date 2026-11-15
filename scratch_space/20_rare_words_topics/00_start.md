@@ -109,11 +109,15 @@ Measured read-only on the 2026-11-13 build (`data/lexicon/`) and on acerta's ass
     cutoffs fitted on Italian Kelly; pt, es and fr use the Italian ones.
   - Recommended: c, because it improves Italian to 38% exact / 79% within one band with no
     offset, leaves English as validated, and brings acerta's C2 from 79% to 41%.
-  - NEW_ANS:
+  - ANS: a (the recommendation was c).
+  - Note: C1 starts at 0.50 and C2 at 0.60 for every language; English drops to 29.1% exact,
+    72.7% within one band, a mean offset of -0.50.
 - Q5: A word with no known frequency (voluto, 8,597 pt lemmas) scores as average. Score it
   as rare instead?
   - a. Yes: an unknown frequency counts as the zipf floor, so such words land in C2.
   - b. No: leave it; the commonness floor keeps them out of acerta anyway.
   - Recommended: a, because "no frequency in wordfreq" means rare far more often than
     average, and a learner app without a floor would otherwise show voluto at B2.
-  - NEW_ANS:
+  - ANS: neither; parked as two open points in `scratch_space/open_points.md`, "pt words with
+    no frequency" (to be categorized by agents) and "Stray non-pt words in pt" (voluto is not
+    Portuguese).

@@ -10,7 +10,8 @@ words switchable. Analysis and decisions in [`00_start.md`](00_start.md).
   set by acerta's export).
 - `medical` is a new topic from a hypernym-root map in `data/curated/topics.json`, tagging
   every word the rule catches at any level; `health` stays (Q2).
-- The bands are re-cut (Q3); phase 1 measures how before anything changes.
+- The bands are re-cut (Q3) by raising the two upper edges for every language: C1 from 0.50,
+  C2 from 0.60 (Q4).
 - A card carries its concept's topics, so an app can filter on its side.
 - One corpus rebuild at the end, negotiated before it runs.
 
@@ -18,10 +19,10 @@ words switchable. Analysis and decisions in [`00_start.md`](00_start.md).
 
 | #  | Phase                     | Plan                                             | Status  |
 | -- | ------------------------- | ------------------------------------------------ | ------- |
-| 1  | Measure the band re-cut   | [`01_band_analysis.md`](01_band_analysis.md)     | in progress |
+| 1  | Measure the band re-cut   | [`01_band_analysis.md`](01_band_analysis.md)     | done |
 | 2  | Medical topic             | [`02_medical_topic.md`](02_medical_topic.md)     | planned |
 | 3  | Card floor and topics     | [`03_card_floor.md`](03_card_floor.md)           | planned |
-| 4  | Re-cut the bands          | [`04_band_recut.md`](04_band_recut.md)           | draft   |
+| 4  | Re-cut the bands          | [`04_band_recut.md`](04_band_recut.md)           | planned |
 | 5  | Rebuild and release       | [`05_rebuild.md`](05_rebuild.md)                 | planned |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
@@ -44,3 +45,7 @@ Append-only. Newest at the bottom.
   Italian's +1.06 offset (38.3% exact, 78.9% within one, offset 0) and, used for pt, bring
   acerta's floored C2 from 79% to 41%. Unknown frequencies score as mid-scale, which puts
   voluto at C1. Asked as `00_start.md` Q4 and Q5.
+- 2026-11-15 : phase 1 done. Q4 answered a: C1 from 0.50 and C2 from 0.60 for every language
+  (the recommendation was per-language cutoffs); phase 4 written in full. Q5 not taken:
+  unknown frequencies and stray non-pt words (voluto is Italian, from `omw`) parked as two
+  open points, to be categorized by agents later.
