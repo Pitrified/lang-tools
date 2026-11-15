@@ -17,8 +17,8 @@ CEFR score and the card floor can read. Analysis and decisions in [`00_start.md`
 | #  | Phase                  | Plan                                     | Status  |
 | -- | ---------------------- | ---------------------------------------- | ------- |
 | 1  | Rulebook and harness   | [`01_harness.md`](01_harness.md)         | done |
-| 2  | Pilot of 500           | [`02_pilot.md`](02_pilot.md)             | planned |
-| 3  | The rest               | [`03_full_run.md`](03_full_run.md)       | planned |
+| 2  | Pilot of 500           | [`02_pilot.md`](02_pilot.md)             | done |
+| 3  | The rest               | [`03_full_run.md`](03_full_run.md)       | done |
 | 4  | Buckets in the build   | [`04_build.md`](04_build.md)             | planned |
 | 5  | Rebuild and release    | [`05_rebuild.md`](05_rebuild.md)         | planned |
 
@@ -56,3 +56,8 @@ Append-only. Newest at the bottom.
   c 11, u 366, r 878, m 145, f 58, x 42. For a later re-check from the reports: íngrime
   (`m íngreme`), gordurenta (real, not `x`), tunesino (`m tunisino`), relojeiro
   (`m relojoeiro`), rádon (valid pt-PT, not `m`), butâni (`m butanês`).
+- 2026-11-15 : waves 2 to 4 (u0016 to u0049) applied; every worklist word labelled. My
+  read of 100 across the waves: 95% agreement. Re-check `r0002` fixed those 5 and 12
+  flagged labels. Final: 4,045 kept (c 43, u 1,218, r 2,784), 769 dropped (m 423, f 227,
+  x 119). Phases 2 and 3 done; phases 4 (buckets in the build) and 5 (rebuild, after
+  `feat/20_rare_words_topics` reaches `main`) wait for the user.
