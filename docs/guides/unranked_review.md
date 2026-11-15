@@ -42,7 +42,9 @@ would stop on the word, the commoner one if they would read past it.
 
 - **Valid regional spellings are not misspellings.** pt-PT and pt-BR spell some words
   differently, and both are right: *axónio* and *axônio*, *peúga* (pt-PT "sock", pt-BR *meia*),
-  *facto* (pt-PT "fact") and *fato*. Label them by commonness (`c`, `u`, `r`), not `m`.
+  *facto* (pt-PT "fact") and *fato*, *túlipa* and *tulipa*, *dendrite* and *dendrito*.
+  Label them by commonness (`c`, `u`, `r`), not `m`. Before calling a word `m`, ask whether a
+  pt-PT or a pt-BR dictionary lists it as written: if either does, it is not `m`.
 - **A spelling from before the 1990 spelling agreement is `m`.** *acção*, *óptimo*, *director*
   are no longer standard in either variety; give the current spelling (*ação*, *ótimo*,
   *diretor*). The build respells such forms itself where it can, so one that reaches you was
@@ -52,7 +54,14 @@ would stop on the word, the commoner one if they would read past it.
 - **`m` needs a clear target.** *ompletamente* is `m` -> *completamente* because the intended
   word is plain. When a form could be a typo of several words, or of none, it is `x`.
 - **Use the glosses to find the intended word.** A misspelling is linked to the gloss of the word
-  it was meant to be (*magestoso* "majestic"); that tells you the spelling to give.
+  it was meant to be (*magestoso* "majestic"); that tells you the spelling to give. When the
+  gloss names a common word one letter or accent away from the entry, the entry is `m` of that
+  word, not a rare word of its own: *breio* glossed "bridle" is `m freio`, *éolico* is
+  `m eólico`, *encrustar* is `m incrustar`.
+- **Glued compounds.** A compound Portuguese writes with hyphens, stored with them missing
+  (*palavrascruzadas*, *folhadelata*), is `m` with the hyphenated spelling
+  (`m palavras-cruzadas`). A glued phrase that is not one compound (*tiradecouro*,
+  *cartadecrédito*) is `x`.
 - **Loanwords used in Portuguese are real words.** *hockey*, *mouse*, *sushi*, *software*,
   *marketing* are used in pt text: bucket them (`c`, `u` or `r`), do not drop them. A foreign
   word is `f` only when Portuguese does not use it: a word that is used in an English or Italian
@@ -70,8 +79,11 @@ would stop on the word, the commoner one if they would read past it.
 - **Inflected forms.** A conjugated verb or a plural that is a real Portuguese form is a real
   word; bucket it as the base word would be.
 - **Archaic and dialect words** are `r`, not `m`, when they were once standard (*vossemecê*).
-- **Latin and scientific names.** A Latin taxonomic name or legal Latin phrase is `f` with
-  code `la`; a Portuguese taxonomic term (*conquiliologia*, *xenótimo*) is `r`.
+- **Latin and scientific names.** A form that is plainly Latin, with a Latin ending or spelling
+  Portuguese does not use (*sphyraenidae*, *polyporaceae*, *paronychia*, *verbascum*), or a legal
+  Latin phrase, is `f` with code `la`. A Portuguese word that also names a genus is Portuguese:
+  *coccinela* (the ladybird) is `r`, not `f la`. A Portuguese taxonomic term (*conquiliologia*,
+  *xenótimo*) is `r`.
 - **Brazilian and European words differ in commonness.** Label by whichever variety uses the word
   more: *peúga* is `c` because it is everyday in Portugal even though Brazil says *meia*.
 - **When you do not know the word,** look at the gloss and the English members: a technical gloss
@@ -104,7 +116,8 @@ Blank lines and lines starting with `#` are ignored. Every served item needs exa
 6 x # two words glued together
 ```
 
-- `m` takes the correct spelling right after the label: one lowercase word, no spaces.
+- `m` takes the correct spelling right after the label: one lowercase word, no spaces; a
+  compound keeps its hyphens (`m palavras-cruzadas`).
 - `f` takes the language code of the word right after the label: two or three lowercase letters
   (`en`, `it`, `es`, `fr`, `la`).
 - `c`, `u`, `r` and `x` take nothing before the `#`.

@@ -46,6 +46,9 @@ A session that runs many batches keeps its own context small by handing each bat
   `.claude/skills/unranked-review/SKILL.md` in `/home/pmn/repos/lang-tools` for batch `u0003`, then
   report." Run a handful at a time; reservations are locked, so parallel subagents never get the
   same words.
+- To label words again after a review of the labels or a rulebook change, serve them as a
+  re-check: `CLI recheck --batch r0001 --words word1,word2`, then label and apply it like any
+  batch. The new label wins: a word kept again is restored, a word dropped loses its bucket.
 - After the batches, run `CLI status`, then commit `data/curated/unranked_review_log.jsonl`,
   `data/curated/commonness_buckets.jsonl`, `data/curated/member_form_drops.jsonl` and the label
   files under `data/work/unranked_review/` (under Git LFS; add them with `git add -f`), and

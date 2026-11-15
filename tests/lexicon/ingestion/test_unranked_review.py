@@ -8,16 +8,19 @@ from lang_tools.lexicon.concept import Concept
 from lang_tools.lexicon.concept_id import concept_key
 from lang_tools.lexicon.ingestion.form_review import MEMBER_FORM_DROPS_FILE
 from lang_tools.lexicon.ingestion.form_review import FormDrop
+from lang_tools.lexicon.ingestion.form_review import load_form_drops
 from lang_tools.lexicon.ingestion.review_batches import LabelError
 from lang_tools.lexicon.ingestion.unranked_review import BUCKETS_FILE
 from lang_tools.lexicon.ingestion.unranked_review import DROP_KIND
 from lang_tools.lexicon.ingestion.unranked_review import REVIEW_LOG_FILE
 from lang_tools.lexicon.ingestion.unranked_review import CommonnessBucket
+from lang_tools.lexicon.ingestion.unranked_review import UnknownRecheckWordError
 from lang_tools.lexicon.ingestion.unranked_review import UnrankedLogRow
 from lang_tools.lexicon.ingestion.unranked_review import apply_batch
 from lang_tools.lexicon.ingestion.unranked_review import build_worklist
 from lang_tools.lexicon.ingestion.unranked_review import load_buckets
 from lang_tools.lexicon.ingestion.unranked_review import parse_labels
+from lang_tools.lexicon.ingestion.unranked_review import recheck_batch
 from lang_tools.lexicon.ingestion.unranked_review import render_batch
 from lang_tools.lexicon.ingestion.unranked_review import review_status
 from lang_tools.lexicon.ingestion.unranked_review import save_worklist
@@ -238,3 +241,48 @@ def test_latest_bucket_row_wins(tmp_path: Path) -> None:
     )
     buckets = load_buckets(tmp_path)
     assert {lid: row.bucket for lid, row in buckets.items()} == {"a": "common"}
+
+
+def test_a_corrected_spelling_may_hold_hyphens() -> None:
+    labels = parse_labels("u0001", "1 m palavras-cruzadas # glued compound", [1])
+    assert labels[1].extra == "palavras-cruzadas"
+    with pytest.raises(LabelError):
+        parse_labels("u0001", "1 m palavras--cruzadas # doubled hyphen", [1])
+
+
+def test_recheck_restores_a_dropped_word_and_retracts_a_bucket(tmp_path: Path) -> None:
+    store, items = _served(tmp_path)
+    by_text = {item.lemma_text: item.n for item in items}
+    guide = tmp_path / "guide.md"
+    guide.write_text("rules")
+    first = "\n".join(
+        [
+            f"{by_text['magestoso']} m majestoso # missing j",
+            f"{by_text['peúga']} c",
+            f"{by_text['walkout']} f en # English word",
+        ]
+    )
+    apply_batch(tmp_path, "u0001", first, guide_path=guide)
+
+    again = recheck_batch(tmp_path, store, batch="r0001", words=["magestoso", "peúga"])
+    assert [item.lemma_text for item in again] == ["magestoso", "peúga"]
+    apply_batch(
+        tmp_path, "r0001", "1 r # an old spelling\n2 m peugas # test", guide_path=guide
+    )
+
+    # magestoso is kept again: its two drops are retracted, and it has a bucket.
+    dropped = {(d.form, d.concept_key) for d in load_form_drops(tmp_path) if d.drop}
+    assert dropped == {
+        ("walkout", concept_key(C_TWO)),
+        ("peúga", concept_key(C_ONE)),
+    }
+    buckets = load_buckets(tmp_path)
+    assert buckets[MAGESTOSO.id].bucket == "rare"
+    # peúga is dropped now, so its earlier bucket no longer counts.
+    assert PEUGA.id not in buckets
+
+
+def test_recheck_refuses_a_word_with_no_label(tmp_path: Path) -> None:
+    store, _ = _served(tmp_path)
+    with pytest.raises(UnknownRecheckWordError):
+        recheck_batch(tmp_path, store, batch="r0001", words=["casa"])

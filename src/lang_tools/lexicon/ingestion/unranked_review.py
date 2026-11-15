@@ -105,6 +105,22 @@ _MEMBERS_SHOWN = 6
 
 _LABELS = frozenset({"c", "u", "r", "m", "f", "x"})
 _LANGUAGE_CODE_RE = re.compile(r"^[a-z]{2,3}$")
+#: A correct spelling: lowercase letters, accented ones included, in parts joined
+#: by hyphens (pt compounds such as ``palavras-cruzadas``).
+_SPELLING_RE = re.compile(r"^[^\W\d_]+(-[^\W\d_]+)*$")
+
+
+class UnknownRecheckWordError(LookupError):
+    """Raised when a re-check names a word the review never labelled."""
+
+    def __init__(self, words: Sequence[str]) -> None:
+        """Initialize with the words that have no label.
+
+        Args:
+            words: The unknown words.
+        """
+        self.words = list(words)
+        super().__init__(f"no label to re-check for: {', '.join(self.words)}")
 
 
 class UnrankedWorkItem(BaseModel):
@@ -369,7 +385,7 @@ def _label_problems(
     if letter == "m":
         if len(extras) != 1:
             problems.append(f"item {n}: m needs the correct spelling, one word")
-        elif not extras[0].isalpha() or extras[0] != extras[0].lower():
+        elif not _SPELLING_RE.match(extras[0]) or extras[0] != extras[0].lower():
             problems.append(f"item {n}: {extras[0]!r} is not a lowercase word")
     elif letter == "f":
         if len(extras) != 1 or not _LANGUAGE_CODE_RE.match(extras[0]):
@@ -478,6 +494,57 @@ def render_batch(items: Sequence[UnrankedBatchItem]) -> str:
     return "\n".join(lines)
 
 
+def recheck_batch(
+    data_fol: Path,
+    store: LexiconStore,
+    *,
+    batch: str,
+    words: Sequence[str],
+) -> list[UnrankedBatchItem]:
+    """Serve already labelled words again, to be labelled anew.
+
+    The batch skips the reservations: its words have a label already, and the
+    new one wins when applied. Serving an id that is already pending returns
+    that batch unchanged.
+
+    Args:
+        data_fol: Project data folder.
+        store: The lexicon store, for the concepts.
+        batch: The batch id (e.g. ``r0001``).
+        words: The lemma texts to serve again.
+
+    Returns:
+        The batch items, in the order of ``words``.
+
+    Raises:
+        UnknownRecheckWordError: When a word has no label in the review log.
+    """
+    with locked(data_fol, WORK_SUBDIR):
+        path = work_dir(data_fol, WORK_SUBDIR) / f"{batch}.jsonl"
+        if path.exists():
+            return read_jsonl(UnrankedBatchItem, path)
+        by_text = {row.text: row.lemma_id for row in _log_rows(data_fol)}
+        missing = [word for word in words if word not in by_text]
+        if missing:
+            raise UnknownRecheckWordError(missing)
+        items = []
+        for n, word in enumerate(words, start=1):
+            lemma_id = by_text[word]
+            lemma = store.get_lemma_by_id(lemma_id)
+            items.append(
+                UnrankedBatchItem(
+                    n=n,
+                    lemma_id=lemma_id,
+                    lemma_text=word,
+                    part_of_speech=lemma.part_of_speech if lemma else None,
+                    links=_links(store, lemma_id),
+                )
+            )
+        append_rows(path, items)
+        lg.info("Served re-check {}: {} word(s)", batch, len(items))
+        return items
+
+
 def apply_batch(
     data_fol: Path, batch: str, labels_text: str, *, guide_path: Path
 ) -> list[UnrankedLogRow]:
@@ -504,6 +571,8 @@ def apply_batch(
         items = read_jsonl(UnrankedBatchItem, path)
         labels = parse_labels(batch, labels_text, [item.n for item in items])
         sha = guide_sha(guide_path)
+        # The label each word had before, so a new label can undo its effect.
+        before = {row.lemma_id: row.label for row in _log_rows(data_fol)}
         log: list[UnrankedLogRow] = []
         drops: list[FormDrop] = []
         buckets: list[CommonnessBucket] = []
@@ -521,9 +590,24 @@ def apply_batch(
                     rulebook_sha=sha,
                 )
             )
+            earlier = before.get(item.lemma_id)
             if label.label in DROP_NAMES:
                 drops += _drop_rows(item, label, sha=sha, batch=batch)
+                if earlier is not None and earlier not in DROP_NAMES:
+                    buckets.append(
+                        CommonnessBucket(
+                            lemma_id=item.lemma_id,
+                            language=item.language,
+                            text=item.lemma_text,
+                            bucket=BUCKET_NAMES[earlier],  # type: ignore[arg-type]
+                            rulebook_sha=sha,
+                            status="rejected",
+                            batch=batch,
+                        )
+                    )
             else:
+                if earlier in DROP_NAMES:
+                    drops += _drop_rows(item, label, sha=sha, batch=batch, drop=False)
                 buckets.append(
                     CommonnessBucket(
                         lemma_id=item.lemma_id,
@@ -551,14 +635,27 @@ def apply_batch(
 
 
 def _drop_rows(
-    item: UnrankedBatchItem, label: UnrankedLabel, *, sha: str, batch: str
+    item: UnrankedBatchItem,
+    label: UnrankedLabel,
+    *,
+    sha: str,
+    batch: str,
+    drop: bool = True,
 ) -> list[FormDrop]:
-    """Return one drop row per concept link of a word the review drops."""
-    detail = {"m": "correct spelling", "f": "language"}.get(label.label)
-    note = f"{DROP_NAMES[label.label]}"
-    if detail and label.extra:
-        note += f" ({detail} {label.extra})"
-    reason = f"{note}: {label.reason}"
+    """Return one row per concept link of a word the review drops or restores.
+
+    A restoring row (``drop=False``) retracts an earlier drop of the same link.
+    """
+    if drop:
+        detail = {"m": "correct spelling", "f": "language"}.get(label.label)
+        note = f"{DROP_NAMES[label.label]}"
+        if detail and label.extra:
+            note += f" ({detail} {label.extra})"
+        reason = f"{note}: {label.reason}"
+    else:
+        reason = f"kept as {BUCKET_NAMES[label.label]} on a re-check"
+        if label.reason:
+            reason += f": {label.reason}"
     return [
         FormDrop(
             lemma_id=item.lemma_id,
@@ -566,7 +663,7 @@ def _drop_rows(
             language=item.language,
             form=item.lemma_text,
             kind=DROP_KIND,
-            drop=True,
+            drop=drop,
             reason=reason,
             status="accepted",
             model=REVIEW_MODEL,

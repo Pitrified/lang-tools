@@ -23,6 +23,7 @@ from lang_tools.lexicon.ingestion.review_batches import LabelError
 from lang_tools.lexicon.ingestion.unranked_review import DEFAULT_BATCH_SIZE
 from lang_tools.lexicon.ingestion.unranked_review import apply_batch
 from lang_tools.lexicon.ingestion.unranked_review import build_worklist
+from lang_tools.lexicon.ingestion.unranked_review import recheck_batch
 from lang_tools.lexicon.ingestion.unranked_review import render_batch
 from lang_tools.lexicon.ingestion.unranked_review import review_status
 from lang_tools.lexicon.ingestion.unranked_review import save_worklist
@@ -47,6 +48,9 @@ def _parser() -> argparse.ArgumentParser:
     apply = sub.add_parser("apply", help="validate and record a batch's labels")
     apply.add_argument("--batch", required=True)
     apply.add_argument("--labels", type=Path, required=True)
+    recheck = sub.add_parser("recheck", help="serve labelled words again")
+    recheck.add_argument("--batch", required=True)
+    recheck.add_argument("--words", required=True, help="comma-separated texts")
     sub.add_parser("status", help="print the progress")
     return parser
 
@@ -87,6 +91,14 @@ def main(argv: list[str] | None = None) -> int:
         case "serve":
             items = serve_batch(data_fol, get_store(), batch=args.batch, size=args.size)
             _out(render_batch(items) if items else "nothing left to serve")
+        case "recheck":
+            items = recheck_batch(
+                data_fol,
+                get_store(),
+                batch=args.batch,
+                words=[word.strip() for word in args.words.split(",")],
+            )
+            _out(render_batch(items))
         case "apply":
             return _apply(data_fol, guide, args)
         case _:
