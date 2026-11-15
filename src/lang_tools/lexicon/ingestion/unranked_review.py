@@ -69,9 +69,12 @@ from lang_tools.lexicon.maintenance import write_jsonl
 
 if TYPE_CHECKING:
     from collections.abc import Collection
+    from collections.abc import Iterable
+    from collections.abc import Mapping
     from collections.abc import Sequence
     from pathlib import Path
 
+    from lang_tools.lexicon.lemma import Lemma
     from lang_tools.lexicon.lemma_store import LexiconStore
 
 #: Every label, one per word.
@@ -95,6 +98,10 @@ BUCKETS_FILE = "commonness_buckets.jsonl"
 WORK_SUBDIR = "work/unranked_review"
 #: Items per batch.
 DEFAULT_BATCH_SIZE = 200
+#: The Zipf frequency that stands in for a bucketed word with no wordfreq count.
+#: The card floor acerta asks for is 2.0, so common and uncommon words pass it and
+#: rare ones stay below; the CEFR score reads these like any other frequency.
+BUCKET_ZIPF: dict[str, float] = {"common": 3.5, "uncommon": 2.5, "rare": 1.5}
 #: The `FormDrop.kind` of a word this review drops.
 DROP_KIND = "unranked"
 #: The language the worklist covers.
@@ -311,6 +318,42 @@ def load_buckets(data_fol: Path) -> dict[str, CommonnessBucket]:
         latest.pop(row.lemma_id, None)
         latest[row.lemma_id] = row
     return {lid: row for lid, row in latest.items() if row.status == "accepted"}
+
+
+def with_bucket_zipf(
+    zipf_by_form: Mapping[tuple[str, str], float],
+    buckets: Mapping[str, CommonnessBucket],
+    lemmas: Iterable[Lemma],
+) -> tuple[dict[tuple[str, str], float], int, int]:
+    """Return the frequency table with a stand-in for each bucketed word.
+
+    A bucket gives a word wordfreq has no count for the Zipf value of its bucket
+    (`BUCKET_ZIPF`); a word with a count keeps it, so a later wordfreq that knows
+    the word wins over the review.
+
+    Args:
+        zipf_by_form: ``{(text, language): zipf}`` from `sources.frequency`.
+        buckets: The accepted bucket of each lemma, from `load_buckets`.
+        lemmas: The build's lemmas, to tell a stale bucket row from a live one.
+
+    Returns:
+        The extended table, how many stand-ins it gained, and how many bucket
+        rows name a lemma the build does not have.
+    """
+    table = dict(zipf_by_form)
+    present = {lemma.id: lemma for lemma in lemmas}
+    applied = 0
+    stale = 0
+    for lemma_id, row in buckets.items():
+        lemma = present.get(lemma_id)
+        if lemma is None:
+            stale += 1
+            continue
+        key = (lemma.text, lemma.language)
+        if key not in table:
+            table[key] = BUCKET_ZIPF[row.bucket]
+            applied += 1
+    return table, applied, stale
 
 
 def parse_labels(

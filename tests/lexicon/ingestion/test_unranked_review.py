@@ -10,6 +10,7 @@ from lang_tools.lexicon.ingestion.form_review import MEMBER_FORM_DROPS_FILE
 from lang_tools.lexicon.ingestion.form_review import FormDrop
 from lang_tools.lexicon.ingestion.form_review import load_form_drops
 from lang_tools.lexicon.ingestion.review_batches import LabelError
+from lang_tools.lexicon.ingestion.unranked_review import BUCKET_ZIPF
 from lang_tools.lexicon.ingestion.unranked_review import BUCKETS_FILE
 from lang_tools.lexicon.ingestion.unranked_review import DROP_KIND
 from lang_tools.lexicon.ingestion.unranked_review import REVIEW_LOG_FILE
@@ -25,6 +26,7 @@ from lang_tools.lexicon.ingestion.unranked_review import render_batch
 from lang_tools.lexicon.ingestion.unranked_review import review_status
 from lang_tools.lexicon.ingestion.unranked_review import save_worklist
 from lang_tools.lexicon.ingestion.unranked_review import serve_batch
+from lang_tools.lexicon.ingestion.unranked_review import with_bucket_zipf
 from lang_tools.lexicon.lemma import Lemma
 from lang_tools.lexicon.lemma_store import LexiconStore
 from lang_tools.lexicon.maintenance import curated_path
@@ -286,3 +288,40 @@ def test_recheck_refuses_a_word_with_no_label(tmp_path: Path) -> None:
     store, _ = _served(tmp_path)
     with pytest.raises(UnknownRecheckWordError):
         recheck_batch(tmp_path, store, batch="r0001", words=["casa"])
+
+
+def _bucket(lemma: Lemma, bucket: str) -> CommonnessBucket:
+    return CommonnessBucket(
+        lemma_id=lemma.id,
+        language=lemma.language,
+        text=lemma.text,
+        bucket=bucket,  # type: ignore[arg-type]
+        rulebook_sha="sha",
+        status="accepted",
+        batch="u0001",
+    )
+
+
+def test_buckets_stand_in_only_for_words_with_no_frequency() -> None:
+    gone = Lemma(text="sumido", language="pt", part_of_speech="noun")
+    buckets = {
+        PEUGA.id: _bucket(PEUGA, "common"),
+        WALKOUT.id: _bucket(WALKOUT, "rare"),
+        COMMON.id: _bucket(COMMON, "rare"),
+        gone.id: _bucket(gone, "uncommon"),
+    }
+    known = {("casa", "pt"): 5.1}
+    table, applied, stale = with_bucket_zipf(known, buckets, [PEUGA, WALKOUT, COMMON])
+    assert table[("peúga", "pt")] == BUCKET_ZIPF["common"]
+    assert table[("walkout", "pt")] == BUCKET_ZIPF["rare"]
+    # wordfreq's count wins over the review.
+    assert table[("casa", "pt")] == 5.1
+    assert (applied, stale) == (2, 1)
+    # The input table is left as it was.
+    assert known == {("casa", "pt"): 5.1}
+
+
+def test_bucket_stand_ins_straddle_the_card_floor() -> None:
+    floor = 2.0
+    assert BUCKET_ZIPF["common"] > BUCKET_ZIPF["uncommon"] >= floor
+    assert BUCKET_ZIPF["rare"] < floor

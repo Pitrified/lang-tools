@@ -504,7 +504,7 @@ cause. `maintenance` holds the shared pieces (`ReviewStatus`, `write_jsonl` /
 | `gloss_backfill.jsonl` | `gloss_translate` chain | sampled human review | `apply_gloss_backfill` |
 | `best_senses.jsonl` | card-sense review | the reviewing agent, under a rulebook | `apply_best_senses` |
 | `sense_additions.jsonl` | card-sense review | the reviewing agent, under a rulebook | `apply_sense_additions` |
-| `commonness_buckets.jsonl` | unranked-word review | the reviewing agent, under a rulebook | `unranked_review.load_buckets` (not read by the build yet) |
+| `commonness_buckets.jsonl` | unranked-word review | the reviewing agent, under a rulebook | `unranked_review.with_bucket_zipf` |
 | `unranked_review_log.jsonl` | unranked-word review | the reviewing agent, under a rulebook | log only |
 | `concept_additions.jsonl` | written by hand for a meaning WordNet lacks | human | `apply_concept_additions` |
 
@@ -720,7 +720,11 @@ sources (OMW via wn, CILI gloss map, wordfreq)
   are omitted rather than stored as `0.0`: `wordfreq` returns 0.0 for both
   "unknown" and "vanishingly rare", so a missing key means no frequency, never
   frequency zero. Distinct from `staging.frequency`, which stages a top-N list
-  for exploration.
+  for exploration. A pt word wordfreq has no count for, but that the unranked-word
+  review bucketed, gets a stand-in before `enrich` (`with_bucket_zipf`: common 3.5,
+  uncommon 2.5, rare 1.5), so its band follows the review rather than the mid-scale
+  default; a real count always wins over the stand-in. `_build.json` records the
+  stand-ins applied and the stale rows under `commonness_buckets`.
 - **`enrich`** is the pure phase-6 core; see
   [Frequency and complexity](#frequency-and-complexity-phase-6).
 - **`build_initial`** wires it together: transform (with the slug qualifiers),

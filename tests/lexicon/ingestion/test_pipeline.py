@@ -188,6 +188,8 @@ def test_topics_reach_disk_and_lemmas_through_the_store(tmp_path: Path) -> None:
         "hypernym_roots_stale": 0,
         "hypernym_root_concepts": {},
     }
+    # No curated buckets in the fixture: the stage runs and records nothing.
+    assert manifest["commonness_buckets"] == {"applied": 0, "stale": 0}
 
     store = LexiconStore.from_data_fol(tmp_path)
     # The inflection stage gives the plural *casas* the senses of *casa*.

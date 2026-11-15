@@ -1,5 +1,5 @@
 ---
-status: planned
+status: done
 ---
 
 # Phase 4 - Buckets in the build
@@ -22,3 +22,15 @@ The drops already apply through `apply_form_drops`. The buckets need a stage.
 ## Done when
 
 - `make check` passes.
+
+## What the implementation found
+
+- The stand-in did not need a change in `enrich`: the build already passes a
+  `{(text, language): zipf}` table, where a missing key means no frequency, so
+  `with_bucket_zipf` adds the bucket's value for the bucketed words the table lacks, and
+  `enrich` scores and splits it like any count (the sense stays flagged estimated, as every
+  pt sense is). A word wordfreq does know keeps its count.
+- `_build.json` gains `commonness_buckets: {applied, stale}`; a pipeline test asserts it.
+- Expected on the next rebuild, not measured until then: 4,045 words get a stand-in;
+  the 1,261 common and uncommon ones reach 2.5 or more and pass acerta's floor of 2.0,
+  the 2,784 rare ones stay under it; 769 dropped words leave the corpus.

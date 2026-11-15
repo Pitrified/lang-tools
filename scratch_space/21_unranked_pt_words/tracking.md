@@ -19,7 +19,7 @@ CEFR score and the card floor can read. Analysis and decisions in [`00_start.md`
 | 1  | Rulebook and harness   | [`01_harness.md`](01_harness.md)         | done |
 | 2  | Pilot of 500           | [`02_pilot.md`](02_pilot.md)             | done |
 | 3  | The rest               | [`03_full_run.md`](03_full_run.md)       | done |
-| 4  | Buckets in the build   | [`04_build.md`](04_build.md)             | planned |
+| 4  | Buckets in the build   | [`04_build.md`](04_build.md)             | done |
 | 5  | Rebuild and release    | [`05_rebuild.md`](05_rebuild.md)         | planned |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
@@ -61,3 +61,7 @@ Append-only. Newest at the bottom.
   flagged labels. Final: 4,045 kept (c 43, u 1,218, r 2,784), 769 dropped (m 423, f 227,
   x 119). Phases 2 and 3 done; phases 4 (buckets in the build) and 5 (rebuild, after
   `feat/20_rare_words_topics` reaches `main`) wait for the user.
+- 2026-11-15 : phase 4 done: `with_bucket_zipf` overlays the bucket stand-ins on the
+  frequency table before `enrich`, no change to the score; manifest counts; tests (`make
+  check` passes, 576). Phase 5, the rebuild, waits for `feat/20_rare_words_topics` on
+  `main` and the user's go.
