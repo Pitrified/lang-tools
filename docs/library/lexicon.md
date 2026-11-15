@@ -802,7 +802,7 @@ easiest-sense rule on our side.
 `ingestion.topics` tags each concept with learner topics as a build stage, from
 the committed, human-reviewed `data/curated/topics.json`:
 
-- a **vocabulary** of 27 learner topics - the only values a concept may carry;
+- a **vocabulary** of 26 learner topics - the only values a concept may carry;
 - a **`lexfile` map** over the WordNet lexicographer classes every concept has
   (`noun.food` -> `food`, `noun.animal` -> `animals`, `verb.motion` ->
   `movement`, ...). Classes that name a grammatical or abstract bucket rather
@@ -829,7 +829,7 @@ A root id the build no longer has is skipped and counted as stale in
 A mapping that names a topic outside the vocabulary fails the load. Topics change
 only by editing the table and rebuilding, so like the curated gloss overrides
 they survive every rebuild. On the 2026-11-15 five-language build 82,764 of 117,725
-concepts are tagged, 2,744 of them `medical`, and 76-87% of each language's lemmas
+concepts are tagged, 2,817 of them `medical`, and 76-87% of each language's lemmas
 carry a topic. The gate reports
 coverage per language and concepts per topic, and fails if any concept carries a
 topic the reviewed vocabulary does not list.

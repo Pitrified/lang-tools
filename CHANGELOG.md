@@ -21,8 +21,13 @@ most frequent few thousand.
 - `LemmaCard.topics`: the best concept's topics, sorted.
 - The topic `medical`, from two new maps in `data/curated/topics.json`: `hypernym` (14 root
   concepts whose taxonomy descendants are tagged) and `gloss_tag` (an English gloss opening with
-  a field tag such as `(pathology)`). The 2026-11-15 build tags 2,744 concepts; `_build.json`
+  a field tag such as `(pathology)`). The 2026-11-15 build tags 2,817 concepts, OMW's `medicine` domain included; `_build.json`
   records the concepts per root and the roots the build lacks under `topics`.
+
+### Removed
+
+- The topic `health`: OMW's `medicine` domain, its only source, now maps to `medical`, so one
+  topic holds every medical word.
 
 ### Changed
 

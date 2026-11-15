@@ -24,6 +24,7 @@ words switchable. Analysis and decisions in [`00_start.md`](00_start.md).
 | 3  | Card floor and topics     | [`03_card_floor.md`](03_card_floor.md)           | done |
 | 4  | Re-cut the bands          | [`04_band_recut.md`](04_band_recut.md)           | done |
 | 5  | Rebuild and release       | [`05_rebuild.md`](05_rebuild.md)                 | done |
+| 6  | Health folded into medical | [`06_merge_health.md`](06_merge_health.md)      | done |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
 
@@ -61,3 +62,7 @@ Append-only. Newest at the bottom.
   open point. 0.8.0 and its changelog written; the tag waits for the merge. The read API on
   8010 restarted. Close review: the floor and topics behave on the store as measured; the
   acerta export moves to acerta phase 9. All five phases done.
+- 2026-11-15 : phase 6, asked by the user from acerta's settings screen: `health` folded
+  into `medical` (OMW's `medicine` domain maps to it; the vocabulary is 26 topics). The
+  user agreed the second rebuild: counts unchanged, 2,817 medical concepts, none health.
+  `make check` passes; the API restarted. Folder done again.
