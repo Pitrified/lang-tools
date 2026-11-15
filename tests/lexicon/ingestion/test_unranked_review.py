@@ -71,13 +71,22 @@ def _store() -> LexiconStore:
 
 def _served(tmp_path: Path, batch: str = "u0001", size: int = 200) -> tuple:
     store = _store()
-    save_worklist(tmp_path, build_worklist(store))
+    # Saved by text, so the served order is known; serving follows the saved order.
+    worklist = sorted(build_worklist(store), key=lambda item: item.lemma_text)
+    save_worklist(tmp_path, worklist)
     return store, serve_batch(tmp_path, store, batch=batch, size=size)
 
 
 def test_worklist_takes_single_lowercase_pt_words_without_frequency() -> None:
-    texts = [item.lemma_text for item in build_worklist(_store())]
-    assert texts == ["magestoso", "peúga", "walkout"]
+    worklist = build_worklist(_store())
+    assert sorted(item.lemma_text for item in worklist) == [
+        "magestoso",
+        "peúga",
+        "walkout",
+    ]
+    # By lemma id, a hash, so the first batches mix the alphabet.
+    ids = [item.lemma_id for item in worklist]
+    assert ids == sorted(ids)
 
 
 def test_labels_parse_every_label() -> None:

@@ -10,7 +10,7 @@ reviewing agent (a Claude Code session or one of its subagents, following
 
 Worklist:
     `build_worklist` lists the single lowercase pt lemmas with no token frequency
-    on any sense, by text; it is stored under the work folder, which is not
+    on any sense, by lemma id; it is stored under the work folder, which is not
     committed, and rebuilt from the corpus.
 
 Batches:
@@ -236,7 +236,7 @@ class UnrankedStatus(BaseModel):
 
 
 def build_worklist(store: LexiconStore) -> list[UnrankedWorkItem]:
-    """Return the single lowercase pt words with no token frequency, by text.
+    """Return the single lowercase pt words with no token frequency, by lemma id.
 
     A word qualifies when it is one lowercase alphabetic token (accented
     letters count) and none of its senses has a token frequency.
@@ -245,7 +245,8 @@ def build_worklist(store: LexiconStore) -> list[UnrankedWorkItem]:
         store: The lexicon store.
 
     Returns:
-        The worklist, ranked from 0.
+        The worklist, ranked from 0. Lemma ids are hashes, so their order mixes
+        the alphabet and the first batches are a fair sample of the whole.
     """
     found = sorted(
         (
@@ -258,7 +259,7 @@ def build_worklist(store: LexiconStore) -> list[UnrankedWorkItem]:
                 for sense in store.senses_for_lemma(lemma.id)
             )
         ),
-        key=lambda lemma: lemma.text,
+        key=lambda lemma: lemma.id,
     )
     return [
         UnrankedWorkItem(rank=rank, lemma_id=lemma.id, lemma_text=lemma.text)
