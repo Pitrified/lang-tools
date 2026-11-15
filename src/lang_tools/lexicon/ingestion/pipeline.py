@@ -56,6 +56,8 @@ from lang_tools.lexicon.ingestion.topics import load_topic_table
 from lang_tools.lexicon.ingestion.transform import SOURCE_INFLECTION
 from lang_tools.lexicon.ingestion.transform import TaggedTables
 from lang_tools.lexicon.ingestion.transform import transform
+from lang_tools.lexicon.ingestion.unranked_review import load_buckets
+from lang_tools.lexicon.ingestion.unranked_review import with_bucket_zipf
 from lang_tools.lexicon.maintenance import apply_example_sentences
 from lang_tools.lexicon.maintenance import apply_gloss_backfill
 from lang_tools.lexicon.maintenance import apply_gloss_overrides
@@ -349,6 +351,11 @@ def build_initial(
     # not persist, so this is the last point they can be attributed at all.
     if zipf_by_form is None:
         zipf_by_form = lemma_zipf(tables.lemmas)
+    # The reviewed commonness buckets stand in for the words wordfreq never saw,
+    # so their bands follow the review instead of the mid-scale default.
+    zipf_by_form, buckets_applied, buckets_stale = with_bucket_zipf(
+        zipf_by_form, load_buckets(data_fol), tables.lemmas
+    )
     enrichment = enrich(tables, zipf_by_form=zipf_by_form)
     # Topics are a build stage for the same reason as glosses and bands: the curated
     # table is the input, so a rebuild reproduces them instead of reverting them.
@@ -405,6 +412,7 @@ def build_initial(
             "hypernym_roots_stale": topic_stats.stale_roots,
             "hypernym_root_concepts": topic_stats.per_root,
         },
+        "commonness_buckets": {"applied": buckets_applied, "stale": buckets_stale},
         "slug_qualifiers": {"applied": tables.qualifiers_applied},
         "member_form_drops": {"senses_dropped": forms_dropped},
         "closed_class": {
