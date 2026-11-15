@@ -7,8 +7,8 @@ status: planned
 ## Overview
 
 Applies option a of [`01_band_analysis.md`](01_band_analysis.md), the user's pick
-(`00_start.md` Q4): for every language, C1 starts at score 0.50 and C2 at 0.60; A1 to B2
-keep their edges.
+(`00_start.md` Q4): for every language, C1 starts at score 0.50 and C2 at 0.60, so B2 now
+runs from 0.4147 to 0.50; A1 to B1 keep their edges.
 Context: [`00_start.md`](00_start.md).
 
 ## Goals
