@@ -1,5 +1,5 @@
 ---
-status: draft
+status: in progress
 priority: 1
 description: |
   Sort the 8,597 pt words that have no wordfreq frequency (and stray non-pt words) with
@@ -53,7 +53,15 @@ is the newer corpus):
   stored on every row, like the look-alike and sense reviews.
 - A pilot of 500 words, read and measured (per-category counts and an agreement check on a
   hand-read sample), before the rest.
-- What each category does in the build is the open question below.
+- Misspelled, not Portuguese and malformed words are dropped through
+  `member_form_drops.jsonl` (every concept link of the word, so `apply_form_drops` removes
+  the lemma); real words get a commonness bucket (common / uncommon / rare) that the CEFR
+  score and the card floor read where the frequency is missing (Q1).
+- Only the 4,814 single lowercase words (Q3); strays with a frequency wait for the pilot's
+  numbers (Q2).
+- The harness reuses `ingestion.review_batches` (locked reservations) and follows the sense
+  review's shape: a worklist, `serve`, `apply` with validation, `status`, a rulebook in
+  `docs/guides/`, a skill in `.claude/skills/`.
 
 ## Open questions
 
@@ -65,7 +73,7 @@ is the newer corpus):
   - c. Drops, and every real word with no frequency is scored as rare, with no bucket.
   - Recommended: a, because it fixes both voluto (dropped) and words like peúga that are
     everyday pt-PT but missing from wordfreq, which c would push to C2.
-  - NEW_ANS:
+  - ANS: a.
 - Q2: The stray non-pt words that do have a frequency (an English or Italian word that
   wordfreq's pt list counts) are not in this worklist. Include them?
   - a. Not now: the 8,597 first; strays with a frequency are a later pass once the pilot
@@ -74,11 +82,11 @@ is the newer corpus):
     same spelling and no shared meaning.
   - Recommended: a, because the no-frequency set is where the sample found them, and a
     same-spelling worklist also catches real cognates and needs its own rules.
-  - NEW_ANS:
+  - ANS: a.
 - Q3: The multiword entries (3,783): sort them too, or only the single words?
   - a. Only the 4,814 single words: drills use single words, and multiword entries need
     different rules (phrase or not, idiom or definition).
   - b. All 8,597.
   - Recommended: a, because every consumer that drills reads single words, and the
     multiword ones are mostly specialist names.
-  - NEW_ANS:
+  - ANS: a.
