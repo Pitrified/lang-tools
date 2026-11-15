@@ -46,3 +46,13 @@ Append-only. Newest at the bottom.
   m 44, f 20, x 12. My read of a random 100: 95% agreement; of the 61 other drops 2 wrong
   (túlipa, dendrite) and 2 compounds lost to the no-hyphen rule. Four rulebook and harness
   changes proposed in `02_pilot.md`; waiting on the user and the usage reading.
+- 2026-11-15 : the user agreed the fixes and the rest, reading the usage after the pilot at
+  17% of the session and 21% of the week (from 2% and 19%), so the rest runs in waves of 10
+  batches with a reading between waves. Harness: hyphenated `m` spellings, `recheck`
+  batches whose new label restores a dropped word or retracts a bucket (tests seen failing
+  without the restore); rulebook: pt-PT spellings, Latin genus names, gloss mismatches,
+  glued compounds (`25119ae`). The 9 pilot words re-labelled (`73be436`). Wave 1, u0006 to
+  u0015 in parallel, about 30 s and 52k tokens each (`0f4f494`): 1,500 of 4,814 labelled,
+  c 11, u 366, r 878, m 145, f 58, x 42. For a later re-check from the reports: íngrime
+  (`m íngreme`), gordurenta (real, not `x`), tunesino (`m tunisino`), relojeiro
+  (`m relojoeiro`), rádon (valid pt-PT, not `m`), butâni (`m butanês`).
