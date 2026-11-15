@@ -44,7 +44,8 @@ Context: [`00_start.md`](00_start.md).
 Kelly en (7,549 rows) and it (6,865) were downloaded and staged with
 `staging.cefr.download_cefr_source` on 2026-11-15, validation-only as before.
 Scores recomputed read-only over the 2026-11-13 build; acerta's cards are the 29,376 pt
-cards of its asset, "floored" the 18,214 with lemma zipf 2.0 or more.
+cards of its asset, "floored" the 18,214 whose best-sense frequency (`sense_frequency`, the `freq` acerta
+writes) is 2.0 or more.
 
 | Option | Cutoffs | en exact / within 1 / offset | it exact / within 1 / offset | acerta floored C2 |
 | ------ | ------- | ---------------------------- | ---------------------------- | ----------------- |

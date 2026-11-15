@@ -1,5 +1,5 @@
 ---
-status: planned
+status: done
 ---
 
 # Phase 4 - Re-cut the bands
@@ -33,3 +33,8 @@ Context: [`00_start.md`](00_start.md).
 ## Done when
 
 - `make check` passes; the band sizes of the rebuild are logged in phase 5.
+
+## What the implementation found
+
+- No test pinned a band edge, so none changed; the 39 enrich and validation tests pass.
+  A test restating the constant was not added.

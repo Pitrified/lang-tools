@@ -250,6 +250,8 @@ never persisted:
   inflected form (a sense with a form note: pt *anos* on "year") is never listed,
   since it is a form of a member, not another word for the concept.
 - `examples`: the concept's example sentences in the lemma's language.
+- `topics`: the best concept's topic tags (`Concept.topics`), sorted; empty when
+  the concept has none.
 
 The commonness tie-break matters outside English. The SemCor prior that splits a
 lemma's frequency across its senses is English-only, so every sense of a pt lemma
@@ -264,6 +266,11 @@ filters are:
 - language;
 - CEFR window (`min_cefr` / `max_cefr`);
 - topic, part of speech, exact or minimum length;
+- `min_zipf`, a floor on the card's `sense_frequency` (the best sense's share of
+  the lemma's frequency, Zipf scale, inclusive), so a common word whose card shows a
+  rare meaning is left out too. Once set, a card with no frequency is left out;
+  unset keeps every card. It is applied in the same SELECT as the other filters, so
+  the limit counts only the cards that pass;
 - `exclude_part_of_speech`, the classes left out, by default the function words
   (`FUNCTION_WORD_POS`: pronoun, determiner, preposition, conjunction), whose cards
   exist for a client that chooses to drill them. An empty list keeps every class; over
@@ -772,26 +779,30 @@ token frequency to split, every non-English or multiword sense is flagged
 estimated, and every band is valid and flagged.
 
 `ingestion.cefr_validation` measures the bands against a graded list and re-fits
-`CEFR_CUTOFFS` when the score changes, driven by the thin
+the fitted cutoffs when the score changes, driven by the thin
 `notebooks/lexicon_enrich/06_validate_cefr.ipynb`. It is careful about what Kelly
-can settle. It **can** validate the ordering: rank correlation is 0.631 (en) and
-0.661 (it), and the Italian figure is the meaningful one, since the cutoffs were
+can settle. It **can** validate the ordering: rank correlation is 0.636 (en) and
+0.658 (it), and the Italian figure is the meaningful one, since the cutoffs were
 fitted on English alone. It **cannot** set the absolute scale, because Kelly
 grades the ~7.5k most frequent words, so its own "C2" means "least frequent of
-the common head" rather than "hardest word in the language" - which is why 82% of
-this corpus lands in C2 and why that is a property of the two vocabularies, not a
-calibration error. With the cutoffs re-fitted in phase 8 step 9, band agreement
-is 41.8% exact / 73.9% within one band in English (mean offset 0) and 23.1% /
-63.8% in Italian, which still sits at a mean offset of +1.05 bands, a measured
-limitation of reusing English cutoffs rather than one we correct for. A form Kelly grades more
-than once keeps its easiest band, mirroring the easiest-sense rule on our side.
+the common head" rather than "hardest word in the language".
+
+So only the lower three cutoffs (A1/A2, A2/B1, B1/B2) are fitted to Kelly's
+proportions. The upper two are set: B2/C1 at 0.50 and C1/C2 at 0.60. Fitted, they
+made C2 a catch-all that held common words too (pt "hemorragia", zipf 3.57), and a
+learner app's level cap could not reach them. Set higher, they keep C2 for the
+rare tail. The cost, measured against Kelly: English agreement is 29.1% exact /
+72.7% within one band with a mean offset of -0.50 (English words called half a
+band easier than Kelly calls them), Italian 33.1% / 76.1% with +0.56 (from +1.06).
+A form Kelly grades more than once keeps its easiest band, mirroring the
+easiest-sense rule on our side.
 
 #### Topics (phase 8)
 
 `ingestion.topics` tags each concept with learner topics as a build stage, from
 the committed, human-reviewed `data/curated/topics.json`:
 
-- a **vocabulary** of 26 learner topics - the only values a concept may carry;
+- a **vocabulary** of 27 learner topics - the only values a concept may carry;
 - a **`lexfile` map** over the WordNet lexicographer classes every concept has
   (`noun.food` -> `food`, `noun.animal` -> `animals`, `verb.motion` ->
   `movement`, ...). Classes that name a grammatical or abstract bucket rather
@@ -801,6 +812,19 @@ the committed, human-reviewed `data/curated/topics.json`:
 - a small **`domain` map** over OMW's English `domain_topic` links, for the few
   of its 430 domains a learner would recognize (music, sport, cooking,
   medicine, ...); law, chemistry, mythology and the rest stay unmapped.
+- a **`hypernym` map** from a root concept id to topics: the root and every
+  concept below it through the `hypernym` and `instance_hypernym` edges
+  (`relations.TAXONOMY_RELATIONS`) take the topics. It reaches what no class
+  can: diseases are `noun.state` and drugs `noun.artifact`, so 14 reviewed roots
+  (illness, disease, injury, infection, medicine, therapy, ...) carry `medical`
+  down to them. One breadth-first walk per root over a children index;
+- a **`gloss_tag` map** from a field tag to topics: a concept whose English gloss
+  opens with `(<tag>)` takes them (`(pathology) ...`, `(surgery) ...`). The 20
+  medical tags catch the specialist terms that sit outside the roots.
+
+A root id the build no longer has is skipped and counted as stale in
+`_build.json` under `topics` (`hypernym_roots_stale`), next to
+`hypernym_root_concepts`, the concepts under each present root.
 
 A mapping that names a topic outside the vocabulary fails the load. Topics change
 only by editing the table and rebuilding, so like the curated gloss overrides

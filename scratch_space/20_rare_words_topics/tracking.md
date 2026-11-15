@@ -20,9 +20,9 @@ words switchable. Analysis and decisions in [`00_start.md`](00_start.md).
 | #  | Phase                     | Plan                                             | Status  |
 | -- | ------------------------- | ------------------------------------------------ | ------- |
 | 1  | Measure the band re-cut   | [`01_band_analysis.md`](01_band_analysis.md)     | done |
-| 2  | Medical topic             | [`02_medical_topic.md`](02_medical_topic.md)     | planned |
-| 3  | Card floor and topics     | [`03_card_floor.md`](03_card_floor.md)           | planned |
-| 4  | Re-cut the bands          | [`04_band_recut.md`](04_band_recut.md)           | planned |
+| 2  | Medical topic             | [`02_medical_topic.md`](02_medical_topic.md)     | done |
+| 3  | Card floor and topics     | [`03_card_floor.md`](03_card_floor.md)           | done |
+| 4  | Re-cut the bands          | [`04_band_recut.md`](04_band_recut.md)           | done |
 | 5  | Rebuild and release       | [`05_rebuild.md`](05_rebuild.md)                 | planned |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
@@ -49,3 +49,9 @@ Append-only. Newest at the bottom.
   (the recommendation was per-language cutoffs); phase 4 written in full. Q5 not taken:
   unknown frequencies and stray non-pt words (voluto is Italian, from `omw`) parked as two
   open points, to be categorized by agents later.
+- 2026-11-15 : phases 2 to 4 done, in one commit because their docs share
+  `docs/library/lexicon.md`. Two sonnet subagents wrote phases 2 and 3 in parallel; phase 4
+  (the two upper cutoffs, their comment and the CEFR doc) by hand. Review: the floor was on
+  the lemma's token frequency and is now on the card's `sense_frequency`, the value the
+  user's 2.0 was measured on (the plans said "lemma" wrongly, corrected). `make check`
+  passes, 571 tests. The user approved the rebuild ahead.

@@ -74,34 +74,27 @@ ZIPF_OFFSET = 9.0
 CEFR_BANDS = ("A1", "A2", "B1", "B2", "C1", "C2")
 
 #: Score cutoffs between adjacent bands (5 cutoffs for 6 bands), ascending with
-#: difficulty. **Fitted** on the English lemmas Kelly covers, by matching Kelly's
-#: own band proportions on that subset. First fitted 2026-09-02; re-fitted
-#: 2026-10-22 (phase 8 step 9) because the shipped set no longer matched the
-#: current score (en mean offset +0.17 where a fit has 0). Measured against Kelly
-#: on the shipped corpus: en exact 41.8% / within one band 73.9%; it 23.1% / 63.8%
-#: (was 19.5% / 59.4%). The first hand-guessed values scored 20.8% / 49.4% (en).
+#: difficulty. The first three (A1/A2, A2/B1, B1/B2) are **fitted** on the English
+#: lemmas Kelly covers, by matching Kelly's own band proportions on that subset
+#: (first fitted 2026-09-02, re-fitted 2026-10-22).
+#:
+#: The last two (B2/C1 at 0.50, C1/C2 at 0.60) are **set**, not fitted, since
+#: 2026-11-15. Fitted, they made C2 a catch-all: Kelly grades only the 7,549 most
+#: frequent words, so its own "C2" means "least frequent of the common head", and
+#: matching its proportions pushed every word past that head into C2, common ones
+#: included (pt "hemorragia", zipf 3.57). Raised, they keep C2 for the rare tail and
+#: let a learner app's level cap reach words like "febre" (now B2) and "insulina"
+#: (now C1). The cost is measured against Kelly on the 2026-11-13 corpus: en exact
+#: 29.1% / within one band 72.7%, mean offset -0.50 (was 42.1% / 74.0% / -0.01, so
+#: English words are now called half a band easier than Kelly calls them); it
+#: 33.1% / 76.1%, mean offset +0.56 (was 22.9% / 63.7% / +1.06).
 #:
 #: Applied unchanged to every language, because the inputs are corpus-normalized
 #: and re-quantiling per language would force an identical band histogram
 #: everywhere, destroying the cross-language comparison the concept-level signal
-#: exists to give. The *ordering* transfers: rank correlation with Kelly is 0.631
-#: in English and 0.661 in Italian, a language the cutoffs were never fitted on.
-#:
-#: The *absolute* scale does not fully transfer, and the gap is measured rather
-#: than assumed: Italian sits at a mean offset of +1.05 bands (we call its words
-#: harder than Kelly-it does), against 0 for English. A per-language offset
-#: correction is deliberately not invented here - it would need a graded list per
-#: language to fit, and three of the five have none.
-#:
-#: Consequence, stated because the histogram looks alarming: 82% of the corpus
-#: lands in C2. That is not a miscalibration. Kelly grades the 7,549 most frequent
-#: words, so its own "C2" means "least frequent of the common head", not "hardest
-#: word in the language" - and WordNet is overwhelmingly specialist vocabulary
-#: (`Tasmanian devil`, taxonomic names) that sits beyond any graded list. Our C2
-#: is therefore a catch-all "past the end of the syllabus" bucket, and the bands
-#: that matter to a learner (A1-B1, ~7.7% of senses, ~38k) are the ones Kelly can
-#: actually speak to.
-CEFR_CUTOFFS = (0.2956, 0.3561, 0.4147, 0.4499, 0.4813)
+#: exists to give. The *ordering* transfers: rank correlation with Kelly is 0.636
+#: in English and 0.658 in Italian, and the cutoffs do not change it.
+CEFR_CUTOFFS = (0.2956, 0.3561, 0.4147, 0.50, 0.60)
 
 #: Weights of the difficulty score's terms; they sum to 1.0.
 #: Lemma frequency dominates because it is the strongest measured signal against

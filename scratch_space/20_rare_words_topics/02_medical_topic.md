@@ -1,5 +1,5 @@
 ---
-status: planned
+status: done
 ---
 
 # Phase 2 - Medical topic
@@ -42,3 +42,18 @@ Context: [`00_start.md`](00_start.md).
 ## Done when
 
 - `make check` passes; the counts per root on the built corpus are logged in phase 5.
+
+## What the implementation found
+
+- A sonnet subagent wrote it; on the current corpus (read-only, before the rebuild) the 14
+  roots reach 2,586 concepts and the gloss tags 182 more, 2,744 in all; no root is stale.
+  On acerta's asset that is 867 cards, the probe's number.
+- Concepts per root, the root included and overlapping: ill health 1,153, illness 692,
+  disease 606, medicine as a drug 513, symptom 469, physical disorder 303, pathology as a
+  state 161, treatment 117, medical care 92, injury 84, medicine as a science 71,
+  infection 65, therapy 53, pathology as a science 2.
+- The 50-card sample (all C2) had no clearly wrong hit; borderline: delírio "frenzy",
+  debilidade "frailty", gagueira "stutter", reflexologia, and two gloss-tag hits that are
+  anatomy or physiology (membrana "diaphragm", somatório "summation"). No root changed.
+- `assign_topics` returns the tagged count, the stale roots and the concepts per root, and
+  the build writes the last two into `_build.json`.

@@ -1,5 +1,5 @@
 ---
-status: draft
+status: in progress
 priority: 1
 description: |
   Keep rare words out of the drill cards with a commonness floor, and add a medical topic
@@ -34,7 +34,8 @@ Measured read-only on the 2026-11-13 build (`data/lexicon/`) and on acerta's ass
   which grades only the ~7.5k most frequent words, so 82% of the corpus lands in C2 by
   design (`docs/library/lexicon.md`, CEFR). C2 holds common words (hemorragia, zipf 3.57,
   is C2) and near-unknown ones in one band.
-- **A floor would cut the tail.** Cards kept by a lemma zipf floor: 1.5 keeps 21,806,
+- **A floor would cut the tail.** Cards kept by a floor on the card's best-sense frequency
+  (`sense_frequency`, the `freq` acerta writes; zipf scale): 1.5 keeps 21,806,
   2.0 keeps 18,214, 2.5 keeps 13,776, 3.0 keeps 8,936. A1 to C1 barely move (the floor
   bites almost only C2). On the user's examples: cortisona 2.25, atelectasia 1.43,
   pulmão 3.84, insulina 3.44, voluto 0.
@@ -67,7 +68,7 @@ Measured read-only on the 2026-11-13 build (`data/lexicon/`) and on acerta's ass
   as hemorragia move below C2. How (new cutoffs, a band above C2 for the rare tail, or a
   frequency term in the score) is the first phase's analysis, measured against Kelly as
   the bands are today. Every consumer of the bands sees the change; lang-tutor adapts after.
-- The floor is zipf 2.0 on the lemma (Q1), applied by acerta's export through the new card
+- The floor is zipf 2.0 on the card's best-sense frequency (Q1), applied by acerta's export through the new card
   query field.
 - The medical topic tags every word the rule catches, at any level; acerta shows it on by
   default and switching it off removes all of them (Q2).

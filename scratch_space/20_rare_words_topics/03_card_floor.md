@@ -1,5 +1,5 @@
 ---
-status: planned
+status: done
 ---
 
 # Phase 3 - Card floor and card topics
@@ -12,9 +12,9 @@ Context: [`00_start.md`](00_start.md).
 
 ## Goals
 
-1. `CardQuery.min_zipf`, default `None` (no floor): a card is kept when its lemma's token
-   frequency is at least the floor; a lemma with no frequency is left out once a floor is
-   set.
+1. `CardQuery.min_zipf`, default `None` (no floor): a card is kept when its best-sense
+   frequency (`sense_frequency`, which the measurements of `00_start.md` used) is at least
+   the floor; a card with no frequency is left out once a floor is set.
 2. `LemmaCard.topics`: the topics of the card's concept (the best sense's), sorted.
 3. The read API takes `min_zipf` as a query parameter and returns `topics`.
 
@@ -34,3 +34,14 @@ Context: [`00_start.md`](00_start.md).
 ## Done when
 
 - `make check` passes.
+
+## What the implementation found
+
+- A sonnet subagent first put the floor on the lemma's token frequency, the wording this
+  plan had. acerta's `freq`, which every measurement and the user's 2.0 used, is the card's
+  `sense_frequency`; the review moved the floor there. `lemma_drill` already carries it, so
+  the store's cache version and table shape did not change.
+- The read API needed no router change: `CardQuery` is bound with `Query()`, so
+  `min_zipf` is a query parameter and `topics` serializes with the card.
+- `docs/library/frozen_api.md` names the additions "since the next tag after v0.7.0",
+  replaced by the tag in phase 5.
