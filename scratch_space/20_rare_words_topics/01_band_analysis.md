@@ -58,7 +58,8 @@ cards of its asset, "floored" the 18,214 with lemma zipf 2.0 or more.
   and calls English words half a band too easy.
 - c fits the Italian cutoffs on Italian Kelly, the way the English ones were fitted on
   English Kelly, and uses them for the languages with no graded list of their own
-  (pt, es, fr), since their frequencies behave like Italian's, not English's.
+  (pt, es, fr), on the assumption that they sit closer to Italian than to English; with
+  no graded list for them, that is not measured.
   The current doc already names the reused English cutoffs as the cause of Italian's +1.05
   offset. Rank correlation is unchanged (en 0.636, it 0.658): only the cut moves.
 - Under c, acerta's floored cards are A1 5%, A2 6%, B1 6%, B2 11%, C1 31%, C2 41%;
