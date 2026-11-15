@@ -65,3 +65,8 @@ Append-only. Newest at the bottom.
   frequency table before `enrich`, no change to the score; manifest counts; tests (`make
   check` passes, 575). Phase 5, the rebuild, waits for `feat/20_rare_words_topics` on
   `main` and the user's go.
+- 2026-11-15 : the user had me merge `feat/20_rare_words_topics` into `main` locally
+  (`780788a`, nothing pushed); this branch rebased onto it, with one conflict in the build
+  manifest and its test (both branches added keys; both kept). `make check` passes, 584.
+  The two open points this folder came from are removed from `open_points.md`; the
+  stray words that do have a frequency stay deferred as `00_start.md` Q2 says.
