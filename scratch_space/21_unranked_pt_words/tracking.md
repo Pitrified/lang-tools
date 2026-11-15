@@ -20,7 +20,7 @@ CEFR score and the card floor can read. Analysis and decisions in [`00_start.md`
 | 2  | Pilot of 500           | [`02_pilot.md`](02_pilot.md)             | done |
 | 3  | The rest               | [`03_full_run.md`](03_full_run.md)       | done |
 | 4  | Buckets in the build   | [`04_build.md`](04_build.md)             | done |
-| 5  | Rebuild and release    | [`05_rebuild.md`](05_rebuild.md)         | planned |
+| 5  | Rebuild and release    | [`05_rebuild.md`](05_rebuild.md)         | done |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
 
@@ -70,3 +70,6 @@ Append-only. Newest at the bottom.
   manifest and its test (both branches added keys; both kept). `make check` passes, 584.
   The two open points this folder came from are removed from `open_points.md`; the
   stray words that do have a frequency stay deferred as `00_start.md` Q2 says.
+- 2026-11-15 : phase 5 done: rebuilt with the review (769 pt words dropped, 4,045 stand-ins,
+  pt no-frequency words 8,597 to 3,783, all multiword); seed unchanged; `make check` 584;
+  the quality gate's one known row; 0.9.0 and its changelog. Folder done.

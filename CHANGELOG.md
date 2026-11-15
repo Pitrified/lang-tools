@@ -7,6 +7,30 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.9.0] - 2026-11-15
+
+The 4,814 single pt words wordfreq has no count for were reviewed by Claude subagents under a
+written rulebook: the real ones get a commonness that places their band, the misspelled, foreign
+and malformed ones leave the corpus.
+
+### Added
+
+- `ingestion.unranked_review` and its command line `unranked_review_cli` (worklist, `serve`,
+  `apply`, `recheck`, `status`), the rulebook `docs/guides/unranked_review.md` and the
+  `unranked-review` skill. Labels: common, uncommon, rare, misspelled (with the right spelling),
+  not Portuguese (with the language), malformed.
+- `data/curated/commonness_buckets.jsonl` (4,045 words) and `unranked_review_log.jsonl`
+  (every label, with the rulebook hash).
+- The build stage `with_bucket_zipf`: a bucketed word with no wordfreq count gets a stand-in
+  frequency before the bands (common 3.5, uncommon 2.5, rare 1.5); a real count wins.
+  `_build.json` records it under `commonness_buckets`.
+
+### Removed
+
+- 769 pt words (423 misspelled, 227 not Portuguese, 119 malformed), through 813 rows of
+  `member_form_drops.jsonl` with kind `unranked`, one per concept link. pt goes from 63,692 to 62,923 lemmas; pt
+  words with no frequency from 8,597 to 3,783, all of them multiword.
+
 ## [0.8.0] - 2026-11-15
 
 Drill cards can leave out rare words and say which topics they belong to, a `medical` topic

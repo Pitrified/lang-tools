@@ -1,6 +1,6 @@
 ---
-status: in progress
-priority: 1
+status: done
+priority: 0
 description: |
   Sort the 8,597 pt words that have no wordfreq frequency (and stray non-pt words) with
   Claude subagents over served batches: real and common, real and rare, misspelled, not
