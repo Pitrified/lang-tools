@@ -120,3 +120,12 @@ it reaches acerta as "voluto - abandoned" at C1.
 How many there are is not measured; the words with no frequency above are the likely place
 to look, and the same agent pass could flag them for a drop.
 Found in `20_rare_words_topics/01_band_analysis.md`, parked by `20_rare_words_topics/00_start.md` Q5.
+
+## pt gloss equal to its word
+
+The quality gate's "definition == lemma" invariant fails with one row: concept
+`c__dice__5277ff536fc6`, pt gloss "jogar dados" (source `llm`) on the sole pt member
+"jogar dados". The report had last been refreshed on 2026-11-11, before pt moved to
+OpenWordnet-PT, so the row most likely appeared with that move; nothing in
+`20_rare_words_topics` touches definitions. The fix is a gloss override row.
+Found in `20_rare_words_topics/05_rebuild.md`.

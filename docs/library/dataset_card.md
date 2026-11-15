@@ -86,7 +86,9 @@ verbs) or `llm` (1, a reviewed gloss repair).
   from the concept's commonness and hypernym depth with a per-language overlay of frequency and
   word length, cut into bands. No graded list is merged in; one (Kelly, CC BY-NC-SA) is used
   only to validate the bands.
-  The bands: A1 8,349, A2 15,081, B1 32,208, B2 30,001, C1 34,140, C2 458,122.
+  The bands: A1 8,349, A2 15,081, B1 32,208, B2 88,532, C1 183,949, C2 249,782.
+  The lower three band edges are fitted to Kelly; the upper two are set so that C2 holds
+  the rare tail rather than every word past Kelly's 7,549.
 
 ## Known gaps
 

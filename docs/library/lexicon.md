@@ -828,8 +828,9 @@ A root id the build no longer has is skipped and counted as stale in
 
 A mapping that names a topic outside the vocabulary fails the load. Topics change
 only by editing the table and rebuilding, so like the curated gloss overrides
-they survive every rebuild. On the five-language build 80,856 of 117,659 concepts
-are tagged and 75-86% of each language's lemmas carry a topic. The gate reports
+they survive every rebuild. On the 2026-11-15 five-language build 82,764 of 117,725
+concepts are tagged, 2,744 of them `medical`, and 76-87% of each language's lemmas
+carry a topic. The gate reports
 coverage per language and concepts per topic, and fails if any concept carries a
 topic the reviewed vocabulary does not list.
 

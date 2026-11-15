@@ -69,7 +69,7 @@ over HTTP in its default `http` mode.
   (`FUNCTION_WORD_POS`); an empty list, or `?exclude_part_of_speech=` over HTTP,
   keeps them. Since v0.7.0 a card query leaves out the inflected forms (a card with
   a `form_note`) unless `CardQuery.include_forms` is set, and a form is never in a
-  card's `translations`. Since the next tag after v0.7.0 `CardQuery.min_zipf`
+  card's `translations`. Since v0.8.0 `CardQuery.min_zipf`
   (default `None`) keeps only cards whose `sense_frequency` is at least the floor,
   leaving out a card with no frequency, and a card carries `topics`, the best
   concept's topics, sorted (empty for most cards).

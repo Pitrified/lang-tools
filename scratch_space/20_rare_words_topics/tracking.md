@@ -23,7 +23,7 @@ words switchable. Analysis and decisions in [`00_start.md`](00_start.md).
 | 2  | Medical topic             | [`02_medical_topic.md`](02_medical_topic.md)     | done |
 | 3  | Card floor and topics     | [`03_card_floor.md`](03_card_floor.md)           | done |
 | 4  | Re-cut the bands          | [`04_band_recut.md`](04_band_recut.md)           | done |
-| 5  | Rebuild and release       | [`05_rebuild.md`](05_rebuild.md)                 | planned |
+| 5  | Rebuild and release       | [`05_rebuild.md`](05_rebuild.md)                 | done |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
 
@@ -55,3 +55,9 @@ Append-only. Newest at the bottom.
   the lemma's token frequency and is now on the card's `sense_frequency`, the value the
   user's 2.0 was measured on (the plans said "lemma" wrongly, corrected). `make check`
   passes, 571 tests. The user approved the rebuild ahead.
+- 2026-11-15 : phase 5 done: rebuilt (counts identical; B2 88,532, C1 183,949, C2 249,782;
+  2,744 medical concepts), seed refreshed, `make check` passes; the quality gate's one
+  failure ("jogar dados", an llm pt gloss equal to its word) predates this folder and is an
+  open point. 0.8.0 and its changelog written; the tag waits for the merge. The read API on
+  8010 restarted. Close review: the floor and topics behave on the store as measured; the
+  acerta export moves to acerta phase 9. All five phases done.

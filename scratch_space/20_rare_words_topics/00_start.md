@@ -1,6 +1,6 @@
 ---
-status: in progress
-priority: 1
+status: done
+priority: 0
 description: |
   Keep rare words out of the drill cards with a commonness floor, and add a medical topic
   that catches diseases, symptoms, drugs and treatments, so a learner app can switch
