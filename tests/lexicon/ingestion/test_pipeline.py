@@ -183,7 +183,11 @@ def test_topics_reach_disk_and_lemmas_through_the_store(tmp_path: Path) -> None:
     assert summary.topics_tagged == 1
     manifest = read_manifest(tmp_path)
     assert manifest is not None
-    assert manifest["topics"] == {"concepts_tagged": 1}
+    assert manifest["topics"] == {
+        "concepts_tagged": 1,
+        "hypernym_roots_stale": 0,
+        "hypernym_root_concepts": {},
+    }
 
     store = LexiconStore.from_data_fol(tmp_path)
     # The inflection stage gives the plural *casas* the senses of *casa*.

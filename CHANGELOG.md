@@ -7,6 +7,36 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.8.0] - 2026-11-15
+
+Drill cards can leave out rare words and say which topics they belong to, a `medical` topic
+catches diseases, symptoms, drugs and treatments, and C2 no longer holds every word past the
+most frequent few thousand.
+
+### Added
+
+- `CardQuery.min_zipf` (default `None`): keep only cards whose `sense_frequency` is at least the
+  floor; a card with no frequency is left out once a floor is set. A query parameter of the read
+  API too.
+- `LemmaCard.topics`: the best concept's topics, sorted.
+- The topic `medical`, from two new maps in `data/curated/topics.json`: `hypernym` (14 root
+  concepts whose taxonomy descendants are tagged) and `gloss_tag` (an English gloss opening with
+  a field tag such as `(pathology)`). The 2026-11-15 build tags 2,817 concepts, OMW's `medicine` domain included; `_build.json`
+  records the concepts per root and the roots the build lacks under `topics`.
+
+### Removed
+
+- The topic `health`: OMW's `medicine` domain, its only source, now maps to `medical`, so one
+  topic holds every medical word.
+
+### Changed
+
+- The two upper CEFR cutoffs are set, not fitted: C1 starts at score 0.50 and C2 at 0.60, for
+  every language. On the 2026-11-15 build B2 holds 88,532 senses (was 30,001), C1 183,949 (was
+  34,140) and C2 249,782 (was 458,122); A1 to B1 are unchanged. Against Kelly, English agreement
+  is 29.1% exact / 72.7% within one band (was 42.1% / 74.0%), Italian 33.1% / 76.1% (was 22.9% /
+  63.7%).
+
 ## [0.7.0] - 2026-11-11
 
 The frequent pt inflected forms get a lemma by rule, on their base word's meaning, and stay out of

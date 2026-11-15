@@ -89,6 +89,8 @@ class LemmaCard(BaseModel):
             inflected form linked to its base word's concept (pt *são* on "be":
             ``3rd person plural present of "ser": they are``); None otherwise.
         gloss: Definition of the best concept in the query's gloss language.
+        topics: Topic tags of the best concept (`Concept.topics`), sorted; empty
+            for a lemma with no sense or a concept with no topic.
         translations: Language -> lemma texts realising the same concept (never
             an inflected form, a lemma whose sense carries a form note), most
             frequent first, except that a word comes before a symbol (a digit,
@@ -108,6 +110,7 @@ class LemmaCard(BaseModel):
     sense_frequency: float | None = None
     form_note: str | None = None
     gloss: str | None = None
+    topics: list[str] = Field(default_factory=list)
     translations: dict[str, list[str]] = Field(default_factory=dict)
     examples: list[str] = Field(default_factory=list)
     lookalikes: list[LookalikeHint] = Field(default_factory=list)
@@ -153,6 +156,9 @@ class CardQuery(BaseModel):
         length: Exact character length of the lemma text.
         min_length: Minimum character length (drops two-letter tokens such as
             unit symbols from a drill; one-letter lemmas are never cards).
+        min_zipf: Lowest `LemmaCard.sense_frequency` (Zipf scale, the best
+            sense's share of the lemma's frequency; inclusive). Once set, a card
+            with no frequency is left out; unset keeps every card.
         accented_only: Keep only lemmas whose text carries a diacritic.
         include_forms: Keep the inflected forms (a lemma whose card has a
             `LemmaCard.form_note`), which are left out by default.
@@ -186,6 +192,7 @@ class CardQuery(BaseModel):
     )
     length: int | None = Field(default=None, ge=1)
     min_length: int | None = Field(default=None, ge=1)
+    min_zipf: float | None = Field(default=None, ge=0)
     accented_only: bool = False
     include_forms: bool = False
     single_word: bool = False

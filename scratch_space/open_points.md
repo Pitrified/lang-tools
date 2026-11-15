@@ -103,3 +103,29 @@ such as "(phase 7)" or "phase 5.55 Q4". The plan convention keeps plan ids out o
 The fix: point each at the doc whose topic it is, or drop it, file by file; and teach the
 check the "phase N" form so new ones are caught.
 Found in `18_licensing/02_license_files.md`, parked by `18_licensing/00_start.md` Q15.
+
+## pt words with no frequency
+
+8,597 of 63,692 pt lemmas have no wordfreq frequency, and the CEFR score treats an unknown
+frequency as mid-scale (`enrich.NEUTRAL`), so such a word can land at C1 or B2 (voluto is
+C1). Counting them as rare was considered and not taken: the user wants them categorized by
+agents instead (common but missing from wordfreq, rare, or not Portuguese at all), with the
+result fed back as curated input.
+Found in `20_rare_words_topics/01_band_analysis.md`, parked by `20_rare_words_topics/00_start.md` Q5.
+
+## Stray non-pt words in pt
+
+Some pt lemmas are not Portuguese: voluto, from the `omw` source, is Italian ("wanted"), and
+it reaches acerta as "voluto - abandoned" at C1.
+How many there are is not measured; the words with no frequency above are the likely place
+to look, and the same agent pass could flag them for a drop.
+Found in `20_rare_words_topics/01_band_analysis.md`, parked by `20_rare_words_topics/00_start.md` Q5.
+
+## pt gloss equal to its word
+
+The quality gate's "definition == lemma" invariant fails with one row: concept
+`c__dice__5277ff536fc6`, pt gloss "jogar dados" (source `llm`) on the sole pt member
+"jogar dados". The report had last been refreshed on 2026-11-11, before pt moved to
+OpenWordnet-PT, so the row most likely appeared with that move; nothing in
+`20_rare_words_topics` touches definitions. The fix is a gloss override row.
+Found in `20_rare_words_topics/05_rebuild.md`.

@@ -352,11 +352,13 @@ def build_initial(
     enrichment = enrich(tables, zipf_by_form=zipf_by_form)
     # Topics are a build stage for the same reason as glosses and bands: the curated
     # table is the input, so a rebuild reproduces them instead of reverting them.
-    topics_tagged = assign_topics(
+    topic_stats = assign_topics(
         tables.concepts,
         load_topic_table(data_fol),
         tables.concept_domains,
+        tables.concept_relations,
     )
+    topics_tagged = topic_stats.tagged
     # Reviewed look-alike edges (phase 11) are keyed on lemma ids, so they go in
     # once the lemma set is final (after the member-form drops); like every
     # curated input, a row naming a lemma this build lacks is skipped, not fatal.
@@ -398,7 +400,11 @@ def build_initial(
         "counts": counts,
         "gloss_overrides": {"applied": applied, "stale": stale},
         "enrichment": {"wordfreq": wordfreq_version(), **enrichment},
-        "topics": {"concepts_tagged": topics_tagged},
+        "topics": {
+            "concepts_tagged": topics_tagged,
+            "hypernym_roots_stale": topic_stats.stale_roots,
+            "hypernym_root_concepts": topic_stats.per_root,
+        },
         "slug_qualifiers": {"applied": tables.qualifiers_applied},
         "member_form_drops": {"senses_dropped": forms_dropped},
         "closed_class": {

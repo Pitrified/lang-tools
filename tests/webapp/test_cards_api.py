@@ -137,3 +137,26 @@ class TestKnownLanguages:
         """Only trap / cognate / none filter."""
         response = client.get("/api/v1/cards", params={"lookalike": "maybe"})
         assert response.status_code == 422
+
+
+class TestFloorAndTopics:
+    """`min_zipf` is a query parameter; a card carries its concept's topics."""
+
+    def test_min_zipf_floor(self, client: TestClient) -> None:
+        """A floor above every frequency leaves nothing; a bad floor is a 422."""
+        params = {"language": "pt", "limit": 50}
+        everything = client.get("/api/v1/cards", params=params).json()
+        assert everything
+        floored = client.get("/api/v1/cards", params={**params, "min_zipf": 100})
+        assert floored.status_code == 200
+        assert floored.json() == []
+        assert client.get("/api/v1/cards", params={"min_zipf": -1}).status_code == 422
+
+    def test_card_topics(self, client: TestClient) -> None:
+        """Topics are a sorted list on every card; the seed has tagged concepts."""
+        cards = client.get(
+            "/api/v1/cards",
+            params={"language": "pt", "limit": 500},
+        ).json()
+        assert all(card["topics"] == sorted(card["topics"]) for card in cards)
+        assert any(card["topics"] for card in cards)

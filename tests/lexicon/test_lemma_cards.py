@@ -551,3 +551,69 @@ def test_lookalike_filter() -> None:
         CardQuery(language="pt", known_languages=["en"], lookalike="cognate")
     )
     assert en_only == []
+
+
+def _floor_store() -> LexiconStore:
+    """Build three pt lemmas: common, rare, and with no frequency."""
+    comum = Lemma(text="comum", language="pt", part_of_speech="noun")
+    raro = Lemma(text="raro", language="pt", part_of_speech="noun")
+    sem = Lemma(text="semfreq", language="pt", part_of_speech="noun")
+    concept = "c__thing__0077aa001122"
+    return LexiconStore.from_models(
+        lemmas=[comum, raro, sem],
+        concepts=[Concept(id=concept, definitions={"en": "a thing"})],
+        senses=[
+            Sense(lemma_id=comum.id, concept_id=concept, sense_frequency=5.0),
+            Sense(lemma_id=raro.id, concept_id=concept, sense_frequency=1.5),
+            Sense(lemma_id=sem.id, concept_id=concept),
+        ],
+        lookalikes=[],
+        concept_relations=[],
+        sense_relations=[],
+    )
+
+
+def test_min_zipf_floor_drops_rare_and_unranked_lemmas() -> None:
+    store = _floor_store()
+    assert _texts(store.lemma_cards(CardQuery(language="pt"))) == [
+        "comum",
+        "raro",
+        "semfreq",
+    ]
+    floored = store.lemma_cards(CardQuery(language="pt", min_zipf=2.0))
+    assert _texts(floored) == ["comum"]
+    # The floor is inclusive.
+    assert _texts(store.lemma_cards(CardQuery(language="pt", min_zipf=1.5))) == [
+        "comum",
+        "raro",
+    ]
+
+
+def test_card_topics_are_the_concepts_sorted() -> None:
+    concept = "c__tagged__0088bb112233"
+    tagged = Lemma(text="etiqueta", language="pt")
+    bare = Lemma(text="nua", language="pt")
+    store = LexiconStore.from_models(
+        lemmas=[tagged, bare],
+        concepts=[
+            Concept(
+                id=concept,
+                definitions={"en": "a tag"},
+                topics=["medical", "home"],
+            ),
+            Concept(id=C_COFFEE, definitions={"en": "a hot drink"}),
+        ],
+        senses=[
+            Sense(lemma_id=tagged.id, concept_id=concept),
+            Sense(lemma_id=bare.id, concept_id=C_COFFEE),
+        ],
+        lookalikes=[],
+        concept_relations=[],
+        sense_relations=[],
+    )
+    card = store.lemma_card(tagged.id)
+    assert card is not None
+    assert card.topics == ["home", "medical"]
+    plain = store.lemma_card(bare.id)
+    assert plain is not None
+    assert plain.topics == []

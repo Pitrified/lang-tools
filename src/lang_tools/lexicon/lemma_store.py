@@ -416,6 +416,8 @@ def _card_where(query: CardQuery) -> tuple[list[str], list[object]]:
         (query.part_of_speech, "d.part_of_speech = ?"),
         (query.length, "d.char_len = ?"),
         (query.min_length, "d.char_len >= ?"),
+        # A NULL frequency fails the comparison, so an unranked card is left out.
+        (query.min_zipf, "d.sense_frequency >= ?"),
     ]
     clauses = ["d.char_len > 1"]
     clauses += [clause for value, clause in valued if value is not None]
@@ -962,7 +964,7 @@ class LexiconStore:
         for row in rows:
             lemma = lemmas[row["lemma_id"]]
             cid = row["concept_id"]
-            definitions, examples = concepts.get(cid, ({}, {}))
+            definitions, examples, topics = concepts.get(cid, ({}, {}, []))
             cards.append(
                 LemmaCard(
                     lemma=lemma,
@@ -980,6 +982,7 @@ class LexiconStore:
                         for language in translation_languages
                     },
                     examples=list(examples.get(lemma.language, [])),
+                    topics=topics,
                     lookalikes=lookalikes.get(lemma.id, []),
                 ),
             )
@@ -1042,19 +1045,24 @@ class LexiconStore:
     def _card_concepts(
         self,
         concept_ids: Sequence[str],
-    ) -> dict[str, tuple[dict[str, str], dict[str, list[str]]]]:
-        """Return ``concept_id -> (definitions, examples)`` for a page of cards."""
+    ) -> dict[str, tuple[dict[str, str], dict[str, list[str]], list[str]]]:
+        """Return ``concept_id -> (definitions, examples, topics)`` for cards.
+
+        The topics are sorted.
+        """
         if not concept_ids:
             return {}
         marks = ", ".join("?" for _ in concept_ids)
         rows = self._conn.execute(
-            f"SELECT id, definitions, examples FROM concepts WHERE id IN ({marks})",  # noqa: S608
+            "SELECT id, definitions, examples, topics FROM concepts"  # noqa: S608
+            f" WHERE id IN ({marks})",
             tuple(concept_ids),
         ).fetchall()
         return {
             row["id"]: (
                 json.loads(row["definitions"] or "{}"),
                 json.loads(row["examples"] or "{}"),
+                sorted(json.loads(row["topics"] or "[]")),
             )
             for row in rows
         }
