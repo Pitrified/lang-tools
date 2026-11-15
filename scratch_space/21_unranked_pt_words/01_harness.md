@@ -1,5 +1,5 @@
 ---
-status: planned
+status: done
 ---
 
 # Phase 1 - Rulebook and harness
@@ -30,3 +30,15 @@ Context: [`00_start.md`](00_start.md).
 ## Done when
 
 - `make check` passes; a batch can be served and applied by hand.
+
+## What the implementation found
+
+- A sonnet subagent wrote the rulebook, `unranked_review` and its CLI (reusing
+  `review_batches`: the lock, `append_rows`, `LabelError`, `guide_sha`), the skill and 8
+  tests. The worklist holds 4,814 words, written to `data/work/unranked_review_worklist.jsonl`
+  (rebuilt from the corpus, not committed). Drop rows carry kind `unranked` and model
+  `agent-review`, as the sense review's agent rows do.
+- Review changed the rulebook once: it called pre-1990 spellings (*acção*) valid, which the
+  build itself respells (`respell_pt`); they are now `m` with the current spelling.
+- Not done: a word bucketed and later dropped keeps its bucket row, harmless once the lemma
+  is gone; there is no re-label command yet.

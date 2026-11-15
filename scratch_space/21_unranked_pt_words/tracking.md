@@ -16,7 +16,7 @@ CEFR score and the card floor can read. Analysis and decisions in [`00_start.md`
 
 | #  | Phase                  | Plan                                     | Status  |
 | -- | ---------------------- | ---------------------------------------- | ------- |
-| 1  | Rulebook and harness   | [`01_harness.md`](01_harness.md)         | planned |
+| 1  | Rulebook and harness   | [`01_harness.md`](01_harness.md)         | done |
 | 2  | Pilot of 500           | [`02_pilot.md`](02_pilot.md)             | planned |
 | 3  | The rest               | [`03_full_run.md`](03_full_run.md)       | planned |
 | 4  | Buckets in the build   | [`04_build.md`](04_build.md)             | planned |
@@ -37,3 +37,8 @@ Append-only. Newest at the bottom.
   is 0.7.0 code while the measurements came from the 0.8.0 build, which only matters for
   phase 5 (the rebuild has to carry 0.8.0, so it waits for `feat/20_rare_words_topics` on
   `main`).
+- 2026-11-15 : the user agreed phases 1 and 2 and asked to note the usage limit: 2% of the
+  session (resets 17:29), 19% of the weekly all-models limit (resets Saturday 21:59) at the
+  start; recorded in `02_pilot.md` so the pilot's share projects the full run.
+- 2026-11-15 : phase 1 done: rulebook, harness, skill, tests (`make check` passes, 570);
+  worklist of 4,814. Review: pre-1990 spellings moved from "valid" to `m`.
