@@ -139,3 +139,22 @@ Two ways to fix it: per word, a reviewed preferred translation (the card-sense r
 shape); in general, a ranking rule that discounts an English -ing noun's share, checked on
 500+ cards before it ships.
 Found from acerta's first phone use, by the user.
+
+## Plural and wrong pt members of a meaning
+
+acerta's word page (acerta-word-drills, `plans/02_word_page`) lists every word of a meaning,
+which shows member noise the drills never surfaced. On the conduit meaning of pt *canal*
+("conduit consisting of a long hollow object"), the pt members include:
+
+- plurals stored as words of their own, with no form note: *canais*, *condutas*, beside
+  *canal* and *conduta*;
+- a wrong member: *cachimbo*, a smoking pipe.
+
+A heuristic count on the 0.9.0 build (a single-word pt member whose singular, by the
+plain -s, -es, -ais, -eis, -ões rules, is a member of the same meaning) finds 601 such
+pairs in 584 meanings (*carcinógenos*, *acadianos*, *pocilgas*, *chaminés*, *Américas*);
+it has false hits (*quebra-cabeças* is singular), so it is an upper bound to read, not a
+drop list. Wrong members like *cachimbo* are not counted.
+The plurals could go as member form drops, or be tagged as forms of their singular like the
+rule-made inflections are; the wrong members fit the card-sense review's drops.
+Found from acerta's word page, 2026-11-15.
