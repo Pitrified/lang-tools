@@ -102,3 +102,18 @@ Measured read-only on the 2026-11-13 build (`data/lexicon/`) and on acerta's ass
   - Recommended: a, because the bands are fitted and validated against Kelly, and the
     complaint is about rare words, which the floor addresses directly.
   - ANS: b, re-cut the levels (the recommendation was a).
+- Q4: Which re-cut (numbers in `01_band_analysis.md`)?
+  - a. Move the upper edges for every language (C1 from .50, C2 from .60).
+  - b. Rank quotas per language.
+  - c. Per-language cutoffs: English keeps today's, fitted on English Kelly; Italian gets
+    cutoffs fitted on Italian Kelly; pt, es and fr use the Italian ones.
+  - Recommended: c, because it improves Italian to 38% exact / 79% within one band with no
+    offset, leaves English as validated, and brings acerta's C2 from 79% to 41%.
+  - NEW_ANS:
+- Q5: A word with no known frequency (voluto, 8,597 pt lemmas) scores as average. Score it
+  as rare instead?
+  - a. Yes: an unknown frequency counts as the zipf floor, so such words land in C2.
+  - b. No: leave it; the commonness floor keeps them out of acerta anyway.
+  - Recommended: a, because "no frequency in wordfreq" means rare far more often than
+    average, and a learner app without a floor would otherwise show voluto at B2.
+  - NEW_ANS:

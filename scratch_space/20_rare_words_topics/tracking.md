@@ -18,7 +18,7 @@ words switchable. Analysis and decisions in [`00_start.md`](00_start.md).
 
 | #  | Phase                     | Plan                                             | Status  |
 | -- | ------------------------- | ------------------------------------------------ | ------- |
-| 1  | Measure the band re-cut   | [`01_band_analysis.md`](01_band_analysis.md)     | planned |
+| 1  | Measure the band re-cut   | [`01_band_analysis.md`](01_band_analysis.md)     | in progress |
 | 2  | Medical topic             | [`02_medical_topic.md`](02_medical_topic.md)     | planned |
 | 3  | Card floor and topics     | [`03_card_floor.md`](03_card_floor.md)           | planned |
 | 4  | Re-cut the bands          | [`04_band_recut.md`](04_band_recut.md)           | draft   |
@@ -38,3 +38,9 @@ Append-only. Newest at the bottom.
   store load (`docs/guides/rebuild_corpus.md`) and replaces `data/lexicon/`, which the
   read API on port 8010 serves, so it restarts after; the band re-cut changes every
   consumer's levels, lang-tutor's included, which adapts after.
+- 2026-11-15 : phase 1 run, read-only over the 2026-11-13 build after staging Kelly en and
+  it (the user approved the download). Upper edges moved for all languages cost English 13
+  points of exact agreement; rank quotas make pt worse; cutoffs fitted on Italian Kelly fix
+  Italian's +1.06 offset (38.3% exact, 78.9% within one, offset 0) and, used for pt, bring
+  acerta's floored C2 from 79% to 41%. Unknown frequencies score as mid-scale, which puts
+  voluto at C1. Asked as `00_start.md` Q4 and Q5.
