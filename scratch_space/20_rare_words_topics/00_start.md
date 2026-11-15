@@ -63,6 +63,14 @@ Measured read-only on the 2026-11-13 build (`data/lexicon/`) and on acerta's ass
 - The `health` topic stays as the everyday one; the new topic is `medical`, so a learner
   can drop specialist medicine without losing doença or dor. Whether those two overlap is
   Q2.
+- The CEFR bands are re-cut (Q3) so that C2 stops being the whole tail: common words such
+  as hemorragia move below C2. How (new cutoffs, a band above C2 for the rare tail, or a
+  frequency term in the score) is the first phase's analysis, measured against Kelly as
+  the bands are today. Every consumer of the bands sees the change; lang-tutor adapts after.
+- The floor is zipf 2.0 on the lemma (Q1), applied by acerta's export through the new card
+  query field.
+- The medical topic tags every word the rule catches, at any level; acerta shows it on by
+  default and switching it off removes all of them (Q2).
 - Rebuilding the corpus is a deep probe: timed and agreed before it runs.
 
 ## Open questions
@@ -73,7 +81,7 @@ Measured read-only on the 2026-11-13 build (`data/lexicon/`) and on acerta's ass
   - b. 2.5: keeps 13,776; cortisona goes too.
   - c. 1.5: keeps 21,806; atelectasia stays.
   - Recommended: a, because it is the lowest floor that matches the user's two examples.
-  - NEW_ANS:
+  - ANS: a (2.0).
 - Q2: The two asks pull apart: "medical off" in the picker, and "cortisone is ok". With the
   floor of Q1 a, the rare medical words (atelectasia) are gone already, and what the rule
   still catches is the more common ones (cortisona 2.25, insulina 3.44, hemorragia 3.57,
@@ -86,11 +94,11 @@ Measured read-only on the 2026-11-13 build (`data/lexicon/`) and on acerta's ass
     doença go unless the learner turns medical on.
   - Recommended: a, because it keeps the user's own examples (cortisona stays by default,
     atelectasia never shows) and still gives the full removal on demand.
-  - NEW_ANS:
+  - ANS: a: medical on by default, off removes every medical word.
 - Q3: Should the C2 band itself be split (for example a C2 for common words and a band
   above it for the rare tail), beyond the floor?
   - a. No: the floor removes the tail from drills; the bands stay as validated.
   - b. Yes: re-cut the bands so C2 is not 86% of the cards.
   - Recommended: a, because the bands are fitted and validated against Kelly, and the
     complaint is about rare words, which the floor addresses directly.
-  - NEW_ANS:
+  - ANS: b, re-cut the levels (the recommendation was a).
