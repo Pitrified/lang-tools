@@ -23,6 +23,7 @@ from lang_tools.lexicon.ingestion.meaning_review import build_member_worklist
 from lang_tools.lexicon.ingestion.meaning_review import drill_cards
 from lang_tools.lexicon.ingestion.meaning_review import form_of
 from lang_tools.lexicon.ingestion.meaning_review import is_verb_form
+from lang_tools.lexicon.ingestion.meaning_review import recheck_batch
 from lang_tools.lexicon.ingestion.meaning_review import render_batch
 from lang_tools.lexicon.ingestion.meaning_review import review_status
 from lang_tools.lexicon.ingestion.meaning_review import save_worklist
@@ -211,6 +212,39 @@ def test_apply_members_writes_forms_drops_and_log(tmp_path: Path) -> None:
     assert len(logged) == 6
     status = review_status(tmp_path, MEMBER_PREFIX)
     assert (status.worklist, status.reviewed, status.pending) == (2, 2, [])
+
+
+def test_recheck_serves_again_and_undoes_old_labels(tmp_path: Path) -> None:
+    store = _worklists(tmp_path)
+    items = serve_batch(tmp_path, store, batch="w0001")
+    n = _numbers(items)
+    first = [
+        f"{n['canal']} k",
+        f"{n['canais']} f canal",
+        f"{n['cachimbo']} d # a smoking pipe",
+        f"{n['eterno']} k",
+        f"{n['eterna']} k",
+        f"{n['raro']} k",
+    ]
+    apply_batch(tmp_path, "w0001", "\n".join(first), guide_path=tmp_path / "x.md")
+    again = recheck_batch(tmp_path, store, batch="w9001", labels={"d"})
+    # Only the meaning with a drop is served again.
+    assert [item.concept_key for item in again] == [concept_key(C_CONDUIT)]
+    m = _numbers(again)
+    labels = f"{m['canal']} k\n{m['canais']} k\n{m['cachimbo']} k"
+    apply_batch(tmp_path, "w9001", labels, guide_path=tmp_path / "x.md")
+    drops = read_jsonl(FormDrop, curated_path(tmp_path, MEMBER_FORM_DROPS_FILE))
+    assert [(row.form, row.drop) for row in drops] == [
+        ("cachimbo", True),
+        ("cachimbo", False),
+    ]
+    forms = read_jsonl(SenseAddition, curated_path(tmp_path, SENSE_ADDITIONS_FILE))
+    assert [(row.word, row.add, row.form_note) for row in forms] == [
+        ("canais", True, 'plural of "canal"'),
+        ("canais", False, ""),
+    ]
+    with pytest.raises(UnknownBatchKindError):
+        recheck_batch(tmp_path, store, batch="l9001", labels={"d"})
 
 
 def test_apply_lists_every_problem_and_writes_nothing(tmp_path: Path) -> None:

@@ -44,6 +44,16 @@ list of words, like the forms the build makes by rule (*anos* of *ano*).
   *profissão* and *ocupação* on "the particular occupation for which you are trained" are `k`.
   Drop only a word that would teach something false: *cachimbo* (a smoking pipe) on "a long
   hollow conduit" is `d`.
+- **A word with another, more common meaning can still have this one.** Before a `d`, ask
+  whether the word has this meaning at all, not whether it is the word's usual meaning: *índio*
+  is also the element indium, *silencioso* is also a car's silencer in Portugal, *macio* is also
+  smooth (*pele macia*), *vida* is also liveliness (*cheio de vida*), *terrivelmente* is also
+  "fearfully" as an intensifier. All `k`. Drop only when you know the word never means this.
+- **A near word is not a wrong word.** *pedra* on "pebble", *sepultura* on "burial": a
+  Portuguese speaker would say them for the gloss, so `k`. Drop a word that is a different
+  thing (*chupeta*, a pacifier, on "nipple"), not one that is broader or narrower.
+- **Check the spelling of every word you keep.** A misspelling (*forgoso* for *fogoso*) or a
+  word of another language (*gripa*, Spanish) kept as `k` stays in the meaning; label it `d`.
 - **Plural-only and plural-meaning words are words.** *algemas* (handcuffs), *óculos*,
   *férias*, *costas* (the back) mean something their singular does not: `k`.
 - **A noun for a person keeps both genders.** *amigo* and *amiga*, *afilhado* and *afilhada*,
@@ -66,6 +76,8 @@ list of words, like the forms the build makes by rule (*anos* of *ano*).
   *vida após a morte*) is `k`.
 - **Misspelled and foreign entries are `d`.** A spelling no pt-PT or pt-BR dictionary lists, a
   spelling from before the 1990 agreement, an English or Latin word pt text does not use.
+  The agreement also dropped hyphens and accents: *auto-estima*, *mini-saia*, *ultra-som*,
+  *pêlo* are pre-1990 spellings of *autoestima*, *minissaia*, *ultrassom*, *pelo*, so `d`.
 - **Vulgar and offensive words are words.** Never drop a word for being rude.
 
 ## Lead batches

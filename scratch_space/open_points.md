@@ -116,3 +116,14 @@ else (*perversão* / *perversità*); some are gaps (*época* / *epoca*, *operar*
 *restaurar* / *restaurare*, *maestria* / *maestria*).
 The fix is a review that adds the real gaps through `sense_additions.jsonl`, with its own
 rulebook. Left out of `22_meaning_members`, which only removes and reorders words.
+
+## Card meanings with one pt word
+
+The meaning review of `22_meaning_members` reads the card meanings with two pt words or more
+(7,743), where a wrong word is one word of a list. The other 7,512 card meanings have one pt
+word, the card itself, so a wrong word there is a wrong card: pt *escotilha* (a ship's hatch)
+is the only pt word of "the production of young from an egg" (en *hatching*, *hatch*), found
+by that folder's lead smoke batch. The card-sense review asks whether a card's meaning is
+right with the card's other senses in view, and has covered the most frequent cards; the rest
+of the 7,512 have had no review. The fix is that review's drops and pins, extended down the
+card list.

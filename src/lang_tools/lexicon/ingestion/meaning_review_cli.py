@@ -5,12 +5,14 @@ Usage, with ``CLI=lang_tools.lexicon.ingestion.meaning_review_cli``::
     uv run --no-sync python -m $CLI worklist
     uv run --no-sync python -m $CLI serve --batch w0001
     uv run --no-sync python -m $CLI apply --batch w0001 --labels w0001.labels.txt
+    uv run --no-sync python -m $CLI recheck --batch w9001 --labels d
     uv run --no-sync python -m $CLI status
 
 A batch id starting with ``w`` serves meanings (their pt words), with ``l``
 leads (their first en word). ``serve`` prints the batch's lines to stdout.
 ``apply`` validates the label file and records it, or prints every problem and
-exits 1 without writing anything.
+exits 1 without writing anything. ``recheck`` serves again the reviewed meanings
+with a word carrying one of the given labels, for a re-label after a rule change.
 """
 
 from __future__ import annotations
@@ -28,6 +30,7 @@ from lang_tools.lexicon.ingestion.meaning_review import apply_batch
 from lang_tools.lexicon.ingestion.meaning_review import build_lead_worklist
 from lang_tools.lexicon.ingestion.meaning_review import build_member_worklist
 from lang_tools.lexicon.ingestion.meaning_review import drill_cards
+from lang_tools.lexicon.ingestion.meaning_review import recheck_batch
 from lang_tools.lexicon.ingestion.meaning_review import render_batch
 from lang_tools.lexicon.ingestion.meaning_review import review_status
 from lang_tools.lexicon.ingestion.meaning_review import save_worklist
@@ -53,6 +56,9 @@ def _parser() -> argparse.ArgumentParser:
     apply = sub.add_parser("apply", help="validate and record a batch's labels")
     apply.add_argument("--batch", required=True)
     apply.add_argument("--labels", type=Path, required=True)
+    recheck = sub.add_parser("recheck", help="serve reviewed meanings again")
+    recheck.add_argument("--batch", required=True)
+    recheck.add_argument("--labels", required=True, help="label letters, e.g. d or d,f")
     sub.add_parser("status", help="print the progress")
     return parser
 
@@ -106,6 +112,14 @@ def main(argv: list[str] | None = None) -> int:
         case "serve":
             items = serve_batch(data_fol, get_store(), batch=args.batch, size=args.size)
             _out(render_batch(items) if items else "nothing left to serve")
+        case "recheck":
+            items = recheck_batch(
+                data_fol,
+                get_store(),
+                batch=args.batch,
+                labels=set(args.labels.split(",")),
+            )
+            _out(render_batch(items) if items else "nothing to re-check")
         case "apply":
             return _apply(data_fol, guide, args)
         case _:

@@ -22,7 +22,7 @@ proposed checks and decisions in [`00_start.md`](00_start.md).
 | -- | --------------------------- | -------------------------------------------- | ------- |
 | 1  | Curated inputs in the build | [`01_build_inputs.md`](01_build_inputs.md)   | done |
 | 2  | Rulebook and harness        | [`02_harness.md`](02_harness.md)             | done |
-| 3  | Pilot of 500+               | [`03_pilot.md`](03_pilot.md)                 | draft   |
+| 3  | Pilot of 500+               | [`03_pilot.md`](03_pilot.md)                 | done |
 | 4  | The rest, in waves          | [`04_full_run.md`](04_full_run.md)           | draft   |
 | 5  | Rebuild and release         | [`05_rebuild.md`](05_rebuild.md)             | draft   |
 
@@ -54,3 +54,10 @@ Append-only. Newest at the bottom.
   207 leads; `make check` 599 passed. The smoke run found and fixed a codec bug (a store from a
   corpus older than `is_lead` failed on NULL). Smoke batches w0001 and l0001 applied. Raised Q5:
   meanings with one pt word, such as *escotilha* on hatching, are in no worklist.
+- 2026-11-17 : Q5 answered a, parked as the open point "Card meanings with one pt word". Phase 3
+  started: w0002 to w0006 and l0002 to l0004, one sonnet subagent each, in one wave.
+- 2026-11-17 : phase 3 - pilot w0002 to w0006 (1,269 k, 28 f, 96 d) and l0002 to l0004 (123 k,
+  84 l); hand-read every f and d and a sample of k and leads: forms all right, drops about 92%,
+  keeps and leads about 95%. Rulebook fixed (another meaning, near words, spelling of keeps,
+  pre-1990 hyphens); `recheck` added and w9001 re-labelled the 85 meanings with a drop, 28
+  labels changed. The usage reading for phase 4 is pending from the user.

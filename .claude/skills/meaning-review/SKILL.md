@@ -45,6 +45,10 @@ A session that runs many batches keeps its own context small by handing each bat
   like: "Follow `.claude/skills/meaning-review/SKILL.md` in `/home/pmn/repos/lang-tools` for batch
   `w0003`, then report." Run a handful at a time; reservations are locked, so parallel subagents
   never get the same meanings.
+- To label meanings again after a rulebook change, serve them as a re-check:
+  `CLI recheck --batch w9001 --labels d` serves every reviewed meaning with a dropped word (ids
+  from `w9001` up keep re-checks apart). Label and apply it like any `w` batch; the new labels
+  win, and a word no longer dropped or a form no longer a form is restored.
 - After the batches, run `CLI status`, then commit `data/curated/meaning_review_log.jsonl`,
   `data/curated/sense_additions.jsonl`, `data/curated/member_form_drops.jsonl`,
   `data/curated/lead_translations.jsonl` and the label files under `data/work/meaning_review/`

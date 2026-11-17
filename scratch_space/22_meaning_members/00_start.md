@@ -151,4 +151,4 @@ their own.
   - Recommended: a, because the question per card is "is this the card's meaning", which the
     card-sense review asks with the card's other senses in view, and this folder is already
     several sessions long.
-  - NEW_ANS:
+  - ANS: a. Parked in `open_points.md` as "Card meanings with one pt word".

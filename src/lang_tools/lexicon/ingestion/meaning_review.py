@@ -594,6 +594,57 @@ def serve_batch(
         return items
 
 
+def recheck_batch(
+    data_fol: Path,
+    store: LexiconStore,
+    *,
+    batch: str,
+    labels: Collection[str],
+) -> list[MeaningItem]:
+    """Serve reviewed meanings again, to be labelled anew.
+
+    Picks every reviewed meaning with a word carrying one of ``labels`` (for
+    example ``{"d"}`` after a rulebook change about drops). The batch skips the
+    reservations: the new labels win when applied, and `apply_batch` undoes the
+    form or the drop an old label wrote. Serving an id that is already pending
+    returns that batch unchanged.
+
+    Args:
+        data_fol: Project data folder.
+        store: The lexicon store.
+        batch: A meaning batch id (``w9001``).
+        labels: The label letters whose meanings to serve again.
+
+    Returns:
+        The batch items, in worklist order.
+    """
+    if _kind(batch) != MEMBER_PREFIX:
+        raise UnknownBatchKindError(batch)
+    with locked(data_fol, WORK_SUBDIR):
+        path = work_dir(data_fol, WORK_SUBDIR) / f"{batch}.jsonl"
+        if path.exists():
+            return read_jsonl(MeaningItem, path)
+        latest: dict[tuple[str, str], str] = {}
+        for row in _log_rows(data_fol):
+            if row.batch.startswith(MEMBER_PREFIX):
+                latest[row.lemma_id, row.concept_key] = row.label
+        keys = {key for (_, key), label in latest.items() if label in labels}
+        todo = [
+            work
+            for work in load_worklist(data_fol, MEMBER_PREFIX)
+            if concept_key(work.concept_id) in keys
+        ]
+        items: list[MeaningItem] = []
+        n = 1
+        for work in todo:
+            items.append(_meaning_item(store, work, n))
+            n += len(items[-1].words)
+        if items:
+            append_rows(path, items)
+            lg.info("Served re-check {}: {} meaning(s)", batch, len(items))
+        return items
+
+
 def render_batch(items: Sequence[MeaningItem] | Sequence[LeadItem]) -> str:
     """Return the batch as the lines a reviewer reads."""
     lines: list[str] = []
@@ -756,11 +807,14 @@ def _apply_members(
     ]
     if problems:
         raise LabelError(batch, problems)
+    # The label each word had before, so a re-check can undo its effect.
+    before = {(row.lemma_id, row.concept_key): row.label for row in _log_rows(data_fol)}
     log: list[MeaningLogRow] = []
     forms: list[SenseAddition] = []
     drops: list[FormDrop] = []
     for item, word in words:
         label = labels[word.n]
+        earlier = before.get((word.lemma_id, item.concept_key))
         log.append(
             MeaningLogRow(
                 batch=batch,
@@ -773,23 +827,33 @@ def _apply_members(
                 rulebook_sha=sha,
             )
         )
-        if label.label == "f":
-            note = form_of(word.text, label.extra, word.part_of_speech) or ""
+        undo_reason = label.reason or f"relabelled {label.label} on a re-check"
+        is_form = label.label == "f"
+        if is_form or earlier == "f":
+            # A later row with ``add: false`` retracts an earlier form.
+            note = ""
+            reason = undo_reason
+            if is_form:
+                note = form_of(word.text, label.extra, word.part_of_speech) or ""
+                reason = label.reason or f"a form of {label.extra}, not a word"
             forms.append(
                 SenseAddition(
                     lemma_id=word.lemma_id,
                     concept_key=item.concept_key,
                     word=word.text,
                     language=LANGUAGE,
+                    add=is_form,
                     form_note=note,
-                    reason=label.reason or f"a form of {label.extra}, not a word",
+                    reason=reason,
                     status="accepted",
                     model=REVIEW_MODEL,
                     prompt_sha=sha,
                     batch=batch,
                 )
             )
-        elif label.label == "d":
+        is_drop = label.label == "d"
+        if is_drop or earlier == "d":
+            # A later row with ``drop: false`` restores an earlier drop.
             drops.append(
                 FormDrop(
                     lemma_id=word.lemma_id,
@@ -797,8 +861,8 @@ def _apply_members(
                     language=LANGUAGE,
                     form=word.text,
                     kind=DROP_KIND,
-                    drop=True,
-                    reason=label.reason,
+                    drop=is_drop,
+                    reason=label.reason if is_drop else undo_reason,
                     status="accepted",
                     model=REVIEW_MODEL,
                     prompt_sha=sha,
