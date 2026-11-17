@@ -100,6 +100,7 @@ _COLUMNS: dict[str, list[str]] = {
         "cefr_is_estimated",
         "is_best",
         "form_note",
+        "is_lead",
     ],
     "lookalikes": [
         "lemma_id_a",
@@ -251,6 +252,7 @@ def _schema(name: str) -> Any:  # noqa: ANN401 - pyarrow.Schema, kept lazy
                 ("cefr_is_estimated", pa.bool_()),
                 ("is_best", pa.bool_()),
                 ("form_note", pa.string()),
+                ("is_lead", pa.bool_()),
             ],
         ),
         "lookalikes": pa.schema(

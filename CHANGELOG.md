@@ -7,6 +7,17 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- `Sense.is_lead` (default `False`): a reviewed lead translation, which a card's translations
+  put first. The leads come from the curated `data/curated/lead_translations.jsonl`
+  (`ingestion.lead_translations`), keyed on concept and language; `_build.json` records them
+  under `lead_translations`. The store cache moves to version 11.
+
+---
+
 ## [0.9.0] - 2026-11-15
 
 The 4,814 single pt words wordfreq has no count for were reviewed by Claude subagents under a

@@ -20,7 +20,7 @@ proposed checks and decisions in [`00_start.md`](00_start.md).
 
 | #  | Phase                       | Plan                                         | Status  |
 | -- | --------------------------- | -------------------------------------------- | ------- |
-| 1  | Curated inputs in the build | [`01_build_inputs.md`](01_build_inputs.md)   | planned |
+| 1  | Curated inputs in the build | [`01_build_inputs.md`](01_build_inputs.md)   | in progress |
 | 2  | Rulebook and harness        | [`02_harness.md`](02_harness.md)             | planned |
 | 3  | Pilot of 500+               | [`03_pilot.md`](03_pilot.md)                 | draft   |
 | 4  | The rest, in waves          | [`04_full_run.md`](04_full_run.md)           | draft   |
@@ -37,3 +37,14 @@ Append-only. Newest at the bottom.
   word"; measured thirteen candidate checks read-only on the 0.9.0 build and acerta's
   meanings asset; the user picked C1 to C4 and C6 to C8, answered Q1 to Q4; the it cognate
   gap parked as an open point.
+- 2026-11-17 : phase 1 review before code: forms need no new input, a `sense_additions` row
+  on an existing link only sets its form note (how *são* got its note), so phase 1 is the lead
+  pin and the gloss rows; the lead copies `Sense.is_best` (field, codec column, cache v11,
+  card order); `lemmas_for_concept` has no order and acerta orders a meaning's words itself,
+  so its export reads `is_lead` at the phase 5 re-export.
+- 2026-11-17 : phase 1 - `Sense.is_lead` (codec column, cache v11) set by the new
+  `ingestion.lead_translations` stage from `lead_translations.jsonl`, keyed on concept and
+  language; the card translations put the lead first after `_rank_translations`; build
+  manifest `lead_translations`; library notes, frozen API and changelog updated. Found ten pt
+  glosses equal to their word, not five; ten `gloss_overrides.jsonl` rows written `proposed`.
+  `make check` 589 passed, docs build strict. Waits on the user accepting the gloss rows.
