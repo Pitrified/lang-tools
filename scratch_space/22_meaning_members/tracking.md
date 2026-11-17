@@ -69,3 +69,4 @@ Append-only. Newest at the bottom.
   *facto* stay) and keeps other regional spellings; `recheck --words` added; re-check w9002
   (86 meanings): 228 k, 3 f, 49 d, the pre-1990 forms dropped, the regional spellings back.
   Multiword plurals (*erupções vulcânicas*) cannot be `f`: the inflection rules read one word.
+- 2026-11-17 : usage after wave 1 and re-check w9002 (13 batches, plus the rule fixes): session 33%, week 50%, from 4% / 46%, so about 29 session and 4 weekly points, about 2.2 session points a batch. The other ~61 batches project to about 135 session and 19 weekly points.
