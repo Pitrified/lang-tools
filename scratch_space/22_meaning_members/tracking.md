@@ -24,7 +24,7 @@ proposed checks and decisions in [`00_start.md`](00_start.md).
 | 2  | Rulebook and harness        | [`02_harness.md`](02_harness.md)             | done |
 | 3  | Pilot of 500+               | [`03_pilot.md`](03_pilot.md)                 | done |
 | 4  | The rest, in waves          | [`04_full_run.md`](04_full_run.md)           | done |
-| 5  | Rebuild and release         | [`05_rebuild.md`](05_rebuild.md)             | in progress |
+| 5  | Rebuild and release         | [`05_rebuild.md`](05_rebuild.md)             | done |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
 
@@ -74,3 +74,4 @@ Append-only. Newest at the bottom.
 - 2026-11-17 : phase 5 - rebuilt (senses 577,087 to 576,733, 84 leads, 11 gloss overrides);
   plural pairs 614 to 508, feminine 349 to 316; the quality gate passes in full; 0.10.0 and its
   changelog; read API restarted. acerta re-export pending.
+- 2026-11-17 : acerta re-exported from 0.10.0 (`0a36cbd`, leads first on the word page). Phase 5 done; folder done.

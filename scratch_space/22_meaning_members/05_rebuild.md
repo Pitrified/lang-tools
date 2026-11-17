@@ -1,5 +1,5 @@
 ---
-status: in progress
+status: done
 ---
 
 # Phase 5 - Rebuild and release
@@ -36,4 +36,7 @@ Context: [`00_start.md`](00_start.md), depends on [`04_full_run.md`](04_full_run
 - The quality gate passes in full: the "definition == lemma" row (*jogar dados*) is gone. The
   seed did not move. `make check` 600 passed.
 - Version 0.10.0 with its changelog; no tag (the user's, with the push). The read API on 8010
-  restarted on the new corpus. acerta's re-export is the next step.
+  restarted on the new corpus.
+- acerta re-exported (acerta-word-drills `0a36cbd`): 19,467 cards to 19,283, meanings 29,926 to
+  29,895; its export lists a meaning's reviewed lead first, so *carreira* shows
+  "carreira - career - vocazione"; acerta's gate passes, 275 tests.

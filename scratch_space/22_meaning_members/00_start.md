@@ -1,6 +1,6 @@
 ---
-status: planned
-priority: 1
+status: done
+priority: 0
 description: |
   Clean the words of a meaning and their order: pt plurals and feminines stored beside their
   base, wrong pt members, translations led by an inflated -ing frequency, and the smaller
