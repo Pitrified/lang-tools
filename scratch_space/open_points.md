@@ -138,3 +138,16 @@ word naming something else, a definition, a misspelled or pre-1990 duplicate) an
 became a form of another word (*canais* of *canal*). The harness is ready: `meaning_review_cli
 worklist`, then batches from `w0019`, under `docs/guides/meaning_review.md`. A cheaper scope
 is the meanings of A1 to B2 cards only.
+
+## Translations led by a generic en verb
+
+A card pairs the first en word of its meaning, and a meaning's words are ordered by frequency,
+so a generic verb that WordNet lists in a narrow meaning leads it: pt *experimentar* ("go
+through mental or physical states") pairs with *have*, not *experience*; *executar* with *do*,
+not *perform*; *especificar* with *set*, not *specify*; *instituir* with *make*, not
+*establish*. On the 0.10.1 build, 77 drill cards lead with one of *have*, *get*, *make*,
+*take*, *give*, *go*, *do*, *put*, *set*, *come*, *run*, *let*, *keep*, *hold*, *turn*,
+*bring*, with another en word behind it; some are right (*pôr* - *put*, *obter* - *get*).
+Same kind as the -ing leads `22_meaning_members` fixed, and the same fix: the meaning
+review's lead batches with these verbs added to `build_lead_worklist`'s test, about one
+batch. Found from lang-tutor's 0.10.1 check (lang-tutor `scratch_space/05_lang_tools_0101`).
