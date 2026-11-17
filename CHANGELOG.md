@@ -7,6 +7,16 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.10.1] - 2026-11-17
+
+### Data
+
+- pt *canal*'s conduit meaning reviewed (meaning review batch `w9003`): *cachimbo* (a smoking
+  pipe) and *chaminés de fábrica* leave it, *canais* becomes a form of *canal*. Corpus rebuilt:
+  lemmas 341,144 to 341,143, senses 576,733 to 576,731.
+
+---
+
 ## [0.10.0] - 2026-11-17
 
 The words of a card's meaning were reviewed by Claude subagents under a written rulebook, for
