@@ -36,7 +36,7 @@ over HTTP in its default `http` mode.
   lemma <-> concept edge hosting per-sense frequency / CEFR). `Sense.is_best`
   (default `False`) marks a reviewed best-sense pin, which the card's best-sense
   pick takes first; the field is new, so a reader of an older corpus sees it
-  unset. `Sense.is_lead` (default `False`, unreleased) marks a reviewed lead: the
+  unset. `Sense.is_lead` (default `False`, since v0.10.0) marks a reviewed lead: the
   word a card lists first among the concept's words in its language.
   `Sense.form_note` (default `None`, since v0.4.0) says which form of the
   word the sense is when an inflected form is linked to its base word's concept

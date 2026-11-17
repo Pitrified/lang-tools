@@ -127,3 +127,14 @@ by that folder's lead smoke batch. The card-sense review asks whether a card's m
 right with the card's other senses in view, and has covered the most frequent cards; the rest
 of the 7,512 have had no review. The fix is that review's drops and pins, extended down the
 card list.
+
+## Unreviewed card meanings
+
+`22_meaning_members` reviewed the pt words of 1,705 of the 7,743 card meanings with two pt
+words or more (the first by concept key, a fair sample), and stopped there on cost: about 2.2
+session points per batch of 100 meanings, so the other 6,038 would take about 61 batches,
+135 session and 19 weekly points. In the reviewed set about 2 in 100 words were dropped (a
+word naming something else, a definition, a misspelled or pre-1990 duplicate) and 1 in 100
+became a form of another word (*canais* of *canal*). The harness is ready: `meaning_review_cli
+worklist`, then batches from `w0019`, under `docs/guides/meaning_review.md`. A cheaper scope
+is the meanings of A1 to B2 cards only.

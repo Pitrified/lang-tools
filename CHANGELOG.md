@@ -7,7 +7,14 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [Unreleased]
+## [0.10.0] - 2026-11-17
+
+The words of a card's meaning were reviewed by Claude subagents under a written rulebook, for
+1,705 of the 7,743 card meanings with two pt words or more: a plural or an adjective's feminine
+stored as a word of its own becomes a form of its base, a word naming something else, a
+definition or a misspelled or pre-1990 duplicate leaves the meaning. The 207 card meanings led
+by an en -ing verb form were reviewed too, and 84 get a reviewed first word (*carreira* -
+*career*, not *calling*). Ten pt glosses that repeated their word were rewritten.
 
 ### Added
 
@@ -28,6 +35,17 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - A store built from a corpus that predates a column (`Sense.is_lead`) read NULL for it and
   failed on the model; a null where the field's default is not null now takes the default
   (`codec.model_from_row`).
+
+### Data
+
+- `data/curated/meaning_review_log.jsonl`: the latest labels of 4,759 words over 1,705
+  meanings, 4,319 kept, 136 forms, 304 dropped. Its rows in `member_form_drops.jsonl` (kind
+  `meaning`, 421 drops and 25 restores from the re-checks), `sense_additions.jsonl` (143 forms,
+  2 retracted) and `lead_translations.jsonl` (84 leads).
+- Ten pt gloss overrides in `gloss_overrides.jsonl`, for the glosses equal to their word; the
+  quality gate's "definition == lemma" invariant passes again.
+- Corpus rebuilt: lemmas 341,353 to 341,144, senses 577,087 to 576,733; pt words stored as the
+  plural of another word of the same meaning 614 to 508, as its feminine 349 to 316.
 
 ---
 
