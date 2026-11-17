@@ -1,5 +1,5 @@
 ---
-status: in progress
+status: done
 ---
 
 # Phase 1 - Curated inputs in the build
@@ -53,8 +53,8 @@ Context: [`00_start.md`](00_start.md).
 
 - Ten concepts have a pt gloss equal to one of their pt words, not five: the dump's four, *jogar
   dados*, and five multiword ones (*de qualquer maneira*, *mulher negra*, *isópodes*, *de
-  maneira nenhuma*, *ler superficialmente*). All ten rows are written `proposed`, for the user
-  to accept.
+  maneira nenhuma*, *ler superficialmente*). All ten rows were written `proposed`; the user
+  accepted them.
 - The forms test already existed: `test_an_existing_link_only_takes_the_form_note`
   (sense additions) and `test_a_form_is_never_a_translation_or_a_member` (store).
 - `_rank_translations` moves phrases and symbols after the words, so the lead is put first

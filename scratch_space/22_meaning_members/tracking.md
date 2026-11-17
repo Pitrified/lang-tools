@@ -20,8 +20,8 @@ proposed checks and decisions in [`00_start.md`](00_start.md).
 
 | #  | Phase                       | Plan                                         | Status  |
 | -- | --------------------------- | -------------------------------------------- | ------- |
-| 1  | Curated inputs in the build | [`01_build_inputs.md`](01_build_inputs.md)   | in progress |
-| 2  | Rulebook and harness        | [`02_harness.md`](02_harness.md)             | planned |
+| 1  | Curated inputs in the build | [`01_build_inputs.md`](01_build_inputs.md)   | done |
+| 2  | Rulebook and harness        | [`02_harness.md`](02_harness.md)             | in progress |
 | 3  | Pilot of 500+               | [`03_pilot.md`](03_pilot.md)                 | draft   |
 | 4  | The rest, in waves          | [`04_full_run.md`](04_full_run.md)           | draft   |
 | 5  | Rebuild and release         | [`05_rebuild.md`](05_rebuild.md)             | draft   |
@@ -48,3 +48,4 @@ Append-only. Newest at the bottom.
   manifest `lead_translations`; library notes, frozen API and changelog updated. Found ten pt
   glosses equal to their word, not five; ten `gloss_overrides.jsonl` rows written `proposed`.
   `make check` 589 passed, docs build strict. Waits on the user accepting the gloss rows.
+- 2026-11-17 : phase 1 closed: the user accepted the ten gloss rows.
