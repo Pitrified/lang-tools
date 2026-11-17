@@ -15,6 +15,8 @@ from lang_tools.lexicon.ingestion.acquire import read_manifest
 from lang_tools.lexicon.ingestion.best_senses import BEST_SENSES_FILE
 from lang_tools.lexicon.ingestion.best_senses import BestSense
 from lang_tools.lexicon.ingestion.enrich import CEFR_BANDS
+from lang_tools.lexicon.ingestion.lead_translations import LEAD_TRANSLATIONS_FILE
+from lang_tools.lexicon.ingestion.lead_translations import LeadTranslation
 from lang_tools.lexicon.ingestion.pipeline import build_initial
 from lang_tools.lexicon.ingestion.sources.omw import SenseLink
 from lang_tools.lexicon.ingestion.sources.omw import SynsetEntry
@@ -242,6 +244,45 @@ def test_reviewed_best_sense_pins_the_card(tmp_path: Path) -> None:
     card = LexiconStore.from_data_fol(tmp_path).lemma_card(manga)
     assert card is not None
     assert card.concept_id == other
+
+
+def test_reviewed_lead_translation_leads_the_card(tmp_path: Path) -> None:
+    """A curated lead puts a word first in a card's translations."""
+    entries = [
+        SynsetEntry(
+            "en", "en-1", "i001", "an occupation", ("calling", "career"), pos="n"
+        ),
+        SynsetEntry("pt", "pt-1", "i001", None, ("carreira",), pos="n"),
+    ]
+    carreira = lemma_id("carreira", "pt")
+    build_initial(["en", "pt"], data_fol=tmp_path, omw_entries=entries)
+    card = LexiconStore.from_data_fol(tmp_path).lemma_card(carreira)
+    assert card is not None
+    assert card.concept_id is not None
+    assert len(card.translations["en"]) == 2
+    last = card.translations["en"][-1]
+    write_jsonl(
+        [
+            LeadTranslation(
+                concept_key=concept_key(card.concept_id),
+                language="en",
+                lemma_id=lemma_id(last, "en"),
+                status="accepted",
+            ),
+        ],
+        curated_path(tmp_path, LEAD_TRANSLATIONS_FILE),
+    )
+    summary = build_initial(["en", "pt"], data_fol=tmp_path, omw_entries=entries)
+    assert (summary.lead_translations_applied, summary.lead_translations_stale) == (
+        1,
+        0,
+    )
+    manifest = read_manifest(tmp_path)
+    assert manifest is not None
+    assert manifest["lead_translations"] == {"applied": 1, "stale": 0}
+    card = LexiconStore.from_data_fol(tmp_path).lemma_card(carreira)
+    assert card is not None
+    assert card.translations["en"][0] == last
 
 
 def test_sample_carved_to_separate_corpus(tmp_path: Path) -> None:

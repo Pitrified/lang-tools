@@ -109,7 +109,8 @@ A `Sense` is the explicit `lemma_id <-> concept_id` edge and the canonical
 membership record. It also hosts the per-sense signals that must not live on the
 token - `token_frequency`, `sense_frequency`, and `cefr_level` (with their
 `*_is_estimated` flags) - `is_best`, set when a review pinned this sense as
-the lemma's best one, and `form_note`, set when an inflected form is linked to
+the lemma's best one, `is_lead`, set when a review picked this lemma as the
+concept's first word in its language, and `form_note`, set when an inflected form is linked to
 its base word's concept (pt *são* on "be", "they are"; see the curated inputs
 below). The "bank" polysemy trap is
 the rationale: one lemma's two meanings differ in frequency and difficulty, so
@@ -246,7 +247,9 @@ never persisted:
   is the more common of the two. wordfreq ranks *x*, *2* and *i* above *ten*,
   *two* and *one*, so without it pt *dez* would show "x" and *quatro* "Little
   Joe"; the frequency test keeps "in love" ahead of *potty* and "Black person"
-  ahead of *blackamoor*. The lemma's own language lists its synonyms. An
+  ahead of *blackamoor*. A reviewed lead (`Sense.is_lead`) goes first of all, so
+  pt *carreira* shows "career" ahead of *calling*, which keeps the verb form's
+  count. The lemma's own language lists its synonyms. An
   inflected form (a sense with a form note: pt *anos* on "year") is never listed,
   since it is a form of a member, not another word for the concept.
 - `examples`: the concept's example sentences in the lemma's language.
@@ -500,12 +503,14 @@ cause. `maintenance` holds the shared pieces (`ReviewStatus`, `write_jsonl` /
 | `gloss_overrides.jsonl` | gloss repair (05.55) | human | `apply_gloss_overrides` |
 | `topics.json` | hand-written table | human | `assign_topics` |
 | `slug_qualifiers.jsonl` | `slug_qualifier` chain | `check_qualifiers` (mechanical) | `sources.omw._tiered_slugs` |
-| `member_form_drops.jsonl` | `form_review` chain; card-sense review; unranked-word review | human; the reviewing agent, under a rulebook | `apply_form_drops` |
+| `member_form_drops.jsonl` | `form_review` chain; card-sense review; unranked-word review; meaning review | human; the reviewing agent, under a rulebook | `apply_form_drops` |
 | `gloss_backfill.jsonl` | `gloss_translate` chain | sampled human review | `apply_gloss_backfill` |
 | `best_senses.jsonl` | card-sense review | the reviewing agent, under a rulebook | `apply_best_senses` |
-| `sense_additions.jsonl` | card-sense review | the reviewing agent, under a rulebook | `apply_sense_additions` |
+| `lead_translations.jsonl` | meaning review (lead batches) | the reviewing agent, under a rulebook | `apply_lead_translations` |
+| `sense_additions.jsonl` | card-sense review; meaning review (forms) | the reviewing agent, under a rulebook | `apply_sense_additions` |
 | `commonness_buckets.jsonl` | unranked-word review | the reviewing agent, under a rulebook | `unranked_review.with_bucket_zipf` |
 | `unranked_review_log.jsonl` | unranked-word review | the reviewing agent, under a rulebook | log only |
+| `meaning_review_log.jsonl` | meaning review | the reviewing agent, under a rulebook | log only |
 | `concept_additions.jsonl` | written by hand for a meaning WordNet lacks | human | `apply_concept_additions` |
 
 Each job has a thin notebook under `notebooks/lexicon_maintain/` (`gloss_repair`,
@@ -553,6 +558,16 @@ A pinned lemma then takes the part of speech of its pinned concept's lexfile cla
 class a card filter reads is the card's (pt *um* is a determiner for its card "a, an", not
 a noun; *hoje* an adverb); the manifest counts the lemmas changed as
 `part_of_speech_changed`.
+
+The lead translations (`ingestion.lead_translations`) fix the word a card pairs. A card
+lists a concept's words by frequency, and wordfreq counts a surface form, so an en noun
+that is also a frequent verb form keeps the verb's count: *calling* leads *career* on pt
+*carreira*, *being* leads *existence* on *existência*. Most -ing leads are right
+(*building*, *meeting*), so a review names the lead instead of a rule. A
+`LeadTranslation` row names the `concept_key`, the language and the leading lemma; only
+the latest row of a concept and language counts, and a row with no lemma retracts. The
+build sets `Sense.is_lead` after the best-sense pins, and the manifest records the leads
+applied and the stale rows under `lead_translations`.
 
 The sense additions (`ingestion.sense_additions`) fix the third way: the word's everyday
 meaning is not linked at all (pt *sim* has only "yea", *aí* only "yonder"), or every link

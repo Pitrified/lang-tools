@@ -20,11 +20,11 @@ The model is described in [Lexicon](lexicon.md).
 | | Count |
 | --- | ---: |
 | Concepts | 117,725 |
-| Lemmas | 341,353 |
-| Senses | 577,087 |
+| Lemmas | 341,144 |
+| Senses | 576,733 |
 | Concept relations | 137,936 |
 | Sense relations | 4,267 |
-| Look-alike pairs | 6,763 |
+| Look-alike pairs | 6,748 |
 
 ## Sources
 
@@ -55,7 +55,7 @@ Alongside the wordnets:
 | Language | Lemmas | Senses | Concepts with a word | Glosses in the language |
 | --- | ---: | ---: | ---: | ---: |
 | en | 148,766 | 207,062 | 117,725 | 117,725 (WordNet) |
-| pt | 62,923 | 151,888 | 52,393 | 43,926 (written) |
+| pt | 62,714 | 151,534 | 52,389 | 43,926 (written) |
 | fr | 51,433 | 98,559 | 59,047 | 59,077 (written) |
 | it | 41,749 | 62,018 | 34,741 | 34,954 (2,121 MultiWordNet, 32,833 written) |
 | es | 36,482 | 57,560 | 38,504 | 38,512 (written) |
@@ -78,16 +78,16 @@ verbs) or `llm` (1, a reviewed gloss repair).
 
 ## Measured and estimated values
 
-- **Sense frequency**: 511,941 of 577,087 senses have a token frequency: from wordfreq, or,
+- **Sense frequency**: 511,598 of 576,733 senses have a token frequency: from wordfreq, or,
   for 4,045 single pt words wordfreq does not know, a stand-in from a reviewed commonness
   bucket (common 3.5, uncommon 2.5, rare 1.5); only 30,238 are measured at the sense level
   (single-word English senses, with WordNet's SemCor counts to split the word's frequency).
-  The other 546,849 are flagged `frequency_is_estimated`.
+  The other 546,495 are flagged `frequency_is_estimated`.
 - **CEFR band**: every sense has one, and every band is estimated (`cefr_is_estimated`): a score
   from the concept's commonness and hypernym depth with a per-language overlay of frequency and
   word length, cut into bands. No graded list is merged in; one (Kelly, CC BY-NC-SA) is used
   only to validate the bands.
-  The bands: A1 8,349, A2 15,080, B1 32,191, B2 87,992, C1 179,759, C2 253,716.
+  The bands: A1 8,343, A2 15,071, B1 32,175, B2 87,933, C1 179,670, C2 253,541.
   The lower three band edges are fitted to Kelly; the upper two are set so that C2 holds
   the rare tail rather than every word past Kelly's 7,549.
 

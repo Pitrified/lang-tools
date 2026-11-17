@@ -38,6 +38,8 @@ from lang_tools.lexicon.ingestion.inflections import INFLECTION_LANGUAGE
 from lang_tools.lexicon.ingestion.inflections import INFLECTION_ZIPF_FLOOR
 from lang_tools.lexicon.ingestion.inflections import apply_inflections
 from lang_tools.lexicon.ingestion.inflections import propagate_base_pins
+from lang_tools.lexicon.ingestion.lead_translations import apply_lead_translations
+from lang_tools.lexicon.ingestion.lead_translations import load_lead_translations
 from lang_tools.lexicon.ingestion.lookalikes import apply_lookalikes
 from lang_tools.lexicon.ingestion.lookalikes import drop_rare_traps
 from lang_tools.lexicon.ingestion.lookalikes import load_lookalikes
@@ -107,6 +109,10 @@ class BuildSummary:
             reviewed curated input.
         best_senses_stale: Pinning rows naming a sense this build lacks;
             skipped, never fatal.
+        lead_translations_applied: Senses set as their concept's lead word in
+            their language by the reviewed curated input.
+        lead_translations_stale: Lead rows naming a sense this build lacks;
+            skipped, never fatal.
     """
 
     languages: list[str]
@@ -125,6 +131,8 @@ class BuildSummary:
     lookalikes_stale: int = 0
     best_senses_applied: int = 0
     best_senses_stale: int = 0
+    lead_translations_applied: int = 0
+    lead_translations_stale: int = 0
 
 
 def _clean_corpus_tables(data_fol: Path) -> None:
@@ -382,6 +390,12 @@ def build_initial(
         tables.senses,
         load_best_senses(data_fol),
     )
+    # Reviewed lead translations order a card's words; like the pins, they key
+    # on the final sense set.
+    lead_applied, lead_stale = apply_lead_translations(
+        tables.senses,
+        load_lead_translations(data_fol),
+    )
     # A generated form shows its base's card, so it takes its base's pin.
     form_pins = propagate_base_pins(tables.senses, inflections.links)
     # A pinned card sets its lemma's part of speech, which card filters read.
@@ -448,6 +462,7 @@ def build_initial(
             "stale": best_stale,
             "part_of_speech_changed": pos_changed,
         },
+        "lead_translations": {"applied": lead_applied, "stale": lead_stale},
         **(extra_manifest or {}),
     }
     path = write_manifest(data_fol, manifest)
@@ -470,4 +485,6 @@ def build_initial(
         lookalikes_stale=lookalikes_stale,
         best_senses_applied=best_applied,
         best_senses_stale=best_stale,
+        lead_translations_applied=lead_applied,
+        lead_translations_stale=lead_stale,
     )

@@ -104,57 +104,37 @@ The fix: point each at the doc whose topic it is, or drop it, file by file; and 
 check the "phase N" form so new ones are caught.
 Found in `18_licensing/02_license_files.md`, parked by `18_licensing/00_start.md` Q15.
 
-## pt gloss equal to its word
+## it cognate missing from the card's meaning
 
-The quality gate's "definition == lemma" invariant fails with one row: concept
-`c__dice__5277ff536fc6`, pt gloss "jogar dados" (source `llm`) on the sole pt member
-"jogar dados". The report had last been refreshed on 2026-11-11, before pt moved to
-OpenWordnet-PT, so the row most likely appeared with that move; nothing in
-`20_rare_words_topics` touches definitions. The fix is a gloss override row.
-Found in `20_rare_words_topics/05_rebuild.md`.
+A card lists its look-alikes, and an it cognate of the pt word is often not a word of the
+card's meaning: pt *carreira* lists it *carriera* as a cognate, but the meaning "the
+particular occupation for which you are trained" has only *vocazione*, so *carriera* is never
+offered as a translation. Measured on the 0.9.0 build (2026-11-17): of the 19,599 pt cards
+acerta draws, 2,438 have an it cognate of the same part of speech, and for 1,350 of them the
+cognate has no sense on the card's meaning. Some are right, the cognate meaning something
+else (*perversão* / *perversità*); some are gaps (*época* / *epoca*, *operar* / *operare*,
+*restaurar* / *restaurare*, *maestria* / *maestria*).
+The fix is a review that adds the real gaps through `sense_additions.jsonl`, with its own
+rulebook. Left out of `22_meaning_members`, which only removes and reorders words.
 
-## Translations ranked by an inflated -ing frequency
+## Card meanings with one pt word
 
-A card's translations are ordered by each translation's sense frequency in the card's
-concept, and drills pair the first one. An English noun that is also a frequent verb form
-gets the verb's whole count: its token frequency comes from wordfreq, which cannot tell
-the noun from the gerund, and a word with a single noun sense keeps all of it.
-Seen on pt *carreira* (B1, best sense "the particular occupation for which you are
-trained", concept `c__career-particular-occupation__433152e5e945`), which acerta showed as
-"carreira - calling - vocazione":
+The meaning review of `22_meaning_members` reads the card meanings with two pt words or more
+(7,743), where a wrong word is one word of a list. The other 7,512 card meanings have one pt
+word, the card itself, so a wrong word there is a wrong card: pt *escotilha* (a ship's hatch)
+is the only pt word of "the production of young from an egg" (en *hatching*, *hatch*), found
+by that folder's lead smoke batch. The card-sense review asks whether a card's meaning is
+right with the card's other senses in view, and has covered the most frequent cards; the rest
+of the 7,512 have had no review. The fix is that review's drops and pins, extended down the
+card list.
 
-| en member | token frequency | share in this concept |
-| --- | --- | --- |
-| calling | 4.96 | 4.96 (its only noun sense) |
-| career | 5.07 | 4.88 (split over 3 senses) |
-| vocation | 3.2 | 3.08 |
+## Unreviewed card meanings
 
-"calling" is not a second meaning of *carreira*: WordNet puts vocation, calling and career
-in one concept, and the split hands the lead to "calling". The Italian side has the same
-kind of gap: the concept's only it member is *vocazione*, so *carriera*, the cognate the
-card itself lists, is never offered as a translation.
-Measured on the 0.9.0 build (2026-11-15). How many cards lead with such a form is not
-measured; the likely set is English -ing nouns that lead a card's translations.
-Two ways to fix it: per word, a reviewed preferred translation (the card-sense review's
-shape); in general, a ranking rule that discounts an English -ing noun's share, checked on
-500+ cards before it ships.
-Found from acerta's first phone use, by the user.
-
-## Plural and wrong pt members of a meaning
-
-acerta's word page (acerta-word-drills, `plans/02_word_page`) lists every word of a meaning,
-which shows member noise the drills never surfaced. On the conduit meaning of pt *canal*
-("conduit consisting of a long hollow object"), the pt members include:
-
-- plurals stored as words of their own, with no form note: *canais*, *condutas*, beside
-  *canal* and *conduta*;
-- a wrong member: *cachimbo*, a smoking pipe.
-
-A heuristic count on the 0.9.0 build (a single-word pt member whose singular, by the
-plain -s, -es, -ais, -eis, -ões rules, is a member of the same meaning) finds 601 such
-pairs in 584 meanings (*carcinógenos*, *acadianos*, *pocilgas*, *chaminés*, *Américas*);
-it has false hits (*quebra-cabeças* is singular), so it is an upper bound to read, not a
-drop list. Wrong members like *cachimbo* are not counted.
-The plurals could go as member form drops, or be tagged as forms of their singular like the
-rule-made inflections are; the wrong members fit the card-sense review's drops.
-Found from acerta's word page, 2026-11-15.
+`22_meaning_members` reviewed the pt words of 1,705 of the 7,743 card meanings with two pt
+words or more (the first by concept key, a fair sample), and stopped there on cost: about 2.2
+session points per batch of 100 meanings, so the other 6,038 would take about 61 batches,
+135 session and 19 weekly points. In the reviewed set about 2 in 100 words were dropped (a
+word naming something else, a definition, a misspelled or pre-1990 duplicate) and 1 in 100
+became a form of another word (*canais* of *canal*). The harness is ready: `meaning_review_cli
+worklist`, then batches from `w0019`, under `docs/guides/meaning_review.md`. A cheaper scope
+is the meanings of A1 to B2 cards only.

@@ -216,6 +216,46 @@ def test_one_letter_lemma_is_never_a_card() -> None:
     assert store.lemma_card(Lemma(text="d", language="pt").id) is not None
 
 
+def test_reviewed_lead_translation_comes_first() -> None:
+    """A lead (`Sense.is_lead`) beats frequency and the phrase rule."""
+    carreira = Lemma(text="carreira", language="pt")
+    calling = Lemma(text="calling", language="en")
+    career = Lemma(text="career", language="en")
+    phrase = Lemma(text="line of work", language="en")
+    concept = "c__career__00aaaabbccdd"
+
+    def store(lead: Lemma | None) -> LexiconStore:
+        return LexiconStore.from_models(
+            lemmas=[carreira, calling, career, phrase],
+            concepts=[Concept(id=concept, definitions={"en": "an occupation"})],
+            senses=[
+                Sense(lemma_id=carreira.id, concept_id=concept, sense_frequency=4.0),
+                *(
+                    Sense(
+                        lemma_id=lemma.id,
+                        concept_id=concept,
+                        sense_frequency=zipf,
+                        token_frequency=zipf,
+                        is_lead=lemma is lead,
+                    )
+                    for lemma, zipf in ((calling, 4.96), (career, 4.88), (phrase, 3.0))
+                ),
+            ],
+            lookalikes=[],
+            concept_relations=[],
+            sense_relations=[],
+        )
+
+    def order(lead: Lemma | None) -> list[str]:
+        card = store(lead).lemma_card(carreira.id)
+        assert card is not None
+        return card.translations["en"]
+
+    assert order(None) == ["calling", "career", "line of work"]
+    assert order(career) == ["career", "calling", "line of work"]
+    assert order(phrase) == ["line of work", "calling", "career"]
+
+
 def test_translations_put_words_before_phrases_and_symbols() -> None:
     store = _number_store()
     dez = store.lemma_card(Lemma(text="dez", language="pt").id)

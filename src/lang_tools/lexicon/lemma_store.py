@@ -92,7 +92,8 @@ if TYPE_CHECKING:
 #: v8: ``false_friends`` became ``lookalikes`` with a ``kind`` column (phase 11).
 #: v9: ``senses.is_best``, the reviewed best-sense pin, ordered first by the cards.
 #: v10: ``senses.form_note`` (a curated sense addition), carried to the cards.
-CACHE_VERSION = 10
+#: v11: ``senses.is_lead``, the reviewed lead translation, ordered first by the cards.
+CACHE_VERSION = 11
 
 #: Filename of the persisted SQLite cache built inside a corpus directory. It is
 #: rebuilt from the Parquet whenever the corpus signature changes; never committed
@@ -1075,15 +1076,17 @@ class LexiconStore:
         """Return ``(concept_id, language) -> [(lemma_id, text)]`` for cards.
 
         Ordered by frequency, then words before phrases and symbols
-        (`_rank_translations`). An inflected form (a sense with a form note) is
-        not another word for the concept, so it is left out.
+        (`_rank_translations`), with a reviewed lead (`Sense.is_lead`) first. An
+        inflected form (a sense with a form note) is not another word for the
+        concept, so it is left out.
         """
         if not concept_ids or not languages:
             return {}
         c_marks = ", ".join("?" for _ in concept_ids)
         l_marks = ", ".join("?" for _ in languages)
         rows = self._conn.execute(
-            "SELECT s.concept_id, l.language, l.id, l.text, s.token_frequency"  # noqa: S608
+            "SELECT s.concept_id, l.language, l.id, l.text, s.token_frequency,"  # noqa: S608
+            " s.is_lead"
             " FROM senses s"
             # CROSS JOIN pins the join order: drive from the concept index on
             # senses, not from the (far less selective) lemma language index.
@@ -1096,11 +1099,21 @@ class LexiconStore:
         out: dict[tuple[str, str], list[tuple[str, str, float | None]]] = defaultdict(
             list
         )
+        leads: dict[tuple[str, str], str] = {}
         for row in rows:
-            out[row["concept_id"], row["language"]].append(
-                (row["id"], row["text"], row["token_frequency"]),
-            )
-        return {key: _rank_translations(group) for key, group in out.items()}
+            key = (row["concept_id"], row["language"])
+            out[key].append((row["id"], row["text"], row["token_frequency"]))
+            if row["is_lead"]:
+                leads[key] = row["id"]
+        ranked = {key: _rank_translations(group) for key, group in out.items()}
+        # A reviewed lead goes first after the ranking, which would otherwise
+        # move a lead phrase or symbol behind the words.
+        for key, lead_id in leads.items():
+            group = ranked[key]
+            ranked[key] = [pair for pair in group if pair[0] == lead_id] + [
+                pair for pair in group if pair[0] != lead_id
+            ]
+        return ranked
 
     # --- Concept reads ---------------------------------------------------
 

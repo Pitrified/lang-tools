@@ -55,6 +55,10 @@ class Sense(BaseModel):
             ``3rd person plural present of "ser": they are``). Set by a curated
             sense addition (`ingestion.sense_additions`) or by the inflection
             rules (`ingestion.inflections`); ``None`` otherwise.
+        is_lead: True when a review picked this lemma as the first word of its
+            language for the concept (`ingestion.lead_translations`); a card's
+            translations take it before frequency. At most one sense per
+            concept and language carries it.
         lemma: Resolved lemma endpoint. Store-hydrated, never persisted
             (``exclude=True``); ``None`` until hydration. Read via
             `resolve_lemma` to fail loud when unhydrated.
@@ -70,6 +74,7 @@ class Sense(BaseModel):
     cefr_is_estimated: bool = False
     is_best: bool = False
     form_note: str | None = None
+    is_lead: bool = False
 
     # Representation-layer back-references; populated by the store at hydration,
     # excluded from serialization so the persisted shape stays thin and stable.
