@@ -6,6 +6,7 @@ Usage, with ``CLI=lang_tools.lexicon.ingestion.meaning_review_cli``::
     uv run --no-sync python -m $CLI serve --batch w0001
     uv run --no-sync python -m $CLI apply --batch w0001 --labels w0001.labels.txt
     uv run --no-sync python -m $CLI recheck --batch w9001 --labels d
+    uv run --no-sync python -m $CLI recheck --batch w9002 --words acção,actriz
     uv run --no-sync python -m $CLI status
 
 A batch id starting with ``w`` serves meanings (their pt words), with ``l``
@@ -58,7 +59,8 @@ def _parser() -> argparse.ArgumentParser:
     apply.add_argument("--labels", type=Path, required=True)
     recheck = sub.add_parser("recheck", help="serve reviewed meanings again")
     recheck.add_argument("--batch", required=True)
-    recheck.add_argument("--labels", required=True, help="label letters, e.g. d or d,f")
+    recheck.add_argument("--labels", default="", help="label letters, e.g. d or d,f")
+    recheck.add_argument("--words", default="", help="comma-separated pt words")
     sub.add_parser("status", help="print the progress")
     return parser
 
@@ -117,7 +119,8 @@ def main(argv: list[str] | None = None) -> int:
                 data_fol,
                 get_store(),
                 batch=args.batch,
-                labels=set(args.labels.split(",")),
+                labels={label for label in args.labels.split(",") if label},
+                words={word.strip() for word in args.words.split(",") if word.strip()},
             )
             _out(render_batch(items) if items else "nothing to re-check")
         case "apply":

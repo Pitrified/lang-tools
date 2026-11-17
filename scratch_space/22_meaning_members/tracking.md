@@ -23,7 +23,7 @@ proposed checks and decisions in [`00_start.md`](00_start.md).
 | 1  | Curated inputs in the build | [`01_build_inputs.md`](01_build_inputs.md)   | done |
 | 2  | Rulebook and harness        | [`02_harness.md`](02_harness.md)             | done |
 | 3  | Pilot of 500+               | [`03_pilot.md`](03_pilot.md)                 | done |
-| 4  | The rest, in waves          | [`04_full_run.md`](04_full_run.md)           | draft   |
+| 4  | The rest, in waves          | [`04_full_run.md`](04_full_run.md)           | in progress |
 | 5  | Rebuild and release         | [`05_rebuild.md`](05_rebuild.md)             | draft   |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
@@ -61,3 +61,11 @@ Append-only. Newest at the bottom.
   keeps and leads about 95%. Rulebook fixed (another meaning, near words, spelling of keeps,
   pre-1990 hyphens); `recheck` added and w9001 re-labelled the 85 meanings with a drop, 28
   labels changed. The usage reading for phase 4 is pending from the user.
+- 2026-11-17 : phase 4 started; usage before wave 1 (w0007 to w0018): session 4%, week 46%.
+- 2026-11-17 : phase 4 wave 1 - w0007 to w0018 applied (1,705 of 7,743 meanings reviewed). The
+  pre-1990 silent consonants were labelled inconsistently (76 kept, 12 dropped, *efectuar* both),
+  and *restruturação* (pt-PT) and *radiativo* (pt-BR) were dropped as misspellings. The rulebook
+  now drops a silent consonant only when no variety writes it today (pt-BR *recepção*, pt-PT
+  *facto* stay) and keeps other regional spellings; `recheck --words` added; re-check w9002
+  (86 meanings): 228 k, 3 f, 49 d, the pre-1990 forms dropped, the regional spellings back.
+  Multiword plurals (*erupções vulcânicas*) cannot be `f`: the inflection rules read one word.

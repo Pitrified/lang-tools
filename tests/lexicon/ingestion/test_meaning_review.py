@@ -243,6 +243,9 @@ def test_recheck_serves_again_and_undoes_old_labels(tmp_path: Path) -> None:
         ("canais", True, 'plural of "canal"'),
         ("canais", False, ""),
     ]
+    # By word: eterno was kept, and its meaning is served again.
+    by_word = recheck_batch(tmp_path, store, batch="w9002", words={"eterno"})
+    assert [item.concept_key for item in by_word] == [concept_key(C_ETERNAL)]
     with pytest.raises(UnknownBatchKindError):
         recheck_batch(tmp_path, store, batch="l9001", labels={"d"})
 

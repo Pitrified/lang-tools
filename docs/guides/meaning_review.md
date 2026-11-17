@@ -78,6 +78,16 @@ list of words, like the forms the build makes by rule (*anos* of *ano*).
   spelling from before the 1990 agreement, an English or Latin word pt text does not use.
   The agreement also dropped hyphens and accents: *auto-estima*, *mini-saia*, *ultra-som*,
   *pêlo* are pre-1990 spellings of *autoestima*, *minissaia*, *ultrassom*, *pelo*, so `d`.
+- **Silent consonants: drop only when no variety writes them today.** The agreement removed a
+  *c* or *p* that is not pronounced, so pt-PT *acção*, *actriz*, *colecção*, *arquitecto*,
+  *efectuar*, *nocturno*, *óptimo*, *baptizar* are `d` (today *ação*, *atriz*, *coleção*,
+  *arquiteto*, *efetuar*, *noturno*, *ótimo*, *batizar* in both varieties). Where a variety
+  pronounces the consonant it still writes it, and the spelling is right: pt-BR *detectar*,
+  *recepção*, *percepção*, *decepção*, *infecção*; pt-PT *facto*, *contacto*; both *pacto*,
+  *captar*, *adepto*, *compacto*, *espectador*. Those are `k`.
+- **Other regional spellings are right too.** *restruturação* (pt-PT) and *reestruturação*,
+  *radiativo* (pt-BR) and *radioativo*: `k`. Check a spelling against both varieties before a
+  `d`.
 - **Vulgar and offensive words are words.** Never drop a word for being rude.
 
 ## Lead batches

@@ -599,12 +599,15 @@ def recheck_batch(
     store: LexiconStore,
     *,
     batch: str,
-    labels: Collection[str],
+    labels: Collection[str] = (),
+    words: Collection[str] = (),
 ) -> list[MeaningItem]:
     """Serve reviewed meanings again, to be labelled anew.
 
     Picks every reviewed meaning with a word carrying one of ``labels`` (for
-    example ``{"d"}`` after a rulebook change about drops). The batch skips the
+    example ``{"d"}`` after a rulebook change about drops), or with one of
+    ``words`` among its labelled words (after a rule change about some
+    spellings). The batch skips the
     reservations: the new labels win when applied, and `apply_batch` undoes the
     form or the drop an old label wrote. Serving an id that is already pending
     returns that batch unchanged.
@@ -614,6 +617,7 @@ def recheck_batch(
         store: The lexicon store.
         batch: A meaning batch id (``w9001``).
         labels: The label letters whose meanings to serve again.
+        words: The pt words whose meanings to serve again.
 
     Returns:
         The batch items, in worklist order.
@@ -624,11 +628,15 @@ def recheck_batch(
         path = work_dir(data_fol, WORK_SUBDIR) / f"{batch}.jsonl"
         if path.exists():
             return read_jsonl(MeaningItem, path)
-        latest: dict[tuple[str, str], str] = {}
+        latest: dict[tuple[str, str], MeaningLogRow] = {}
         for row in _log_rows(data_fol):
             if row.batch.startswith(MEMBER_PREFIX):
-                latest[row.lemma_id, row.concept_key] = row.label
-        keys = {key for (_, key), label in latest.items() if label in labels}
+                latest[row.lemma_id, row.concept_key] = row
+        keys = {
+            key
+            for (_, key), row in latest.items()
+            if row.label in labels or row.text in words
+        }
         todo = [
             work
             for work in load_worklist(data_fol, MEMBER_PREFIX)
