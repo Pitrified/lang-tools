@@ -140,3 +140,15 @@ their own.
   - Recommended: b, because it adds words rather than cleaning them, and needs its own
     rulebook; this folder stays on noise.
   - ANS: b. Parked in `open_points.md` as "it cognate missing from the card's meaning".
+- Q5: The meaning review only reads meanings with two pt words or more (7,743). The other 7,512
+  card meanings have one pt word, the card itself, and a wrong one is a wrong card: the lead
+  smoke batch showed *escotilha* (a ship's hatch) as the only word of "the production of young
+  from an egg". Read those too?
+  - a. Not in this folder: a card whose only meaning word is wrong is a wrong card sense, the
+    card-sense review's question, which reviewed the most frequent cards; park the rest as an
+    open point.
+  - b. Yes: add them to the meaning worklist, about 75 more batches and 90 session points.
+  - Recommended: a, because the question per card is "is this the card's meaning", which the
+    card-sense review asks with the card's other senses in view, and this folder is already
+    several sessions long.
+  - NEW_ANS:

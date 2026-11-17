@@ -333,7 +333,15 @@ def model_from_row(name: str, row: dict[str, Any]) -> BaseModel:
         MalformedRecordError: If the row fails model validation.
     """
     drop = _DROP_ON_LOAD[name] | {PROVENANCE_COL}
-    cleaned = {k: v for k, v in row.items() if k not in drop}
+    fields = model_class(name).model_fields
+    # A null where the field's default is not null is a column the corpus
+    # predates (a store built from it reads NULL): the field takes its default.
+    cleaned = {
+        k: v
+        for k, v in row.items()
+        if k not in drop
+        and not (v is None and k in fields and fields[k].get_default() is not None)
+    }
     for col in _MAP_COLUMNS.get(name, frozenset()):
         value = cleaned.get(col)
         # pyarrow reads a map<string,string> back as a list of (k, v) tuples.

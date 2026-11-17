@@ -503,13 +503,14 @@ cause. `maintenance` holds the shared pieces (`ReviewStatus`, `write_jsonl` /
 | `gloss_overrides.jsonl` | gloss repair (05.55) | human | `apply_gloss_overrides` |
 | `topics.json` | hand-written table | human | `assign_topics` |
 | `slug_qualifiers.jsonl` | `slug_qualifier` chain | `check_qualifiers` (mechanical) | `sources.omw._tiered_slugs` |
-| `member_form_drops.jsonl` | `form_review` chain; card-sense review; unranked-word review | human; the reviewing agent, under a rulebook | `apply_form_drops` |
+| `member_form_drops.jsonl` | `form_review` chain; card-sense review; unranked-word review; meaning review | human; the reviewing agent, under a rulebook | `apply_form_drops` |
 | `gloss_backfill.jsonl` | `gloss_translate` chain | sampled human review | `apply_gloss_backfill` |
 | `best_senses.jsonl` | card-sense review | the reviewing agent, under a rulebook | `apply_best_senses` |
-| `lead_translations.jsonl` | reviewed card leads | the reviewing agent, under a rulebook | `apply_lead_translations` |
-| `sense_additions.jsonl` | card-sense review | the reviewing agent, under a rulebook | `apply_sense_additions` |
+| `lead_translations.jsonl` | meaning review (lead batches) | the reviewing agent, under a rulebook | `apply_lead_translations` |
+| `sense_additions.jsonl` | card-sense review; meaning review (forms) | the reviewing agent, under a rulebook | `apply_sense_additions` |
 | `commonness_buckets.jsonl` | unranked-word review | the reviewing agent, under a rulebook | `unranked_review.with_bucket_zipf` |
 | `unranked_review_log.jsonl` | unranked-word review | the reviewing agent, under a rulebook | log only |
+| `meaning_review_log.jsonl` | meaning review | the reviewing agent, under a rulebook | log only |
 | `concept_additions.jsonl` | written by hand for a meaning WordNet lacks | human | `apply_concept_additions` |
 
 Each job has a thin notebook under `notebooks/lexicon_maintain/` (`gloss_repair`,

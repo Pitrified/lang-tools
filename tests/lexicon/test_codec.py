@@ -163,6 +163,23 @@ def test_malformed_row_raises(tmp_path: Path) -> None:
         model_from_row("concepts", {"id": "not-a-valid-id", "definitions": {}})
 
 
+def test_null_in_a_newer_column_takes_the_default() -> None:
+    """A store built from a corpus that predates a column reads NULL for it."""
+    row = {
+        "lemma_id": "abc",
+        "concept_id": "c__thing__0011aabbccdd",
+        "sense_frequency": None,
+        "is_best": None,
+        "is_lead": None,
+    }
+    sense = model_from_row("senses", row)
+    assert isinstance(sense, Sense)
+    assert (sense.is_best, sense.is_lead, sense.sense_frequency) == (False, False, None)
+    # A null in a required field still fails.
+    with pytest.raises(MalformedRecordError):
+        model_from_row("senses", {**row, "lemma_id": None})
+
+
 def test_provenance_column_written_and_dropped_on_load(tmp_path: Path) -> None:
     concepts = [_sample_concept(), _other_concept()]
     _dump_table("concepts", concepts, data_fol=tmp_path, sources=["omw", "kaikki"])

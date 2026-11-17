@@ -15,6 +15,19 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   put first. The leads come from the curated `data/curated/lead_translations.jsonl`
   (`ingestion.lead_translations`), keyed on concept and language; `_build.json` records them
   under `lead_translations`. The store cache moves to version 11.
+- `ingestion.meaning_review` and its command line `meaning_review_cli` (worklist, `serve`,
+  `apply`, `status`), the rulebook `docs/guides/meaning_review.md` and the `meaning-review`
+  skill. Meaning batches label each pt word of a card's meaning as kept, a form of another word
+  (a `sense_additions.jsonl` row with its form note) or dropped (a `member_form_drops.jsonl`
+  row, kind `meaning`); lead batches pick the first en word of a meaning led by an -ing verb
+  form (a `lead_translations.jsonl` row). Every label is logged in
+  `data/curated/meaning_review_log.jsonl`.
+
+### Fixed
+
+- A store built from a corpus that predates a column (`Sense.is_lead`) read NULL for it and
+  failed on the model; a null where the field's default is not null now takes the default
+  (`codec.model_from_row`).
 
 ---
 

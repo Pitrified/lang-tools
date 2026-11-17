@@ -21,7 +21,7 @@ proposed checks and decisions in [`00_start.md`](00_start.md).
 | #  | Phase                       | Plan                                         | Status  |
 | -- | --------------------------- | -------------------------------------------- | ------- |
 | 1  | Curated inputs in the build | [`01_build_inputs.md`](01_build_inputs.md)   | done |
-| 2  | Rulebook and harness        | [`02_harness.md`](02_harness.md)             | in progress |
+| 2  | Rulebook and harness        | [`02_harness.md`](02_harness.md)             | done |
 | 3  | Pilot of 500+               | [`03_pilot.md`](03_pilot.md)                 | draft   |
 | 4  | The rest, in waves          | [`04_full_run.md`](04_full_run.md)           | draft   |
 | 5  | Rebuild and release         | [`05_rebuild.md`](05_rebuild.md)             | draft   |
@@ -49,3 +49,8 @@ Append-only. Newest at the bottom.
   glosses equal to their word, not five; ten `gloss_overrides.jsonl` rows written `proposed`.
   `make check` 589 passed, docs build strict. Waits on the user accepting the gloss rows.
 - 2026-11-17 : phase 1 closed: the user accepted the ten gloss rows.
+- 2026-11-17 : phase 2 - `ingestion.meaning_review` with `meaning_review_cli`, the rulebook
+  `docs/guides/meaning_review.md` and the `meaning-review` skill; worklists 7,743 meanings and
+  207 leads; `make check` 599 passed. The smoke run found and fixed a codec bug (a store from a
+  corpus older than `is_lead` failed on NULL). Smoke batches w0001 and l0001 applied. Raised Q5:
+  meanings with one pt word, such as *escotilha* on hatching, are in no worklist.
