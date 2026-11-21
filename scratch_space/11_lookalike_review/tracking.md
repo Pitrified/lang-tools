@@ -135,3 +135,12 @@ Append-only. Newest at the bottom. The entries up to the spin-off are reconstruc
   lemmas that `12_card_senses` dropped whole (*como*, *quando*, *qual*, *vinte*, ...), which
   `13_missing_senses` is meant to bring back, and one (*brasil*) on a lemma now stored as
   *Brasil*.
+- 2026-11-21 : phase 4, tier C rounds 1 and 2. Key lists written as planned (`filtered_tier_c.txt`
+  7,653 pairs, `filtered_tier_d.txt` 7,261), served with `recheck` as `c0006` to `c0025`, ten
+  agents a round: 4,000 pairs, 57 full and 82 partial (3.5%), gold 93/100, 98 edge cases. The
+  three misses of `c0024` (*particular*, *albergue*, *delegado*) are judgement calls; on
+  *frigoríficos* / it *frigorifero* (`c0014`) the agent's `p` (a meat-packing plant in BR)
+  looks better than the gold `c`. One `c0019` row sits on a tier E pair of the worklist,
+  though the list held tier C keys only; not traced. The skill's CLI line now uses
+  `uv run --no-sync`. Not yet rebuilt: the headless rebuild was blocked by the session's
+  permission check; tier C stands at 5,004/12,397.
