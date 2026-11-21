@@ -1,5 +1,5 @@
 ---
-status: in progress
+status: planned
 priority: 0
 description: |
   Agent review of the ~65k pt-en / pt-it look-alike candidates, in usefulness tiers A to E,

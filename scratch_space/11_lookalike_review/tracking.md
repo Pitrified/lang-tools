@@ -23,7 +23,7 @@ decisions in [`00_start.md`](00_start.md).
 | 1  | Tier A        | [`01_tier_a.md`](01_tier_a.md)               | done        |
 | 2  | Tier B        | [`02_tier_b.md`](02_tier_b.md)               | done        |
 | 3  | Tier depth    | [`03_tier_depth.md`](03_tier_depth.md)       | done        |
-| 4  | Tiers C to E  | [`04_tiers_c_to_e.md`](04_tiers_c_to_e.md)   | in progress |
+| 4  | Tiers C to E  | [`04_tiers_c_to_e.md`](04_tiers_c_to_e.md)   | planned     |
 | 5  | Close-out     | [`05_closeout.md`](05_closeout.md)           | draft       |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
@@ -152,3 +152,14 @@ Append-only. Newest at the bottom. The entries up to the spin-off are reconstruc
   *assumido* / en *assumed* `c` (`c0030`); *morder* / en *murder* and *salta* / en *salt* `f`
   (`c0032`). Gold rows that look wrong: *frigoríficos* / it *frigorifero* (`c`, BR a
   meat-packing plant) and *cemento* / it *cementare* (`c`, pt *cemento* is the dental term).
+- 2026-11-22 : rebuild with tier C rounds 1 to 3: 10,310 edges (9,337 cognate, 503 partial,
+  470 full; +3,562 on the 2026-11-06 build), 248 rare-word traps dropped, gate PASS. The
+  headless run of `02_transform.ipynb` also refreshed the seed, which only gained the
+  `is_lead` field missing since 0.10.0 and 16 more look-alike rows; restored to HEAD, seed
+  unchanged. Stale rows 113, up from 34: 14 from the new `c` rows, the rest on older rows; all
+  checked sit on lemmas the build no longer has (pt *center*, *sex*, *dificil*, *colecção*,
+  *designers*), dropped since by `21_unranked_pt_words` and `22_meaning_members`.
+- 2026-11-22 : parked on the user's word, with the weekly budget spent; folder and phase 4 set
+  to `planned`. To resume: tier C from `c0036` (1,653 pairs left on `filtered_tier_c.txt`, about
+  9 batches), then tier D from `d0006` (`filtered_tier_d.txt`, 7,261 pairs, 37 batches), then
+  the closing recheck of the candidates in the round 3 entry and a rebuild.
