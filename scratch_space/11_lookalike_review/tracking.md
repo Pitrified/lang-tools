@@ -144,3 +144,11 @@ Append-only. Newest at the bottom. The entries up to the spin-off are reconstruc
   though the list held tier C keys only; not traced. The skill's CLI line now uses
   `uv run --no-sync`. Not yet rebuilt: the headless rebuild was blocked by the session's
   permission check; tier C stands at 5,004/12,397.
+- 2026-11-21 : tier C round 3, `c0026` to `c0035`: 2,000 pairs, 13 full and 39 partial (2.6%,
+  down from 3.5% as the words get rarer), gold 48/50, 41 edge cases; tier C at 7,004/12,397.
+  Candidates for a closing recheck, from the agents' reports: *escultura* / it *scultore* and
+  en *sculptor* labelled `u` against the person-vs-thing rule (`c0031`; *poema* / *poeta* and
+  *escritora* / *scrittura* went `f`); *implantação* / en *implementation* `u` (`c0016`);
+  *assumido* / en *assumed* `c` (`c0030`); *morder* / en *murder* and *salta* / en *salt* `f`
+  (`c0032`). Gold rows that look wrong: *frigoríficos* / it *frigorifero* (`c`, BR a
+  meat-packing plant) and *cemento* / it *cementare* (`c`, pt *cemento* is the dental term).
