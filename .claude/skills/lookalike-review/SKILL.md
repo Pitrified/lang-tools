@@ -12,7 +12,7 @@ ones named here, and keep your final report to a few lines.
 All commands run from the `lang-tools` repo root. `CLI` below stands for:
 
 ```bash
-SAMPLE_API_KEY=placeholder-not-a-secret uv run python -m lang_tools.lexicon.ingestion.lookalike_review_cli
+SAMPLE_API_KEY=placeholder-not-a-secret uv run --no-sync python -m lang_tools.lexicon.ingestion.lookalike_review_cli
 ```
 
 ## Steps
