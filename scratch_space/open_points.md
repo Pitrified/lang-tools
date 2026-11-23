@@ -151,3 +151,22 @@ not *perform*; *especificar* with *set*, not *specify*; *instituir* with *make*,
 Same kind as the -ing leads `22_meaning_members` fixed, and the same fix: the meaning
 review's lead batches with these verbs added to `build_lead_worklist`'s test, about one
 batch. Found from lang-tutor's 0.10.1 check (lang-tutor `scratch_space/05_lang_tools_0101`).
+
+## Plain cognates the look-alike generator misses
+
+The look-alike candidates are found by spelling only, tuned for traps, and many plain cognates
+of a card's own translation are never candidates, so they carry no `cognate` edge:
+pt *dezembro* / en *December*, *acesso* / *access*, *coragem* / *courage*, *semana* / it
+*settimana*, *saúde* / *salute*, *pouco* / *poco*, *ouro* / *oro*.
+Causes seen in `lookalikes.find_candidates` and `cognate_key`: the block join compares only keys
+that share their first two letters, and en hard *c* becomes *k*, so *aces* and *akces* never
+meet; *coragem* / *courage* (0.57) and *saúde* / *salute* (0.60) are under the 0.65 threshold;
+*acesso* got *ace*, *cease*, *aceto* instead, all rejected.
+How big: in acerta's shipped asset (lang-tools `v0.10.1`), an 8-pair C2 round holds about 2.3 en
+and 2.9 it pairs whose pt word and right word have a folded spelling ratio of 0.7 or more, and
+2.0 en / 2.4 it of those have no look-alike at all.
+A likely fix: a pt word and a translation that share the word's best concept and look alike are
+a cognate by construction, so they could become edges with no review.
+acerta works around it on its side with a spelling check on the shown pair
+(acerta-word-drills `plans/03_false_friend_rounds`).
+Found on 2026-11-23 from the user's play at C2.
