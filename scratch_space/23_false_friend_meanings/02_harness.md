@@ -1,5 +1,5 @@
 ---
-status: draft
+status: done
 ---
 
 # Phase 2 - Rulebook and harness
@@ -25,7 +25,8 @@ Context: [`00_start.md`](00_start.md); built like `21_unranked_pt_words` (on `ma
    - a batch item: the word, its language, its senses numbered (gloss, words in en / it / pt,
      frequency where the language has one), and the pt words it is a false friend of with their
      notes, which often name the main meaning already;
-   - labels: a sense number, or `none` (keep the frequency pick), plus an edge-case flag;
+   - labels: `k` (sense 1, the current pick), `pK` (pin sense K), `m` (the main meaning is not
+     listed; needs a reason), each with an optional `!` edge-case flag;
    - apply: `BestSense` rows to `data/curated/best_senses.jsonl` (`concept_key` of the picked
      sense, `batch` with the review's own prefix, Q9) and a review log of its own;
    - `status`: reviewed, pending, left.
@@ -51,3 +52,19 @@ Context: [`00_start.md`](00_start.md); built like `21_unranked_pt_words` (on `ma
 ## Done when
 
 - `make check` passes; the worklist is built and its size logged; the gold set is committed.
+
+## What the implementation found
+
+- Labels follow the card-sense review's `k` / `pK` rather than a bare number: `k` and `m` write a
+  `BestSense` row with no concept, like the sense review's keep, and the log row records the
+  chosen concept (sense 1 for `k`), which the gold comparison reads.
+- The gold lemmas go first in the worklist instead of being mixed in hidden, so the pilot batch
+  (phase 3) carries all 30, unmarked; `gold` compares their latest labels.
+- A re-check names words as `language:text`: en and it share spellings (*bravo*).
+- The sense review's re-check and reviewed set read `best_senses.jsonl` too, but only for lemmas
+  on its own (pt) worklist, so the en and it rows here do not reach it.
+- The gold set: 17 it and 13 en words, 10 of them right at sense 1; several accept two or three
+  senses where both are the main meaning (it *scala* stairs or ladder, en *time*).
+  en *bravo* and en *lime* have their main sense listed with no it word, so after the review
+  their `means` stays empty: a pin cannot add words.
+- Worklist built with the CLI: 664 lemmas, gold first.

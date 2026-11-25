@@ -510,12 +510,13 @@ cause. `maintenance` holds the shared pieces (`ReviewStatus`, `write_jsonl` /
 | `slug_qualifiers.jsonl` | `slug_qualifier` chain | `check_qualifiers` (mechanical) | `sources.omw._tiered_slugs` |
 | `member_form_drops.jsonl` | `form_review` chain; card-sense review; unranked-word review; meaning review | human; the reviewing agent, under a rulebook | `apply_form_drops` |
 | `gloss_backfill.jsonl` | `gloss_translate` chain | sampled human review | `apply_gloss_backfill` |
-| `best_senses.jsonl` | card-sense review | the reviewing agent, under a rulebook | `apply_best_senses` |
+| `best_senses.jsonl` | card-sense review; false-friend meaning review | the reviewing agent, under a rulebook | `apply_best_senses` |
 | `lead_translations.jsonl` | meaning review (lead batches) | the reviewing agent, under a rulebook | `apply_lead_translations` |
 | `sense_additions.jsonl` | card-sense review; meaning review (forms) | the reviewing agent, under a rulebook | `apply_sense_additions` |
 | `commonness_buckets.jsonl` | unranked-word review | the reviewing agent, under a rulebook | `unranked_review.with_bucket_zipf` |
 | `unranked_review_log.jsonl` | unranked-word review | the reviewing agent, under a rulebook | log only |
 | `meaning_review_log.jsonl` | meaning review | the reviewing agent, under a rulebook | log only |
+| `false_friend_meaning_log.jsonl` | false-friend meaning review | the reviewing agent, under a rulebook | log only |
 | `concept_additions.jsonl` | written by hand for a meaning WordNet lacks | human | `apply_concept_additions` |
 
 Each job has a thin notebook under `notebooks/lexicon_maintain/` (`gloss_repair`,
@@ -563,6 +564,11 @@ A pinned lemma then takes the part of speech of its pinned concept's lexfile cla
 class a card filter reads is the card's (pt *um* is a determiner for its card "a, an", not
 a noun; *hoje* an adverb); the manifest counts the lemmas changed as
 `part_of_speech_changed`.
+The card-sense review pins pt cards; the false-friend meaning review
+(`ingestion.false_friend_meaning_review`, rulebook
+[Reviewing false-friend meanings](../guides/false_friend_meaning_review.md)) pins the en and
+it words that are a full or partial false friend of a pt word, so a hint's `means` names what
+the look-alike mainly means (it *dito* "finger", not "toe").
 
 The lead translations (`ingestion.lead_translations`) fix the word a card pairs. A card
 lists a concept's words by frequency, and wordfreq counts a surface form, so an en noun

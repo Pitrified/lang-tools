@@ -27,7 +27,7 @@ in an English round). Analysis and decisions in [`00_start.md`](00_start.md).
 | #  | Phase                       | Plan                                         | Status |
 | -- | --------------------------- | -------------------------------------------- | ------ |
 | 1  | `means` on the cards        | [`01_means_on_cards.md`](01_means_on_cards.md) | done |
-| 2  | Rulebook and harness        | [`02_harness.md`](02_harness.md)             | draft  |
+| 2  | Rulebook and harness        | [`02_harness.md`](02_harness.md)             | done   |
 | 3  | Pilot                       | [`03_pilot.md`](03_pilot.md)                 | draft  |
 | 4  | The rest                    | [`04_full_run.md`](04_full_run.md)           | draft  |
 | 5  | Rebuild and release         | [`05_rebuild.md`](05_rebuild.md)             | draft  |
@@ -59,3 +59,10 @@ Append-only. Newest at the bottom.
   The 500-hint read (`01.1_baseline_read.md`): 421 right, 42 wrong (en 12, it 30), 37 empty;
   32 wrong sense, 10 right sense with a wrong first word. Counts in `00_start.md` corrected from
   the curated file (1,230 edges, 798 words) to the built corpus (973 edges, 664 words).
+- 2026-11-25 : phase 2 done. `false_friend_meaning_review` and its CLI on `review_batches`
+  (worklist, serve, apply, recheck, gold, status), labels `k` / `pK` / `m` with `!`; rows to
+  `best_senses.jsonl` and `false_friend_meaning_log.jsonl`. Rulebook
+  `docs/guides/false_friend_meaning_review.md` (in the nav), skill
+  `.claude/skills/false-friend-meaning-review/`, `lexicon.md` updated. Gold set of 30 labelled
+  by hand (17 it, 13 en; 10 keep sense 1). Worklist 664, gold first. 8 tests; `make check`
+  611 passed, `make docs-build` clean.
