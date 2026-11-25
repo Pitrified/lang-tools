@@ -30,7 +30,7 @@ in an English round). Analysis and decisions in [`00_start.md`](00_start.md).
 | 2  | Rulebook and harness        | [`02_harness.md`](02_harness.md)             | done   |
 | 3  | Pilot                       | [`03_pilot.md`](03_pilot.md)                 | done   |
 | 4  | The rest                    | [`04_full_run.md`](04_full_run.md)           | done   |
-| 5  | Rebuild and release         | [`05_rebuild.md`](05_rebuild.md)             | draft  |
+| 5  | Rebuild and release         | [`05_rebuild.md`](05_rebuild.md)             | done   |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
 
@@ -72,3 +72,8 @@ Append-only. Newest at the bottom.
 - 2026-11-25 : phase 4 done. f0002 to f0007 in parallel (564 words); totals 470 k, 180 p, 14 m;
   gold 30/30; my read of a random 100 all acceptable (3 debatable nearest-sense pins), no
   re-check. Six subagents, 67k to 85k tokens each.
+- 2026-11-25 : phase 5 done, folder done. Rebuilt: pins 959 to 1,139, part of speech changed
+  for 11 more words, counts unchanged, gate PASS; seed restored. The 500-hint re-read: right 421
+  to 455, wrong 42 to 9, empty 37 to 36 (8 right hints became empty: a right sense with no it
+  word). 0.11.0 and its changelog; no tag. Left for later: the 9 wrong rows (3 lead words, 6
+  senses WordNet lacks or a one-sense word) and the empty `means` of a right sense with no word.

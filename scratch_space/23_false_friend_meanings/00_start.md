@@ -1,6 +1,6 @@
 ---
-status: in progress
-priority: 1
+status: done
+priority: 0
 description: |
   What a false friend's look-alike mainly means, as data: the main meaning of each en or it word
   that is a full or partial false friend of a pt word, so a card can say "it bravo means good"
