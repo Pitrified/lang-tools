@@ -1,5 +1,5 @@
 ---
-status: draft
+status: in progress
 priority: 1
 description: |
   What a false friend's look-alike mainly means, as data: the main meaning of each en or it word
@@ -30,16 +30,19 @@ Measured read-only on the current corpus, 2026-11-25.
 - A card's `LookalikeHint` carries `language`, `text`, `kind`, `note`. The note is English free
   text and often says the main meaning ("it bravo is mostly good or skilled, pt bom or
   competente"; "it burro is butter, pt manteiga"), but not as data.
-- `data/curated/lookalikes.jsonl`, latest row per pair: 1,230 accepted full or partial edges,
-  over 1,085 distinct known words (an en or it word can be the false friend of several pt words).
+- The built corpus holds 973 full or partial edges, over 847 distinct known words (an en or it
+  word can be the false friend of several pt words).
+  Corrected in phase 1: these first read 1,230 edges and 1,085 words, counted on
+  `data/curated/lookalikes.jsonl`, whose latest rows include pairs the build drops as stale.
 - Their senses in the lexicon:
 
   | Known language | One sense | Two or more |
   | -------------- | --------: | ----------: |
-  | en             | 123       | 453         |
-  | it             | 164       | 345         |
+  | en             | 72        | 366         |
+  | it             | 111       | 298         |
 
-  67 en known words have no sense with an Italian word.
+  84 of the 973 en hints have no it word for the look-alike's best sense
+  ([`01.1_baseline_read.md`](01.1_baseline_read.md)).
 - en senses carry their own frequency (en *novel*: *romanzo* 4.45 before *nuovo* 4.04);
   it senses share the word's frequency, so every sense ties (it *bravo*: brave / good /
   estimable, all 4.33) and nothing says which is the main one.

@@ -21,7 +21,7 @@ Context: [`00_start.md`](00_start.md); built like `21_unranked_pt_words` (on `ma
 2. `src/lang_tools/lexicon/ingestion/false_friend_meaning_review.py` and a `_cli.py`, on
    `review_batches` like `unranked_review`:
    - worklist: the known lemmas of the accepted full and partial edges with two or more senses
-     (798 on the current corpus, en and it), the most frequent first;
+     (664 on the built corpus: en 366, it 298), the most frequent first;
    - a batch item: the word, its language, its senses numbered (gloss, words in en / it / pt,
      frequency where the language has one), and the pt words it is a false friend of with their
      notes, which often name the main meaning already;

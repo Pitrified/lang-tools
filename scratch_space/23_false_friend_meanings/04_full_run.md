@@ -6,7 +6,7 @@ status: draft
 
 ## Overview
 
-The remaining words (about 700, 7 batches), in parallel, with a usage reading after.
+The remaining words (564 after the pilot, 6 batches), in parallel, with a usage reading after.
 Context: [`03_pilot.md`](03_pilot.md).
 
 ## Plan

@@ -304,7 +304,12 @@ only the picked lemma rows, so a 200-card window over the full corpus takes
 learner who knows en and it is learning pt) fills `LemmaCard.lookalikes`: the
 lemma's look-alike edges toward those languages, as `LookalikeHint` rows
 (language, word, kind, English note), with false friends first.
-`LemmaCard.is_trap` and `has_cognate` read them. The `lookalike` filter keeps
+`LemmaCard.is_trap` and `has_cognate` read them. A false friend's hint also
+carries `means`: the words of the look-alike's own best sense in the other known
+languages, the same pick its own card makes. A drill that asks in en can then
+show what an it false friend mainly means (pt *bravo* "angry", it *bravo*
+"good"). A cognate's main meaning is the card's own, so its `means` stays empty.
+The `lookalike` filter keeps
 `trap` lemmas, `cognate` lemmas (a cognate and no trap), or `none` (neither), all
 relative to the known languages. Adding a language to the learner's list is just
 one more list item, since the edges are pairwise and the view is computed at read

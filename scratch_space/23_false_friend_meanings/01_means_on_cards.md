@@ -1,5 +1,5 @@
 ---
-status: draft
+status: done
 ---
 
 # Phase 1 - `means` on the card's look-alikes
@@ -52,3 +52,11 @@ Context: [`00_start.md`](00_start.md).
 ## Done when
 
 - `make check` passes; the baseline numbers and the 500-hint read are logged in `tracking.md`.
+
+## What the implementation found
+
+- The worklist and edge counts in `00_start.md` were read from the curated file; the built corpus
+  has 973 full or partial edges and 847 known words, 664 of them with two or more senses
+  (en 366, it 298). Corrected in `00_start.md`, `02_harness.md`, `04_full_run.md`.
+- The baseline read is in [`01.1_baseline_read.md`](01.1_baseline_read.md): of 463 hints with a
+  word, 42 wrong (en 5%, it 12%); 10 of the 42 are the right sense with a wrong first word.

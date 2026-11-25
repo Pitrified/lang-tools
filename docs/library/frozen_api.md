@@ -74,7 +74,10 @@ over HTTP in its default `http` mode.
   card's `translations`. Since v0.8.0 `CardQuery.min_zipf`
   (default `None`) keeps only cards whose `sense_frequency` is at least the floor,
   leaving out a card with no frequency, and a card carries `topics`, the best
-  concept's topics, sorted (empty for most cards).
+  concept's topics, sorted (empty for most cards). Since v0.11.0 a false friend's
+  `LookalikeHint.means` holds the words of the look-alike's own best sense in the
+  other known languages (it *bravo* on a pt card read with en and it: `{"en":
+  ["good", ...]}`), empty for a cognate.
 - `get_all_concepts`, `get_concept_by_id`, `get_concept_by_key` (by the
   slug-free `concept_key`, since v0.4.0), `concepts_for_lemma`,
   `lemmas_for_concept`, `senses_for_lemma`, `senses_for_concept`,

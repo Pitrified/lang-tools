@@ -64,12 +64,18 @@ class LookalikeHint(BaseModel):
         text: The look-alike word.
         kind: ``full`` / ``partial`` false friend, or ``cognate``.
         note: The learner note (English) for a false friend.
+        means: For a false friend, the words of the look-alike's own best
+            sense in the other known languages, lead first (it *bravo* on a pt
+            card read with en and it known: ``{"en": ["good", ...]}``). A
+            language with no word for that sense has no key; empty for a
+            cognate.
     """
 
     language: str
     text: str
     kind: Literal["full", "partial", "cognate"]
     note: str = ""
+    means: dict[str, list[str]] = Field(default_factory=dict)
 
     @property
     def is_trap(self) -> bool:

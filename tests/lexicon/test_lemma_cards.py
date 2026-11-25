@@ -571,6 +571,113 @@ def test_cards_carry_lookalikes_in_known_languages() -> None:
     assert plain.lookalikes == []
 
 
+def _means_store(*, pin_brave: bool = False) -> LexiconStore:
+    """Build pt bravo (angry) with an it full and an en partial false friend.
+
+    it *bravo* mainly means "good" (it also means "brave"); en *brave* means
+    "brave"; en *bravado* is a partial false friend whose sense has no it word.
+    """
+    angry = "c__angry-mad__0011aabbccdd"
+    good = "c__good-fine__0022bbccddee"
+    brave_c = "c__brave-bold__0033ccddeeff"
+    bravado_c = "c__bravado-swagger__0055eeff0011"
+    bravo = Lemma(text="bravo", language="pt")
+    bravo_it = Lemma(text="bravo", language="it")
+    brave = Lemma(text="brave", language="en")
+    bravado = Lemma(text="bravado", language="en")
+    angry_en = Lemma(text="angry", language="en")
+    arrabbiato = Lemma(text="arrabbiato", language="it")
+    good_en = Lemma(text="good", language="en")
+    casa = Lemma(text="casa", language="pt")
+    casa_it = Lemma(text="casa", language="it")
+    house = "c__house-building__0044ddeeff00"
+    return LexiconStore.from_models(
+        lemmas=[
+            bravo,
+            bravo_it,
+            brave,
+            bravado,
+            angry_en,
+            arrabbiato,
+            good_en,
+            casa,
+            casa_it,
+        ],
+        concepts=[
+            Concept(id=angry),
+            Concept(id=good),
+            Concept(id=brave_c),
+            Concept(id=bravado_c),
+            Concept(id=house),
+        ],
+        senses=[
+            Sense(lemma_id=bravo.id, concept_id=angry, sense_frequency=4.0),
+            Sense(lemma_id=angry_en.id, concept_id=angry, sense_frequency=4.5),
+            Sense(lemma_id=arrabbiato.id, concept_id=angry, sense_frequency=4.0),
+            Sense(lemma_id=bravo_it.id, concept_id=good, sense_frequency=5.0),
+            Sense(
+                lemma_id=bravo_it.id,
+                concept_id=brave_c,
+                sense_frequency=3.0,
+                is_best=pin_brave,
+            ),
+            Sense(lemma_id=good_en.id, concept_id=good, sense_frequency=6.0),
+            Sense(lemma_id=brave.id, concept_id=brave_c, sense_frequency=4.0),
+            Sense(lemma_id=bravado.id, concept_id=bravado_c, sense_frequency=2.0),
+            Sense(lemma_id=casa.id, concept_id=house),
+            Sense(lemma_id=casa_it.id, concept_id=house),
+        ],
+        lookalikes=[
+            LookalikeRelation(lemma_id_a=bravo.id, lemma_id_b=bravo_it.id, kind="full"),
+            LookalikeRelation(lemma_id_a=bravo.id, lemma_id_b=brave.id, kind="partial"),
+            LookalikeRelation(
+                lemma_id_a=bravo.id, lemma_id_b=bravado.id, kind="partial"
+            ),
+            LookalikeRelation(
+                lemma_id_a=casa.id, lemma_id_b=casa_it.id, kind="cognate"
+            ),
+        ],
+        concept_relations=[],
+        sense_relations=[],
+    )
+
+
+def test_false_friend_means_its_best_sense_in_the_other_language() -> None:
+    card = _means_store().lemma_card(
+        Lemma(text="bravo", language="pt").id, known_languages=["en", "it"]
+    )
+    assert card is not None
+    assert [(h.language, h.text, h.means) for h in card.lookalikes] == [
+        # The it word's best sense is "good"; its own language is never a key.
+        ("it", "bravo", {"en": ["good"]}),
+        # en bravado's sense has no it word, so no key.
+        ("en", "bravado", {}),
+        ("en", "brave", {"it": ["bravo"]}),
+    ]
+    # Only the known languages are read: with it alone there is no other one.
+    it_only = _means_store().lemma_card(
+        Lemma(text="bravo", language="pt").id, known_languages=["it"]
+    )
+    assert it_only is not None
+    assert [h.means for h in it_only.lookalikes] == [{}]
+
+
+def test_false_friend_means_follows_a_pinned_best_sense() -> None:
+    card = _means_store(pin_brave=True).lemma_card(
+        Lemma(text="bravo", language="pt").id, known_languages=["en", "it"]
+    )
+    assert card is not None
+    assert card.lookalikes[0].means == {"en": ["brave"]}
+
+
+def test_cognate_has_no_means() -> None:
+    card = _means_store().lemma_card(
+        Lemma(text="casa", language="pt").id, known_languages=["en", "it"]
+    )
+    assert card is not None
+    assert [(h.kind, h.means) for h in card.lookalikes] == [("cognate", {})]
+
+
 def test_lookalike_filter() -> None:
     store = _lookalike_store()
     known = ["en", "it"]
