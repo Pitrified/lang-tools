@@ -28,7 +28,7 @@ in an English round). Analysis and decisions in [`00_start.md`](00_start.md).
 | -- | --------------------------- | -------------------------------------------- | ------ |
 | 1  | `means` on the cards        | [`01_means_on_cards.md`](01_means_on_cards.md) | done |
 | 2  | Rulebook and harness        | [`02_harness.md`](02_harness.md)             | done   |
-| 3  | Pilot                       | [`03_pilot.md`](03_pilot.md)                 | draft  |
+| 3  | Pilot                       | [`03_pilot.md`](03_pilot.md)                 | done   |
 | 4  | The rest                    | [`04_full_run.md`](04_full_run.md)           | draft  |
 | 5  | Rebuild and release         | [`05_rebuild.md`](05_rebuild.md)             | draft  |
 
@@ -66,3 +66,6 @@ Append-only. Newest at the bottom.
   `.claude/skills/false-friend-meaning-review/`, `lexicon.md` updated. Gold set of 30 labelled
   by hand (17 it, 13 en; 10 keep sense 1). Worklist 664, gold first. 8 tests; `make check`
   611 passed, `make docs-build` clean.
+- 2026-11-25 : phase 3 done. Pilot `f0001` (100 words, gold first): 74 k, 24 p, 2 m, 13 edge
+  cases; gold 30/30; my read of the other 70 all acceptable; no rulebook change. One subagent,
+  about 90k tokens, 74 s.
