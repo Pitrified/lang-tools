@@ -587,9 +587,14 @@ The shared meanings (`ingestion.shared_meanings`) say which false friends' main 
 the pt word has too: it *tardi* mainly means "late", and pt *tarde*, mostly "afternoon",
 also means "late", so `means` offers no trap there. A `SharedMeaningRow` names the pt
 word, the look-alike and a label (`s` the pt word is used for that meaning, `d` it is
-not, `w` the main meaning shown is wrong, which sets nothing and lists the pair); only the latest row of a pair counts,
-so a later `d` retracts an `s`. The build sets `LookalikeRelation.shares_main_meaning` on
-the edge of each `s` row right after the look-alikes, and a card's
+not, `w` the main meaning shown is wrong, which sets nothing and lists the pair); only the
+latest row of a pair counts, so a later `d` retracts an `s`. The review that writes the rows
+is `ingestion.shared_meaning_review` (rulebook
+[Reviewing shared meanings](../guides/shared_meaning_review.md)): a worklist of every full and
+partial pair, the gold pairs first, served in batches that show the pt word's senses and the
+look-alike's main meaning, and applied into the log. The build sets
+`LookalikeRelation.shares_main_meaning` on the edge of each `s` row right after the
+look-alikes, and a card's
 `LookalikeHint.shares_meaning` carries it for a false friend. A row whose pair has no
 false-friend edge is stale and skipped; the manifest records both counts under
 `shared_meanings`.
