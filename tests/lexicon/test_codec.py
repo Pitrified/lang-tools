@@ -104,6 +104,25 @@ def test_false_friend_map_and_canonical_order_round_trip(tmp_path: Path) -> None
     assert loaded.explanation_notes == {"en": "trap"}
 
 
+def test_lookalike_without_shares_main_meaning_loads_false(tmp_path: Path) -> None:
+    # A corpus that predates the column reads it as null.
+    row = {
+        "lemma_id_a": "aaa",
+        "lemma_id_b": "zzz",
+        "kind": "partial",
+        "shares_main_meaning": None,
+    }
+    loaded = model_from_row("lookalikes", row)
+    assert isinstance(loaded, LookalikeRelation)
+    assert loaded.shares_main_meaning is False
+    flagged = LookalikeRelation(
+        lemma_id_a="aaa", lemma_id_b="zzz", shares_main_meaning=True
+    )
+    _dump_table("lookalikes", [flagged], data_fol=tmp_path)
+    [back] = _load_table("lookalikes", data_fol=tmp_path)
+    assert back == flagged
+
+
 def test_concept_relation_round_trip(tmp_path: Path) -> None:
     rel = ConceptRelation(
         concept_id_a="c__a__000000000000",

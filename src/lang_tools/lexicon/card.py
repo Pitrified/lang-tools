@@ -69,6 +69,10 @@ class LookalikeHint(BaseModel):
             card read with en and it known: ``{"en": ["good", ...]}``). A
             language with no word for that sense has no key; empty for a
             cognate.
+        shares_meaning: True for a false friend whose look-alike's main
+            meaning (``means``) is also a meaning of the card's word, so it
+            makes no trap (a reviewed flag,
+            `LookalikeRelation.shares_main_meaning`); False otherwise.
     """
 
     language: str
@@ -76,6 +80,7 @@ class LookalikeHint(BaseModel):
     kind: Literal["full", "partial", "cognate"]
     note: str = ""
     means: dict[str, list[str]] = Field(default_factory=dict)
+    shares_meaning: bool = False
 
     @property
     def is_trap(self) -> bool:

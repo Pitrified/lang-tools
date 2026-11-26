@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 import pyarrow.parquet as pq
 
 from lang_tools.lexicon.codec import PROVENANCE_COL
+from lang_tools.lexicon.codec import _load_table
 from lang_tools.lexicon.concept_id import concept_key
 from lang_tools.lexicon.ingestion.acquire import read_manifest
 from lang_tools.lexicon.ingestion.best_senses import BEST_SENSES_FILE
@@ -17,7 +18,11 @@ from lang_tools.lexicon.ingestion.best_senses import BestSense
 from lang_tools.lexicon.ingestion.enrich import CEFR_BANDS
 from lang_tools.lexicon.ingestion.lead_translations import LEAD_TRANSLATIONS_FILE
 from lang_tools.lexicon.ingestion.lead_translations import LeadTranslation
+from lang_tools.lexicon.ingestion.lookalikes import LOOKALIKES_FILE
+from lang_tools.lexicon.ingestion.lookalikes import LookalikeProposal
 from lang_tools.lexicon.ingestion.pipeline import build_initial
+from lang_tools.lexicon.ingestion.shared_meanings import SHARED_MEANING_LOG_FILE
+from lang_tools.lexicon.ingestion.shared_meanings import SharedMeaningRow
 from lang_tools.lexicon.ingestion.sources.omw import SenseLink
 from lang_tools.lexicon.ingestion.sources.omw import SynsetEntry
 from lang_tools.lexicon.lemma_id import lemma_id
@@ -30,6 +35,8 @@ from lang_tools.lexicon.maintenance import write_proposals
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from lang_tools.lexicon.relations import LookalikeRelation
 
 
 def _omw_with_counts() -> list[SynsetEntry]:
@@ -283,6 +290,61 @@ def test_reviewed_lead_translation_leads_the_card(tmp_path: Path) -> None:
     card = LexiconStore.from_data_fol(tmp_path).lemma_card(carreira)
     assert card is not None
     assert card.translations["en"][0] == last
+
+
+def test_reviewed_shared_meaning_flags_the_edge_and_card(tmp_path: Path) -> None:
+    """A curated shared-meaning row flags the look-alike edge on disk."""
+    entries = [
+        SynsetEntry("en", "en-1", "i001", "unafraid", ("brave",), pos="a"),
+        SynsetEntry("pt", "pt-1", "i001", None, ("bravo",), pos="a"),
+    ]
+    bravo = lemma_id("bravo", "pt")
+    brave = lemma_id("brave", "en")
+    write_jsonl(
+        [
+            LookalikeProposal(
+                target_id=bravo,
+                target_text="bravo",
+                known_id=brave,
+                known_text="brave",
+                known_language="en",
+                kind="partial",
+                status="accepted",
+            ),
+        ],
+        curated_path(tmp_path, LOOKALIKES_FILE),
+    )
+    summary = build_initial(["en", "pt"], data_fol=tmp_path, omw_entries=entries)
+    assert (summary.shared_meanings_flagged, summary.shared_meanings_stale) == (0, 0)
+    assert [e.shares_main_meaning for e in _lookalikes(tmp_path)] == [False]
+    write_jsonl(
+        [
+            SharedMeaningRow(
+                batch="t0001",
+                target_id=bravo,
+                known_id=brave,
+                kind="partial",
+                label="s",
+            ),
+        ],
+        curated_path(tmp_path, SHARED_MEANING_LOG_FILE),
+    )
+    summary = build_initial(["en", "pt"], data_fol=tmp_path, omw_entries=entries)
+    assert (summary.shared_meanings_flagged, summary.shared_meanings_stale) == (1, 0)
+    manifest = read_manifest(tmp_path)
+    assert manifest is not None
+    assert manifest["shared_meanings"] == {"flagged": 1, "stale": 0}
+    assert [e.shares_main_meaning for e in _lookalikes(tmp_path)] == [True]
+    card = LexiconStore.from_data_fol(tmp_path).lemma_card(
+        bravo, known_languages=["en"]
+    )
+    assert card is not None
+    assert [h.shares_meaning for h in card.lookalikes] == [True]
+
+
+def _lookalikes(data_fol: Path) -> list[LookalikeRelation]:
+    """Return the look-alike edges stored in a built corpus."""
+    return _load_table("lookalikes", data_fol=data_fol)
 
 
 def test_sample_carved_to_separate_corpus(tmp_path: Path) -> None:

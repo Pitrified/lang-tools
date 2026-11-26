@@ -86,6 +86,7 @@ nav:
       - Reviewing look-alike pairs: guides/lookalike_review.md
       - Reviewing card senses: guides/sense_review.md
       - Reviewing false-friend meanings: guides/false_friend_meaning_review.md
+      - Reviewing shared meanings: guides/shared_meaning_review.md
       - Missing senses: guides/missing_senses.md
   - Library:
       - Overview: library/index.md

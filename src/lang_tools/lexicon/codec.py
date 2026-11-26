@@ -108,6 +108,7 @@ _COLUMNS: dict[str, list[str]] = {
         "kind",
         "similarity_score",
         "explanation_notes",
+        "shares_main_meaning",
     ],
     "concept_relations": ["concept_id_a", "concept_id_b", "relation_type"],
     "sense_relations": ["sense_id_a", "sense_id_b", "relation_type"],
@@ -262,6 +263,7 @@ def _schema(name: str) -> Any:  # noqa: ANN401 - pyarrow.Schema, kept lazy
                 ("kind", pa.string()),
                 ("similarity_score", pa.float64()),
                 ("explanation_notes", str_map),
+                ("shares_main_meaning", pa.bool_()),
             ],
         ),
         "concept_relations": pa.schema(

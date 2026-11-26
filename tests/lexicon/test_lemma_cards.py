@@ -571,7 +571,7 @@ def test_cards_carry_lookalikes_in_known_languages() -> None:
     assert plain.lookalikes == []
 
 
-def _means_store(*, pin_brave: bool = False) -> LexiconStore:
+def _means_store(*, pin_brave: bool = False, flag_brave: bool = False) -> LexiconStore:
     """Build pt bravo (angry) with an it full and an en partial false friend.
 
     it *bravo* mainly means "good" (it also means "brave"); en *brave* means
@@ -629,7 +629,12 @@ def _means_store(*, pin_brave: bool = False) -> LexiconStore:
         ],
         lookalikes=[
             LookalikeRelation(lemma_id_a=bravo.id, lemma_id_b=bravo_it.id, kind="full"),
-            LookalikeRelation(lemma_id_a=bravo.id, lemma_id_b=brave.id, kind="partial"),
+            LookalikeRelation(
+                lemma_id_a=bravo.id,
+                lemma_id_b=brave.id,
+                kind="partial",
+                shares_main_meaning=flag_brave,
+            ),
             LookalikeRelation(
                 lemma_id_a=bravo.id, lemma_id_b=bravado.id, kind="partial"
             ),
@@ -668,6 +673,20 @@ def test_false_friend_means_follows_a_pinned_best_sense() -> None:
     )
     assert card is not None
     assert card.lookalikes[0].means == {"en": ["brave"]}
+
+
+def test_flagged_false_friend_shares_meaning_on_that_hint_only() -> None:
+    pt = Lemma(text="bravo", language="pt").id
+    plain = _means_store().lemma_card(pt, known_languages=["en", "it"])
+    flagged = _means_store(flag_brave=True).lemma_card(pt, known_languages=["en", "it"])
+    assert plain is not None
+    assert flagged is not None
+    assert [h.shares_meaning for h in plain.lookalikes] == [False, False, False]
+    assert {(h.text, h.shares_meaning) for h in flagged.lookalikes} == {
+        ("bravo", False),
+        ("bravado", False),
+        ("brave", True),
+    }
 
 
 def test_cognate_has_no_means() -> None:

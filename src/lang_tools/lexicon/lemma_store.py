@@ -93,7 +93,8 @@ if TYPE_CHECKING:
 #: v9: ``senses.is_best``, the reviewed best-sense pin, ordered first by the cards.
 #: v10: ``senses.form_note`` (a curated sense addition), carried to the cards.
 #: v11: ``senses.is_lead``, the reviewed lead translation, ordered first by the cards.
-CACHE_VERSION = 11
+#: v12: ``lookalikes.shares_main_meaning``, the reviewed shared main meaning.
+CACHE_VERSION = 12
 
 #: Filename of the persisted SQLite cache built inside a corpus directory. It is
 #: rebuilt from the Parquet whenever the corpus signature changes; never committed
@@ -1008,7 +1009,7 @@ class LexiconStore:
         lang_marks = ", ".join("?" for _ in languages)
         rows = self._conn.execute(
             "SELECT p.lemma_id, o.language, o.text, e.kind, e.explanation_notes,"  # noqa: S608
-            " d.concept_id"
+            " e.shares_main_meaning, d.concept_id"
             " FROM (SELECT lemma_id_a AS lemma_id, lemma_id_b AS other_id, rowid AS r"
             f"       FROM lookalikes WHERE lemma_id_a IN ({id_marks})"
             "       UNION ALL"
@@ -1046,6 +1047,7 @@ class LexiconStore:
                     kind=row["kind"],
                     note=notes.get("en", ""),
                     means=means,
+                    shares_meaning=bool(row["shares_main_meaning"]),
                 ),
             )
         return out

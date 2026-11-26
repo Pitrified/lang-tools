@@ -130,6 +130,9 @@ class LookalikeRelation(BaseModel):
         similarity_score: Optional 0.0-1.0 spelling similarity of the pair.
         explanation_notes: Per-language notes for the learner, keyed by ISO
             639-1 code (what each word means, for a false friend).
+        shares_main_meaning: True when a review found that the pt word is
+            also used for the look-alike's main meaning
+            (`ingestion.shared_meanings`); only set on a false friend.
     """
 
     lemma_id_a: str
@@ -137,6 +140,7 @@ class LookalikeRelation(BaseModel):
     kind: LookalikeKind = "full"
     similarity_score: float | None = None
     explanation_notes: dict[str, str] = Field(default_factory=dict)
+    shares_main_meaning: bool = False
 
     @property
     def is_false_friend(self) -> bool:
