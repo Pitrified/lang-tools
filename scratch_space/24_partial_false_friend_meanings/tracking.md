@@ -22,7 +22,7 @@ Analysis and decisions in [`00_start.md`](00_start.md).
 
 | #  | Phase                   | Plan                                           | Status |
 | -- | ----------------------- | ---------------------------------------------- | ------ |
-| 1  | The flag on the cards   | [`01_flag_on_cards.md`](01_flag_on_cards.md)   | planned |
+| 1  | The flag on the cards   | [`01_flag_on_cards.md`](01_flag_on_cards.md)   | done |
 | 2  | Rulebook and harness    | [`02_harness.md`](02_harness.md)               | planned |
 | 3  | Pilot                   | [`03_pilot.md`](03_pilot.md)                   | planned |
 | 4  | The rest                | [`04_full_run.md`](04_full_run.md)             | planned |
@@ -44,3 +44,13 @@ Append-only. Newest at the bottom.
   user read (Q4), Sonnet high for every batch (Q5, a without the Opus fallback: below 45 of 50
   the loop stops and asks), 0.12.0 with the `v0.12.0` tag (Q6). With full pairs in, the files
   are named `shared_meaning_*`, not `partial_meaning_*`. Phases planned.
+- 2026-11-26 : phase 1 done (`969401f`). `ingestion/shared_meanings.py` (`SharedMeaningRow`,
+  load, apply), `LookalikeRelation.shares_main_meaning`, codec column, build stage and manifest
+  `shared_meanings`, `CACHE_VERSION` 12, `LookalikeHint.shares_meaning`; docs. Built by a Sonnet
+  subagent (medium, an audit-trial variation); its label definitions were wrong in the docs and
+  fixed by hand. `make check` 619 passed; `make docs-build` clean.
+- 2026-11-26 : gold drafted for phase 2 (50 pairs: 30 partial, 20 full; 16 `s`, 31 `d`, 3 `w`).
+  acerta's read is noisy for this question: it calls pt *lobo* / en *lobe* shared but pt *lobo* /
+  it *lobo* good, and pt *bravo* / en *brave* good though pt *bravo* also means brave; so the
+  gold is labelled from the pairs, and the agreement with acerta's read (phases 3 and 5) is a
+  rough signal, not a score.
