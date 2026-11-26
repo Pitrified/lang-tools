@@ -25,7 +25,7 @@ Analysis and decisions in [`00_start.md`](00_start.md).
 | 1  | The flag on the cards   | [`01_flag_on_cards.md`](01_flag_on_cards.md)   | done |
 | 2  | Rulebook and harness    | [`02_harness.md`](02_harness.md)               | done |
 | 3  | Pilot                   | [`03_pilot.md`](03_pilot.md)                   | done |
-| 4  | The rest                | [`04_full_run.md`](04_full_run.md)             | planned |
+| 4  | The rest                | [`04_full_run.md`](04_full_run.md)             | done |
 | 5  | Rebuild and release     | [`05_rebuild.md`](05_rebuild.md)               | planned |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
@@ -60,3 +60,6 @@ Append-only. Newest at the bottom.
   docs reflow. `make check` 628 passed; `make docs-build` clean; worklist 973, gold first.
 - 2026-11-26 : phase 3 done. Pilot `p0001`: 39 s, 58 d, 3 w, 15 edge cases; gold 49/50 (above
   the 45 bar, Q5); my read of the other 50 found none wrong. No rulebook change.
+- 2026-11-26 : phase 4 done. `p0002` to `p0010` by nine Sonnet subagents: all 973 pairs labelled,
+  293 s (269 partial, 24 full), 665 d, 15 w; my read of 100 found 2 wrong, re-checked with one
+  more as `p9001` (all d). Gold still 49/50.
