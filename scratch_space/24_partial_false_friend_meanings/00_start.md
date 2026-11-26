@@ -1,5 +1,5 @@
 ---
-status: in progress
+status: done
 priority: 0
 description: |
   Flag the false friends whose look-alike mainly means a meaning it shares with the pt word

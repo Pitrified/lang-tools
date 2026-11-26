@@ -26,7 +26,7 @@ Analysis and decisions in [`00_start.md`](00_start.md).
 | 2  | Rulebook and harness    | [`02_harness.md`](02_harness.md)               | done |
 | 3  | Pilot                   | [`03_pilot.md`](03_pilot.md)                   | done |
 | 4  | The rest                | [`04_full_run.md`](04_full_run.md)             | done |
-| 5  | Rebuild and release     | [`05_rebuild.md`](05_rebuild.md)               | planned |
+| 5  | Rebuild and release     | [`05_rebuild.md`](05_rebuild.md)               | done |
 
 Status values: draft / planned / in progress / done / superseded / discarded.
 
@@ -63,3 +63,8 @@ Append-only. Newest at the bottom.
 - 2026-11-26 : phase 4 done. `p0002` to `p0010` by nine Sonnet subagents: all 973 pairs labelled,
   293 s (269 partial, 24 full), 665 d, 15 w; my read of 100 found 2 wrong, re-checked with one
   more as `p9001` (all d). Gold still 49/50.
+- 2026-11-26 : phase 5 done, folder done. Rebuilt: 293 pairs flagged, 0 stale, counts unchanged,
+  gate PASS, seed and report restored. Against acerta's read: 84 of its 104 shared partial
+  decoys flagged. 0.12.0 with its changelog; `v0.12.0` to tag on the merge commit. Left for
+  later: the 15 `w` pairs' best senses, the 24 full pairs labelled `s`, the pt *bruto* note;
+  acerta's re-export is its open point.

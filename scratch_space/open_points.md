@@ -170,3 +170,28 @@ a cognate by construction, so they could become edges with no review.
 acerta works around it on its side with a spelling check on the shown pair
 (acerta-word-drills `plans/03_false_friend_rounds`).
 Found on 2026-11-23 from the user's play at C2.
+
+## Look-alikes whose main meaning is a rare sense
+
+The shared-meaning review labelled 15 false-friend pairs `w`: the look-alike's best sense, which
+`LookalikeHint.means` shows, is not what it mainly means (it *terza* as a baseball position, not
+"third"; it *mensa* as a recreation room, not a canteen; en *post* as "publicize with a poster").
+The list is the `w` rows of `data/curated/shared_meaning_log.jsonl`; a fix is a best-sense pin,
+or a sense addition where WordNet lacks the meaning.
+Found in `24_partial_false_friend_meanings/05_rebuild.md`.
+
+## Full false friends that share the main meaning
+
+The same review labelled 24 `full` pairs `s`: the pt word is used for the look-alike's main
+meaning (pt *sorte* "a kind", as in *toda sorte de*; pt *cartão* "cardboard" in Portugal), which
+the look-alike rulebook says a full pair never is.
+Each may be `partial`, or the `s` may be a stretch (pt *divertido* ~ en *diverted*).
+The list is the `s` rows of `full` kind in `data/curated/shared_meaning_log.jsonl`; a fix is a
+look-alike re-check of those pairs.
+Found in `24_partial_false_friend_meanings/05_rebuild.md`.
+
+## A wrong learner note on pt *bruto* / it *bruto*
+
+The edge's note says it *bruto* means ugly; it mainly means brute or rough, and "ugly" is
+*brutto*. Reported by the shared-meaning review batch `p0006`; a fix is a corrected row in
+`data/curated/lookalikes.jsonl`.

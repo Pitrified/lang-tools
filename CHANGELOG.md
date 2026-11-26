@@ -7,6 +7,38 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.12.0] - 2026-11-26
+
+A false friend's look-alike now says whether its main meaning is one the pt word has too:
+it *tardi* mainly means "late", and pt *tarde*, mostly "afternoon", also means "late", so a
+drill should not offer *late* as the trap. All 973 full and partial false-friend pairs between a
+pt card and an en or it word were reviewed by Claude subagents under a written rulebook
+(gold 49/50): 293 share the look-alike's main meaning.
+
+### Added
+
+- `LookalikeHint.shares_meaning` (default `False`): true for a false friend whose look-alike's
+  main meaning (`means`) is also a meaning of the card's word, so it makes no trap. Served by
+  `GET /api/v1/cards`. Stored as `LookalikeRelation.shares_main_meaning`; a corpus that
+  predates it reads false. Store cache v12.
+- `ingestion.shared_meanings`: the build applies `data/curated/shared_meaning_log.jsonl`
+  (latest row per pair) right after the look-alikes; the manifest records `shared_meanings`
+  (flagged, stale).
+- `ingestion.shared_meaning_review` and its command line `shared_meaning_review_cli`
+  (`worklist`, `serve`, `apply`, `recheck`, `gold`, `status`), the rulebook
+  `docs/guides/shared_meaning_review.md` and the `shared-meaning-review` skill. Labels say the
+  pt word is used for the look-alike's main meaning (`s`), is not (`d`), or that the main
+  meaning shown is wrong (`w`, a list for a later fix). A gold set of 50 hand-labelled pairs is
+  `data/curated/shared_meaning_gold.jsonl`.
+
+### Data
+
+- 293 false-friend pairs flagged (269 partial, 24 full; 160 en and 133 it look-alikes), 665
+  not, 15 with a wrong main meaning (it *terza* shown as a baseball position). Corpus counts
+  unchanged.
+
+---
+
 ## [0.11.0] - 2026-11-25
 
 A false friend's look-alike now says what it mainly means, as words in the learner's other known
