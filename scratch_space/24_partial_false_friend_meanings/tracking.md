@@ -23,7 +23,7 @@ Analysis and decisions in [`00_start.md`](00_start.md).
 | #  | Phase                   | Plan                                           | Status |
 | -- | ----------------------- | ---------------------------------------------- | ------ |
 | 1  | The flag on the cards   | [`01_flag_on_cards.md`](01_flag_on_cards.md)   | done |
-| 2  | Rulebook and harness    | [`02_harness.md`](02_harness.md)               | planned |
+| 2  | Rulebook and harness    | [`02_harness.md`](02_harness.md)               | done |
 | 3  | Pilot                   | [`03_pilot.md`](03_pilot.md)                   | planned |
 | 4  | The rest                | [`04_full_run.md`](04_full_run.md)             | planned |
 | 5  | Rebuild and release     | [`05_rebuild.md`](05_rebuild.md)               | planned |
@@ -54,3 +54,7 @@ Append-only. Newest at the bottom.
   it *lobo* good, and pt *bravo* / en *brave* good though pt *bravo* also means brave; so the
   gold is labelled from the pairs, and the agreement with acerta's read (phases 3 and 5) is a
   rough signal, not a score.
+- 2026-11-26 : phase 2 done (`bbf68b7`). Rulebook `docs/guides/shared_meaning_review.md` and the
+  50 gold pairs written by hand; `ingestion.shared_meaning_review` and its CLI, the
+  `shared-meaning-review` skill and 9 tests by a Sonnet subagent at high effort, accepted with a
+  docs reflow. `make check` 628 passed; `make docs-build` clean; worklist 973, gold first.
