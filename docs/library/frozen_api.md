@@ -77,7 +77,10 @@ over HTTP in its default `http` mode.
   concept's topics, sorted (empty for most cards). Since v0.11.0 a false friend's
   `LookalikeHint.means` holds the words of the look-alike's own best sense in the
   other known languages (it *bravo* on a pt card read with en and it: `{"en":
-  ["good", ...]}`), empty for a cognate.
+  ["good", ...]}`), empty for a cognate. Since v0.12.0 `LookalikeHint.shares_meaning`
+  (default `False`) is true for a false friend whose look-alike's main meaning a
+  review found is also a meaning of the card's word, so `means` makes no trap; `LookalikeRelation.shares_main_meaning`
+  is the stored flag. A corpus that predates it reads false.
 - `get_all_concepts`, `get_concept_by_id`, `get_concept_by_key` (by the
   slug-free `concept_key`, since v0.4.0), `concepts_for_lemma`,
   `lemmas_for_concept`, `senses_for_lemma`, `senses_for_concept`,

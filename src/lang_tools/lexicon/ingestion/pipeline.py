@@ -47,6 +47,8 @@ from lang_tools.lexicon.ingestion.sample import DEFAULT_SAMPLE_CONCEPTS
 from lang_tools.lexicon.ingestion.sample import carve_sample
 from lang_tools.lexicon.ingestion.sense_additions import apply_sense_additions
 from lang_tools.lexicon.ingestion.sense_additions import load_sense_additions
+from lang_tools.lexicon.ingestion.shared_meanings import apply_shared_meanings
+from lang_tools.lexicon.ingestion.shared_meanings import load_shared_meanings
 from lang_tools.lexicon.ingestion.slug_qualifiers import load_slug_qualifiers
 from lang_tools.lexicon.ingestion.sources.cili import load_cili_glosses
 from lang_tools.lexicon.ingestion.sources.frequency import lemma_zipf
@@ -113,6 +115,10 @@ class BuildSummary:
             their language by the reviewed curated input.
         lead_translations_stale: Lead rows naming a sense this build lacks;
             skipped, never fatal.
+        shared_meanings_flagged: False-friend edges flagged as sharing their
+            main meaning by the reviewed curated input.
+        shared_meanings_stale: Shared-meaning rows naming a pair this build has
+            no false-friend edge for; skipped, never fatal.
     """
 
     languages: list[str]
@@ -133,6 +139,8 @@ class BuildSummary:
     best_senses_stale: int = 0
     lead_translations_applied: int = 0
     lead_translations_stale: int = 0
+    shared_meanings_flagged: int = 0
+    shared_meanings_stale: int = 0
 
 
 def _clean_corpus_tables(data_fol: Path) -> None:
@@ -384,6 +392,11 @@ def build_initial(
         (lemma.id for lemma in tables.lemmas),
         lookalike_rows,
     )
+    # Reviewed shared meanings flag the false-friend edges just built.
+    shared_flagged, shared_stale = apply_shared_meanings(
+        tables.lookalikes,
+        load_shared_meanings(data_fol),
+    )
     # Reviewed best senses pin the meaning a card shows; they key on the final
     # sense set, so they go in after every drop.
     best_applied, best_stale = apply_best_senses(
@@ -463,6 +476,7 @@ def build_initial(
             "part_of_speech_changed": pos_changed,
         },
         "lead_translations": {"applied": lead_applied, "stale": lead_stale},
+        "shared_meanings": {"flagged": shared_flagged, "stale": shared_stale},
         **(extra_manifest or {}),
     }
     path = write_manifest(data_fol, manifest)
@@ -487,4 +501,6 @@ def build_initial(
         best_senses_stale=best_stale,
         lead_translations_applied=lead_applied,
         lead_translations_stale=lead_stale,
+        shared_meanings_flagged=shared_flagged,
+        shared_meanings_stale=shared_stale,
     )
