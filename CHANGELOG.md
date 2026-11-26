@@ -7,6 +7,39 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.11.0] - 2026-11-25
+
+A false friend's look-alike now says what it mainly means, as words in the learner's other known
+language: pt *bravo* is "angry", it *bravo* is "good", so a drill asking in English can use
+*good* as the trap for a learner who reads through Italian. The main meaning is the look-alike's
+best sense, and the 664 en and it words that are a full or partial false friend of a pt card,
+with two senses or more, were reviewed by Claude subagents under a written rulebook (gold 30/30):
+180 get a pinned sense (it *dito* "finger", not "toe"; en *font* "typeface", not a baptismal
+font).
+
+### Added
+
+- `LookalikeHint.means` (default empty): for a full or partial false friend, the words of the
+  look-alike's own best sense in the card's other known languages, lead first; a language with
+  no word for that sense has no key, and a cognate's is empty. Served by `GET /api/v1/cards`.
+- `ingestion.false_friend_meaning_review` and its command line `false_friend_meaning_review_cli`
+  (`worklist`, `serve`, `apply`, `recheck`, `gold`, `status`), the rulebook
+  `docs/guides/false_friend_meaning_review.md` and the `false-friend-meaning-review` skill.
+  Labels keep the current sense, pin another, or say the main meaning has no sense; each is a
+  `best_senses.jsonl` row and a line of `data/curated/false_friend_meaning_log.jsonl`. A gold
+  set of 30 hand-labelled words is `data/curated/false_friend_meaning_gold.jsonl`.
+
+### Data
+
+- 180 best-sense pins on en and it words (`best_senses` applied 959 to 1,139, 1 stale); the
+  pins give 11 words the part of speech of their pinned sense (en *notice* a verb, en *surge* a
+  noun, it *lucido* an adjective). Corpus counts unchanged.
+- On the 500 false-friend hints of the most frequent pt cards, the look-alike's first word is
+  right for 455 (421 before), wrong for 9 (42 before), and missing for 36 (37 before): a right
+  sense with no word in the other language (en *lime* the fruit, en *disco*) leaves it empty.
+
+---
+
 ## [0.10.1] - 2026-11-17
 
 ### Data

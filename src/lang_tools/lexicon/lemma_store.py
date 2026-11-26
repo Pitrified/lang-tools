@@ -998,14 +998,17 @@ class LexiconStore:
 
         One batched read over both endpoints of the edge table. Hints are
         ordered false friends first (``full``, then ``partial``), then cognates,
-        then by similarity.
+        then by similarity. A false friend's ``means`` holds the words of the
+        look-alike's own best sense (``lemma_drill``) in the other given
+        languages, from one more batched read.
         """
         if not lemma_ids or not languages:
             return {}
         id_marks = ", ".join("?" for _ in lemma_ids)
         lang_marks = ", ".join("?" for _ in languages)
         rows = self._conn.execute(
-            "SELECT p.lemma_id, o.language, o.text, e.kind, e.explanation_notes"  # noqa: S608
+            "SELECT p.lemma_id, o.language, o.text, e.kind, e.explanation_notes,"  # noqa: S608
+            " d.concept_id"
             " FROM (SELECT lemma_id_a AS lemma_id, lemma_id_b AS other_id, rowid AS r"
             f"       FROM lookalikes WHERE lemma_id_a IN ({id_marks})"
             "       UNION ALL"
@@ -1013,20 +1016,36 @@ class LexiconStore:
             f"       WHERE lemma_id_b IN ({id_marks})) p"
             " JOIN lookalikes e ON e.rowid = p.r"
             " JOIN lemmas o ON o.id = p.other_id"
+            " LEFT JOIN lemma_drill d ON d.lemma_id = o.id"
             f" WHERE o.language IN ({lang_marks})"
             " ORDER BY CASE e.kind WHEN 'full' THEN 0 WHEN 'partial' THEN 1"
             " ELSE 2 END, e.similarity_score DESC NULLS LAST, o.text",
             (*lemma_ids, *lemma_ids, *languages),
         ).fetchall()
+        trap_concepts = sorted(
+            {
+                r["concept_id"]
+                for r in rows
+                if r["kind"] != "cognate" and r["concept_id"]
+            }
+        )
+        translations = self._card_translations(trap_concepts, languages)
         out: dict[str, list[LookalikeHint]] = defaultdict(list)
         for row in rows:
             notes = json.loads(row["explanation_notes"] or "{}")
+            means: dict[str, list[str]] = {}
+            if row["kind"] != "cognate" and row["concept_id"]:
+                for language in languages:
+                    words = translations.get((row["concept_id"], language), [])
+                    if language != row["language"] and words:
+                        means[language] = [text for _, text in words]
             out[row["lemma_id"]].append(
                 LookalikeHint(
                     language=row["language"],
                     text=row["text"],
                     kind=row["kind"],
                     note=notes.get("en", ""),
+                    means=means,
                 ),
             )
         return out
